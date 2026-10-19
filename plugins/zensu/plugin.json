@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "zensu",
+  "version": "0.2.0",
+  "description": "Zensu product lifecycle, implementation, evidence, review and session workflows for Copilot CLI",
+  "author": {
+    "name": "Zensu",
+    "email": "hello@zensu.dev"
+  },
+  "license": "FSL-1.1-Apache-2.0"
+}

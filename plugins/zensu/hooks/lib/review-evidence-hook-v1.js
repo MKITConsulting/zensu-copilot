@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('node:fs');
+const hookSession = require('./copilot-hook-session-v1.js');
+const leases = require('./review-evidence-lease-v1.js');
+
+const MAX_PAYLOAD_BYTES = 1024 * 1024;
+
+function fail(message) {
+  throw new Error(`review-evidence-hook-v1: ${message}`);
+}
+
+function readPayload(expectedEvent) {
+  const raw = fs.readFileSync(0);
+  if (raw.length === 0 || raw.length > MAX_PAYLOAD_BYTES) fail('hook payload is empty or too large');
+  let payload;
+  try { payload = JSON.parse(raw.toString('utf8')); } catch { fail('hook payload is invalid JSON'); }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) fail('hook payload must be an object');
+  if (payload.eventName !== expectedEvent) fail(`expected ${expectedEvent}`);
+  return payload;
+}
+
+// Binds with the automatic adoption opted in, and DISCLOSES an adoption this
+// process performed under THIS hook's lead-in. This hook binds IN PROCESS, never
+// through the CLI binder, so without the binder's bind-and-disclose an adoption
+// landing here re-minted the record, kept a superseded copy and swept the lease
+// store without a line anywhere — and on subagentStop no sibling adapter exists to
+// speak for it.
+const LEAD_IN = 'review-evidence-hook-v1';
+
+function bindAndDisclose(payload) {
+  return hookSession.bindAndDisclose(payload, process.env, { autoAdopt: true }, LEAD_IN);
+}
+
+function start() {
+  const payload = readPayload('subagentStart');
+  const kind = leases.kindForAgentType(payload.agentType);
+  if (!kind) return;
+  // Opts into the automatic adoption: this hook runs on the same subagentStart
+  // matcher as the session-control adapter and in parallel with it, so without
+  // adopting here it could bind-fail in the adoption window, mint no lease, and
+  // leave the reviewer denied for the whole review. The records lock serializes
+  // the two; the loser sees already-served and re-reads.
+  const binding = bindAndDisclose(payload);
+  leases.bindWorker(payload, binding);
+  process.stdout.write(`${JSON.stringify({
+    
+      additionalContext: `evidence-worker-v1 bound: kind=${kind}. view only exact leased files; grep/glob only exact leased traversal roots; return one raw schema-valid JSON object. No private lease or session selector is exposed.`,
+  })}\n`);
+}
+
+function stop() {
+  const payload = readPayload('subagentStop');
+  if (!leases.kindForAgentType(payload.agentType)) return;
+  // Opts into the automatic adoption for its own reason: no adapter binds on
+  // subagentStop, so an adoption that fell due while the worker ran lands HERE or
+  // not at all — and without it the bind fails and the worker's result is lost
+  // along with the lease retirement.
+  const binding = bindAndDisclose(payload);
+  const outcome = leases.storeWorkerResult(payload, binding);
+  if (outcome.action === 'block') {
+    process.stdout.write(`${JSON.stringify({
+      decision: 'block',
+      reason: `Your evidence-worker result was rejected: ${outcome.reason}. Reply once more with exactly one raw schema-valid JSON object for the assigned kind and role; no Markdown fence, preface, or suffix.`,
+    })}\n`);
+  }
+}
+
+function main() {
+  const mode = process.argv[2];
+  if (process.argv.length !== 3 || !['start', 'stop'].includes(mode)) fail('expected start or stop');
+  if (mode === 'start') start();
+  else stop();
+}
+
+// The entry point runs only when this file IS the hook, so requiring it — the unit
+// layer does — runs no hook and reads no stdin.
+if (require.main === module) {
+  try { main(); } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  }
+}
+
+module.exports = { LEAD_IN, bindAndDisclose };

@@ -1,0 +1,2877 @@
+#!/bin/bash
+set -u
+_ZENSU_EXECUTED_PLUGIN_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)" || exit 2
+if [ -n "${COPILOT_PLUGIN_ROOT:-}" ]; then
+  _ZENSU_DECLARED_PLUGIN_ROOT="$(cd -P -- "$COPILOT_PLUGIN_ROOT" 2>/dev/null && pwd -P)" || {
+    echo "zensu: inherited COPILOT_PLUGIN_ROOT does not match the executing plugin" >&2
+    exit 2
+  }
+  if [ "$_ZENSU_DECLARED_PLUGIN_ROOT" != "$_ZENSU_EXECUTED_PLUGIN_ROOT" ]; then
+    echo "zensu: inherited COPILOT_PLUGIN_ROOT does not match the executing plugin" >&2
+    exit 2
+  fi
+fi
+COPILOT_PLUGIN_ROOT="$_ZENSU_EXECUTED_PLUGIN_ROOT"
+unset _ZENSU_EXECUTED_PLUGIN_ROOT _ZENSU_DECLARED_PLUGIN_ROOT
+source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-config.sh"
+source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-full-suite-transport.sh"
+
+case "${1:-}" in
+  --evidence-run)
+    _ZENSU_EVR_CALLER_PD_SET="${COPILOT_PROJECT_DIR+set}"
+    _ZENSU_EVR_CALLER_PD="${COPILOT_PROJECT_DIR-}"
+    ;;
+esac
+
+# State verbs bind from the skill-rendered plugin-data path and Copilot's host
+# session id inside this helper process only. sessionStart deliberately exports
+# calls too. Missing context is a hard failure; transcript and PPID discovery
+# remain absent.
+case "${1:-}" in
+  --*)
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+    if ! zensu_bind_model_session; then
+      echo "zensu-log.sh: rendered Session Control binding unavailable" >&2
+      if [ -z "${COPILOT_SESSION_ID:-}" ]; then
+        echo "zensu-log.sh: COPILOT_SESSION_ID is not set — this helper must run from Copilot CLI's own bash tool, which supplies the host session id." >&2
+      fi
+      if [ -z "${COPILOT_PLUGIN_DATA:-}" ]; then
+        echo "zensu-log.sh: COPILOT_PLUGIN_DATA is not set — run this helper exactly as the Zensu hook or skill renders it, including its leading 'COPILOT_PLUGIN_DATA=...' assignment; never hand-build the command." >&2
+      fi
+      if ! command -v node >/dev/null 2>&1; then
+        echo "zensu-log.sh: node is not on PATH — Session Control cannot bind without it." >&2
+      fi
+      exit 2
+    fi
+    if ! _zensu_pd="$(zensu_resolve_project_dir)" || [ -z "$_zensu_pd" ]; then
+      echo "zensu-log.sh: Session Control project context unavailable" >&2
+      exit 2
+    fi
+    export COPILOT_PROJECT_DIR="$_zensu_pd"
+    unset _zensu_pd
+    ;;
+esac
+
+zensu_state_failure_hint() {
+  local verb="${1:-}" session="${2:-}" state_file status
+  [ -n "$verb" ] && [ -n "$session" ] || return 0
+  command -v tdd_state_file >/dev/null 2>&1 || return 0
+  state_file="$(tdd_state_file "$session" 2>/dev/null)" || return 0
+  status="$(tdd_state_status "$state_file" 2>/dev/null)"
+  case "$status" in
+    missing)
+      echo "zensu-log.sh $verb: no chain state exists for this session — it was never armed in this project, or the state file was removed. '.zensu/' is gitignored, so a git clean, a worktree removal, or a branch cleanup deletes it. Re-run --tdd-begin to arm a fresh chain; the previous chain cannot be recovered." >&2
+      ;;
+    invalid)
+      echo "zensu-log.sh $verb: the chain state for this session is unreadable or belongs to another session. Run /zensu-doctor for the exact diagnosis; --tdd-begin arms a fresh chain when the current one is beyond repair." >&2
+      ;;
+    *)
+      echo "zensu-log.sh $verb: the chain state is readable, so this verb's own precondition was not met — an inactive session, the wrong chain phase, or a stale generation." >&2
+      ;;
+  esac
+}
+
+# A chain terminus is a disclosure point: a gate escape needs no file change to
+# be recorded, so the zero-change spelling is exactly where one would otherwise
+# go unreported. The line goes to stderr, the operator channel every other
+# release message in the agentStop enforcer already uses, so a caller parsing this
+# verb's stdout is unaffected.
+zensu_render_terminus_bypasses() {
+  local session="${1:-}" rendered
+  [ -n "$session" ] || return 0
+  command -v zensu_bypass_display >/dev/null 2>&1 || return 0
+  rendered="$(zensu_bypass_display "$(tdd_state_file "$session" 2>/dev/null)")"
+  [ -n "$rendered" ] && echo "Gates bypassed during this session: $rendered" >&2
+  return 0
+}
+
+_tc_git() { (
+  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR \
+        GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES \
+        GIT_CEILING_DIRECTORIES GIT_DISCOVERY_ACROSS_FILESYSTEM \
+        GIT_NAMESPACE GIT_PREFIX GIT_CONFIG GIT_CONFIG_GLOBAL \
+        GIT_CONFIG_SYSTEM GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS
+  git "$@"
+); }
+
+_zensu_unqualified_change_count() {
+  local root="${1:-}" inside inside_err tracked untracked
+  [ -n "$root" ] || { printf 'unavailable'; return 0; }
+  command -v git >/dev/null 2>&1 || { printf 'unknown'; return 0; }
+  if inside="$(_tc_git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)"; then
+    [ "$inside" = "true" ] || { printf 'unknown'; return 0; }
+  else
+    inside_err="$(LC_ALL=C _tc_git -C "$root" rev-parse --is-inside-work-tree 2>&1 >/dev/null)"
+    case "$inside_err" in
+      (*[Nn]"ot a git repository"*) printf 'unknown' ;;
+      (*) printf 'unavailable' ;;
+    esac
+    return 0
+  fi
+  _tc_git -C "$root" rev-parse --verify --quiet HEAD >/dev/null 2>&1
+  case "$?" in
+    (0) ;;
+    (1) printf 'unknown'; return 0 ;;
+    (*) printf 'unavailable'; return 0 ;;
+  esac
+  tracked="$(_tc_git -C "$root" diff --name-only HEAD 2>/dev/null)" || { printf 'unavailable'; return 0; }
+  untracked="$(_tc_git -C "$root" ls-files --others --exclude-standard 2>/dev/null)" || { printf 'unavailable'; return 0; }
+  printf '%s\n%s\n' "$tracked" "$untracked" | awk 'length($0) > 0 && !seen[$0]++ { n++ } END { print n + 0 }'
+}
+
+_zensu_evr_prepare() {
+  local label="$1"
+  if ! command -v node >/dev/null 2>&1; then
+    echo "$label: node is required for the full-suite record" >&2
+    return 2
+  fi
+  _evr_lib_dir="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-host-path.sh" "${COPILOT_PLUGIN_ROOT}/hooks/lib")" || {
+    echo "$label: the plugin library directory cannot be resolved" >&2
+    return 2
+  }
+  _evr_data="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-host-path.sh" "${COPILOT_PLUGIN_DATA:-}")" || {
+    echo "$label: COPILOT_PLUGIN_DATA does not name a usable directory" >&2
+    return 2
+  }
+  _evr_dir="$(mktemp -d 2>/dev/null)" || {
+    echo "$label: no temporary directory available" >&2
+    return 2
+  }
+  trap 'rm -rf "$_evr_dir" ${_avr_dir:+"$_avr_dir"}' EXIT
+  _evr_dir_native="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-host-path.sh" "$_evr_dir")" || {
+    echo "$label: the temporary directory cannot be resolved" >&2
+    return 2
+  }
+  printf '%s' "$(zensu_evidence_full_suite_command)" > "$_evr_dir/full-suite-command"
+  printf '%s' "$(zensu_evidence_full_suite_gate)" > "$_evr_dir/gate-mode"
+  printf 'COPILOT_PLUGIN_DATA=%q bash %q --evidence-run --scope full' \
+    "${COPILOT_PLUGIN_DATA:-}" "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" > "$_evr_dir/remedy-prefix"
+  printf 'COPILOT_PLUGIN_DATA=%q bash %q --evidence-run --scope scoped' \
+    "${COPILOT_PLUGIN_DATA:-}" "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" > "$_evr_dir/remedy-prefix-scoped"
+  printf '%s' "$(zensu_full_suite_marker_state "${COPILOT_PROJECT_DIR:-}" "${ZENSU_SESSION_KEY:-}")" > "$_evr_dir/full-suite-marker"
+  printf '%s' "$(zensu_evidence_ci_config_json)" > "$_evr_dir/ci-config.json"
+  _evr_msys_excl="$(zensu_msys_env_exclusions ZENSU_EVR_LIB ZENSU_EVR_DIR ZENSU_EVR_PLUGIN_DATA \
+    ZENSU_EVR_PROJECT_ROOT ZENSU_EVR_CWD ZENSU_EVR_BASH)" || _evr_msys_excl="${MSYS2_ENV_CONV_EXCL:-}"
+  return 0
+}
+
+_zensu_evr_node() {
+  MSYS2_ENV_CONV_EXCL="$_evr_msys_excl" \
+  ZENSU_EVR_LIB="$_evr_lib_dir/evidence-run-v1.js" \
+  ZENSU_EVR_DIR="$_evr_dir_native" \
+  ZENSU_EVR_PLUGIN_DATA="$_evr_data" \
+  ZENSU_EVR_SESSION_KEY="${ZENSU_SESSION_KEY:-}" \
+  ZENSU_EVR_PROJECT_ROOT="${ZENSU_PROJECT_ROOT:-}" \
+  ZENSU_EVR_CWD="${_evr_cwd:-}" \
+  ZENSU_EVR_SCOPE="${_evr_scope:-}" \
+  ZENSU_EVR_SHOW="${_evr_show:-tail}" \
+  ZENSU_EVR_IF_STALE="${_evr_if_stale:-0}" \
+  ZENSU_EVR_LOCAL="${_evr_local:-0}" \
+  ZENSU_EVR_ESCAPE="${_evr_escape:-0}" \
+  ZENSU_EVR_BASH="${_evr_bash:-bash}" \
+  ZENSU_EVR_LABEL="$1" \
+  ZENSU_EVR_MODE="$2" \
+    node -e 'require(process.env.ZENSU_EVR_LIB).main([process.env.ZENSU_EVR_MODE]).then((code) => { process.exitCode = code; }, (error) => { process.stderr.write(process.env.ZENSU_EVR_LABEL + ": " + (error && error.message ? error.message : String(error)) + "\n"); process.exitCode = 2; })'
+}
+
+_zensu_full_suite_ticket_matches() {
+  local current
+  current="$(tdd_claimed_review_ticket "$(tdd_state_file "${1:-}" 2>/dev/null)" 2>/dev/null)" || return 1
+  [ -n "$current" ] && [ "$current" = "${2:-}" ]
+}
+
+_zensu_full_suite_gate() {
+  local session="$1" rc=0
+  _fsg_lines=""
+  _evr_escape=0
+  [ "${ZENSU_FULL_SUITE_GATE:-on}" = "off" ] && _evr_escape=1
+  if ! _zensu_evr_prepare "zensu-log.sh --chain-done"; then
+    if [ "$_evr_escape" = "1" ]; then
+      tdd_record_bypass "$session" ZENSU_FULL_SUITE_GATE >/dev/null 2>&1 || true
+      return 0
+    fi
+    [ "$(zensu_evidence_full_suite_gate)" = "advisory" ] && return 0
+    return 1
+  fi
+  _fsg_lines="$(_zensu_evr_node "zensu-log.sh --chain-done" verdict 2>&1 >/dev/null)" || rc=$?
+  if [ "$(cat "$_evr_dir/verdict-state" 2>/dev/null)" = "escaped" ]; then
+    tdd_record_bypass "$session" ZENSU_FULL_SUITE_GATE >/dev/null 2>&1 || true
+  fi
+  [ "$rc" -eq 0 ] && return 0
+  [ -n "$_fsg_lines" ] && printf '%s\n' "$_fsg_lines" >&2
+  echo "zensu-log.sh --chain-done: the chain stays open; resolve the FULL SUITE refusal above, then run --chain-done again." >&2
+  return 1
+}
+
+_zensu_avr_prepare() {
+  local label="$1" session="${2:-}" light="${3:-0}" receipt state_file
+  if ! command -v node >/dev/null 2>&1; then
+    echo "$label: node is required for acceptance records" >&2
+    return 2
+  fi
+  command -v tdd_edit_landing_receipt >/dev/null 2>&1 \
+    || source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+  _avr_lib="$(_tdd_native_path "${COPILOT_PLUGIN_ROOT}/hooks/lib/acceptance-verify-v1.js")" || {
+    echo "$label: the acceptance module cannot be resolved" >&2
+    return 2
+  }
+  _avr_data="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-host-path.sh" "${COPILOT_PLUGIN_DATA:-}")" || {
+    echo "$label: COPILOT_PLUGIN_DATA does not name a usable directory" >&2
+    return 2
+  }
+  _avr_receipt=""
+  _avr_escaped_el=0
+  if [ "$light" != "1" ]; then
+    receipt="$(tdd_edit_landing_receipt "$session" 2>/dev/null)" || receipt=""
+    if [ -z "$receipt" ]; then
+      echo "$label: this session's edit-landing receipt path cannot be resolved" >&2
+      return 2
+    fi
+    _avr_receipt="$(_tdd_native_path "$receipt")" || {
+      echo "$label: this session's edit-landing receipt path cannot be resolved" >&2
+      return 2
+    }
+    if [ -n "${_avr_log:-}" ]; then
+      case "$_avr_log" in
+        (/*|[A-Za-z]:*) ;;
+        (*) _avr_log="$PWD/$_avr_log" ;;
+      esac
+      _avr_log="$(_tdd_native_path "$_avr_log")" || {
+        echo "$label: --log cannot be resolved" >&2
+        return 2
+      }
+    fi
+    [ "${ZENSU_EDIT_LANDING_GATE:-on}" = "off" ] && _avr_escaped_el=1
+    state_file="$(tdd_state_file "$session" 2>/dev/null)" || state_file=""
+    if [ "$_avr_escaped_el" = "0" ] && [ -n "$state_file" ] \
+      && tdd_bypass_recorded "$state_file" ZENSU_EDIT_LANDING_GATE; then
+      _avr_escaped_el=1
+    fi
+  fi
+  _avr_dir="$(mktemp -d 2>/dev/null)" || {
+    echo "$label: no temporary directory available" >&2
+    return 2
+  }
+  trap 'rm -rf ${_evr_dir:+"$_evr_dir"} "$_avr_dir"' EXIT
+  _avr_dir_native="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-host-path.sh" "$_avr_dir")" || {
+    echo "$label: the temporary directory cannot be resolved" >&2
+    return 2
+  }
+  printf '%s' "$(zensu_evidence_acceptance_gate)" > "$_avr_dir/gate-mode"
+  _avr_bash="$(_zensu_config_native_path "${BASH:-bash}")" || _avr_bash="bash"
+  _avr_msys_excl="$(zensu_msys_env_exclusions ZENSU_AVR_LIB ZENSU_AVR_DIR ZENSU_AVR_PLUGIN_DATA \
+    ZENSU_AVR_PROJECT_ROOT ZENSU_AVR_RECEIPT ZENSU_AVR_LOG ZENSU_AVR_BASH)" || _avr_msys_excl="${MSYS2_ENV_CONV_EXCL:-}"
+  return 0
+}
+
+_zensu_avr_node() {
+  MSYS2_ENV_CONV_EXCL="$_avr_msys_excl" \
+  ZENSU_AVR_LIB="$_avr_lib" \
+  ZENSU_AVR_DIR="$_avr_dir_native" \
+  ZENSU_AVR_PLUGIN_DATA="$_avr_data" \
+  ZENSU_AVR_SESSION_KEY="${ZENSU_SESSION_KEY:-}" \
+  ZENSU_AVR_PROJECT_ROOT="${ZENSU_PROJECT_ROOT:-}" \
+  ZENSU_AVR_RECEIPT="$_avr_receipt" \
+  ZENSU_AVR_LOG="${_avr_log:-}" \
+  ZENSU_AVR_AC="${_avr_ac:-}" \
+  ZENSU_AVR_VERDICT="${_avr_verdict:-}" \
+  ZENSU_AVR_DRIVER="${_avr_driver:-}" \
+  ZENSU_AVR_EVIDENCE_RUN="${_avr_evidence_run:-}" \
+  ZENSU_AVR_ESCAPE="${_avr_escape:-0}" \
+  ZENSU_AVR_BOUND="${_avr_bound:-0}" \
+  ZENSU_AVR_VALIDATE="${_avr_validate:-}" \
+  ZENSU_AVR_EDIT_LANDING_ESCAPED="${_avr_escaped_el:-0}" \
+  ZENSU_AVR_BASH="${_avr_bash:-bash}" \
+  ZENSU_AVR_LABEL="$1" \
+  ZENSU_AVR_MODE="$2" \
+    node -e 'require(process.env.ZENSU_AVR_LIB).main([process.env.ZENSU_AVR_MODE]).then((code) => { process.exitCode = code; }, (error) => { process.stderr.write(process.env.ZENSU_AVR_LABEL + ": " + (error && error.message ? error.message : String(error)) + "\n"); process.exitCode = 2; })'
+}
+
+_zensu_autopilot_validate_option() {
+  local run_json
+  command -v autopilot_read_run >/dev/null 2>&1 \
+    || source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh" 2>/dev/null \
+    || return 0
+  run_json="$(autopilot_read_run "${1:-}" 2>/dev/null)" || return 0
+  ZENSU_AVR_RUN_JSON="$run_json" node -e 'try { const state = JSON.parse(process.env.ZENSU_AVR_RUN_JSON); const value = state && state.options ? state.options.validate : undefined; process.stdout.write(value === true ? "on" : value === false ? "off" : ""); } catch (_) {}' 2>/dev/null || true
+}
+
+_zensu_acceptance_gate() {
+  local session="$1" rc=0
+  _avg_lines=""
+  _avr_bound="${2:-0}"
+  _avr_validate="${3:-}"
+  _avr_escape=0
+  if [ "$_avr_bound" = "1" ]; then
+    _zensu_avr_prepare "zensu-log.sh --chain-done" "$session" 1 2>/dev/null || return 0
+    _avg_lines="$(_zensu_avr_node "zensu-log.sh --chain-done" verdict 2>&1 >/dev/null)" || _avg_lines=""
+    return 0
+  fi
+  [ "${ZENSU_ACCEPTANCE_GATE:-on}" = "off" ] && _avr_escape=1
+  if ! _zensu_avr_prepare "zensu-log.sh --chain-done" "$session"; then
+    if [ "$_avr_escape" = "1" ]; then
+      tdd_record_bypass "$session" ZENSU_ACCEPTANCE_GATE >/dev/null 2>&1 || true
+      return 0
+    fi
+    [ "$(zensu_evidence_acceptance_gate)" = "advisory" ] && return 0
+    return 1
+  fi
+  _avg_lines="$(_zensu_avr_node "zensu-log.sh --chain-done" verdict 2>&1 >/dev/null)" || rc=$?
+  if [ "$(cat "$_avr_dir/verdict-state" 2>/dev/null)" = "escaped" ]; then
+    tdd_record_bypass "$session" ZENSU_ACCEPTANCE_GATE >/dev/null 2>&1 || true
+  fi
+  [ "$rc" -eq 0 ] && return 0
+  [ -n "$_avg_lines" ] && printf '%s\n' "$_avg_lines" >&2
+  echo "zensu-log.sh --chain-done: the chain stays open; resolve the ACCEPTANCE refusal above, then run --chain-done again." >&2
+  return 1
+}
+
+_evr_dir=""
+_avr_dir=""
+
+case "${1:-}" in
+  --evidence-run)
+    evr_cmd=""
+    evr_cmd_seen=false
+    evr_log=""
+    evr_start=""
+    _evr_scope=""
+    _evr_show="tail"
+    _evr_if_stale=0
+    _evr_local=0
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --scope) _evr_scope="${2:-}"; shift 2 || break ;;
+        --cmd) evr_cmd="${2:-}"; evr_cmd_seen=true; shift 2 || break ;;
+        --show) _evr_show="${2:-}"; shift 2 || break ;;
+        --if-stale) _evr_if_stale=1; shift ;;
+        --local) _evr_local=1; shift ;;
+        --log) evr_log="${2:-}"; shift 2 || break ;;
+        --start) evr_start="${2:-}"; shift 2 || break ;;
+        *) echo "zensu-log.sh --evidence-run: unknown argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    case "$_evr_scope" in
+      full|lint|build|coverage|scoped|acceptance) ;;
+      *) echo "zensu-log.sh --evidence-run: --scope must be one of full, lint, build, coverage, scoped, acceptance" >&2; exit 2 ;;
+    esac
+    case "$_evr_show" in
+      tail|all) ;;
+      *) echo "zensu-log.sh --evidence-run: --show must be tail or all" >&2; exit 2 ;;
+    esac
+    _zensu_evr_prepare "zensu-log.sh --evidence-run" || exit 2
+    _evr_cwd="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-host-path.sh" "$PWD" 2>/dev/null)" || _evr_cwd=""
+    _evr_bash="$(_zensu_config_native_path "${BASH:-bash}")" || _evr_bash="bash"
+    if [ "$evr_cmd_seen" = true ]; then
+      printf '%s' "$evr_cmd" > "$_evr_dir/command"
+    fi
+    if [ "${_ZENSU_EVR_CALLER_PD_SET:-}" = "set" ]; then
+      printf '%s' "${_ZENSU_EVR_CALLER_PD:-}" > "$_evr_dir/caller-project-dir"
+    fi
+    _zensu_evr_node "zensu-log.sh --evidence-run" run
+    evr_rc=$?
+    if [ -n "$evr_log" ] && [ -s "$_evr_dir/run-log-line" ]; then
+      evr_line="$(cat "$_evr_dir/run-log-line")"
+      if [ -n "$evr_start" ]; then
+        bash "$0" append --log "$evr_log" --message "$evr_line" --start "$evr_start" >/dev/null \
+          || echo "zensu-log.sh --evidence-run: the run-log line could not be appended to $evr_log" >&2
+      else
+        bash "$0" append --log "$evr_log" --message "$evr_line" >/dev/null \
+          || echo "zensu-log.sh --evidence-run: the run-log line could not be appended to $evr_log" >&2
+      fi
+    fi
+    exit "$evr_rc"
+    ;;
+  --full-suite-policy)
+    _fsp_refresh=0
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --refresh) _fsp_refresh=1; shift ;;
+        *) echo "zensu-log.sh --full-suite-policy: unknown argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    zensu_full_suite_policy_node "zensu-log.sh --full-suite-policy" policy "$_fsp_refresh"
+    exit $?
+    ;;
+  --external-review)
+    echo "zensu-log.sh: external Workflow imports are not part of Copilot CLI. Run the native /zensu-tdd task panel, judges and finding verification; its ticket controls completion." >&2
+    exit 2
+    ;;
+  --acceptance-record|--acceptance-status)
+    avr_verb="$1"
+    avr_start=""
+    _avr_log=""
+    _avr_ac=""
+    _avr_verdict=""
+    _avr_driver=""
+    _avr_evidence_run=""
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --log) _avr_log="${2:-}"; shift 2 || break ;;
+        --start) avr_start="${2:-}"; shift 2 || break ;;
+        --ac|--verdict|--driver|--evidence-run)
+          if [ "$avr_verb" != "--acceptance-record" ]; then
+            echo "zensu-log.sh $avr_verb: unknown argument: $1" >&2
+            exit 2
+          fi
+          case "$1" in
+            --ac) _avr_ac="${2:-}" ;;
+            --verdict) _avr_verdict="${2:-}" ;;
+            --driver) _avr_driver="${2:-}" ;;
+            --evidence-run) _avr_evidence_run="${2:-}" ;;
+          esac
+          shift 2 || break
+          ;;
+        *) echo "zensu-log.sh $avr_verb: unknown argument: $1" >&2; exit 2 ;;
+      esac
+    done
+    if [ -z "$_avr_log" ]; then
+      echo "zensu-log.sh $avr_verb: --log <this chain's run log> is required" >&2
+      exit 2
+    fi
+    avr_log_arg="$_avr_log"
+    if ! avr_session="$(zensu_resolve_session_id)" || [ -z "$avr_session" ]; then
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    fi
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+    _zensu_avr_prepare "zensu-log.sh $avr_verb" "$avr_session" || exit 2
+    if [ "$avr_verb" = "--acceptance-status" ]; then
+      _zensu_avr_node "zensu-log.sh --acceptance-status" status
+      exit $?
+    fi
+    if [ -t 0 ]; then
+      echo "zensu-log.sh --acceptance-record: pass the evidence text on stdin through a quoted heredoc" >&2
+      exit 2
+    fi
+    head -c 65536 > "$_avr_dir/evidence"
+    _zensu_avr_node "zensu-log.sh --acceptance-record" record
+    avr_rc=$?
+    if [ "$avr_rc" -eq 0 ] && [ -s "$_avr_dir/run-log-line" ]; then
+      avr_line="$(cat "$_avr_dir/run-log-line")"
+      if [ -n "$avr_start" ]; then
+        bash "$0" append --log "$avr_log_arg" --message "$avr_line" --start "$avr_start" >/dev/null \
+          || echo "zensu-log.sh --acceptance-record: the run-log line could not be appended to $avr_log_arg" >&2
+      else
+        bash "$0" append --log "$avr_log_arg" --message "$avr_line" >/dev/null \
+          || echo "zensu-log.sh --acceptance-record: the run-log line could not be appended to $avr_log_arg" >&2
+      fi
+    fi
+    exit "$avr_rc"
+    ;;
+  --session-key)
+    session_val="$(zensu_resolve_session_id)" || {
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    }
+    printf '%s\n' "$session_val"
+    exit 0
+    ;;
+  --project-root)
+    if [ "$#" -ne 1 ]; then
+      echo "zensu-log.sh --project-root: takes no arguments" >&2
+      exit 2
+    fi
+    case "$COPILOT_PROJECT_DIR" in
+      (*'"'*|*'$'*|*'`'*|*'\'*)
+        echo "zensu-log.sh --project-root: the bound project root contains a double quote, a dollar sign, a backtick or a backslash, and Zensu skills paste this path into double-quoted shell commands; move the project to a path without these characters" >&2
+        exit 2
+        ;;
+    esac
+    printf '%s\n' "$COPILOT_PROJECT_DIR"
+    exit 0
+    ;;
+  --phase)
+    phase_val=""
+    step_val=""
+    session_val=""
+    reason_val=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --phase)   phase_val="${2:-}";   shift 2 || break ;;
+        --step)    step_val="${2:-}";    shift 2 || break ;;
+        --session) session_val="${2:-}"; shift 2 || break ;;
+        --reason)  reason_val="${2:-}";  shift 2 || break ;;
+        *) shift ;;
+      esac
+    done
+    if [ -z "$phase_val" ]; then
+      echo "zensu-log.sh --phase requires a phase value" >&2
+      exit 2
+    fi
+    # Matched case-INSENSITIVELY. The phase is lower-cased downstream into
+    # `workflow_state` and `last_event`, and pushed into `history` verbatim, so an
+    # exact comparison let `AUTOPILOT_ADOPTEd` through all three guard sites and
+    # persisted a document indistinguishable from real provenance. The bracket
+    # classes are the portable spelling: `${var^^}` needs bash 4 and this ships to
+    # macOS bash 3.2, while `tr` would put a subprocess on a guard.
+    case "$phase_val" in
+      [Cc][Hh][Aa][Ii][Nn]_[Rr][Ee][Cc][Oo][Vv][Ee][Rr][Ee][Dd])
+        echo "zensu-log.sh --phase: CHAIN_RECOVERED is written only by --chain-recover; it is the provenance record of a repair and cannot be minted by a caller" >&2
+        exit 2
+        ;;
+      [Rr][Uu][Nn][Tt][Ii][Mm][Ee]_[Aa][Dd][Oo][Pp][Tt][Ee][Dd])
+        echo "zensu-log.sh --phase: RUNTIME_ADOPTED is written only by the session adoption; it is the provenance record of a runtime takeover and cannot be minted by a caller" >&2
+        exit 2
+        ;;
+      [Aa][Uu][Tt][Oo][Pp][Ii][Ll][Oo][Tt]_[Aa][Dd][Oo][Pp][Tt][Ee][Dd])
+        echo "zensu-log.sh --phase: AUTOPILOT_ADOPTED is written only by --autopilot-adopt; it is the provenance record of a run takeover and cannot be minted by a caller" >&2
+        exit 2
+        ;;
+      [Bb][Aa][Ss][Ee][Ll][Ii][Nn][Ee]_[Rr][Ee][Bb][Uu][Ii][Ll][Tt])
+        echo "zensu-log.sh --phase: BASELINE_REBUILT is written only by the workflow-baseline repair; it is the provenance record of a rebuilt baseline and cannot be minted by a caller" >&2
+        exit 2
+        ;;
+      [Pp][Rr][Oo][Jj][Ee][Cc][Tt]_[Rr][Oo][Oo][Tt]_[Rr][Ee][Ss][Tt][Oo][Rr][Ee][Dd])
+        echo "zensu-log.sh --phase: PROJECT_ROOT_RESTORED is written only by the project-root restore; it is the provenance record of a re-created project root and cannot be minted by a caller" >&2
+        exit 2
+        ;;
+      [Pp][Rr][Oo][Jj][Ee][Cc][Tt]_[Rr][Oo][Oo][Tt]_[Rr][Ee][Aa][Nn][Cc][Hh][Oo][Rr][Ee][Dd])
+        echo "zensu-log.sh --phase: PROJECT_ROOT_REANCHORED is written only by the session re-anchor; it is the provenance record of a moved project root and cannot be minted by a caller" >&2
+        exit 2
+        ;;
+    esac
+    case "$reason_val" in
+      [Cc][Hh][Aa][Ii][Nn]-[Rr][Ee][Cc][Oo][Vv][Ee][Rr][Ee][Dd]:\ *)
+        echo "zensu-log.sh --phase: a 'chain-recovered: ' reason is reserved for --chain-recover" >&2
+        exit 2
+        ;;
+      [Rr][Uu][Nn][Tt][Ii][Mm][Ee]-[Aa][Dd][Oo][Pp][Tt][Ee][Dd]:\ *)
+        echo "zensu-log.sh --phase: a 'runtime-adopted: ' reason is reserved for the session adoption" >&2
+        exit 2
+        ;;
+      [Aa][Uu][Tt][Oo][Pp][Ii][Ll][Oo][Tt]-[Aa][Dd][Oo][Pp][Tt][Ee][Dd]:\ *)
+        echo "zensu-log.sh --phase: an 'autopilot-adopted: ' reason is reserved for --autopilot-adopt" >&2
+        exit 2
+        ;;
+      [Bb][Aa][Ss][Ee][Ll][Ii][Nn][Ee]-[Rr][Ee][Bb][Uu][Ii][Ll][Tt]:\ *)
+        echo "zensu-log.sh --phase: a 'baseline-rebuilt: ' reason is reserved for the workflow-baseline repair" >&2
+        exit 2
+        ;;
+      "project-root-restored: "*)
+        echo "zensu-log.sh --phase: a 'project-root-restored: ' reason is reserved for the project-root restore" >&2
+        exit 2
+        ;;
+      [Pp][Rr][Oo][Jj][Ee][Cc][Tt]-[Rr][Oo][Oo][Tt]-[Rr][Ee][Aa][Nn][Cc][Hh][Oo][Rr][Ee][Dd]:\ *)
+        echo "zensu-log.sh --phase: a 'project-root-reanchored: ' reason is reserved for the session re-anchor" >&2
+        exit 2
+        ;;
+    esac
+    if [ -z "$session_val" ]; then
+      export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 --phase $phase_val --step $step_val}"
+    fi
+    if ! session_val="$(zensu_resolve_session_id "$session_val")" || [ -z "$session_val" ]; then
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    fi
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+    tdd_write_phase "$session_val" "$step_val" "$phase_val" "$reason_val"
+    exit $?
+    ;;
+  --mode)
+    session_val=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --session) session_val="${2:-}"; shift 2 || break ;;
+        *) shift ;;
+      esac
+    done
+    if [ -z "$session_val" ]; then
+      export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 --mode}"
+    fi
+    if ! session_val="$(zensu_resolve_session_id "$session_val")" || [ -z "$session_val" ]; then
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    fi
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+    if [ "$(tdd_vanilla_mode "$(tdd_state_file "$session_val")")" = "true" ]; then
+      echo "vanilla"
+    else
+      echo "strict"
+    fi
+    exit 0
+    ;;
+  --bypass-note)
+    gate_val=""
+    session_val=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --bypass-note) gate_val="${2:-}";    shift 2 || break ;;
+        --session)     session_val="${2:-}"; shift 2 || break ;;
+        *) shift ;;
+      esac
+    done
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+    if ! _tdd_bypass_shape_ok "$gate_val"; then
+      echo "zensu-log.sh --bypass-note requires a known gate name (one of: $ZENSU_BYPASS_GATE_ALLOWLIST)" >&2
+      exit 2
+    fi
+    if [ -z "$session_val" ]; then
+      export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 --bypass-note $gate_val}"
+    fi
+    if ! session_val="$(zensu_resolve_session_id "$session_val")" || [ -z "$session_val" ]; then
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    fi
+    tdd_record_bypass "$session_val" "$gate_val"
+    exit $?
+    ;;
+  --bypass-list)
+    session_val=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --session) session_val="${2:-}"; shift 2 || break ;;
+        *) shift ;;
+      esac
+    done
+    if [ -z "$session_val" ]; then
+      export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 --bypass-list}"
+    fi
+    if ! session_val="$(zensu_resolve_session_id "$session_val")" || [ -z "$session_val" ]; then
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    fi
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+    bypass_rc=0
+    bypass_list="$(zensu_bypass_display "$(tdd_state_file "$session_val")" text)" || bypass_rc=$?
+    if [ "$bypass_rc" -ne 0 ]; then
+      echo "$bypass_list"
+      zensu_state_failure_hint --bypass-list "$session_val" >&2
+      exit 3
+    fi
+    if [ -n "$bypass_list" ]; then
+      echo "$bypass_list"
+    else
+      echo "none"
+    fi
+    exit 0
+    ;;
+  --pending-review|--pending-review-done)
+    verb="$1"
+    files_val=""
+    summary_val=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --files)   files_val="${2:-}";   shift 2 || break ;;
+        --summary) summary_val="${2:-}"; shift 2 || break ;;
+        *) shift ;;
+      esac
+    done
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+    case "$verb" in
+      --pending-review)      tdd_write_pending_review "$files_val" "$summary_val" ;;
+      --pending-review-done) tdd_clear_pending_review ;;
+    esac
+    exit $?
+    ;;
+  --autopilot-begin)
+    run_val=""
+    session_val=""
+    cover_val=false
+    validate_val=true
+    workspace_val=""
+    work_order_val=""
+    work_order_json=""
+    seen_run=false
+    seen_session=false
+    seen_cover=false
+    seen_validate=false
+    seen_workspace=false
+    seen_work_order=false
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --run)
+          [ "$seen_run" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-begin: duplicate/missing --run" >&2; exit 2; }
+          seen_run=true; run_val="$2"; shift 2
+          ;;
+        --session)
+          [ "$seen_session" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-begin: duplicate/missing --session" >&2; exit 2; }
+          seen_session=true; session_val="$2"; shift 2
+          ;;
+        --cover)
+          [ "$seen_cover" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-begin: duplicate/missing --cover" >&2; exit 2; }
+          seen_cover=true; cover_val="$2"; shift 2
+          ;;
+        --validate)
+          [ "$seen_validate" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-begin: duplicate/missing --validate" >&2; exit 2; }
+          seen_validate=true; validate_val="$2"; shift 2
+          ;;
+        --workspace)
+          [ "$seen_workspace" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-begin: duplicate/missing --workspace" >&2; exit 2; }
+          seen_workspace=true; workspace_val="$2"; shift 2
+          ;;
+        --work-order)
+          [ "$seen_work_order" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-begin: duplicate/missing --work-order" >&2; exit 2; }
+          seen_work_order=true; work_order_val="$2"; shift 2
+          ;;
+        *) echo "zensu-log.sh --autopilot-begin: unknown argument '$1'" >&2; exit 2 ;;
+      esac
+    done
+    [ "$seen_run" = true ] || { echo "zensu-log.sh --autopilot-begin requires --run <id>" >&2; exit 2; }
+    if [ "$seen_session" = true ] && [ -z "$session_val" ]; then
+      echo "zensu-log.sh --autopilot-begin: --session must not be empty" >&2
+      exit 2
+    fi
+    case "$cover_val" in true|false) ;; *) echo "zensu-log.sh --autopilot-begin: --cover must be true or false" >&2; exit 2 ;; esac
+    case "$validate_val" in true|false) ;; *) echo "zensu-log.sh --autopilot-begin: --validate must be true or false" >&2; exit 2 ;; esac
+    if [ "$seen_workspace" = true ] && { [ -z "$workspace_val" ] || [ ! -d "$workspace_val" ]; }; then
+      echo "zensu-log.sh --autopilot-begin: --workspace must name an existing directory" >&2
+      exit 2
+    fi
+    if [ "$seen_work_order" = true ] && [ -z "$work_order_val" ]; then
+      echo "zensu-log.sh --autopilot-begin: --work-order must not be empty" >&2
+      exit 2
+    fi
+    if [ "$seen_work_order" = true ] && [ "$seen_session" = true ]; then
+      echo "zensu-log.sh --autopilot-begin: --work-order binds this session's own run; --session is not accepted with it" >&2
+      exit 2
+    fi
+    if [ -z "$session_val" ]; then
+      export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 --autopilot-begin --run $run_val}"
+    fi
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+    session_val="$(zensu_resolve_session_id "$session_val")" || {
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    }
+    if [ "$seen_work_order" = true ] || [ -n "${ZENSU_SESSION_TOKEN:-}" ]; then
+      if [ "$seen_work_order" = true ]; then
+        work_order_json="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-work-order.sh" --binding --run "$run_val" --order "$work_order_val")"
+      else
+        work_order_json="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-work-order.sh" --binding --run "$run_val")"
+      fi
+      work_order_rc=$?
+      if [ "$work_order_rc" -ne 0 ]; then
+        echo "zensu-log.sh --autopilot-begin: the work-order binding was refused" >&2
+        exit 4
+      fi
+      if [ "$seen_work_order" = true ] && [ -z "$work_order_json" ]; then
+        echo "zensu-log.sh --autopilot-begin: --work-order was given but this session runs no work order" >&2
+        exit 4
+      fi
+    fi
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+    autopilot_begin_run "$run_val" "$session_val" "${COPILOT_PROJECT_DIR:-.}" "$cover_val" "$validate_val" "$workspace_val" "$work_order_json"
+    begin_rc=$?
+    if [ "$begin_rc" -eq 0 ] && [ -n "$work_order_json" ]; then
+      bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-work-order.sh" --bind-run --run "$run_val" >/dev/null || {
+        echo "zensu-log.sh --autopilot-begin: the run began but the work order does not report it yet; run --autopilot-begin again" >&2
+        exit 5
+      }
+    fi
+    exit "$begin_rc"
+    ;;
+  --autopilot-event)
+    run_val=""
+    event_val=""
+    event_id_val=""
+    payload_val='{}'
+    seen_run=false
+    seen_event=false
+    seen_event_id=false
+    seen_payload=false
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --run)
+          [ "$seen_run" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-event: duplicate/missing --run" >&2; exit 2; }
+          seen_run=true; run_val="$2"; shift 2
+          ;;
+        --event)
+          [ "$seen_event" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-event: duplicate/missing --event" >&2; exit 2; }
+          seen_event=true; event_val="$2"; shift 2
+          ;;
+        --event-id)
+          [ "$seen_event_id" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-event: duplicate/missing --event-id" >&2; exit 2; }
+          seen_event_id=true; event_id_val="$2"; shift 2
+          ;;
+        --payload)
+          [ "$seen_payload" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-event: duplicate/missing --payload" >&2; exit 2; }
+          seen_payload=true; payload_val="$2"; shift 2
+          ;;
+        *) echo "zensu-log.sh --autopilot-event: unknown argument '$1'" >&2; exit 2 ;;
+      esac
+    done
+    [ "$seen_run" = true ] && [ "$seen_event" = true ] && [ "$seen_event_id" = true ] || {
+      echo "zensu-log.sh --autopilot-event requires --run, --event, and --event-id" >&2
+      exit 2
+    }
+    # The release derives its event id from the run alone, so that id cannot be
+    # varied. A caller that squats it through this path would make the release
+    # command fail with an eventId conflict for that run forever, with no other
+    # exit. Reserve the namespace here, the way CHAIN_RECOVERED and
+    # RUNTIME_ADOPTED are reserved for their own writers.
+    case "$event_id_val" in
+      release-*)
+        echo "zensu-log.sh --autopilot-event: the 'release-' event-id namespace is reserved for --autopilot-release" >&2
+        exit 2
+        ;;
+      work-order-release-*)
+        echo "zensu-log.sh --autopilot-event: the 'work-order-release-' event-id namespace is reserved for zensu-work-order.sh" >&2
+        exit 2
+        ;;
+    esac
+    case "$event_val" in
+      TDD_STARTED|TDD_CHAIN_DONE)
+        echo "zensu-log.sh --autopilot-event: $event_val is internal; use the generation-bound TDD commands" >&2
+        exit 2
+        ;;
+      ORDER_SPEC_BOUND)
+        echo "zensu-log.sh --autopilot-event: $event_val is internal; use zensu-work-order.sh --bind-spec" >&2
+        exit 2
+        ;;
+      TEAM_REVIEW_IMPORTED)
+        echo "zensu-log.sh --autopilot-event: $event_val is internal; use zensu-work-order.sh --review-import" >&2
+        exit 2
+        ;;
+    esac
+    export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 --autopilot-event --run $run_val --event $event_val --event-id $event_id_val}"
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+    caller_session_val="$(zensu_resolve_session_id)" || {
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    }
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+    autopilot_apply_event "$run_val" "$event_id_val" "$event_val" "$payload_val" \
+      "${COPILOT_PROJECT_DIR:-.}" "$caller_session_val"
+    exit $?
+    ;;
+  --autopilot-status)
+    [ $# -eq 1 ] || { echo "zensu-log.sh --autopilot-status accepts no arguments" >&2; exit 2; }
+    # Status is the caller's OWN run. A run held by another session in another
+    # working tree is deliberately invisible here.
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+    session_val="$(zensu_resolve_session_id "")" || {
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    }
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+    autopilot_read_active_strict "${COPILOT_PROJECT_DIR:-.}" "$session_val"
+    _zensu_status_rc=$?
+    # rc 1 means THIS session owns no run BY THE OWNER-KEYED POINTER, and the
+    # worker says so as `state file absent: autopilot-active-<hash>.json`. That
+    # sentence is true and it is also the whole problem: the answer is
+    # owner-scoped, so it is structurally identical whether the tree is free or a
+    # foreign run is holding it, and the hash it names is sha256 of the OWNER
+    # SESSION id rather than of the project.
+    #
+    # The exit code and stdout are UNCHANGED, and the reason is the SKILLS, not a
+    # hook: `skills/{autopilot,autopilot-release,tdd,pr-team-review,pr-fix-findings,
+    # self-review,reset-review-limit}` all run this verb and parse its stdout as
+    # JSON, several of them failing closed on a mismatch. An earlier wording here
+    # named `session-start-autopilot-resume.sh` instead, which does not call this
+    # verb at all — it calls the library's `autopilot_read_active` directly, so the
+    # CLI's exit code never reaches it. The rule the wording protects is unchanged
+    # and the justification for it is now the true one. The disclosure goes to
+    # stderr, which no consumer reads as data.
+    #
+    # Audience `model`: this verb is run BY the model in `skills/autopilot` and in
+    # `skills/autopilot-release` step 1. Every model-read channel names only the
+    # guided `/zensu-autopilot-release`, never a complete `--confirm` invocation,
+    # because `--confirm` is the consent control and a ready-to-run cancel in a
+    # model-facing channel routes around the only place it exists.
+    if [ "$_zensu_status_rc" -eq 1 ]; then
+      # ONE read. The sentence and the ownership that selects its lead-in come out
+      # of the same leased read, because two reads can name different holders and
+      # a lead-in derived from the second then contradicts a sentence rendered
+      # from the first — the defect this module deleted from the agentStop hook once
+      # already.
+      _zensu_hold_line="$(autopilot_workspace_hold_report "${COPILOT_PROJECT_DIR:-.}" "$session_val" model 2>/dev/null)"
+      _zensu_hold_rc=$?
+      _zensu_hold_kind="${_zensu_hold_line%%	*}"
+      _zensu_hold_text="${_zensu_hold_line#*	}"
+      # FIVE outcomes, and none of them may be inferred from another: a FOREIGN
+      # holder, an OWN holder (the torn-`begin` shape), a holder whose OWNER could
+      # not be established, a proven-free tree, and a question that could not be
+      # answered at all. The third is easy to miss when counting — it is the
+      # `case` default rather than a named arm — and an earlier comment here said
+      # FOUR while five were emitted. `1` is the
+      # PROVEN-free verdict, and TWO paths reach it rather than one: the worker's
+      # own "no run holds this tree", and an absent state directory, which
+      # short-circuits ahead of the lease because no run document can exist without
+      # it. Every OTHER lock, storage or worker failure maps to 5, so the all-clear
+      # below can never be printed because the check could not run. A diagnostic that says "nothing
+      # holds this tree" when it could not look is worse than the silence it
+      # replaced.
+      if [ "$_zensu_hold_rc" -eq 0 ] && [ -n "$_zensu_hold_text" ]; then
+        case "$_zensu_hold_kind" in
+          own)
+            # State only what was OBSERVED. This arm does NOT prove a torn `begin`, and
+            # saying so was wrong: the worker checks for an own nonterminal run
+            # BEFORE it reports an absent pointer (`orphan` takes `fail(2)`, the
+            # absent pointer `fail(1)`), so a real torn begin never reaches this
+            # rc-1-gated branch at all. What DOES reach it is a run appearing
+            # between this verb's two independent leased reads — a `begin` mid
+            # publication, which is a healthy run. The doctor's equivalent arm
+            # hedges for the same reason, and the two surfaces must not disagree.
+            printf 'zensu-log.sh --autopilot-status: no active pointer designated a run for this session at the moment of the read, and a run this session OWNS holds the working tree. %s Inspect it with the autopilot row of /zensu-doctor and with zensu-log.sh --chain-status.\n' \
+              "$_zensu_hold_text" >&2
+            ;;
+          foreign)
+            printf 'zensu-log.sh --autopilot-status: this session owns no durable Autopilot run, but the working tree is not free: %s\n' \
+              "$_zensu_hold_text" >&2
+            ;;
+          *)
+            # Ownership not established. Asserting either side would state
+            # something this read did not settle, so the lead-in asserts neither.
+            printf 'zensu-log.sh --autopilot-status: no active pointer designates a run for this session, and a nonterminal run holds the working tree whose OWNER could not be established. %s\n' \
+              "$_zensu_hold_text" >&2
+            ;;
+        esac
+      elif [ "$_zensu_hold_rc" -eq 1 ]; then
+        printf 'zensu-log.sh --autopilot-status: this session owns no durable Autopilot run, and no nonterminal run holds this working tree. A run owned by another session would be invisible to this verb but IS reported by /zensu-doctor.\n' >&2
+      else
+        printf 'zensu-log.sh --autopilot-status: this session owns no durable Autopilot run, and whether any run holds this working tree could NOT be determined (status %s) — that is a missing check, not an all-clear. The autopilot row of /zensu-doctor reads the same records without taking the project lease.\n' \
+          "$_zensu_hold_rc" >&2
+      fi
+    fi
+    if [ "$_zensu_status_rc" -eq 5 ]; then
+      printf 'zensu-log.sh --autopilot-status: the project-local Autopilot state could not be read, because its lock could not be taken or its storage or path failed a safety check, so whether this session owns a run is unknown. That is not a no-run answer; retry once the concurrent Autopilot operation has finished, and if it keeps failing, run /zensu-doctor, whose autopilot row reads the same records without taking the project lease.\n' >&2
+    fi
+    exit "$_zensu_status_rc"
+    ;;
+  --autopilot-release)
+    # Cancel a nonterminal run owned by ANOTHER session, so that a working tree
+    # a vanished session still holds becomes usable again. Explicit --confirm
+    # only: this mutates state this session does not own.
+    run_val=""
+    seen_run=false
+    confirmed=false
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --run)
+          [ "$seen_run" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-release: duplicate/missing --run" >&2; exit 2; }
+          seen_run=true; run_val="$2"; shift 2
+          ;;
+        --confirm)
+          [ "$confirmed" = false ] || { echo "zensu-log.sh --autopilot-release: duplicate --confirm" >&2; exit 2; }
+          confirmed=true; shift
+          ;;
+        *) echo "zensu-log.sh --autopilot-release: unknown argument '$1'" >&2; exit 2 ;;
+      esac
+    done
+    [ "$seen_run" = true ] || { echo "zensu-log.sh --autopilot-release requires --run <id>" >&2; exit 2; }
+    [ "$confirmed" = true ] || {
+      echo "zensu-log.sh --autopilot-release requires --confirm: this cancels a run owned by another session" >&2
+      exit 2
+    }
+    export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 --autopilot-release --run $run_val}"
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+    session_val="$(zensu_resolve_session_id "")" || {
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    }
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+    # The event id is derived from the RUN alone, not from the caller: a repeat
+    # release — by this session or by another one that saw the same refusal —
+    # then lands on the same ledger entry and reports success, instead of
+    # meeting "terminal run cannot be released", which reads as a refusal.
+    # Caller provenance lives in the log line, not in the id.
+    event_val="$(RUN_ID="$run_val" node -e '
+      const crypto = require("crypto");
+      process.stdout.write(`release-${crypto.createHash("sha256")
+        .update(String(process.env.RUN_ID)).digest("hex")}`);
+    ' 2>/dev/null </dev/null)" || { echo "zensu-log.sh --autopilot-release: cannot derive the release event id" >&2; exit 2; }
+    # A child that exits 0 having written nothing would hand an empty id to the
+    # release, which refuses it as a malformed RUN id — a message about the
+    # wrong thing entirely. Assert the derived shape here instead.
+    event_digest="${event_val#release-}"
+    if [ "$event_val" = "$event_digest" ] || [ "${#event_digest}" -ne 64 ]; then
+      echo "zensu-log.sh --autopilot-release: derived release event id has an unexpected shape" >&2
+      exit 2
+    fi
+    case "$event_digest" in
+      *[!0-9a-f]*)
+        echo "zensu-log.sh --autopilot-release: derived release event id has an unexpected shape" >&2
+        exit 2
+        ;;
+    esac
+    # Same named refusal as the adopt twin. Without it a failed source surfaces as
+    # bash's own "command not found" with exit 127, which names no cause the operator
+    # can act on and differs from the sibling verb for no reason.
+    if ! command -v autopilot_release_run >/dev/null 2>&1; then
+      echo "zensu-log.sh --autopilot-release: the Autopilot state library did not load; no run was released" >&2
+      exit 2
+    fi
+    autopilot_release_run "$run_val" "$event_val" "${COPILOT_PROJECT_DIR:-.}" "$session_val"
+    exit $?
+    ;;
+  --autopilot-adopt)
+    # Take over a nonterminal run owned by ANOTHER session, so the work continues
+    # instead of being cancelled. Only `--confirm` mutates; without it the verb is a
+    # read-only REPORT over the same ladder — the liveness verdict and the outcome a
+    # confirmed run would reach, exit 0 when it would proceed and the refusal code
+    # otherwise. No event id is derived, because the verb writes no event —
+    # idempotency comes from the worker's already-owner exit.
+    run_val=""
+    seen_run=false
+    confirmed=false
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --run)
+          [ "$seen_run" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh --autopilot-adopt: duplicate/missing --run" >&2; exit 2; }
+          seen_run=true; run_val="$2"; shift 2
+          ;;
+        --confirm)
+          [ "$confirmed" = false ] || { echo "zensu-log.sh --autopilot-adopt: duplicate --confirm" >&2; exit 2; }
+          confirmed=true; shift
+          ;;
+        *) echo "zensu-log.sh --autopilot-adopt: unknown argument '$1'" >&2; exit 2 ;;
+      esac
+    done
+    [ "$seen_run" = true ] || { echo "zensu-log.sh --autopilot-adopt requires --run <id>" >&2; exit 2; }
+    adopt_mode=report
+    [ "$confirmed" = true ] && adopt_mode=confirm
+    export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 --autopilot-adopt --run $run_val}"
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+    session_val="$(zensu_resolve_session_id "")" || {
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    }
+    # `zensu-autopilot-state.sh` sources `zensu-tdd-phase.sh` itself, so no second
+    # source is needed here; the redundant one only made this arm look like it had a
+    # dependency the sibling verb lacked.
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+    # Both names are cleared HERE as well as inside the verb, and the reason is the
+    # ordering: they decide the stderr assertion below AND gate the reserved
+    # AUTOPILOT_ADOPTED write, while the only other clear lives inside the function a
+    # failed `source` would leave undefined. This file runs under `set -u` but not
+    # `set -e`, so that failure would fall through with an INHERITED environment still
+    # deciding both. Refusing on a missing verb closes the same hole from the other
+    # side; neither is a demonstrated bypass, and both are one line.
+    ZENSU_AUTOPILOT_ADOPT_OUTCOME=""
+    ZENSU_AUTOPILOT_ADOPTED_PREVIOUS_OWNER=""
+    if ! command -v autopilot_adopt_run >/dev/null 2>&1; then
+      echo "zensu-log.sh --autopilot-adopt: the Autopilot state library did not load; no run was adopted" >&2
+      exit 2
+    fi
+    autopilot_adopt_run "$run_val" "${COPILOT_PROJECT_DIR:-.}" "$session_val" "$adopt_mode"
+    adopt_rc=$?
+    # The report announces no outcome and writes no provenance: it publishes neither
+    # outcome name, and returning here keeps that true even if a later edit did. Its
+    # own line says so on stderr for EVERY exit, because a refusal taken before the
+    # worker prints no report line at all, and a bare refusal must not read as a
+    # takeover that was attempted.
+    # The sentence ENUMERATES what was not written rather than claiming the world is
+    # unchanged. The blanket form asserted more than this verb's guards establish: the
+    # report runs under the project lease, so a claim about the process is false even
+    # while the claim about the artifacts is true. The enumerated form is also the one
+    # `skills/zensu-autopilot-adopt/SKILL.md` already states at its own "changes nothing"
+    # sentence, so the CLI and the skill now say the same thing. B1 in
+    # `tests/structure/test-autopilot-adopt-cli.sh` pins this on stderr and forbids the
+    # retired blanket spelling; before that pin existed nothing in the tree graded it.
+    if [ "$adopt_mode" = report ]; then
+      if [ "$adopt_rc" -eq 0 ]; then
+        echo "zensu-log.sh --autopilot-adopt: report only — no record, no pointer, no provenance entry was written; the same command with --confirm would proceed as the report states." >&2
+      else
+        echo "zensu-log.sh --autopilot-adopt: report only — no record, no pointer, no provenance entry was written; exit $adopt_rc, for the reason stated on stderr." >&2
+      fi
+      exit "$adopt_rc"
+    fi
+    # Exit 0 covers THREE outcomes and every one of them names itself, so silence is
+    # never an outcome. Only the first is an adoption. The third — record and pointer
+    # already in agreement — used to say nothing at all while the skill promised
+    # stderr would say which, which left a model looking for a provenance entry that
+    # was never going to exist.
+    case "${ZENSU_AUTOPILOT_ADOPT_OUTCOME:-}" in
+      adopted)
+        echo "zensu-log.sh --autopilot-adopt: run $run_val was taken over from ${ZENSU_AUTOPILOT_ADOPTED_PREVIOUS_OWNER:-an unrecorded owner}; this session is now its owner." >&2
+        ;;
+      repaired)
+        echo "zensu-log.sh --autopilot-adopt: this session already owned run $run_val; its owner pointer was missing or named a run that has already finished, and has been reinstalled. No takeover occurred and no AUTOPILOT_ADOPTED entry is written." >&2
+        ;;
+      already-owned)
+        echo "zensu-log.sh --autopilot-adopt: this session already owns run $run_val and its owner pointer already designates it; ownership was not changed. No takeover occurred and no AUTOPILOT_ADOPTED entry is written." >&2
+        ;;
+    esac
+    # Gated on the OUTCOME, never on the return code. `_tdd_locked_run` returns 1
+    # when the lease fails to RELEASE, which happens after the callback has already
+    # installed both files — so an `rc -eq 0` test silently dropped the history
+    # entry for a takeover that had in fact completed.
+    if [ "${ZENSU_AUTOPILOT_ADOPT_OUTCOME:-}" = adopted ] && [ -n "${ZENSU_AUTOPILOT_ADOPTED_PREVIOUS_OWNER:-}" ]; then
+      # Provenance is best-effort and never changes the verdict: the run record and
+      # its pointer already moved under the project lock, so failing the history
+      # append here would report a takeover that did happen as one that did not.
+      if ! tdd_write_autopilot_adopted "$session_val" "$run_val" \
+        "$ZENSU_AUTOPILOT_ADOPTED_PREVIOUS_OWNER"; then
+        echo "zensu-log.sh --autopilot-adopt: run adopted, but the AUTOPILOT_ADOPTED provenance entry could not be written" >&2
+      fi
+    fi
+    exit "$adopt_rc"
+    ;;
+  --tdd-begin|--tdd-complete|--review-ticket|--current-review-ticket|--review-rearm|--chain-done|--code-review-done|--self-review-fixed|--tdd-reset|--chain-status|--chain-recover|--workflow-begin|--workflow-end)
+    verb="$1"
+    session_val=""
+    tools_val=""
+    claimed_ticket_val=""
+    claimed_ticket_seen=false
+    autopilot_run_val=""
+    autopilot_attempt_val=""
+    autopilot_return_stage_val=""
+    chain_id_val=""
+    chain_outcome_val=""
+    tdd_mode_val=""
+    plan_val=""
+    seen_session=false
+    seen_tools=false
+    seen_claimed_ticket=false
+    seen_autopilot_run=false
+    seen_autopilot_attempt=false
+    seen_autopilot_return=false
+    seen_chain_id=false
+    seen_outcome=false
+    seen_tdd_mode=false
+    seen_plan=false
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --session)
+          [ "$seen_session" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --session" >&2; exit 2; }
+          seen_session=true; session_val="$2"; shift 2 ;;
+        --tools)
+          [ "$seen_tools" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --tools" >&2; exit 2; }
+          seen_tools=true; tools_val="$2"; shift 2 ;;
+        --autopilot-run)
+          [ "$seen_autopilot_run" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --autopilot-run" >&2; exit 2; }
+          seen_autopilot_run=true; autopilot_run_val="$2"; shift 2 ;;
+        --autopilot-attempt)
+          [ "$seen_autopilot_attempt" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --autopilot-attempt" >&2; exit 2; }
+          seen_autopilot_attempt=true; autopilot_attempt_val="$2"; shift 2 ;;
+        --autopilot-return-stage)
+          [ "$seen_autopilot_return" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --autopilot-return-stage" >&2; exit 2; }
+          seen_autopilot_return=true; autopilot_return_stage_val="$2"; shift 2 ;;
+        --chain-id)
+          [ "$seen_chain_id" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --chain-id" >&2; exit 2; }
+          seen_chain_id=true; chain_id_val="$2"; shift 2 ;;
+        --outcome)
+          [ "$seen_outcome" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --outcome" >&2; exit 2; }
+          seen_outcome=true; chain_outcome_val="$2"; shift 2 ;;
+        --claimed-review-ticket)
+          [ "$seen_claimed_ticket" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --claimed-review-ticket" >&2; exit 2; }
+          seen_claimed_ticket=true
+          claimed_ticket_seen=true
+          claimed_ticket_val="$2"
+          shift 2
+          ;;
+        --tdd-mode)
+          [ "$seen_tdd_mode" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --tdd-mode" >&2; exit 2; }
+          seen_tdd_mode=true; tdd_mode_val="$2"; shift 2 ;;
+        --plan)
+          [ "$seen_plan" = false ] && [ $# -ge 2 ] || { echo "zensu-log.sh $verb: duplicate/missing --plan" >&2; exit 2; }
+          seen_plan=true; plan_val="$2"; shift 2 ;;
+        *) echo "zensu-log.sh $verb: unknown argument '$1'" >&2; exit 2 ;;
+      esac
+    done
+    if [ "$seen_session" = true ] && [ -z "$session_val" ]; then
+      echo "zensu-log.sh $verb: --session must not be empty" >&2
+      exit 2
+    fi
+    if [ "$seen_plan" = true ] && [ -z "$plan_val" ]; then
+      echo "zensu-log.sh $verb: --plan must not be empty" >&2
+      exit 2
+    fi
+    # --tdd-mode carries the caller's OWN default into the one verb that freezes
+    # the mode, and it is ESCALATION-ONLY: `strict` is the only accepted value.
+    # The value reaches this flag from a `TDD-MODE:` line in a model-read
+    # specification, and a spec body is not always user-authored — /zensu-pr-fix-findings
+    # builds one from PR review-comment bodies. An accepted `vanilla` there would
+    # let text a commenter controls relax a project that set
+    # hooks.tddImplementation:true, with no bypass-ledger entry. Lowering the
+    # discipline stays the user's own `/zensu-tdd-mode --vanilla` session choice,
+    # which outranks this flag anyway.
+    if [ "$seen_tdd_mode" = true ]; then
+      case "$tdd_mode_val" in
+        strict) ;;
+        *)
+          echo "zensu-log.sh $verb: --tdd-mode accepts only 'strict' — a caller may raise the discipline, never lower it; run /zensu-tdd-mode --vanilla to opt this session out" >&2
+          exit 2
+          ;;
+      esac
+    fi
+    invalid_known_flag=false
+    # --tdd-mode belongs to exactly ONE verb, and the rule is written once rather
+    # than as a `seen_tdd_mode=false` conjunct in every other branch: a verb added
+    # later inherits the refusal instead of silently accepting a flag that only
+    # `--tdd-begin` can act on.
+    #
+    # One real coupling, named rather than alluded to: T18 in
+    # tests/structure/test-tdd-mode-toggle.sh derives the gated-verb list by
+    # extracting the OUTER verb-dispatch line of this file (the
+    # `--tdd-begin|--tdd-complete|...)` case label far above) and comparing it
+    # against a hardcoded count. Reformatting THAT line breaks T18; the per-verb
+    # matrix below is not what it reads, and this line's placement is a readability
+    # choice, not a constraint.
+    [ "$seen_tdd_mode" = false ] || [ "$verb" = "--tdd-begin" ] || invalid_known_flag=true
+    # --plan names the session's TDD plan for the requirements-table gate below,
+    # and belongs to exactly ONE verb for the same reason --tdd-mode does: a verb
+    # added later inherits the refusal rather than silently accepting a flag only
+    # --tdd-complete can act on.
+    [ "$seen_plan" = false ] || [ "$verb" = "--tdd-complete" ] || invalid_known_flag=true
+    case "$verb" in
+      --tdd-begin|--tdd-complete)
+        [ "$seen_tools" = false ] && [ "$seen_claimed_ticket" = false ] \
+          && [ "$seen_outcome" = false ] || invalid_known_flag=true
+        ;;
+      --review-ticket|--current-review-ticket|--tdd-reset|--chain-status|--chain-recover)
+        [ "$seen_tools" = false ] && [ "$seen_claimed_ticket" = false ] \
+          && [ "$seen_autopilot_run" = false ] && [ "$seen_autopilot_attempt" = false ] \
+          && [ "$seen_autopilot_return" = false ] && [ "$seen_chain_id" = false ] \
+          && [ "$seen_outcome" = false ] || invalid_known_flag=true
+        ;;
+      --review-rearm)
+        [ "$seen_tools" = false ] && [ "$seen_outcome" = false ] || invalid_known_flag=true
+        ;;
+      --chain-done)
+        [ "$seen_tools" = false ] || invalid_known_flag=true
+        ;;
+      --code-review-done|--self-review-fixed)
+        [ "$seen_tools" = false ] && [ "$seen_autopilot_run" = false ] \
+          && [ "$seen_autopilot_attempt" = false ] && [ "$seen_autopilot_return" = false ] \
+          && [ "$seen_chain_id" = false ] && [ "$seen_outcome" = false ] \
+          || invalid_known_flag=true
+        ;;
+      --workflow-begin)
+        [ "$seen_claimed_ticket" = false ] && [ "$seen_autopilot_run" = false ] \
+          && [ "$seen_autopilot_attempt" = false ] && [ "$seen_autopilot_return" = false ] \
+          && [ "$seen_chain_id" = false ] && [ "$seen_outcome" = false ] \
+          || invalid_known_flag=true
+        ;;
+      --workflow-end)
+        [ "$seen_tools" = false ] && [ "$seen_claimed_ticket" = false ] \
+          && [ "$seen_autopilot_run" = false ] && [ "$seen_autopilot_attempt" = false ] \
+          && [ "$seen_autopilot_return" = false ] && [ "$seen_chain_id" = false ] \
+          && [ "$seen_outcome" = false ] || invalid_known_flag=true
+        ;;
+    esac
+    if [ "$invalid_known_flag" = true ]; then
+      echo "zensu-log.sh $verb: option is not valid for this verb" >&2
+      exit 2
+    fi
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+    if [ -z "$session_val" ]; then
+      export ZENSU_OWN_CMD="${ZENSU_OWN_CMD:-bash $0 $verb}"
+    fi
+    if ! session_val="$(zensu_resolve_session_id "$session_val")" || [ -z "$session_val" ]; then
+      echo "zensu-log.sh: Session Control session identity unavailable" >&2
+      exit 2
+    fi
+    source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+    case "$verb" in
+      --tdd-begin)
+        begin_state_file="$(tdd_state_file "$session_val")" || {
+          echo "zensu-log.sh --tdd-begin: current-session workflow path unavailable" >&2
+          exit 1
+        }
+        # Inspect the canonical leaf before reading prior-generation metadata.
+        # A FIFO/device/directory must fail immediately rather than letting any
+        # convenience read block before the transactional begin guard runs.
+        _tdd_state_storage_safe "$begin_state_file" || {
+          echo "zensu-log.sh --tdd-begin: current-session workflow storage is unsafe" >&2
+          exit 1
+        }
+        outgoing_bypasses="$(zensu_bypass_display "$begin_state_file")"
+        # Mode precedence, resolved ONCE here and then frozen into this chain
+        # generation's `vanilla` flag:
+        #   1. the session override /zensu-tdd-mode recorded for this session
+        #   2. --tdd-mode strict, the CALLER's own default (a single
+        #      `TDD-MODE: strict` line in the specification) — escalation only
+        #   3. hooks.tddImplementation
+        #   4. vanilla
+        # The user's explicit session choice therefore outranks a skill's default,
+        # and a skill's default outranks the config — otherwise the shipped
+        # `false` would make every such default unreachable. Only rank 1 can lower
+        # the discipline. An unresolvable project dir yields `auto` and falls
+        # through, never a forced mode.
+        begin_project_dir="$(zensu_resolve_project_dir 2>/dev/null)" || begin_project_dir=""
+        begin_mode="$(zensu_tdd_mode_override "$begin_project_dir" "$session_val")"
+        # `auto` (and anything unreadable, which the reader also reports as auto)
+        # hands the decision down to the caller's flag, then to the config.
+        [ "$begin_mode" = "strict" ] || [ "$begin_mode" = "vanilla" ] || begin_mode="$tdd_mode_val"
+        case "$begin_mode" in
+          strict)  begin_vanilla=false ;;
+          vanilla) begin_vanilla=true ;;
+          *) if zensu_tdd_strict_enabled; then begin_vanilla=false; else begin_vanilla=true; fi ;;
+        esac
+        if [ -n "$autopilot_run_val$autopilot_attempt_val$autopilot_return_stage_val$chain_id_val" ]; then
+          [ -n "$autopilot_run_val" ] && [ -n "$autopilot_attempt_val" ] \
+            && [ -n "$autopilot_return_stage_val" ] && [ -n "$chain_id_val" ] || {
+              echo "zensu-log.sh --tdd-begin: Autopilot linkage requires --autopilot-run, --autopilot-attempt, --autopilot-return-stage, and --chain-id" >&2
+              exit 2
+            }
+        fi
+        if [ -n "$autopilot_run_val" ]; then
+          source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+          start_event_id="$(autopilot_chain_event_id start "$chain_id_val")" || {
+            echo "zensu-log.sh --tdd-begin: invalid Autopilot chain identifier" >&2
+            exit 2
+          }
+          autopilot_begin_tdd_attempt "$autopilot_run_val" "$start_event_id" \
+            "${COPILOT_PROJECT_DIR:-.}" "$session_val" "$begin_vanilla" \
+            "$autopilot_attempt_val" "$autopilot_return_stage_val" "$chain_id_val"
+          tdd_begin_rc=$?
+        else
+          # The absent/terminal decision and the unbound Inner write are one
+          # Outer -> Inner composite. A resumable BLOCKED run is not terminal,
+          # and a concurrent bound start cannot be overwritten after a stale
+          # preflight read.
+          source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+          autopilot_begin_standalone_tdd "${COPILOT_PROJECT_DIR:-.}" \
+            "$session_val" "$begin_vanilla"
+          tdd_begin_rc=$?
+        fi
+        if [ "$tdd_begin_rc" -eq 0 ]; then
+          # Retire the previous generation's edit-landing receipt. It is evidence
+          # about THAT generation's run log and says nothing about this one, and
+          # since the terminus began reading its VERDICT a stale `clean: true`
+          # would satisfy the gate for a chain whose own audit never ran. Renamed,
+          # never unlinked: the file is the only durable record of what that audit
+          # found. Best effort — a failure here must not block arming a chain.
+          #
+          # Ordering is a contract, not layout: this runs only on the SUCCESS arm.
+          # `autopilot_begin_standalone_tdd` refuses a held workspace and several
+          # storage and argument faults, and on that arm the PREVIOUS generation is
+          # still the live one. Retiring ahead of the arm left that live chain with
+          # no receipt, so its own `--tdd-complete` refused with "no edit-landing
+          # receipt for this session" — a cause that never happened. Nothing reads
+          # the receipt between here and the arm, so the earlier position bought
+          # nothing.
+          # The destination is UNIQUE. A fixed `.superseded` meant the second
+          # retirement destroyed the first, which contradicts the sentence above
+          # about the only durable record. `mktemp` in the same directory both
+          # picks the name and reserves it.
+          #
+          # And the failure is DISCLOSED. Every other unresolved precondition in
+          # this verb family announces itself — `EDIT LANDING GATE UNRESOLVED`,
+          # `REQUIREMENTS GATE STEM UNCHECKED` — while this one swallowed EACCES,
+          # EROFS and a destination that is a directory behind `|| true`. Since
+          # the terminus began reading the receipt's VERDICT, a retirement that
+          # did not happen leaves the NEXT generation able to satisfy its gate
+          # with this generation's clean verdict, so silence there is the most
+          # expensive silence in the verb.
+          _tdd_retire_receipt_critical() {
+            local receipt="$1" dest
+            # THREE states, not two. Absent is success — there is nothing to
+            # retire. Present and a plain file is the work. Present and NOT a
+            # plain file (a symlink, which is exactly what the terminus refuses
+            # to read, or a directory) is a FAILURE: an earlier spelling folded
+            # it into the absent case and returned 0, so the disclosure below
+            # never fired and the object survived into the next generation while
+            # this verb reported it retired. That the terminus happens to refuse
+            # a symlinked receipt anyway is a downstream guard this function does
+            # not know about, so it cannot be this function's contract.
+            if [ ! -e "$receipt" ] && [ ! -L "$receipt" ]; then
+              return 0
+            fi
+            if [ ! -f "$receipt" ] || [ -L "$receipt" ]; then
+              return 1
+            fi
+            # No fixed-name fallback. The retired spelling was
+            # `|| dest="${receipt}.superseded"`, which reinstated a PREDICTABLE
+            # name: the `mv -f` could then overwrite an earlier generation's
+            # record, and the cleanup `rm -f "$dest"` below could UNLINK one this
+            # call never created — both against the "renamed, never unlinked"
+            # invariant this verb states. It bought nothing either: a directory
+            # where `mktemp` cannot create a sibling is one where the `mv` would
+            # fail anyway. ACCEPTED CHANGE OF FAILURE MODE, recorded rather than
+            # discovered later: on a host with no `mktemp` at all every
+            # `--tdd-begin` now emits the disclosure below instead of silently
+            # using the fixed name. That is the fail-loud direction and the tree
+            # already hard-depends on `mktemp` elsewhere.
+            dest="$(mktemp "${receipt}.superseded-XXXXXX" 2>/dev/null)" || return 1
+            mv -f "$receipt" "$dest" 2>/dev/null && return 0
+            # Only ever the empty temp THIS call created.
+            rm -f "$dest" 2>/dev/null
+            return 1
+          }
+          begin_receipt="$(tdd_edit_landing_receipt "$session_val")" || begin_receipt=""
+          # `-e || -L` and NOT `-f && ! -L`: the narrower guard skipped the call
+          # entirely for a symlinked receipt, so the function's own three-state
+          # verdict was unreachable and the disclosure could never fire for the
+          # one shape the terminus refuses to read. Presence is the question
+          # here; WHAT is present is the function's to judge.
+          if [ -e "$begin_receipt" ] || [ -L "$begin_receipt" ]; then
+            # The lease is an IMPROVEMENT, never a precondition: the audit
+            # publishes with `mktemp` + `mv -f` and this renames, so a concurrent
+            # publish could otherwise be lost — but a mutex that cannot be taken
+            # must not stop a chain arming. A non-zero result here is a lease
+            # fault OR a real failure, and the unlocked retry is what tells them
+            # apart: the callback returns 0 immediately when the file is already
+            # gone.
+            if ! _tdd_locked_run "$begin_state_file" _tdd_retire_receipt_critical "$begin_receipt"; then
+              if ! _tdd_retire_receipt_critical "$begin_receipt"; then
+                echo "zensu-log.sh --tdd-begin: RECEIPT RETIREMENT UNRESOLVED — the previous generation's edit-landing receipt could not be retired (${begin_receipt}). It records a verdict about ANOTHER generation's run log, and this chain's --tdd-complete may accept it as its own. Move or delete that file before completing." >&2
+              fi
+            fi
+          fi
+          if ! zensu_full_suite_policy_node "zensu-log.sh --tdd-begin" snapshot >/dev/null 2>&1; then
+            echo "zensu-log.sh --tdd-begin: FULL SUITE SNAPSHOT UNAVAILABLE — the full-suite runner of this chain could not be recorded, so the chain closes as a local chain and needs a local full-suite run." >&2
+          fi
+          zensu_external_review_wait_reset "$session_val"
+          if [ "$begin_vanilla" = "true" ]; then
+            echo "mode: vanilla"
+          else
+            echo "mode: strict"
+          fi
+          [ -n "$outgoing_bypasses" ] && echo "previous-run bypasses (cleared now): $outgoing_bypasses"
+        else
+          echo "zensu-log --tdd-begin: atomic chain activation failed — session NOT activated" >&2
+          [ -n "$outgoing_bypasses" ] && echo "previous-run bypasses preserved: $outgoing_bypasses" >&2
+        fi
+        exit "$tdd_begin_rc"
+        ;;
+      --tdd-complete)
+        if ! complete_ctx="$(tdd_autopilot_context "$(tdd_state_file "$session_val")" "$session_val" 2>/dev/null)"; then
+          echo "zensu-log.sh --tdd-complete: corrupt, inactive, or foreign session state" >&2
+          zensu_state_failure_hint --tdd-complete "$session_val"
+          exit 1
+        fi
+        # edit-landing receipt gate. The Phase 6 step 5b audit is an obligation
+        # the model could simply forget; this makes it a precondition, the same
+        # way --chain-done refuses a terminus it can see is untrue. The receipt
+        # is written by hooks/lib/zensu-edit-landing.sh and lives beside the
+        # session state, keyed the same way.
+        # Scope it exactly like the --chain-done dirty-tree refusal below: the
+        # obligation exists because files changed. A chain that changed nothing
+        # has no claim to verify, and hermetic chain-mechanics tests must not be
+        # forced to fabricate a receipt to exercise the terminus.
+        # Not evaluable means not gated, exactly as the --chain-done zero-change
+        # gate treats a non-git root and a repo with no HEAD commit: without a
+        # baseline there is no honest claim to check against.
+        # The change set scopes BOTH gates in this verb, so it is computed when
+        # either one is armed — the requirements gate below must not inherit the
+        # edit-landing switch. The `_tc_` prefix is verb-scoped rather than
+        # gate-scoped on purpose: these values belong to --tdd-complete and are
+        # read by two different gates, and an `_el_` (edit-landing) name would
+        # keep suggesting the second one is borrowing the first one's state.
+        # ONE spelling of the receipt path for both gates below. The library and
+        # this verb must agree on that filename — a second hand-copy inside the
+        # same verb is exactly how such an agreement drifts. Resolved BEFORE the
+        # change set, because the root it yields is what that count is measured on.
+        _tc_state="$(tdd_state_file "$session_val")" || _tc_state=""
+        if [ -z "$_tc_state" ]; then
+          echo "zensu-log.sh --tdd-complete: current-session workflow path unavailable" >&2
+          exit 1
+        fi
+        _tc_receipt="$(tdd_edit_landing_receipt "$session_val")" || _tc_receipt=""
+        if [ -z "$_tc_receipt" ]; then
+          echo "zensu-log.sh --tdd-complete: current-session edit-landing receipt path unavailable" >&2
+          exit 1
+        fi
+        # The root comes from the accessor that OWNS it, not from path surgery over
+        # `tdd_state_file`'s layout: that layout belongs to another function, and a
+        # change to it would leave this silently mis-rooted with no error. This
+        # file already normalizes `COPILOT_PROJECT_DIR` to the same value for every
+        # `--*` verb before any verb body runs, so the two cannot diverge — the
+        # accessor is used here for ownership, not to defend against a divergence.
+        _tc_root="$(zensu_resolve_project_dir)" || _tc_root=""
+        if [ -z "$_tc_root" ]; then
+          echo "zensu-log.sh --tdd-complete: Session Control project context unavailable" >&2
+          exit 1
+        fi
+        # Armed when either gate is ON — and ALSO when either is OFF, because the
+        # bypass-ledger records below conjoin on this count too: with both switches
+        # off the old condition left the count at 0 and silently recorded NEITHER
+        # escape, while both docs promise the recording unconditionally.
+        # The git environment is SCRUBBED. Several variables override `-C` discovery
+        # or empty the untracked listing, so a one-token prefix on the model's own
+        # command would otherwise leave the count at 0 — disarming BOTH gates and,
+        # because the two ledger records conjoin on the same count, suppressing both
+        # bypass entries with nothing recorded anywhere.
+        #
+        # State the strength honestly: this raises the cost of a CARELESS or
+        # inherited prefix, it is not a defence against a determined session. The
+        # same session can write `ZENSU_REQUIREMENTS_GATE=off`, which is documented,
+        # named in the refusal text it just read, and costs it only a ledger line.
+        # The list is also a DENYLIST over an open-ended namespace: every variable
+        # git grows needs an entry in `_tc_git` and nothing would notice a gap. It covers
+        # discovery (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_INDEX_FILE`,
+        # `GIT_CEILING_DIRECTORIES`, `GIT_DISCOVERY_ACROSS_FILESYSTEM`), the object
+        # database (`GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`,
+        # `GIT_NAMESPACE`) — `rev-parse --verify HEAD` needs the object FOUND, not
+        # just the ref resolved — the cwd-relative prefix (`GIT_PREFIX`), and config
+        # injection, which has TWO channels rather than one: `GIT_CONFIG`,
+        # `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`, `GIT_CONFIG_COUNT` (the gate for
+        # the numbered `GIT_CONFIG_KEY_n`/`VALUE_n` pairs, so unsetting it neutralises
+        # them without enumerating any) and `GIT_CONFIG_PARAMETERS`, git's SERIALIZED
+        # `-c` channel, which is gated by nothing and injects directly. This comment
+        # enumerated thirteen while the code unset fourteen, and called the pair gate
+        # "the single lever" while a second channel stood open. `core.excludesFile`
+        # alone empties `ls-files --others --exclude-standard`.
+        #
+        # Builtins in a subshell, not `env`: `env` is an external binary, and if it
+        # cannot be resolved every scope call fails, which refuses this verb on a
+        # repository git itself would read.
+        _tc_changes="$(_zensu_unqualified_change_count "$_tc_root")"
+        [ "$_tc_changes" = unknown ] && _tc_changes=0
+        if [ "$_tc_changes" = unavailable ] \
+           && ! { [ "${ZENSU_EDIT_LANDING_GATE:-on}" = "off" ] && [ "${ZENSU_REQUIREMENTS_GATE:-on}" = "off" ]; }; then
+          echo "zensu-log.sh --tdd-complete: refusing to mark implementation complete — git could not list this worktree's changes against HEAD, and that count decides whether the edit-landing receipt gate and the requirements-table gate apply to this chain. Run git diff --name-only HEAD in the project root to see the git error and resolve it, then run --tdd-complete again." >&2
+          exit 1
+        fi
+        _tc_receipt_verdict() {
+          ZENSU_TC_RECEIPT="$(_tdd_native_path "$1" 2>/dev/null || printf '%s' "$1")" node -e '
+            const fs = require("fs");
+            let out = "unparseable";
+            let claims = "0";
+            let log = "";
+            let fd = -1;
+            try {
+              const p = process.env.ZENSU_TC_RECEIPT;
+              // O_NOFOLLOW refuses a symlink AT THE OPEN, and O_NONBLOCK keeps a
+              // FIFO planted in the check-then-open window from hanging this verb
+              // — `.zensu/state/` is writable from inside the session, so both are
+              // reachable. Both flags are guarded: a build that does not define
+              // one still opens, and the descriptor tests below still decide.
+              const C = fs.constants;
+              let flags = C.O_RDONLY;
+              if (Number.isInteger(C.O_NOFOLLOW)) flags |= C.O_NOFOLLOW;
+              if (Number.isInteger(C.O_NONBLOCK)) flags |= C.O_NONBLOCK;
+              fd = fs.openSync(p, flags);
+              const st = fs.fstatSync(fd);
+              if (!st.isFile() || st.size > 4 * 1024 * 1024) {
+                out = "unreadable";
+              } else {
+                const buf = Buffer.allocUnsafe(st.size);
+                let off = 0;
+                while (off < st.size) {
+                  const n = fs.readSync(fd, buf, off, st.size - off, off);
+                  if (n <= 0) break;
+                  off += n;
+                }
+                if (off !== st.size) {
+                  out = "unreadable";
+                } else {
+                  const j = JSON.parse(buf.toString("utf8"));
+                  if (!j || typeof j !== "object" || Array.isArray(j)) out = "unparseable";
+                  else if (j.schema !== "edit-landing-v1" && j.schema !== "edit-landing-v2") out = "unknown-schema";
+                  else {
+                    if (j.clean === true) out = "clean";
+                    else if (j.clean === false) out = "unclean";
+                    else out = "no-verdict";
+                    // Harvested only under a KNOWN schema: a count read out of a
+                    // document whose discriminator was just rejected would arm the
+                    // gate on a field this runtime cannot claim to understand.
+                    //
+                    // `claims` is a GATE INPUT now, not a report field — it arms the
+                    // receipt requirement on a clean anchor — so its TYPE is
+                    // load-bearing. A producer serialising it as `"2"` used to fail
+                    // `Number.isFinite`, fall back to zero, and disarm the channel
+                    // with nothing said on any surface. `?` is the unreadable
+                    // marker the shell turns into a disclosure; a legitimate `0` is
+                    // still `0`, because claiming nothing is a real answer.
+                    if (typeof j.claims === "number" && Number.isFinite(j.claims) && j.claims >= 0) {
+                      claims = String(Math.floor(j.claims));
+                    } else {
+                      claims = "?";
+                    }
+                    if (typeof j.log === "string") log = j.log;
+                  }
+                }
+              }
+            } catch (e) {
+              // Discriminate the I/O fault from the CONTENT fault. Every `fs`
+              // failure carries an errno `.code` (EACCES, EIO, EPERM, and the
+              // ENOENT race against the shell `-f` test above); `JSON.parse`
+              // throws a SyntaxError that carries none. Reporting an unreadable
+              // receipt as "does not parse" named the wrong cause and prescribed
+              // a remedy — re-run the audit — that would hit the same fault.
+              out = (e && e.code) ? "unreadable" : "unparseable";
+            }
+            finally { if (fd >= 0) { try { fs.closeSync(fd); } catch (e2) {} } }
+            process.stdout.write(out + "\t" + claims + "\t" + log);
+          ' 2>/dev/null || printf 'unavailable\t0\t'
+        }
+        _tc_armed=0
+        [ "$_tc_changes" != 0 ] && _tc_armed=1
+        _tc_receipt_state=""
+        _tc_receipt_claims=0
+        _tc_receipt_claims_bad=0
+        _tc_receipt_log=""
+        if [ -f "$_tc_receipt" ] && [ ! -L "$_tc_receipt" ]; then
+          _tc_receipt_read="$(_tc_receipt_verdict "$_tc_receipt")"
+          _tc_receipt_state="${_tc_receipt_read%%$'\t'*}"
+          _tc_receipt_rest="${_tc_receipt_read#*$'\t'}"
+          _tc_receipt_claims="${_tc_receipt_rest%%$'\t'*}"
+          _tc_receipt_log="${_tc_receipt_rest#*$'\t'}"
+          # `?` is the reader's unreadable-count marker; anything else non-numeric
+          # is a wire-format fault. Both mean the same thing to this gate — the
+          # claim channel did not resolve — and both are DISCLOSED below rather
+          # than collapsed into a silent zero. Only a receipt this runtime could
+          # actually read carries the marker, so an unknown-schema or unparseable
+          # receipt (which refuses loudly on its own) never reaches it.
+          case "$_tc_receipt_claims" in
+            ''|*[!0-9]*)
+              case "$_tc_receipt_state" in
+                clean|unclean|no-verdict) _tc_receipt_claims_bad=1 ;;
+              esac
+              _tc_receipt_claims=0
+              ;;
+          esac
+        fi
+        _tc_log_state="none"
+        _tc_log_claims=0
+        # Resolved on BOTH arming channels, not only the zero-change one. The
+        # stem bind below compares this run log against the one the receipt
+        # records, and gating the resolution on `_tc_armed -eq 0` made that
+        # comparison unreachable on the DOMINANT path — a dirty tree — where a
+        # `clean: true` receipt describing some other run log then satisfied the
+        # verdict test unchallenged.
+        _tc_run_log=""
+        if [ "$seen_plan" = true ] && [ -n "$plan_val" ]; then
+          _tc_plan_stem="$(basename "$plan_val")"
+          _tc_plan_stem="${_tc_plan_stem%.md}"
+          _tc_logs_dir="${_tc_root}/.zensu/logs"
+          if [ -z "$_tc_plan_stem" ] || [ -L "$_tc_logs_dir" ]; then
+            _tc_log_state="refused"
+          else
+            _tc_run_log="${_tc_logs_dir}/${_tc_plan_stem}.log"
+            if [ ! -f "$_tc_run_log" ] || [ -L "$_tc_run_log" ]; then
+              _tc_log_state="missing"
+              _tc_run_log=""
+            else
+              _tc_log_state="ok"
+            fi
+          fi
+        fi
+        if [ "$_tc_armed" -eq 0 ]; then
+          [ "$_tc_receipt_claims" -gt 0 ] && _tc_armed=1
+          if [ "$_tc_log_state" = "ok" ]; then
+            _tc_el_lib="${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-edit-landing.sh"
+            if [ -f "$_tc_el_lib" ] && [ ! -L "$_tc_el_lib" ] && [ -r "$_tc_el_lib" ]; then
+              # Routed through the ONE shared ladder rather than a fourth copy of
+              # it. State the bound CONDITIONALLY, because it is: the ladder probes
+              # `timeout`, then `gtimeout`, then runs the child with NO deadline —
+              # and on base macOS, this repository's own development platform,
+              # neither binary exists, so the last arm is what runs. The parity
+              # with the doctor is asymmetric too: `spawnSync`'s `timeout` is
+              # enforced by node regardless of PATH, while this one is enforced by
+              # a binary that may be absent. A missing ladder FILE degrades the
+              # same way rather than skipping the inventory, because losing the
+              # claim channel would silently disarm the gate.
+              #
+              # What actually bounds this child on such a host are its own
+              # in-process budgets — `CLAIM_ANCESTOR_BUDGET` and
+              # `INV_CLAIM_BUDGET` in zensu-edit-landing.sh — which cap the NUMBER
+              # of filesystem probes over paths a session-writable run log named.
+              # They do not bound a single probe that never returns: a claim on a
+              # stalled mount still hangs, and `|| return 0` cannot help, because
+              # it tests an exit status and a hang produces none. That residual is
+              # recorded in the ladder's own header.
+              _tc_bounded_lib="${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-bounded-run.sh"
+              if [ -f "$_tc_bounded_lib" ] && [ ! -L "$_tc_bounded_lib" ] && [ -r "$_tc_bounded_lib" ]; then
+                # shellcheck source=/dev/null
+                . "$_tc_bounded_lib" 2>/dev/null || true
+              fi
+              if command -v zensu_run_bounded >/dev/null 2>&1; then
+                _tc_inventory="$(zensu_run_bounded bash "$_tc_el_lib" --inventory --log "$_tc_run_log" --project "$_tc_root" 2>/dev/null)"
+              else
+                # DISCLOSED, not silent. This block already sets and reports
+                # `library-unavailable` for its sibling file, and an absent
+                # watchdog on THIS path costs more than a diagnostic: the
+                # ladder's own header records that here the price is the VERB —
+                # a child that never returns means the chain never completes.
+                # Running it anyway is still right (losing the claim channel
+                # would silently disarm the gate), but saying nothing was not.
+                echo "zensu-log.sh --tdd-complete: CLAIM INVENTORY UNBOUNDED — the shared watchdog ladder (${_tc_bounded_lib:-<path unresolved>}) could not be loaded, so the claim inventory ran with no deadline. A child that never returns cannot be interrupted here and this verb would not complete." >&2
+                _tc_inventory="$(bash "$_tc_el_lib" --inventory --log "$_tc_run_log" --project "$_tc_root" 2>/dev/null)"
+              fi
+              _tc_inventory_rc=$?
+              # The count is read on BOTH arms. A child that could not complete
+              # still prints the `claimed-files=` it had already counted before
+              # it broke, and that partial figure is a sound LOWER BOUND: the
+              # claims it counted are claims that exist. Forcing it to 0 on any
+              # non-zero rc inverted the gate — a run log naming more claims than
+              # the child's own budget can process ARMED LESS than one naming
+              # three, and the receipt requirement disarmed on exactly the logs
+              # most likely to need it. Arming is monotone in the count, so a
+              # lower bound is the right thing to arm on; the incompleteness is
+              # DISCLOSED below rather than absorbed.
+              _tc_log_claims="$(printf '%s\n' "$_tc_inventory" | sed -n 's/^claimed-files=//p' | head -1)"
+              case "$_tc_log_claims" in
+                ''|*[!0-9]*) _tc_log_claims=0 ;;
+              esac
+              if [ "$_tc_inventory_rc" -ne 0 ]; then
+                _tc_log_state="inventory-failed"
+              elif [ "$_tc_log_claims" -eq 0 ] \
+                   && ! printf '%s\n' "$_tc_inventory" | grep -q '^claimed-files='; then
+                _tc_log_state="unreadable"
+              fi
+            else
+              _tc_log_state="library-unavailable"
+            fi
+          fi
+          [ "$_tc_log_claims" -gt 0 ] && _tc_armed=1
+          # HOISTED out of the `_tc_armed -eq 0` block below, and that placement
+          # is the point rather than tidying. Arming on a partial count sets
+          # `_tc_armed=1` one line above, so an incompleteness notice left inside
+          # that block would never fire for the very case it describes: the fix
+          # for a silent DISARM would have shipped a silent ARM. Same structural
+          # trap as the stem cross-check further down, which needed its own ARMED
+          # arm for the same reason. The wording asserts nothing about the change
+          # set, because on this path the anchor may be dirty or clean.
+          # TWO consumers, ONE child, two readings of its non-zero status, and
+          # the divergence is deliberate: here a partial `claimed-files=` is a
+          # sound LOWER BOUND and arming is monotone in the count, while in
+          # `claimInventory` (hooks/lib/zensu-doctor-report.js) the doctor
+          # discards the whole answer, because a truncated foreign-ROOT list is
+          # not trustworthy for a row that names repositories to the user. Both
+          # sites carry this note so the next maintainer does not "align" them
+          # and reintroduce the disarm this arming exists to remove.
+          if [ "${ZENSU_EDIT_LANDING_GATE:-on}" != "off" ] \
+             && [ "$_tc_log_state" = "inventory-failed" ]; then
+            echo "zensu-log.sh --tdd-complete: CLAIM INVENTORY INCOMPLETE — the claim inventory over ${_tc_root}/.zensu/logs/ did not complete, so ${_tc_log_claims} is a LOWER BOUND on this chain's claimed files rather than the count. The receipt requirement is armed on it when it is non-zero; a zero here means the child answered nothing before it stopped, and the requirement then rests on the change set alone. Re-run the Phase 6 step 5b audit to see the cause." >&2
+          fi
+          if [ "$_tc_armed" -eq 0 ] && [ "${ZENSU_EDIT_LANDING_GATE:-on}" != "off" ]; then
+            if [ "$_tc_receipt_claims_bad" -eq 1 ]; then
+              echo "zensu-log.sh --tdd-complete: EDIT LANDING GATE UNRESOLVED — the anchor reports no changed files and this session's edit-landing receipt carries no readable \`claims\` count (the field is absent, or is present and is not a number), so a logged claim could not arm the receipt requirement through the receipt channel. Completion is not blocked on it." >&2
+            fi
+            case "$_tc_log_state" in
+              inventory-failed|library-unavailable)
+                # Reached only when the count was zero as well, since a non-zero
+                # one arms. `inventory-failed` is therefore "it answered nothing"
+                # here, and the CLAIM INVENTORY INCOMPLETE line above has already
+                # named the truncation itself.
+                echo "zensu-log.sh --tdd-complete: EDIT LANDING GATE UNRESOLVED — the anchor reports no changed files and the claim inventory answered no count (${_tc_log_state}: ${_tc_el_lib:-<library path unresolved>}), so a logged claim could not arm the receipt requirement. Completion is not blocked on it." >&2
+                ;;
+              refused|missing|unreadable)
+                echo "zensu-log.sh --tdd-complete: EDIT LANDING GATE UNRESOLVED — the anchor reports no changed files and this session's run log could not be read (${_tc_log_state}: ${_tc_root}/.zensu/logs/), so a logged claim could not arm the receipt requirement. Completion is not blocked on it." >&2
+                ;;
+            esac
+          fi
+        fi
+        # The ledger records an escape that short-circuited a DECISION POINT. Out of
+        # scope there is no decision to short-circuit, so the scope conjunct belongs
+        # here too — otherwise a zero-change chain reports a bypass of a gate that
+        # never ran.
+        if [ "${ZENSU_EDIT_LANDING_GATE:-on}" = "off" ] && [ "$_tc_armed" -eq 1 ]; then
+          tdd_record_bypass "$session_val" ZENSU_EDIT_LANDING_GATE >/dev/null 2>&1 || true
+        fi
+        if [ "${ZENSU_EDIT_LANDING_GATE:-on}" != "off" ] && [ "$_tc_armed" -eq 1 ]; then
+          # `! -L` as well as `-f`: `-f` FOLLOWS a symlink, and the derived-channel
+          # reader below refuses one outright — at the OPEN, with `O_NOFOLLOW`,
+          # judging the descriptor rather than the name. An earlier revision of
+          # this comment named `lstatSync`, which that reader stopped using when
+          # it was hardened; a comment naming a retired mechanism is worse than
+          # none, because the next reader goes looking for a guard that is not
+          # there. Without this line the two
+          # halves disagree about what a receipt is — a symlink satisfies the
+          # precondition here and then derives nothing, which routes an explicit
+          # `--plan` into a refusal whose named cause is the audit rather than the
+          # receipt. This is a shape check, not an authenticity check: the receipt
+          # is a file the session can write, so it bounds accidents, not intent.
+          if [ ! -f "$_tc_receipt" ] || [ -L "$_tc_receipt" ]; then
+            echo "zensu-log.sh --tdd-complete: refusing to mark implementation complete — no edit-landing receipt for this session (a symlink at that path is refused rather than followed, so it does not count as one). A claimed edit that never landed leaves no diff, so no reviewer would ever see it. Run the Phase 6 step 5b audit first:" >&2
+            echo "  bash \"\${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-edit-landing.sh\" --log <run-log> --project \"<the path zensu-log.sh --project-root prints>\" --session \"<session id>\"" >&2
+            echo "Set ZENSU_EDIT_LANDING_GATE=off only for a session the user has explicitly exempted." >&2
+            exit 1
+          fi
+          if [ "$_tc_receipt_state" = "clean" ] && [ -n "${_tc_run_log:-}" ] && [ -n "${_tc_receipt_log:-}" ]; then
+            # Separator-blind, and NOT `basename`: an `edit-landing-v1` receipt
+            # persists `log` as the raw `--log` spelling the caller wrote, so on
+            # win32 this value can arrive backslash-spelled, where `basename`
+            # strips nothing and the two stems then never compare equal. `v2`
+            # persists a project-relative suffix and the reader accepts both, so
+            # the stem rule has to serve both domains. Z8b in
+            # tests/structure/test-tdd-complete-receipt-gate.sh is the pin — MB4
+            # governs the requirements gate's own `_rq_rel` and says nothing
+            # about these two values.
+            _tc_receipt_stem="${_tc_receipt_log##*/}"; _tc_receipt_stem="${_tc_receipt_stem##*\\}"; _tc_receipt_stem="${_tc_receipt_stem%.log}"
+            _tc_armed_stem="${_tc_run_log##*/}"; _tc_armed_stem="${_tc_armed_stem##*\\}"; _tc_armed_stem="${_tc_armed_stem%.log}"
+            # COMPARE the raw stems; RENDER a screened copy. `_tc_receipt_stem`
+            # comes out of a receipt in `<project>/.zensu/state/`, which this
+            # repository records as session-writable with no gate covering it, so
+            # the value reaching a refusal a model reads gets the same treatment
+            # the doctor's topology row gives a claim root: no control byte, no
+            # backtick, and a bounded length.
+            # The screen is SOURCED from hooks/lib/zensu-safe-render.sh, the
+            # same implementation the audit library uses. It was a local copy
+            # documented as carrying the same rules as its sibling while the
+            # two had already diverged on the empty-value arm — and both were
+            # wrong in the same two ways, so a cross-file pin over them would
+            # have reported agreement about a rule set matching neither owner.
+            # That library's header carries the rules, the escape/withhold split
+            # and the locale pin; restating them here is how the pair drifted.
+            _tc_render_lib="${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-safe-render.sh"
+            if [ -f "$_tc_render_lib" ] && [ ! -L "$_tc_render_lib" ] && [ -r "$_tc_render_lib" ]; then
+              # shellcheck source=hooks/lib/zensu-safe-render.sh
+              . "$_tc_render_lib" 2>/dev/null || true
+            fi
+            if ! command -v zensu_safe_render >/dev/null 2>&1; then
+              # Fail CLOSED, for the reason the audit library's own fallback
+              # states: an unscreened stem in a refusal a model relays is the
+              # outcome the screen exists to prevent.
+              zensu_safe_render() { printf '%s' "(withheld — the render screen could not be loaded)"; }
+            fi
+            _tc_render_stem() { zensu_safe_render "$1"; }
+            _tc_receipt_shown="$(_tc_render_stem "$_tc_receipt_stem")"
+            _tc_armed_shown="$(_tc_render_stem "$_tc_armed_stem")"
+            if [ "$_tc_receipt_stem" != "$_tc_armed_stem" ]; then
+              echo "zensu-log.sh --tdd-complete: refusing to mark implementation complete — the edit-landing receipt for this session describes the run log \`${_tc_receipt_shown}.log\`, but this chain's own run log is \`${_tc_armed_shown}.log\`. A receipt is evidence about ONE run log; a clean verdict for another one proves nothing about this chain's claims. Re-run the Phase 6 step 5b audit over this chain's own run log:" >&2
+              # The run log is SCREENED here too. The two stems one line above
+              # go through the shared screen and this value is derived from the
+              # same `--plan` argv plus a filename in the session-writable
+              # `.zensu/logs`, so rendering it raw inside a double-quoted
+              # command the model is told to run was the one unscreened value
+              # left in this refusal.
+              echo "  bash \"\${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-edit-landing.sh\" --log \"$(_tc_render_stem "${_tc_run_log:-}")\" --project \"<the path zensu-log.sh --project-root prints>\" --session \"<session id>\"" >&2
+              exit 1
+            fi
+          fi
+          # THE ARMED ARM of the same disclosure. The two messages above open with
+          # "the anchor reports no changed files" and live inside `_tc_armed -eq 0`,
+          # because that is where a failed channel costs the ARMING. On a dirty
+          # tree the arming is not in doubt — but the stem cross-check above is,
+          # and it is conjoined on `_tc_run_log` being non-empty. So when the
+          # caller named a plan and the run log could not be resolved, the receipt
+          # is accepted without ever being bound to THIS chain's run log, and the
+          # skipped check used to read exactly like a passed one. Same rule the
+          # sibling requirements gate states for `REQUIREMENTS GATE UNRESOLVED`.
+          if [ "$_tc_receipt_state" = "clean" ] && [ -z "${_tc_run_log:-}" ] \
+             && [ "$seen_plan" = true ] && [ -n "$plan_val" ]; then
+            echo "zensu-log.sh --tdd-complete: EDIT LANDING GATE UNRESOLVED — this session's own run log could not be resolved (${_tc_log_state}: ${_tc_root}/.zensu/logs/), so the receipt's \`log\` field was never cross-checked against it. The receipt records a clean verdict about SOME run log; nothing here establishes it is this chain's. Completion is not blocked on it." >&2
+          fi
+          # THE OTHER CELL. The cross-check above is conjoined on BOTH values
+          # being non-empty, and the arm above covers only the half where the
+          # RUN LOG is missing. When the run log resolved and the RECEIPT's own
+          # `log` did not — absent, or present and not a string — the check was
+          # skipped just as completely and said nothing, which is the shape both
+          # of these disclosures exist to remove. The receipt is an ordinary file
+          # in `.zensu/state/`, so dropping one field is the cheapest way to
+          # reach it.
+          if [ "$_tc_receipt_state" = "clean" ] && [ -n "${_tc_run_log:-}" ] \
+             && [ -z "${_tc_receipt_log:-}" ]; then
+            echo "zensu-log.sh --tdd-complete: EDIT LANDING GATE UNRESOLVED — this session's edit-landing receipt records a clean verdict but names no run log (its \`log\` field is absent, or is present and is not a string), so it was never cross-checked against this chain's own run log. A receipt is evidence about ONE run log; a clean verdict that names none proves nothing about this chain's claims. Re-run the Phase 6 step 5b audit over this chain's own run log. Completion is not blocked on it." >&2
+          fi
+          if [ "$_tc_receipt_state" != "clean" ]; then
+            # The CAUSE and the REMEDY are chosen together, per state. They used to
+            # diverge: every state named its own cause accurately and then shared one
+            # appended paragraph telling the author to LAND the claimed edit, which is
+            # true of `unclean` and of nothing else. Landing an edit cannot make an
+            # unreadable file readable; for a corrupt, truncated or unknown-schema
+            # receipt every claimed edit may already have landed; and the residual arm
+            # is not a verdict about claims at all, so prescribing a claims remedy there
+            # contradicted the sentence before it. Naming the right cause and then
+            # prescribing the wrong remedy is the same defect this reader's own
+            # I/O-versus-content discrimination exists to remove, one layer up.
+            case "$_tc_receipt_state" in
+              unclean)
+                _tc_verdict_text="records a FAILED audit (\`clean: false\`) — a claimed edit did not land, or nothing gradeable was claimed"
+                _tc_remedy_text="The only in-chain clearance is to LAND the claimed edit at the path the claim names and re-run the audit — the run log is append-only and the grader retires no claim, so withdrawing one in prose does not clear this, and re-landing foreign-root work in the anchor does not retire the claim that named the other root."
+                ;;
+              no-verdict)
+                _tc_verdict_text="records no verdict: its \`clean\` field is absent or is not a boolean, so it proves nothing about the claimed edits"
+                _tc_remedy_text="This is a fault in the receipt FILE and not a verdict about the claimed edits — they may all have landed. Repair or remove the receipt at that path and re-run the audit so it writes a fresh one."
+                ;;
+              unknown-schema)
+                _tc_verdict_text="carries a schema this runtime does not know, so its verdict could not be read"
+                _tc_remedy_text="This is a fault in the receipt FILE and not a verdict about the claimed edits — they may all have landed. Re-running the audit with this runtime writes a schema it can read; nothing needs to be re-landed for that."
+                ;;
+              unreadable)
+                _tc_verdict_text="could not be read — it is not a regular file of bounded size, or the read itself failed"
+                _tc_remedy_text="This is a fault in the receipt FILE and not a verdict about the claimed edits — they may all have landed. Fix the named file condition (permissions, size, or whatever object now sits at that path), then re-run the audit so it writes a fresh receipt."
+                ;;
+              unparseable)
+                _tc_verdict_text="does not parse as an edit-landing receipt"
+                _tc_remedy_text="This is a fault in the receipt FILE and not a verdict about the claimed edits — they may all have landed. Repair or remove the receipt at that path and re-run the audit so it writes a fresh one."
+                ;;
+              *)
+                _tc_verdict_text="could not be judged (node is unavailable, or the read failed) — this is not a verdict about its contents"
+                _tc_remedy_text="No verdict was read at all, so nothing is known about the claimed edits. The clearance is to make \`node\` reachable from this hook and re-run the audit."
+                ;;
+            esac
+            echo "zensu-log.sh --tdd-complete: refusing to mark implementation complete — the edit-landing receipt for this session ${_tc_verdict_text}. Only a receipt recording \`clean: true\` establishes that the claimed edits landed; the audit writes the receipt BEFORE its own exit status, so its presence alone proves nothing. ${_tc_remedy_text} Re-run the Phase 6 step 5b audit:" >&2
+            echo "  bash \"\${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-edit-landing.sh\" --log <run-log> --project \"<the path zensu-log.sh --project-root prints>\" --session \"<session id>\"" >&2
+            echo "Set ZENSU_EDIT_LANDING_GATE=off only for a session the user has explicitly exempted." >&2
+            exit 1
+          fi
+        fi
+        # Whether a receipt is EXPECTED at all is decided once, here, and named.
+        # The requirements gate below needs the answer — with no receipt there is no
+        # run-log stem to cross-check an explicit --plan against — and reading the
+        # sibling gate's switch from inside that branch made the gate look as though
+        # it inherits the other's configuration. It does not: the scope of each gate
+        # is its own, and this is the single, named consequence of the sibling being
+        # switched off. One question ("is there a receipt to anchor against?"),
+        # asked in one place.
+        _tc_receipt_expected=1
+        [ "${ZENSU_EDIT_LANDING_GATE:-on}" = "off" ] && _tc_receipt_expected=0
+        # Requirements-table gate. /zensu-converge anchors its flow-back audit on
+        # the plan's `## Requirements` table. Without a usable one it takes its
+        # legacy stop and reports nothing — and /zensu-autopilot's CONVERGE stage,
+        # the ONLY edge into OPEN_PR, then passes on an audit that examined
+        # nothing. Prose asked for the table (skills/zensu-tdd/references/planning.md Phase 2 step 1b)
+        # and the only check was the warning-level step 6c, which skips silently
+        # when the table is absent; measured across real projects a third of plans
+        # carried none. Same move as the receipt gate above: make the obligation a
+        # precondition of completion.
+        if [ "${ZENSU_REQUIREMENTS_GATE:-on}" = "off" ] && [ "$_tc_changes" != 0 ]; then
+          # An env escape is free but never silent: the ledger is what keeps
+          # everything a chain renders under "Gates bypassed" true. Fail-open, as
+          # every other recording site is — failing to record must not change the
+          # completion decision. Scoped like the gate itself: out of scope there is
+          # no decision point to short-circuit, so there is no escape to record.
+          tdd_record_bypass "$session_val" ZENSU_REQUIREMENTS_GATE >/dev/null 2>&1 || true
+        fi
+        if [ "${ZENSU_REQUIREMENTS_GATE:-on}" != "off" ] && [ "$_tc_changes" != 0 ]; then
+          _rq_plan="$plan_val"
+          _rq_explicit="$seen_plan"
+          _rq_reason=""
+          _rq_derived=""
+          if [ "$_rq_explicit" = true ]; then
+            # A relative --plan is anchored on the project, exactly like the
+            # derived path below. The skill hands this flag a project-relative
+            # spelling and the explicit channel is fail-closed, so resolving it
+            # against the process cwd would turn a correct plan into a refusal
+            # whenever the shell's cwd is not the project root.
+            case "$_rq_plan" in
+              /*) ;;
+              *) [ -n "$_rq_plan" ] && _rq_plan="${_tc_root}/$_rq_plan" ;;
+            esac
+          fi
+          if [ -f "$_tc_receipt" ] && command -v node >/dev/null 2>&1; then
+            # Derive from the receipt's own record of the run log it audited. The
+            # plan and the log are created from one {SESSION_TS}_tdd-{slug} stem,
+            # so .zensu/logs/<stem>.log names .zensu/plans/<stem>.md. Deriving
+            # through the receipt — rather than taking the newest plan by mtime,
+            # as /zensu-converge does — is what anchors this gate to THIS session,
+            # AS STRONGLY AS THE RECEIPT CAN BE TRUSTED. A stale plan cannot satisfy
+            # the gate without also rewriting the receipt, and the receipt is an
+            # ordinary file in the project tree that the session can rewrite through
+            # a bash redirect. So this is anchoring, not enforcement — the same
+            # wording docs/gates.md uses, and the honest one: it buys nothing an
+            # attacker wants anyway, because a model that wanted to defeat this gate
+            # would simply fill the table.
+            # The receipt is a file inside the project, so the session can write
+            # it: the reader binds the writer's `schema` discriminator rather than
+            # accepting any object with a `log` string, and the value is judged
+            # against the project's own logs directory before anything is derived
+            # from it. `case` globbing would not do that — `*` matches `/`, so
+            # `*/.zensu/logs/*.log` accepts a path anywhere on the host.
+            # Both values are translated into the NATIVE namespace before they
+            # cross into node, and what comes BACK is a project-relative suffix,
+            # never a native absolute path: the shell applies basename/dirname to
+            # the result, and on a host whose shell and node namespaces differ
+            # (MSYS) a `C:\...` string has no `/` separators, so the derived stem
+            # would be malformed and every skill-supplied --plan refused.
+            _rq_native_root="$(_tdd_native_path "$_tc_root" 2>/dev/null || printf '%s' "$_tc_root")"
+            _rq_native_receipt="$(_tdd_native_path "$_tc_receipt" 2>/dev/null || printf '%s' "$_tc_receipt")"
+            _rq_lib="$(_tdd_native_path "${COPILOT_PLUGIN_ROOT}/hooks/lib/edit-landing-receipt-v1.js" 2>/dev/null || printf '%s' "${COPILOT_PLUGIN_ROOT}/hooks/lib/edit-landing-receipt-v1.js")"
+            _rq_rc=0
+            _rq_rel="$(ZENSU_ELR_LIB="$_rq_lib" ZENSU_ELR_RECEIPT="$_rq_native_receipt" ZENSU_ELR_PROJECT_ROOT="$_rq_native_root" node -e 'process.exitCode = require(process.env.ZENSU_ELR_LIB).main(["receipt-log"])' 2>/dev/null)" || _rq_rc=$?
+            case "$_rq_rc" in
+              (0|3) ;;
+              (*)
+                echo "zensu-log.sh --tdd-complete: the edit-landing receipt reader could not run (exit ${_rq_rc}): ${_rq_lib}. The plan was NOT judged." >&2
+                echo "Reinstall the plugin and run /zensu-doctor; the executing installation is not intact." >&2
+                exit 1
+                ;;
+            esac
+            [ "$_rq_rc" -eq 0 ] || _rq_rel=""
+            if [ -n "$_rq_rel" ]; then
+              # `_rq_rel` is project-relative with `/` separators by construction,
+              # so basename/dirname are safe here on every host.
+              _rq_stem="$(basename "$_rq_rel" .log)"
+              _rq_derived="${_tc_root}/.zensu/plans/${_rq_stem}.md"
+              # The DERIVED channel gets the same plans-directory bound the explicit
+              # one gets. Without it the two entry paths enforce different rules for
+              # one gate, and the derived path is the one an unwedged chain takes,
+              # because the recovery renderer emits `--tdd-complete` flag-free.
+              if [ -L "${_tc_root}/.zensu/plans" ]; then
+                _rq_derived=""
+              fi
+              [ "$_rq_explicit" = true ] || _rq_plan="$_rq_derived"
+            fi
+          fi
+          # An explicit --plan is caller-supplied, so it is bounded the same way
+          # the derived one is: inside the project's own plans directory, and —
+          # when a receipt exists to compare against — naming the same stem the
+          # derivation would have. Without this the flag silently defeats the
+          # session anchoring the derivation exists to provide, because any older
+          # plan with one filled row would satisfy the gate.
+          if [ "$_rq_explicit" = true ] && [ -n "$_rq_plan" ]; then
+            # Both sides canonicalized before comparison, for the same reason the
+            # derivation canonicalizes: the caller's spelling of the project root
+            # and the kernel's can differ (macOS /var vs /private/var), and a raw
+            # string compare would reject the session's own plan.
+            _rq_plans_dir="$(cd "$_tc_root" 2>/dev/null && pwd -P)/.zensu/plans"
+            # A SYMLINKED plans directory is refused rather than resolved through:
+            # canonicalizing both sides and comparing them for equality would then
+            # compare the link target with itself and accept a plan anywhere on the
+            # host. Same rule the derived channel applies to .zensu/logs.
+            if [ -L "$_rq_plans_dir" ]; then
+              _rq_reason="${_rq_plans_dir} is a symlink; refusing to resolve a plan through it"
+            else
+              _rq_plans_dir="$(cd "$_rq_plans_dir" 2>/dev/null && pwd -P || printf '%s' "$_rq_plans_dir")"
+              _rq_root_canon="$(cd "$_tc_root" 2>/dev/null && pwd -P || printf '%s' "$_tc_root")"
+              # The canonicalized plans dir must still be UNDER the canonicalized
+              # root: the leaf lstat above does not see a relocated `.zensu`
+              # component, and the derived channel carries the same assertion.
+              case "$_rq_plans_dir" in
+                "$_rq_root_canon"/*) ;;
+                *) _rq_reason="${_rq_plans_dir} resolves outside the session root ${_rq_root_canon}" ;;
+              esac
+              _rq_plan_dir="$(cd "$(dirname "$_rq_plan")" 2>/dev/null && pwd -P || printf '%s' "$(dirname "$_rq_plan")")"
+              if [ -z "$_rq_reason" ] && [ "$_rq_plan_dir" != "$_rq_plans_dir" ]; then
+                _rq_reason="the --plan path is outside ${_rq_plans_dir}: ${_rq_plan}"
+              fi
+            fi
+            # Compared by STEM, not by full path: the derived value is canonical
+            # (realpath) while the explicit one is anchored on COPILOT_PROJECT_DIR
+            # as given, and on a host where those two spellings differ a path
+            # comparison would reject every correct plan.
+            if [ -z "$_rq_reason" ] && [ -n "$_rq_derived" ] \
+               && [ "$(basename "$_rq_plan")" != "$(basename "$_rq_derived")" ]; then
+              _rq_reason="the --plan path does not name this session's run log sibling ($(basename "$_rq_derived")): ${_rq_plan}. If this generation has not run the Phase 6 step 5b audit yet, the receipt still records the PREVIOUS generation's log — re-run the audit rather than changing the path."
+            fi
+            # The stem bound is UNCONDITIONAL. Without a derived stem there is
+            # nothing to cross-check the caller's assertion against, and falling
+            # through to the directory bound alone would let any older plan in
+            # .zensu/plans/ satisfy the gate — precisely the stale-plan hole the
+            # derivation exists to close, reachable simply by switching the sibling
+            # gate off. Refusing here keeps the documented bound true as written.
+            # ...EXCEPT when the receipt gate was deliberately switched off. That
+            # switch is documented as exempting a session from the receipt
+            # precondition, and no receipt means no derivable stem — refusing here
+            # would make the documented exemption unusable for the shipped
+            # invocation, which always passes --plan. The bound is dropped, not
+            # faked: the weaker state is disclosed on stderr instead.
+            if [ -z "$_rq_reason" ] && [ -z "$_rq_derived" ] \
+               && [ "$_tc_receipt_expected" -eq 0 ]; then
+              echo "zensu-log.sh --tdd-complete: REQUIREMENTS GATE STEM UNCHECKED — ZENSU_EDIT_LANDING_GATE=off leaves no receipt, so the --plan path could not be cross-checked against this session's run log. Only the plans-directory bound applies." >&2
+            elif [ -z "$_rq_reason" ] && [ -z "$_rq_derived" ]; then
+              # Two causes reach here and they need different remedies, so the
+              # message is split on whether a receipt is actually on disk. It also
+              # must NOT end with "or omit --plan": in exactly this state dropping
+              # the flag does not refuse at all — `_rq_plan` stays empty, the judge
+              # branch below is skipped, and the run exits through
+              # REQUIREMENTS GATE UNRESOLVED, which does not block. The one branch
+              # that fails closed would have been naming the spelling that fails
+              # open, to the model that is reading it.
+              # Both branches keep the same leading clause on purpose — it is the
+              # state, and it is what downstream readers match on — and differ only
+              # in the REMEDY, which is the part that was wrong before: telling an
+              # author to run an audit that has already run sends them nowhere.
+              if [ -f "$_tc_receipt" ]; then
+                _rq_reason="no run-log stem could be derived for this session: the edit-landing receipt is present, but the run log it records does not resolve inside ${_tc_root}/.zensu/logs/, so an explicit --plan cannot be cross-checked against it. Re-run the Phase 6 step 5b edit-landing audit for THIS generation so the receipt names this generation's log"
+              else
+                _rq_reason="no run-log stem could be derived for this session, so an explicit --plan cannot be cross-checked against it. Run the Phase 6 step 5b edit-landing audit first — it writes the receipt this check reads"
+              fi
+            fi
+          fi
+          # An explicit --plan is judged even when it names nothing: the caller
+          # asserted where the plan is, and silently skipping a typo would leave
+          # the gate looking armed while it never ran. A DERIVED path that is not
+          # there is different — nothing was asserted, so there is nothing to hold
+          # against the chain.
+          if [ -n "$_rq_reason" ]; then
+            # The generic tail deliberately does NOT offer "omit --plan". For the
+            # no-derivable-stem reason above, omitting the flag is the spelling that
+            # reaches the non-blocking UNRESOLVED arm, so advertising it here turns
+            # this refusal into a documented way around itself. Pointing at the plan
+            # is the remedy that keeps the gate doing its job.
+            echo "zensu-log.sh --tdd-complete: refusing to mark implementation complete — ${_rq_reason}. The requirements-table gate judges this session's own plan; pass the plan this chain wrote under ${_tc_root}/.zensu/plans/." >&2
+            echo "Set ZENSU_REQUIREMENTS_GATE=off only for a session the user has explicitly exempted." >&2
+            exit 1
+          fi
+          if [ "$_rq_explicit" = true ] || { [ -n "$_rq_plan" ] && [ -f "$_rq_plan" ]; }; then
+            _rq_lib="${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-plan-requirements.sh"
+            if [ ! -f "$_rq_lib" ] || [ -L "$_rq_lib" ] || [ ! -r "$_rq_lib" ]; then
+              # A load fault is NOT a verdict about the plan. Reporting it as one
+              # would send the user editing a table that was never read.
+              #
+              # This branch deliberately does NOT name the escape hatch, unlike the
+              # three refusal sites around it. A missing, unreadable or symlinked
+              # gate library is a plugin-INTEGRITY fault: something happened to the
+              # installation that nobody has explained, and the honest instruction is
+              # stop and repair, not skip. The other sites can at least argue the
+              # user might legitimately exempt a session whose plan is genuinely
+              # unjudgeable; this one cannot, and it is the model that reads the
+              # line. An operator who truly must proceed can still set the variable —
+              # they just should not learn it from the integrity failure itself.
+              echo "zensu-log.sh --tdd-complete: the requirements-table check could not run — its library is missing, unreadable, or a symlink: ${_rq_lib}. The plan was NOT judged." >&2
+              echo "Reinstall the plugin and run /zensu-doctor; the executing installation is not intact." >&2
+              exit 1
+            fi
+            _rq_verdict="$(bash "$_rq_lib" --plan "$_rq_plan" 2>&1)"
+            _rq_rc=$?
+            case "$_rq_rc" in
+              0) ;;
+              3|4)
+                echo "zensu-log.sh --tdd-complete: refusing to mark implementation complete — this session's TDD plan carries no usable \`## Requirements\` table, so /zensu-converge would audit nothing and still close clean:" >&2
+                echo "  ${_rq_verdict}" >&2
+                echo "Fill the table with AC-###/FR-### rows per Phase 2 step 1b, then re-run. Pass --plan <path> when the plan is not the run log's sibling under .zensu/plans/." >&2
+                echo "Set ZENSU_REQUIREMENTS_GATE=off only for a session the user has explicitly exempted." >&2
+                exit 1
+                ;;
+              *)
+                # Exit 2 (unreadable/usage) and anything else mean the table was
+                # never judged. Same refusal direction, deliberately different
+                # wording: the remedy is the path or the file, not the contents.
+                echo "zensu-log.sh --tdd-complete: the requirements-table check could not judge the plan (exit ${_rq_rc}). The table was NOT read, so this is not a verdict about its contents:" >&2
+                echo "  ${_rq_verdict}" >&2
+                echo "Point --plan at a readable plan under .zensu/plans/, or set ZENSU_REQUIREMENTS_GATE=off for a session the user has explicitly exempted." >&2
+                exit 1
+                ;;
+            esac
+          else
+            # Armed, in scope, and nothing was judged. Staying silent here would
+            # reproduce the exact indistinguishability this gate exists to remove:
+            # "the table passed" and "no table was ever looked at" would read the
+            # same to everyone downstream.
+            # Two distinct states reach here, and naming the wrong one sends the
+            # reader to the wrong remedy: nothing was derived at all, or a plan WAS
+            # derived and the file is simply not there.
+            if [ -n "$_rq_plan" ]; then
+              echo "zensu-log.sh --tdd-complete: REQUIREMENTS GATE UNRESOLVED — the plan derived for this session does not exist: ${_rq_plan}. The \`## Requirements\` table was NOT checked. Completion is not blocked on it." >&2
+            else
+              echo "zensu-log.sh --tdd-complete: REQUIREMENTS GATE UNRESOLVED — no --plan was passed and no plan could be derived from this session's edit-landing receipt, so the \`## Requirements\` table was NOT checked. Completion is not blocked on it." >&2
+            fi
+          fi
+        fi
+        if [ "$complete_ctx" = '{}' ]; then
+          if [ -n "$autopilot_run_val$autopilot_attempt_val$autopilot_return_stage_val$chain_id_val" ]; then
+            echo "zensu-log.sh --tdd-complete: Autopilot binding was supplied for a standalone chain" >&2
+            exit 2
+          fi
+          tdd_mark_impl_complete_standalone "$session_val"
+          exit $?
+        fi
+        [ -n "$autopilot_run_val" ] && [ -n "$autopilot_attempt_val" ] && [ -n "$chain_id_val" ] || {
+          echo "zensu-log.sh --tdd-complete: bound chain requires --autopilot-run, --autopilot-attempt, and --chain-id" >&2
+          exit 2
+        }
+        complete_link="$(AUTOPILOT_CTX="$complete_ctx" RUN="$autopilot_run_val" \
+          ATTEMPT="$autopilot_attempt_val" CHAIN="$chain_id_val" RETURN_STAGE="$autopilot_return_stage_val" node -e '
+          try {
+            const c=JSON.parse(process.env.AUTOPILOT_CTX);
+            const exact=c.sessionId && c.active===true && c.chainDone===false
+              && c.runId===process.env.RUN && String(c.attempt)===process.env.ATTEMPT
+              && c.chainId===process.env.CHAIN
+              && (!process.env.RETURN_STAGE || c.returnStage===process.env.RETURN_STAGE);
+            if(!exact)process.exit(3);
+            process.stdout.write([c.runId,c.attempt,c.chainId].join("\t"));
+          } catch (_) { process.exit(3); }
+        ' 2>/dev/null)" || {
+          echo "zensu-log.sh --tdd-complete: stale or mismatched Autopilot generation" >&2
+          exit 1
+        }
+        IFS=$'\t' read -r complete_run complete_attempt complete_chain <<<"$complete_link"
+        tdd_mark_impl_complete_bound "$session_val" "$complete_run" "$complete_attempt" "$complete_chain"
+        exit $?
+        ;;
+      --review-ticket) tdd_issue_review_ticket "$session_val" ;;
+      --current-review-ticket) tdd_claimed_review_ticket "$(tdd_state_file "$session_val")" ;;
+      --chain-status)
+        chain_status_out="$(tdd_chain_diagnostics "$session_val")"
+        chain_status_rc=$?
+        case "$chain_status_rc" in
+          0) printf '%s\n' "$chain_status_out"; exit 0 ;;
+          1)
+            echo "zensu-log.sh --chain-status: this session has no chain state" >&2
+            exit 1
+            ;;
+          *)
+            echo "zensu-log.sh --chain-status: chain state is unreadable, foreign, or unsafe" >&2
+            exit 2
+            ;;
+        esac
+        ;;
+      --chain-recover)
+        chain_recover_out="$(tdd_recover_chain "$session_val")"
+        chain_recover_rc=$?
+        case "$chain_recover_rc" in
+          0)
+            printf '%s\n' "${chain_recover_out/recovered:/recovered: }"
+            exit 0
+            ;;
+          1)
+            echo "zensu-log.sh --chain-recover: this session has no chain state" >&2
+            exit 1
+            ;;
+          3)
+            chain_recover_reason="${chain_recover_out#refused:}"
+            case "$chain_recover_reason" in
+              stale-generation)
+                echo "zensu-log.sh --chain-recover: refused — the generation changed between the diagnosis and the transaction. Nothing was written; re-run --chain-status." >&2
+                exit 3
+                ;;
+              unclassifiable-generation)
+                echo "zensu-log.sh --chain-recover: refused — under the lock the document no longer classified (a field changed shape between the diagnosis and the transaction). Nothing was written; re-run --chain-status." >&2
+                exit 3
+                ;;
+            esac
+            chain_recover_report="$(tdd_chain_diagnostics "$session_val" 2>/dev/null)" \
+              || chain_recover_report=""
+            chain_recover_hint="$(CHAIN_REASON="$chain_recover_reason" \
+              CHAIN_REPORT="$chain_recover_report" \
+              CHAIN_RECOVERY="$_ZENSU_TDD_CHAIN_RECOVERY" node -e '
+              try {
+                const chain = require(process.env.CHAIN_RECOVERY);
+                const blocked = chain.BLOCKED_RECOVERY_COMMAND[process.env.CHAIN_REASON];
+                let report = {};
+                try { report = JSON.parse(process.env.CHAIN_REPORT); } catch (_) {}
+                let lead;
+                if (report.deadEnd) lead = "This chain is at a dead end";
+                else if (report.wedged && !report.recoverable) lead = "This chain is wedged but not recoverable in place";
+                else if (report.wedged) lead = "The chain changed under the refusal and now reads as recoverable — re-run --chain-status first";
+                else if (report.shape) lead = "This chain is not wedged";
+                else lead = "The current chain shape could not be re-read";
+                const command = blocked || report.nextCommand;
+                if (command) process.stdout.write(lead + " — supported next step: " + command);
+              } catch (_) {}
+            ' 2>/dev/null)"
+            if [ -n "$chain_recover_hint" ]; then
+              echo "zensu-log.sh --chain-recover: refused (${chain_recover_reason}). ${chain_recover_hint}" >&2
+            else
+              echo "zensu-log.sh --chain-recover: refused (${chain_recover_reason}). The supported next step could not be derived — run --chain-status." >&2
+            fi
+            exit 3
+            ;;
+          *)
+            case "${chain_recover_out#op:}" in
+              write-failed)
+                echo "zensu-log.sh --chain-recover: the recovery transaction was rejected before it could be committed (lock or filesystem failure). The chain was left untouched — retry once the cause is resolved." >&2
+                ;;
+              write-landed-unconfirmed)
+                echo "zensu-log.sh --chain-recover: the repair landed but the transaction could not confirm it. Re-run --chain-status to see the current shape; do NOT arm a new chain." >&2
+                ;;
+              lock-failed)
+                echo "zensu-log.sh --chain-recover: the locked transaction did not report a verdict — the session lease could not be taken, the lock keeper failed, or the storage re-check refused. The chain was NOT recovered. Re-run --chain-status; do NOT arm a new chain to work around it." >&2
+                ;;
+              module-unreadable)
+                echo "zensu-log.sh --chain-recover: the chain-recovery module is missing or could not be loaded — repair the plugin installation" >&2
+                ;;
+              *)
+                echo "zensu-log.sh --chain-recover: chain state is unreadable, foreign, or unsafe" >&2
+                ;;
+            esac
+            exit 2
+            ;;
+        esac
+        ;;
+      --review-rearm)
+        [ "$claimed_ticket_seen" = "true" ] || {
+          echo "zensu-log.sh --review-rearm requires --claimed-review-ticket <ticket>" >&2
+          exit 2
+        }
+        if ! rearm_ctx="$(tdd_autopilot_context "$(tdd_state_file "$session_val")" "$session_val" 2>/dev/null)"; then
+          echo "zensu-log.sh --review-rearm: corrupt or incomplete Autopilot linkage" >&2
+          exit 1
+        fi
+        if [ "$rearm_ctx" = '{}' ]; then
+          if [ -n "$autopilot_run_val$autopilot_attempt_val$autopilot_return_stage_val$chain_id_val" ]; then
+            echo "zensu-log.sh --review-rearm: Autopilot binding was supplied for a standalone chain" >&2
+            exit 2
+          fi
+          tdd_rearm_review "$session_val" "$claimed_ticket_val"
+          exit $?
+        fi
+        [ -n "$autopilot_run_val" ] && [ -n "$autopilot_attempt_val" ] && [ -n "$chain_id_val" ] || {
+          echo "zensu-log.sh --review-rearm: bound chain requires --autopilot-run, --autopilot-attempt, and --chain-id" >&2
+          exit 2
+        }
+        rearm_link="$(AUTOPILOT_CTX="$rearm_ctx" RUN="$autopilot_run_val" \
+          ATTEMPT="$autopilot_attempt_val" CHAIN="$chain_id_val" node -e '
+          try {
+            const c=JSON.parse(process.env.AUTOPILOT_CTX);
+            const exact=c.runId===process.env.RUN && String(c.attempt)===process.env.ATTEMPT
+              && c.chainId===process.env.CHAIN;
+            if(!exact)process.exit(3);
+            process.stdout.write([c.runId,c.attempt,c.chainId].join("\t"));
+          } catch (_) { process.exit(3); }
+        ' 2>/dev/null)" || {
+          echo "zensu-log.sh --review-rearm: stale or mismatched Autopilot generation" >&2
+          exit 1
+        }
+        IFS=$'\t' read -r rearm_run rearm_attempt rearm_chain <<<"$rearm_link"
+        source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+        autopilot_rearm_review "$rearm_run" "${COPILOT_PROJECT_DIR:-.}" "$session_val" \
+          "$rearm_attempt" "$rearm_chain" "$claimed_ticket_val" || {
+          echo "zensu-log.sh --review-rearm: composite outer/inner rearm rejected stale or corrupt state" >&2
+          exit 1
+        }
+        exit 0
+        ;;
+      --chain-done)
+        if ! autopilot_ctx="$(tdd_autopilot_context "$(tdd_state_file "$session_val")" "$session_val" 2>/dev/null)"; then
+          echo "zensu-log.sh --chain-done: corrupt or incomplete Autopilot linkage" >&2
+          zensu_state_failure_hint --chain-done "$session_val"
+          exit 1
+        fi
+        if [ "$autopilot_ctx" = '{}' ]; then
+          if [ -n "$autopilot_run_val$autopilot_attempt_val$autopilot_return_stage_val$chain_id_val" ]; then
+            echo "zensu-log.sh --chain-done: Autopilot binding was supplied for a standalone chain" >&2
+            exit 2
+          fi
+          if [ -n "$chain_outcome_val" ]; then
+            echo "zensu-log.sh --chain-done: --outcome requires an Autopilot-bound chain" >&2
+            exit 1
+          fi
+          if [ "$(tdd_chain_done "$(tdd_state_file "$session_val")")" != "true" ]; then
+            if [ "$claimed_ticket_seen" = "true" ]; then
+              _fsg_lines=""
+              _avg_lines=""
+              chain_change_count=""
+              if _tdd_zero_change_ticket "$claimed_ticket_val"; then
+                chain_change_count="$(_zensu_unqualified_change_count "$COPILOT_PROJECT_DIR")"
+              fi
+              case "$chain_change_count" in
+                (''|0|unknown)
+                  if _zensu_full_suite_ticket_matches "$session_val" "$claimed_ticket_val"; then
+                    chain_gate_rc=0
+                    _zensu_full_suite_gate "$session_val" || chain_gate_rc=1
+                    _zensu_acceptance_gate "$session_val" || chain_gate_rc=1
+                    [ "$chain_gate_rc" -eq 0 ] || exit 1
+                  fi
+                  ;;
+              esac
+              tdd_mark_review_converged "$session_val" "$claimed_ticket_val" chainDone "$chain_change_count" || {
+                chain_done_rc=$?
+                [ "$chain_done_rc" -eq 4 ] || {
+                  zensu_state_failure_hint --chain-done "$session_val"
+                  exit "$chain_done_rc"
+                }
+                if [ "$chain_change_count" = "unavailable" ]; then
+                  echo "zensu-log.sh --chain-done: refusing to close a chain that no reviewer saw. Its self-review ticket was minted for an unqualified --code-review-done mark, and that mark stands only while the worktree reports no changed file — but git could not list this worktree's changes against HEAD, so that cannot be checked. The chain's review is reopened: run git diff --name-only HEAD in the project root to see the git error and resolve it, then resume the /zensu-tdd Phase 6 review sequence, issue a ticket with --review-ticket and spawn zensu:code-reviewer." >&2
+                else
+                  echo "zensu-log.sh --chain-done: refusing to close a chain that no reviewer saw. Its self-review ticket was minted for an unqualified --code-review-done mark, and that mark stands only while the worktree reports no changed file — but the worktree reports ${chain_change_count} changed file(s). The chain's review is reopened: resume the /zensu-tdd Phase 6 review sequence, issue a ticket with --review-ticket and spawn zensu:code-reviewer; the post-review hook then names the ticket-bound --claimed-review-ticket form. Do not commit, stash or revert files to get past this check: a clean worktree only hides the changes from it." >&2
+                fi
+                exit 1
+              }
+              [ -n "$_fsg_lines" ] && printf '%s\n' "$_fsg_lines" >&2
+              [ -n "$_avg_lines" ] && printf '%s\n' "$_avg_lines" >&2
+            else
+              chain_change_count="$(_zensu_unqualified_change_count "$COPILOT_PROJECT_DIR")"
+              tdd_mark_unclaimed_review "$session_val" chainDone "$chain_change_count" || {
+                chain_done_rc=$?
+                [ "$chain_done_rc" -eq 4 ] || {
+                  zensu_state_failure_hint --chain-done "$session_val"
+                  exit "$chain_done_rc"
+                }
+                if [ "$chain_change_count" = "unavailable" ]; then
+                  echo "zensu-log.sh --chain-done: refusing the unqualified standalone terminus. This chain holds no consumed review ticket, so this form is reserved for the ZERO-file-change exception — but git could not list this worktree's changes against HEAD, so that claim cannot be checked. Run git diff --name-only HEAD in the project root to see the git error and resolve it, or review the changes through the zensu:code-reviewer chain and close with --claimed-review-ticket." >&2
+                else
+                  echo "zensu-log.sh --chain-done: refusing the unqualified standalone terminus. This chain holds no consumed review ticket, so this form is reserved for the ZERO-file-change exception — but the worktree reports ${chain_change_count} changed file(s). Review those changes through the zensu:code-reviewer chain and close with --claimed-review-ticket, or re-enter /zensu-tdd for a fresh guarded chain. Do not commit, stash or revert files to get past this check: a clean worktree only hides the changes from it." >&2
+                fi
+                exit 1
+              }
+            fi
+          fi
+          zensu_render_terminus_bypasses "$session_val"
+          exit 0
+        fi
+        [ -n "$autopilot_run_val" ] && [ -n "$autopilot_attempt_val" ] && [ -n "$chain_id_val" ] || {
+          echo "zensu-log.sh --chain-done: bound chain requires --autopilot-run, --autopilot-attempt, and --chain-id" >&2
+          exit 2
+        }
+        done_fields="$(AUTOPILOT_CTX="$autopilot_ctx" REQUESTED_OUTCOME="$chain_outcome_val" \
+          RUN="$autopilot_run_val" ATTEMPT="$autopilot_attempt_val" CHAIN="$chain_id_val" \
+          RETURN_STAGE="$autopilot_return_stage_val" node -e '
+          try {
+            const c=JSON.parse(process.env.AUTOPILOT_CTX);
+            const exact=c.active===true && c.implComplete===true
+              && c.runId===process.env.RUN && String(c.attempt)===process.env.ATTEMPT
+              && c.chainId===process.env.CHAIN
+              && (!process.env.RETURN_STAGE || c.returnStage===process.env.RETURN_STAGE);
+            if(!exact)process.exit(3);
+            const outcome=process.env.REQUESTED_OUTCOME||c.outcome||"pass";
+            process.stdout.write([c.runId,c.attempt,c.chainId,outcome].join("\t"));
+          } catch (_) { process.exit(3); }
+        ' 2>/dev/null)" || {
+          echo "zensu-log.sh --chain-done: stale or mismatched Autopilot generation" >&2
+          exit 1
+        }
+        IFS=$'\t' read -r done_run done_attempt done_chain done_outcome <<<"$done_fields"
+        _fsg_lines=""
+        _avg_lines=""
+        case "$done_outcome" in
+          pass)
+            if [ "$claimed_ticket_seen" != "true" ] \
+              || _zensu_full_suite_ticket_matches "$session_val" "$claimed_ticket_val"; then
+              _zensu_full_suite_gate "$session_val" || exit 1
+              _zensu_acceptance_gate "$session_val" 1 "$(_zensu_autopilot_validate_option "$done_run")" || exit 1
+            fi
+            ;;
+          max-rounds)
+            _fsg_lines="FULL SUITE — not checked | outcome max-rounds closes this attempt without a pass, so the full suite does not gate it"
+            ;;
+        esac
+        source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+        done_event_id="$(autopilot_chain_event_id "done" "$done_chain")" || {
+          echo "zensu-log.sh --chain-done: invalid Autopilot chain identifier" >&2
+          exit 2
+        }
+        autopilot_finish_tdd_attempt "$done_run" "$done_event_id" \
+          "${COPILOT_PROJECT_DIR:-.}" "$session_val" "$done_attempt" "$done_chain" \
+          "$done_outcome" "$claimed_ticket_seen" "$claimed_ticket_val"
+        chain_done_rc=$?
+        if [ "$chain_done_rc" -eq 0 ]; then
+          [ -n "$_fsg_lines" ] && printf '%s\n' "$_fsg_lines" >&2
+          [ -n "$_avg_lines" ] && printf '%s\n' "$_avg_lines" >&2
+          zensu_render_terminus_bypasses "$session_val"
+        fi
+        exit "$chain_done_rc"
+        ;;
+      --code-review-done)
+        if [ "$claimed_ticket_seen" = "true" ]; then
+          tdd_mark_review_converged "$session_val" "$claimed_ticket_val" codeReviewDone
+        else
+          review_change_count="$(_zensu_unqualified_change_count "$COPILOT_PROJECT_DIR")"
+          tdd_mark_unclaimed_review "$session_val" codeReviewDone "$review_change_count" || {
+            review_done_rc=$?
+            [ "$review_done_rc" -eq 4 ] || {
+              zensu_state_failure_hint --code-review-done "$session_val"
+              exit "$review_done_rc"
+            }
+            if [ "$review_change_count" = "unavailable" ]; then
+              echo "zensu-log.sh --code-review-done: refusing the unqualified review-convergence mark. This chain holds no consumed review ticket, so the unqualified form is accepted only while the worktree reports no changed file — but git could not list this worktree's changes against HEAD, so that cannot be checked. Run git diff --name-only HEAD in the project root to see the git error and resolve it, or resume the /zensu-tdd Phase 6 review sequence where it left off: issue a ticket with --review-ticket and spawn zensu:code-reviewer." >&2
+            else
+              echo "zensu-log.sh --code-review-done: refusing the unqualified review-convergence mark. This chain holds no consumed review ticket, so the unqualified form is accepted only while the worktree reports no changed file — but it reports ${review_change_count} changed file(s). Resume the /zensu-tdd Phase 6 review sequence where it left off: issue a ticket with --review-ticket and spawn zensu:code-reviewer; the post-review hook then names the ticket-bound --claimed-review-ticket form. Do not commit, stash or revert files to get past this check: a clean worktree only hides the changes from it." >&2
+            fi
+            exit 1
+          }
+        fi
+        ;;
+      --self-review-fixed)
+        if [ "$claimed_ticket_seen" = "true" ]; then
+          tdd_mark_review_converged "$session_val" "$claimed_ticket_val" selfReviewFixed
+        else
+          tdd_mark_unclaimed_review "$session_val" selfReviewFixed
+        fi
+        ;;
+      --workflow-begin)
+        tdd_workflow_begin "$session_val" "$tools_val"
+        ;;
+      --workflow-end)   tdd_set_flag "$session_val" workflowActive false ;;
+      --tdd-reset)
+        reset_state="$(tdd_state_file "$session_val")"
+        reset_bypasses="$(zensu_bypass_display "$reset_state")"
+        reset_rc=0
+        reset_ctx='{}'
+        if [ -e "$reset_state" ] || [ -L "$reset_state" ]; then
+          reset_ctx="$(tdd_autopilot_context "$reset_state" "$session_val" 2>/dev/null)" || {
+            echo "zensu-log.sh --tdd-reset: corrupt or incomplete Autopilot linkage" >&2
+            [ -n "$reset_bypasses" ] && echo "previous-run bypasses preserved: $reset_bypasses" >&2
+            exit 1
+          }
+        fi
+        if [ "$reset_ctx" != '{}' ]; then
+          reset_fields="$(AUTOPILOT_CTX="$reset_ctx" node -e '
+            try {
+              const c=JSON.parse(process.env.AUTOPILOT_CTX);
+              process.stdout.write([c.runId,c.attempt,c.chainId].join("\t"));
+            }
+            catch (_) { process.exit(3); }
+          ' 2>/dev/null)" || {
+            [ -n "$reset_bypasses" ] && echo "previous-run bypasses preserved: $reset_bypasses" >&2
+            exit 1
+          }
+          IFS=$'\t' read -r reset_run reset_attempt reset_chain <<<"$reset_fields"
+          source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
+          if ! autopilot_reset_inner "$reset_run" "${COPILOT_PROJECT_DIR:-.}" "$session_val" \
+              "$reset_attempt" "$reset_chain"; then
+            echo "zensu-log.sh --tdd-reset: an active or resumable durable outer run owns this chain" >&2
+            [ -n "$reset_bypasses" ] && echo "previous-run bypasses preserved: $reset_bypasses" >&2
+            exit 1
+          fi
+          reset_rc=0
+        else
+          tdd_reset_pending_review_claim "$session_val"
+          reset_rc=$?
+        fi
+        if [ "$reset_rc" -eq 0 ]; then
+          [ -n "$reset_bypasses" ] && echo "previous-run bypasses (cleared now): $reset_bypasses"
+        else
+          [ -n "$reset_bypasses" ] && echo "previous-run bypasses preserved: $reset_bypasses" >&2
+        fi
+        exit "$reset_rc"
+        ;;
+    esac
+    state_verb_rc=$?
+    [ "$state_verb_rc" -eq 0 ] || zensu_state_failure_hint "$verb" "$session_val"
+    exit "$state_verb_rc"
+    ;;
+esac
+
+# The inline timestamp prefix, resolved from logging.timestampStyle. Both the
+# legacy `timestamp` verb and the `append` writer below call it, so the two can
+# never drift into printing different prefixes for the same configuration.
+_zensu_log_timestamp_prefix() {
+  local start="${1:-}" style now diff days rem
+  case "$start" in
+    ''|*[!0-9]*) start=$(date +%s) ;;
+  esac
+  style=$(_zensu_log_style)
+  case "$style" in
+    none)
+      printf ""
+      ;;
+    relative)
+      now=$(date +%s)
+      diff=$((now - 10#$start))
+      [ "$diff" -lt 0 ] && diff=0
+      if [ "$diff" -lt 86400 ]; then
+        printf "[+%02d:%02d:%02d] " $((diff/3600)) $(((diff%3600)/60)) $((diff%60))
+      else
+        days=$((diff/86400))
+        rem=$((diff%86400))
+        printf "[+%dd %02d:%02d:%02d] " "$days" $((rem/3600)) $(((rem%3600)/60)) $((rem%60))
+      fi
+      ;;
+    *)
+      printf "[%s] " "$(date +%H:%M:%S)"
+      ;;
+  esac
+}
+
+cmd="${1:-timestamp}"
+case "$cmd" in
+  timestamp)
+    _zensu_log_timestamp_prefix "${2:-}"
+    ;;
+  append)
+    # The narrative-log WRITER. It exists because the old recipe
+    # (`printf "$(zensu-log.sh timestamp …)" "<msg>" >> {log}`) never routed the
+    # MESSAGE through this helper at all — only the prefix — so nothing could
+    # rewrite the absolute developer paths that a quoted `cmd="cd \"/Users/…\""`
+    # drags into an artifact consuming repos commit.
+    #
+    # Deliberately NOT a `--append` verb: a leading `--` selects the Session
+    # Control binding case at the top of this file, and a log append must keep
+    # working in a shell where COPILOT_SESSION_ID or COPILOT_PLUGIN_DATA is
+    # absent. The project root comes from the log path instead, which is
+    # self-anchoring and needs no environment at all.
+    shift
+    log_val=""
+    msg_val=""
+    msg_seen=0
+    msg_stdin=0
+    start_val=""
+    truncate_val=0
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --log)      log_val="${2:-}";   shift 2 || break ;;
+        --message)
+          # `msg_seen` is set only when a VALUE was actually consumed. Setting it
+          # on the flag alone leaves the malformed `--message` as the last token
+          # indistinguishable from a supplied empty string, which is exactly the
+          # timestamp-only line this guard exists to refuse.
+          if [ "$#" -lt 2 ]; then
+            echo "zensu-log.sh append: --message needs a value" >&2
+            exit 2
+          fi
+          msg_val="$2"; msg_seen=$((msg_seen + 1)); shift 2
+          ;;
+        --message-stdin)
+          msg_val="$(cat)"; msg_seen=$((msg_seen + 1)); msg_stdin=1; shift
+          ;;
+        --start)    start_val="${2:-}"; shift 2 || break ;;
+        --truncate) truncate_val=1;     shift ;;
+        *)
+          echo "zensu-log.sh append: unknown option '$1'" >&2
+          exit 2
+          ;;
+      esac
+    done
+
+    if [ -z "$log_val" ]; then
+      echo "zensu-log.sh append: --log <file> is required" >&2
+      exit 2
+    fi
+    if [ "$msg_seen" -gt 1 ]; then
+      echo "zensu-log.sh append: pass exactly one of --message and --message-stdin" >&2
+      exit 2
+    fi
+    # A flag consumed as the last token leaves ${2:-} empty and `shift 2` fails
+    # into the loop break, so an absent VALUE is indistinguishable from an
+    # absent flag unless it is tracked. Writing a timestamp-only line into a
+    # committed audit log is not a reasonable answer to a malformed call.
+    if [ "$msg_seen" -ne 1 ]; then
+      echo "zensu-log.sh append: --message <text> or --message-stdin is required" >&2
+      exit 2
+    fi
+    if [ "$msg_stdin" = 1 ] && [ -z "$msg_val" ]; then
+      echo "zensu-log.sh append: --message-stdin read an empty message" >&2
+      exit 2
+    fi
+    if [ -L "$log_val" ]; then
+      echo "zensu-log.sh append: refusing to write through a symlinked log path" >&2
+      exit 2
+    fi
+    # NOT gated on COPILOT_PROJECT_DIR, and the reason is worth writing down: an
+    # earlier revision made `--truncate` refuse without it, which broke the
+    # Phase 2 recipe of that time outright — that variable is absent from the
+    # model's bash environment on this host. The binding would
+    # also have bought little: an env var the caller sets is not an authority.
+    # What actually constrains the destructive mode is the module — the `logs`
+    # bucket only, a canonicalized artifact directory,
+    # and a descriptor judged for isFile, nlink and dev+ino. When the variable IS set
+    # it is still passed through as `expectedRoot`, so a bound session gets the
+    # stricter check for free.
+
+    # Module transport, mechanism 2 of the two this repo accepts (see
+    # tests/structure/test-msys-special-plugin-module-boundaries.sh): the lib
+    # DIRECTORY is rendered natively by zensu-host-path.sh, the file name is
+    # appended, and the guarded result travels in an ENVIRONMENT variable — never
+    # as an argv token carrying the plugin root.
+    redact_lib_dir="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-host-path.sh" \
+      "${COPILOT_PLUGIN_ROOT}/hooks/lib")" || redact_lib_dir=""
+    redact_lib="$redact_lib_dir/zensu-artifact-redact-v1.js"
+    secret_lib="$redact_lib_dir/secret-patterns.js"
+    # Fail LOUD rather than write an unredacted line. A host without node cannot
+    # arm a chain at all (--tdd-begin needs Session Control, which needs node),
+    # so this refusal is unreachable in any session that has a log to write to.
+    if ! command -v node >/dev/null 2>&1; then
+      # The wording here deliberately avoids the bind-failure hint phrase used
+      # for those three literals and pins their order against the guards in
+      # zensu_bind_model_session, so a second occurrence anywhere — comments
+      # included — breaks the mirror.
+      echo "zensu-log.sh append: node is required to redact the message — refusing to write an unredacted log line" >&2
+      exit 2
+    fi
+    # The guard ACTS: it drops the path, so the node side takes its own
+    # fail-open branch and reports the scan as unavailable. It used to warn and
+    # then do nothing — a symlinked-but-valid scanner was still required, still
+    # ran, and refused the line, so the warning claimed an outcome that did not
+    # happen and the refusal arrived after a message saying it would not. A
+    # branch that warns about an outcome it does not produce trains the reader
+    # to ignore it.
+    #
+    # A symlink is refused rather than followed for the same reason the redactor
+    # refuses one: this is a path the session itself can write, and a scanner
+    # that can be repointed is not a control. It fails OPEN here rather than
+    # exiting, because the scan is an improvement and the redaction is the
+    # guarantee — losing the scan must not cost the log line.
+    if [ ! -f "$secret_lib" ] || [ -L "$secret_lib" ]; then
+      echo "zensu-log.sh append: the credential scanner is missing or is a symlink; the line will be written unscanned" >&2
+      secret_lib=""
+    fi
+    if [ -z "$redact_lib_dir" ] || [ ! -f "$redact_lib" ] || [ -L "$redact_lib" ]; then
+      echo "zensu-log.sh append: the artifact redactor is missing — refusing to write an unredacted log line" >&2
+      exit 2
+    fi
+    # Every sibling gate records its own `ZENSU_*=off` escape, and the chain-end
+    # report renders that ledger under "Gates bypassed" — a list the reader takes
+    # as complete. This chokepoint honoured the opt-out and recorded nothing, so
+    # a session that turned the credential scan off read as one that never did.
+    #
+    # Best-effort BY DESIGN, and in a subshell so the phase library never enters
+    # the append path: a ledger write must not be able to cost a log line. The
+    # bound is real and worth stating — `zensu_resolve_session_id` with no
+    # argument reads `ZENSU_SESSION_KEY`, which sessionStart injects, so an
+    # `append` run outside a Zensu-started session records nothing. That is the
+    # same identity every other ledger writer needs; there is no second source
+    # for it here, because this verb deliberately carries no session bind.
+    if [ "${ZENSU_SECRET_SCAN:-}" = "off" ]; then
+      (
+        # BOTH libraries, and the second is not optional: `append` skips the
+        # binding `case` this file runs for every `--verb`, so nothing has
+        # sourced `zensu-session.sh` by here and `zensu_resolve_session_id` is
+        # simply undefined. The failure is silent — an empty id, a no-op write,
+        # exit 0 — which is exactly the under-reporting this branch exists to fix.
+        source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+        source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+        bypass_sid="$(zensu_resolve_session_id "" 2>/dev/null)" || bypass_sid=""
+        [ -n "$bypass_sid" ] && tdd_record_bypass "$bypass_sid" ZENSU_SECRET_SCAN
+      ) >/dev/null 2>&1 || true
+    fi
+    # CONTAINMENT, and it is not optional. Without it this verb is a write /
+    # truncate primitive with a caller-supplied destination that no bash gate
+    # can see: it carries none of the redirect, tee, sed -i, dd or heredoc
+    # tokens `bash-source-write-parse.js` recognizes as a channel, so rules
+    # (A)/(B) of the source-write gate never judge it. The module refuses any
+    # `--log` that does not resolve to a real `<root>/.zensu/logs/<file>`
+    # — canonicalizing the artifact directory, so a symlinked `.zensu/logs`
+    # cannot carry the write out of the project — and a refusal is a non-zero
+    # exit, which this branch turns into a loud failure rather than a write.
+    #
+    # The same check closes the quieter half: an unrecognized shape used to make
+    # the derived project root empty, which SKIPPED rule 1 and wrote a partially
+    # redacted line under exit 0.
+    #
+    # The WRITE happens inside the module, not through a shell redirect. A `>>`
+    # names a path and follows whatever it finds, so the validation above and the
+    # write would name different objects — and `[ -L ]` is blind to a hard link
+    # planted in the artifact directory, which would turn this verb into an
+    # append/truncate primitive on any file on the same filesystem. The module
+    # opens with O_NOFOLLOW and judges the DESCRIPTOR, so the object checked is
+    # the object written.
+    if ! printf '%s' "$msg_val" \
+      | ZENSU_REDACT_LIB="$redact_lib" \
+        ZENSU_APPEND_LOG="$log_val" \
+        ZENSU_APPEND_PREFIX="$(_zensu_log_timestamp_prefix "$start_val")" \
+        ZENSU_APPEND_TRUNCATE="$truncate_val" \
+        ZENSU_APPEND_PROJECT="${COPILOT_PROJECT_DIR:-}" \
+        ZENSU_SECRET_PATTERNS="$secret_lib" \
+        node -e '
+        // Wrapped in a function because `node -e` evaluates at true top level,
+        // where `return` is a syntax error.
+        (function main() {
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const mod = require(process.env.ZENSU_REDACT_LIB);
+          const refuse = (reason) => {
+            // process.exit() does not flush an async pipe write, so the specific
+            // reason would be lost and the operator would see only the shells
+            // catch-all. Set the code and return instead.
+            process.stderr.write("zensu-log.sh append: refused (" + reason + ")\n");
+            process.exitCode = 2;
+          };
+          const log = process.env.ZENSU_APPEND_LOG;
+          const expected = process.env.ZENSU_APPEND_PROJECT || undefined;
+          const target = mod.resolveArtifactTarget(log, expected);
+          if (!target.ok) { refuse(target.reason); return; }
+          // CONTAINMENT for the DESTRUCTIVE mode when the caller supplied no
+          // authority: COPILOT_PROJECT_DIR is absent from the bash environment the
+          // model runs on this host, so every caller that does not pass it lands here.
+          // (No apostrophes anywhere in this block: it lives inside a
+          // single-quoted node -e program, where one terminates the shell string
+          // and turns the next brace into a bash syntax error.)
+          //
+          // Without this, `resolveArtifactTarget` skips its binding block and
+          // containment reduces to artifact SHAPE: any absolute --log resolving
+          // to a real <anyroot>/.zensu/logs/<name>.log is an accepted
+          // destination. The verb this replaced carried a redirect, so the
+          // source-write gate judged its destination against the session root;
+          // leaving this unbound made the change a NARROWING of an existing
+          // control, and the reachable targets are the committed audit logs of
+          // sibling checkouts.
+          //
+          // SCOPED TO `replace`, and the scope was MEASURED rather than assumed.
+          // Applying cwd-or-ancestor to every mode denies a working and ordinary
+          // call shape: an absolute --log issued from an unrelated cwd, which is
+          // how five checks in the suite, and the log commands of the TDD chains
+          // in this repo, invoke the verb. An unbound append adds a line to a
+          // foreign audit log; an unbound --truncate DESTROYS one, and only the
+          // second is worth denying that shape over.
+          //
+          // ACCEPTED RESIDUAL, stated rather than implied: the additive mode is
+          // still bound by artifact SHAPE only, so an absolute --log naming any
+          // project .zensu/logs artifact on the host is appendable. R44b pins
+          // that judgement so closing it later is deliberate.
+          //
+          // ANCESTOR rather than equality, because running the verb from a
+          // subdirectory of the project is ordinary. It lives HERE rather than in
+          // `resolveArtifactTarget` because `redactFile` and the sweep resolve
+          // with no expectedRoot and a caller root that need not be an ancestor
+          // of the cwd, so the same check in the shared resolver denies them.
+          //
+          // WHAT THIS ANCHOR IS WORTH, stated because the paragraph above rejects
+          // `COPILOT_PROJECT_DIR` as "an env var the caller sets" and then anchors
+          // on something the caller sets more freely still. The anchor is the
+          // PROCESS CWD, and `cd` selects it in the same command with no write
+          // channel for `bash-source-write-parse.js` to recognize — so
+          // `cd <sibling> && … append --truncate --log <sibling>/.zensu/logs/x.log`
+          // satisfies this check and is judged by no gate at any point.
+          //
+          // AND IT IS VACUOUS FOR A RELATIVE `--log`, which an earlier revision
+          // of this paragraph got backwards. `resolveArtifactTarget` is called
+          // with no `base`, so a RELATIVE `--log` resolves against the cwd and the
+          // project root is then derived from that same resolution — this check
+          // compares the cwd against itself and cannot fail (R28 pins the relative
+          // form as succeeding). So the drifted-cwd shape is the one shape
+          // this cannot see: a drifted cwd REDEFINES the root it would be judged
+          // against.
+          //
+          // What it does bound is an ABSOLUTE `--log` naming another project,
+          // issued from this one (R44). Real, and narrower than it reads.
+          // It does NOT restore what the pre-change redirect form had: that
+          // was judged against the session root, an authority outside the command,
+          // while this is state the command sets in its own first token. Anchoring
+          // on the `project_root` of the Session Control record is the stronger
+          // spelling and is
+          // deliberately NOT taken here, because this verb carries no session bind
+          // and adding one would make every log line depend on a bind that the
+          // append path exists to work without. R44c pins the passing shape as a
+          // residual so that narrowing it later is a decision, not a discovery.
+          const replaceMode = process.env.ZENSU_APPEND_TRUNCATE === "1";
+          if (expected === undefined && replaceMode) {
+            // BOTH sides are canonicalized. `resolveArtifactTarget` returns
+            // `projectRoot` un-realpathed, so on macOS it reads /var/folders/...
+            // while process.cwd() resolves to /private/var/folders/... — the
+            // same alias pair the redaction rules handle by hand. Comparing the
+            // two spellings directly refuses every legitimate call under a temp
+            // directory, which is how this was caught.
+            let here;
+            let rootReal;
+            try {
+              here = fs.realpathSync.native(process.cwd());
+              rootReal = fs.realpathSync.native(target.projectRoot);
+            } catch (_) {
+              refuse("project-root-unusable");
+              return;
+            }
+            if (here !== rootReal && !here.startsWith(rootReal + path.sep)) {
+              refuse("foreign-project");
+              return;
+            }
+          }
+          let message;
+          try {
+            message = fs.readFileSync(0, "utf8");
+          } catch (_) {
+            // A read fault must NOT degrade to an empty message: that writes the
+            // timestamp-only line the --message guard exists to refuse, under a
+            // success exit.
+            refuse("message-unreadable");
+            return;
+          }
+          // The message is scanned for credential VALUES before it is written.
+          // This restores, at the new chokepoint, the control the move off the
+          // command line removed: the old `printf … >> {log}` form carried a
+          // write channel, so pre-write-secret-scan.sh saw the message; `append`
+          // carries none, and the narrative log is an artifact consuming repos
+          // commit. It REFUSES rather than redacting — a credential value is not
+          // a location, and silently rewriting one would hide it from the person
+          // who has to rotate it. `ZENSU_SECRET_SCAN=off` is honoured, the same
+          // escape the gate itself teaches, so a false positive is not a wedge.
+          if (process.env.ZENSU_SECRET_SCAN !== "off") {
+            try {
+              const patterns = require(process.env.ZENSU_SECRET_PATTERNS);
+              const hit = patterns.scan(message);
+              if (hit && hit.matches && hit.matches.length) {
+                const rules = [...new Set(hit.matches.map((m) => m.rule))].join(", ");
+                // The surgical escape first, matching the sibling gate: the
+                // marker is visible in the committed artifact, the env opt-out
+                // is not.
+                refuse("secret-value-detected: " + rules
+                  + " — remove it, or append the zensu-secret-allow marker to that line,"
+                  + " or set ZENSU_SECRET_SCAN=off for this call if it is a false positive");
+                return;
+              }
+            } catch (_) {
+              // Fail OPEN — the scan is an improvement, never a precondition —
+              // but never SILENTLY: a control that quietly became a no-op is
+              // indistinguishable from one that passed.
+              process.stderr.write(
+                "zensu-log.sh append: credential scan unavailable; the line was written unscanned\n");
+            }
+          }
+          const roots = expected ? [expected, target.projectRoot] : target.projectRoot;
+          const line = (process.env.ZENSU_APPEND_PREFIX || "")
+            + mod.redact(message, { projectRoot: roots, home: mod.defaultHome() }) + "\n";
+          const result = mod.writeArtifactLine(log, line, {
+            mode: process.env.ZENSU_APPEND_TRUNCATE === "1" ? "replace" : "append",
+            expectedRoot: expected,
+          });
+          if (!result.written) { refuse(result.reason); }
+        }());
+        '; then
+      echo "zensu-log.sh append: refusing to write — the log path is not a .zensu artifact of this project, is not a plain unlinked file, or redaction failed" >&2
+      exit 2
+    fi
+    ;;
+  style)
+    _zensu_log_style
+    ;;
+  *)
+    echo "usage: zensu-log.sh {append --log <file> (--message <text> | --message-stdin) [--start <epoch>] [--truncate] | timestamp <epoch> | style}" >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,1302 @@
+{
+  "schemaVersion": 2,
+  "host": "copilot",
+  "version": "0.2.0",
+  "skills": [
+    "zensu-adopt-session",
+    "zensu-autopilot",
+    "zensu-autopilot-adopt",
+    "zensu-autopilot-release",
+    "zensu-bootstrap",
+    "zensu-converge",
+    "zensu-cover",
+    "zensu-delivery-route",
+    "zensu-docs",
+    "zensu-doctor",
+    "zensu-full-suite",
+    "zensu-gauntlet-loop",
+    "zensu-ghost-scan",
+    "zensu-help",
+    "zensu-implement",
+    "zensu-pilot",
+    "zensu-plan-review",
+    "zensu-pr-fix-findings",
+    "zensu-pr-team-review",
+    "zensu-pulse",
+    "zensu-recover-chain",
+    "zensu-reset-review-limit",
+    "zensu-security-review",
+    "zensu-self-review",
+    "zensu-session-trail",
+    "zensu-setup",
+    "zensu-tdd",
+    "zensu-tdd-mode",
+    "zensu-verify-feature",
+    "zensu-wargame",
+    "zensu-work",
+    "zensu-zen-mode"
+  ],
+  "agents": 6,
+  "files": [
+    {
+      "source": "src/plugin/assets/zensu-logo.svg",
+      "target": "assets/zensu-logo.svg",
+      "sha256": "34ed1aa17ed95131cbce876cc53b0dfac237243e7b10857ff713ea762d109b19"
+    },
+    {
+      "source": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
+      "target": "com.github.copilot/agents/code-reviewer.agent.md",
+      "sha256": "c1d0eb7f7ffa53a656249c7e61d31f4f6f038bd3b9106e005a3cac92e8ab90fd"
+    },
+    {
+      "source": "src/plugin/com.github.copilot/agents/plan-review-worker.agent.md",
+      "target": "com.github.copilot/agents/plan-review-worker.agent.md",
+      "sha256": "0d7c5848df92ab1148c62980d0aba66f8cae67fcf680355bf783bb27a932b1bb"
+    },
+    {
+      "source": "src/plugin/com.github.copilot/agents/pr-review-worker.agent.md",
+      "target": "com.github.copilot/agents/pr-review-worker.agent.md",
+      "sha256": "00cca5682e7084d787a8eacad4625290ec77bedfc0630690fabb5a573a99e856"
+    },
+    {
+      "source": "src/plugin/com.github.copilot/agents/review-aspect.agent.md",
+      "target": "com.github.copilot/agents/review-aspect.agent.md",
+      "sha256": "0265e0d47c559c18e575aebe67ea3986bc9ab09f0383479ed1f51b0cc35c3723"
+    },
+    {
+      "source": "src/plugin/com.github.copilot/agents/review-judge.agent.md",
+      "target": "com.github.copilot/agents/review-judge.agent.md",
+      "sha256": "cd144f8462b5ab6c43df187afa8d152808c80f63aa438d6ae39f3d4a1b70a17c"
+    },
+    {
+      "source": "src/plugin/com.github.copilot/agents/zensu-plm.agent.md",
+      "target": "com.github.copilot/agents/zensu-plm.agent.md",
+      "sha256": "feea413fc7485f8d749afd9664231878bd9d511e4201c3c7d8aff6dbe8edc24b"
+    },
+    {
+      "source": "src/plugin/com.github.copilot/hooks/hooks.json",
+      "target": "com.github.copilot/hooks/hooks.json",
+      "sha256": "dfe904e6e0334d458de3a63e0f5d67c899e4764f1d4dc7c9885e1b47649e12ec"
+    },
+    {
+      "source": "src/plugin/config.example.json",
+      "target": "config.example.json",
+      "sha256": "bdb79f2d8b0a5242612aecc955e6ac7500f43b435995d81511a6339d86070bc9"
+    },
+    {
+      "source": "src/plugin/docs/architecture.md",
+      "target": "docs/architecture.md",
+      "sha256": "2b411029dac1e510d84f346f152dd7e0de9134ad04b087a0deaa2c2820310679"
+    },
+    {
+      "source": "src/plugin/docs/best-solution-first.md",
+      "target": "docs/best-solution-first.md",
+      "sha256": "fcc0c0fdb3664c251a738f430df7adc9dcde389289a1edf88b1f6accde730e74"
+    },
+    {
+      "source": "src/plugin/docs/configuration.md",
+      "target": "docs/configuration.md",
+      "sha256": "97590f32e5f739be436976006141861e81c5df500fa9cfffb88a6908c47abb6a"
+    },
+    {
+      "source": "docs/copilot-runtime.md",
+      "target": "docs/copilot-runtime.md",
+      "sha256": "c72225a143fb56bdb05e248372739998b58165c96ba8b617b174c8a2463d74b9"
+    },
+    {
+      "source": "src/plugin/docs/documentation-guide.md",
+      "target": "docs/documentation-guide.md",
+      "sha256": "2406973208fcad849e40dcf4dd977b3e4d027bc45ac7117ca057dd8989403bc2"
+    },
+    {
+      "source": "src/plugin/docs/evidence-discipline.md",
+      "target": "docs/evidence-discipline.md",
+      "sha256": "0354575d2f12b9ca2ca68b1bb6de00d8f20e41d1fd607b4d118e750118c967b6"
+    },
+    {
+      "source": "src/plugin/docs/gates.md",
+      "target": "docs/gates.md",
+      "sha256": "cf1cdf837900a79b88ce60513dba12faf13ae9eb93cc608dbe9b392095282cfa"
+    },
+    {
+      "source": "src/plugin/docs/operations.md",
+      "target": "docs/operations.md",
+      "sha256": "aa8f2822657b940bdcb2efbad794c041e403b34e652231824f3c845fa7216b03"
+    },
+    {
+      "source": "docs/parity.md",
+      "target": "docs/parity.md",
+      "sha256": "65c79e1f4f20f31cf22d82aecef10ebba18c63ebf22ac21ddc80a923a5a2c39d"
+    },
+    {
+      "source": "src/plugin/docs/review-chain.md",
+      "target": "docs/review-chain.md",
+      "sha256": "ebd8dc4f8d6bae998e99acfb1fcb3e18211a10be87864d12541734d27d63ddc6"
+    },
+    {
+      "source": "src/plugin/docs/review-severity.md",
+      "target": "docs/review-severity.md",
+      "sha256": "1087ee60a11383e90cc5062aa2062d48078f34e1e5eb8f5bb0375381ee66ac4a"
+    },
+    {
+      "source": "src/plugin/docs/session-control-release-gate.md",
+      "target": "docs/session-control-release-gate.md",
+      "sha256": "948ed82fc41337afb03fee29bae14b4c4f5576d8649be3cf7bef2353147b3123"
+    },
+    {
+      "source": "src/plugin/docs/session-control.md",
+      "target": "docs/session-control.md",
+      "sha256": "8dea5e2f1f686ca2aa2515e41fb793d1c45733bb0fd1b619613632f3f351708d"
+    },
+    {
+      "source": "src/plugin/docs/tdd-manager-workflow.md",
+      "target": "docs/tdd-manager-workflow.md",
+      "sha256": "be1feb06a0b04f1fb877db52c4900fd14dd7930e3306931ae2700c4237123ff0"
+    },
+    {
+      "source": "src/plugin/docs/vcs-driver-spec.md",
+      "target": "docs/vcs-driver-spec.md",
+      "sha256": "c91f2fa2b6c11477c4ce277b3d106843165bbc32596a157de87d9d5a46ca693b"
+    },
+    {
+      "source": "src/plugin/docs/verify-feature-consent-spec.md",
+      "target": "docs/verify-feature-consent-spec.md",
+      "sha256": "bae22db320ef1916211b10ee635ad3d4e1b4dcfac1dc5f3b52a3bd01e7c282df"
+    },
+    {
+      "source": "src/plugin/docs/verify-feature.md",
+      "target": "docs/verify-feature.md",
+      "sha256": "711b55e172014ef3ae9622ccea4777290f5d84fbf29ff31aa1696b4054fccb6b"
+    },
+    {
+      "source": "src/plugin/docs/work-order-mode.md",
+      "target": "docs/work-order-mode.md",
+      "sha256": "7b50f53a5ebbcf8be336b649f26030446a1aba2728582a653c498e275c936b87"
+    },
+    {
+      "source": "src/plugin/docs/worktree-keep.md",
+      "target": "docs/worktree-keep.md",
+      "sha256": "0b65119a2599ea2c48f05397d42ec85c2cb113a931f3aff4d9db0f4cc426505e"
+    },
+    {
+      "source": "src/harness/launcher.js",
+      "target": "harness/launcher.js",
+      "sha256": "64e67b2da0c37384aaef26a24b863d783461aff6c78efa516e6d4801c0d240a5"
+    },
+    {
+      "source": "src/harness/manifest.json",
+      "target": "harness/manifest.json",
+      "sha256": "8c71a615ad3d6ef5c40011f6cc17ecbb5e9ad4120ca832782c30338a907d3c83"
+    },
+    {
+      "source": "src/plugin/hooks/lib/acceptance-verify-v1.js",
+      "target": "hooks/lib/acceptance-verify-v1.js",
+      "sha256": "611460d44a7342e8c8b12e72192159b3cadac292cb6c6041d2835449db28c798"
+    },
+    {
+      "source": "src/plugin/hooks/lib/aspect-activation-v1.js",
+      "target": "hooks/lib/aspect-activation-v1.js",
+      "sha256": "9f287bbdc2b0b85350cf296896f00181ea677bb54cdf55a6abc65864938983bd"
+    },
+    {
+      "source": "src/plugin/hooks/lib/bash-source-write-parse.js",
+      "target": "hooks/lib/bash-source-write-parse.js",
+      "sha256": "b7ed1b564bf1376b778287bbede4295834c6f0dd17907e593f7cd40c5f4e4038"
+    },
+    {
+      "source": "src/plugin/hooks/lib/chain-recovery-v1.js",
+      "target": "hooks/lib/chain-recovery-v1.js",
+      "sha256": "25a72c8157822528aa9e81ec7c36423a4579ed5885102387553369dd453c9abe"
+    },
+    {
+      "source": "src/plugin/hooks/lib/ci-contract-v1.js",
+      "target": "hooks/lib/ci-contract-v1.js",
+      "sha256": "ee8583dbb1e686373ac9d4c67c2cb45f15e755dcb615441ae18d89f6efe9b5a9"
+    },
+    {
+      "source": "src/plugin/hooks/lib/copilot-hook-session-v1.js",
+      "target": "hooks/lib/copilot-hook-session-v1.js",
+      "sha256": "e904d98fa42c2dd44e3f6775a3206e4b8b0bae497cc4b615a17a1cf07396629e"
+    },
+    {
+      "source": "src/plugin/hooks/lib/copilot-path-v1.js",
+      "target": "hooks/lib/copilot-path-v1.js",
+      "sha256": "31e22963311b67e19cdef929496101bb1e252961308e272147efbca7186acc24"
+    },
+    {
+      "source": "src/plugin/hooks/lib/copilot-principal-v1.js",
+      "target": "hooks/lib/copilot-principal-v1.js",
+      "sha256": "bc97bbd21e5e18f7f19bf62ae15f57b1255c8b8d61b6e32c60e4728d59fd3daf"
+    },
+    {
+      "source": "src/plugin/hooks/lib/copilot-session-control-v1.js",
+      "target": "hooks/lib/copilot-session-control-v1.js",
+      "sha256": "19637b9a18903c2f4950723ec145b3ed8af59f3e5cb9622dea765bd56f12c5fb"
+    },
+    {
+      "source": "src/plugin/hooks/lib/copilot-session-inventory-v1.js",
+      "target": "hooks/lib/copilot-session-inventory-v1.js",
+      "sha256": "a33b599ddab9a80cf282303ed54f2c6e7f3f8f45c1d5ddff851c1a417debff3a"
+    },
+    {
+      "source": "src/plugin/hooks/lib/edit-landing-receipt-v1.js",
+      "target": "hooks/lib/edit-landing-receipt-v1.js",
+      "sha256": "77008ac4193c804785400f1c66a3ff4d2026a9758a991b3cdd4328cac40c4639"
+    },
+    {
+      "source": "src/plugin/hooks/lib/evidence-run-v1.js",
+      "target": "hooks/lib/evidence-run-v1.js",
+      "sha256": "f2d2d52036975027a299003a3a98b6895b83a592d6e2f2a3fd53d8cc0b06d334"
+    },
+    {
+      "source": "src/plugin/hooks/lib/finding-verify-v1.js",
+      "target": "hooks/lib/finding-verify-v1.js",
+      "sha256": "a5a26955259b8b2cd47be22ec574cf993ecc1a2a3596b354826658beb87533ae"
+    },
+    {
+      "source": "src/plugin/hooks/lib/full-suite-policy-v1.js",
+      "target": "hooks/lib/full-suite-policy-v1.js",
+      "sha256": "6b29829b9384fed8d821ce352a6e784e0c76279e3a78180235db05d7bb2bd655"
+    },
+    {
+      "source": "src/plugin/hooks/lib/hook-registration-v1.js",
+      "target": "hooks/lib/hook-registration-v1.js",
+      "sha256": "20447109dff211c6b74173cc19e3df87a6cadd0dab089d9ee2571a29a549dc3c"
+    },
+    {
+      "source": "src/plugin/hooks/lib/persona-activation.js",
+      "target": "hooks/lib/persona-activation.js",
+      "sha256": "e8f3b2fc274a6f9a263e4b8fe3b437d215f8adc3c13c9b6edc6712fa99bc8ee4"
+    },
+    {
+      "source": "src/plugin/hooks/lib/plan-payload-v1.js",
+      "target": "hooks/lib/plan-payload-v1.js",
+      "sha256": "17653d7bc027b17ddceff6a3b6f0436b7416277aba6c851e064ec5db7f0585d1"
+    },
+    {
+      "source": "src/plugin/hooks/lib/playwright-cli-version-v1.js",
+      "target": "hooks/lib/playwright-cli-version-v1.js",
+      "sha256": "3c3707eb2d31f9d88d59813d8de1448169b64aeb35884d18c8d260de59cdd545"
+    },
+    {
+      "source": "src/plugin/hooks/lib/plugin-data-guard-v1.js",
+      "target": "hooks/lib/plugin-data-guard-v1.js",
+      "sha256": "9f3b12808d09a7b7543b23882a7d7329945c77672fcae238596f9d13b01ded6d"
+    },
+    {
+      "source": "src/plugin/hooks/lib/review-evidence-hook-v1.js",
+      "target": "hooks/lib/review-evidence-hook-v1.js",
+      "sha256": "f777ab48acff27a5d9051ae9cb4b25a7b17afcc078f1de99f7dbd45f299d734c"
+    },
+    {
+      "source": "src/plugin/hooks/lib/review-evidence-lease-v1.js",
+      "target": "hooks/lib/review-evidence-lease-v1.js",
+      "sha256": "131faa22cc8bf1e82dfa817121c9f84b9f668a70bb4e365e1839ddae466f3fd5"
+    },
+    {
+      "source": "src/plugin/hooks/lib/review-evidence-sweep-v1.js",
+      "target": "hooks/lib/review-evidence-sweep-v1.js",
+      "sha256": "ff89b027268140a672e963c8bdb1391799d055ad7392975b9d6df079d6306c50"
+    },
+    {
+      "source": "src/plugin/hooks/lib/review-ledger-v1.js",
+      "target": "hooks/lib/review-ledger-v1.js",
+      "sha256": "7225ce553ac5a607a9ac184eb52b539c47551b72cc73c2b63f525bb33acf7d9f"
+    },
+    {
+      "source": "src/plugin/hooks/lib/review-round-scope-v1.js",
+      "target": "hooks/lib/review-round-scope-v1.js",
+      "sha256": "85450863b570b6d6a26cce09fb10e6056c8f2de76b18ee78941758b4ed008f97"
+    },
+    {
+      "source": "src/plugin/hooks/lib/reviewer-capability-v1.js",
+      "target": "hooks/lib/reviewer-capability-v1.js",
+      "sha256": "1c1ec9f9079a0405cd28832bc1171a87821b43b2ae2d6a20e946d6c90b5b7761"
+    },
+    {
+      "source": "src/plugin/hooks/lib/reviewer-spawn-allow-v1.js",
+      "target": "hooks/lib/reviewer-spawn-allow-v1.js",
+      "sha256": "8132c03119d2626e3a46aea39bd95e670bca5ada9e4f024a7b39c3aad5b51e81"
+    },
+    {
+      "source": "src/plugin/hooks/lib/reviewer-spawn-denial-v1.js",
+      "target": "hooks/lib/reviewer-spawn-denial-v1.js",
+      "sha256": "2c3a7452a694dcefe65b887452bae34be9d76b8d412302229bd0d6331028b365"
+    },
+    {
+      "source": "src/plugin/hooks/lib/rule-block-v1.js",
+      "target": "hooks/lib/rule-block-v1.js",
+      "sha256": "f90d8a5394554b6d24d3822d53b7d3307c3a887fe128a25b3602f4fcc2d74464"
+    },
+    {
+      "source": "src/plugin/hooks/lib/secret-patterns.js",
+      "target": "hooks/lib/secret-patterns.js",
+      "sha256": "f4bf1f455bce0e7107bd963ad0ac5953d47c8a86bf33769a47b43539d8d589cc"
+    },
+    {
+      "source": "src/plugin/hooks/lib/secret-scan-decide.js",
+      "target": "hooks/lib/secret-scan-decide.js",
+      "sha256": "d2392eb04db2a6a15144c8f3381123f68b8acdc5d473fc2b93b3c59a87851f4f"
+    },
+    {
+      "source": "src/plugin/hooks/lib/session-adopt-report-v1.js",
+      "target": "hooks/lib/session-adopt-report-v1.js",
+      "sha256": "f726f9fcb0e9b1bd591415bc258d2172d05eff03a1d9f0e2962927901cd30c18"
+    },
+    {
+      "source": "src/plugin/hooks/lib/session-auto-adopt-v1.js",
+      "target": "hooks/lib/session-auto-adopt-v1.js",
+      "sha256": "60a92bac05cd8c1475c2338934afdc6ba9c5ba1bc4d13a21c63d7cd098f46593"
+    },
+    {
+      "source": "src/plugin/hooks/lib/session-control-core-v1.js",
+      "target": "hooks/lib/session-control-core-v1.js",
+      "sha256": "4d47abbaf1e2050a58076e7efcc31f85056b18724f956ee138e287ec996af0fc"
+    },
+    {
+      "source": "src/plugin/hooks/lib/session-files-v1.js",
+      "target": "hooks/lib/session-files-v1.js",
+      "sha256": "bfd84e8c8888dabfc6483d3a6573f028f9cf788f0fde203c52843b61a2b99400"
+    },
+    {
+      "source": "src/plugin/hooks/lib/session-reanchor-v1.js",
+      "target": "hooks/lib/session-reanchor-v1.js",
+      "sha256": "2fb302f57e57a63aa7faec5ff110c19b0554ee9b8c51e3955445e10d6273106a"
+    },
+    {
+      "source": "src/plugin/hooks/lib/stop-idle-probe-v1.js",
+      "target": "hooks/lib/stop-idle-probe-v1.js",
+      "sha256": "7bfe6f96ba7fefa9fa6efbc297fbe7d93eb0d77fb5b8ba4bf2eaeb1e4aaf96f3"
+    },
+    {
+      "source": "src/plugin/hooks/lib/subagent-shell-guard-v1.js",
+      "target": "hooks/lib/subagent-shell-guard-v1.js",
+      "sha256": "e3da5debf5de575a15b3a6becc8e535156b5f04cb19e580922c7604525236e64"
+    },
+    {
+      "source": "src/plugin/hooks/lib/valid-diff-lines.js",
+      "target": "hooks/lib/valid-diff-lines.js",
+      "sha256": "4d1cb707e1275e145406446604bec5f77dffd585831b2fabf63475696a523428"
+    },
+    {
+      "source": "src/plugin/hooks/lib/verify-consent-v1.js",
+      "target": "hooks/lib/verify-consent-v1.js",
+      "sha256": "a0f7288f9ed926960298fe58383ae001b6940657d8aa09b0282f2bdd35e4730b"
+    },
+    {
+      "source": "src/plugin/hooks/lib/verify-navigation-floor-v1.js",
+      "target": "hooks/lib/verify-navigation-floor-v1.js",
+      "sha256": "ff3aa7c0d15d752a22de5189ef127de34d8acdaf1bc2823816e40ddbe4f2fcad"
+    },
+    {
+      "source": "src/plugin/hooks/lib/work-order-v1.js",
+      "target": "hooks/lib/work-order-v1.js",
+      "sha256": "2ef405e2301718ca1714ade5f895474728d083e0c79bef35a64e9808a42b809e"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zen-anchor-v1.js",
+      "target": "hooks/lib/zen-anchor-v1.js",
+      "sha256": "81bc6df1263b79a8ebda730fd2bf9a1e847be3ad3cace3d88799b5ebb61a0cd5"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-agent-context.sh",
+      "target": "hooks/lib/zensu-agent-context.sh",
+      "sha256": "6ec3a3ebc3e9c5937b17b4ed54d516d9ad5de6fd381f50296958874b4fe117c1"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-artifact-redact-v1.js",
+      "target": "hooks/lib/zensu-artifact-redact-v1.js",
+      "sha256": "eb50698a29307bac4d852b5c0adf895e57cff80f7e6440fd775687bdacd33200"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-autopilot-state.sh",
+      "target": "hooks/lib/zensu-autopilot-state.sh",
+      "sha256": "8a0ab4b2900baffc8c4a32d1c80a1454c0dd1eb82069946a52e27b3f3530161c"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-bounded-run.sh",
+      "target": "hooks/lib/zensu-bounded-run.sh",
+      "sha256": "115dc35521aa971de52068a4f5141a2782f67ccbe090681160580306117ad088"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-browser-consent-prefilter.sh",
+      "target": "hooks/lib/zensu-browser-consent-prefilter.sh",
+      "sha256": "ea7c271f52a336251bc0df3f7319f1dda39465c3008f4da16b057d8ae51ac941"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-cli-map.sh",
+      "target": "hooks/lib/zensu-cli-map.sh",
+      "sha256": "89dbc1051a015320c98ec13061fd252e7164b7d3cb95d49c942f7c969de1915f"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-config.sh",
+      "target": "hooks/lib/zensu-config.sh",
+      "sha256": "aaa071b1779f1b54a207297ea7b266443fcbb3c0f49a8d16edfe13faeccece7c"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-delivery-route.sh",
+      "target": "hooks/lib/zensu-delivery-route.sh",
+      "sha256": "43ad7bc0f4933a58c21ccbf83fd5958cc4c4f9f53dcc52efb2c1c09be2963293"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-directive.sh",
+      "target": "hooks/lib/zensu-directive.sh",
+      "sha256": "1d63cc29d33ff0449a73d0cb6133863dc4f44cd708af4388c665248e44448887"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-doctor-invocation.js",
+      "target": "hooks/lib/zensu-doctor-invocation.js",
+      "sha256": "70bb0b1b6f92478de4e76179baf6aed47a7e7efbc6882775350c3151ff14e4d9"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-doctor-report.js",
+      "target": "hooks/lib/zensu-doctor-report.js",
+      "sha256": "d7085eb72590678cc6d7c979ccc352c20800710639bd7c1c3b54b3e96f6c1406"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-doctor.sh",
+      "target": "hooks/lib/zensu-doctor.sh",
+      "sha256": "a0bde78c409cb85017d026e9bc2a63f9a854fbd3982e5dfbd0b7a98c2b32d03e"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-edit-landing.sh",
+      "target": "hooks/lib/zensu-edit-landing.sh",
+      "sha256": "31bd8973078c579836d829b690cfb8916dd3a630b92bbb0674549e6f1f0072b1"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-full-suite-transport.sh",
+      "target": "hooks/lib/zensu-full-suite-transport.sh",
+      "sha256": "fea8d9ac2ad52b2e234300508bb435d938b082bd5edee9ca39e1d14d9ed3ab42"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-full-suite.sh",
+      "target": "hooks/lib/zensu-full-suite.sh",
+      "sha256": "0e1bdc0c8c4ac288db06e361d392160b88904a9f09e131ada4706deba3643aeb"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-host-path.sh",
+      "target": "hooks/lib/zensu-host-path.sh",
+      "sha256": "4eafd3d2da1d8133dc516cb92bd53ba0de4aac887fa44f60ed8c34b598a9a4fb"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-log.sh",
+      "target": "hooks/lib/zensu-log.sh",
+      "sha256": "61863719376e293d301353289ea276b6fe36647e883eeb6e536619c7ab300179"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-marker-write.sh",
+      "target": "hooks/lib/zensu-marker-write.sh",
+      "sha256": "1ab98a8286b36a124c56395bbff3fd840da2234957856b00e82f5875916e939c"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-mcp-tools.sh",
+      "target": "hooks/lib/zensu-mcp-tools.sh",
+      "sha256": "b222f5e29adf2a18f9c1db529020f94bf0cbe24b0213dd83f7fe44a1439da84d"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-msys-env.sh",
+      "target": "hooks/lib/zensu-msys-env.sh",
+      "sha256": "646c8f58ceccc5f79e1e8627319844fc7c2e613f40b0dfa38c84c7598914345d"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-plan-requirements.sh",
+      "target": "hooks/lib/zensu-plan-requirements.sh",
+      "sha256": "e5e0700e0c8fe02a4430984c63288d859e4716c37072b50665c9553fc279c1f6"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-prompt-ledger.sh",
+      "target": "hooks/lib/zensu-prompt-ledger.sh",
+      "sha256": "1fce13546277f4719a0bc61bf8388e9a6cfb7aab8d15270a6d535c52a67d63de"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-prompt-origin.sh",
+      "target": "hooks/lib/zensu-prompt-origin.sh",
+      "sha256": "e64a26acf1db7334a6c9fefbb15ec9a6bf8504d81839a92ebbb060c80cd80f5f"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-review-evidence.sh",
+      "target": "hooks/lib/zensu-review-evidence.sh",
+      "sha256": "d1d0e822dfcf7d567eb6b040a64c1d7331c36fe015f40ad2fba4d19237a7b900"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-safe-display-v1.js",
+      "target": "hooks/lib/zensu-safe-display-v1.js",
+      "sha256": "d014a8c1cf2c24bd46140e6a305e24853550f05d5a18a3577ae376d06884d398"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-safe-render.sh",
+      "target": "hooks/lib/zensu-safe-render.sh",
+      "sha256": "b238e9b061d9cae3b3e6cc1953b55998912f321eb05034f628cb2eaeaba9565f"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-session-adopt.sh",
+      "target": "hooks/lib/zensu-session-adopt.sh",
+      "sha256": "ceb7187a9dba2105ef44a0ff04551dd563246be6bbceef2a54eae4c3fe792373"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-session-reanchor.sh",
+      "target": "hooks/lib/zensu-session-reanchor.sh",
+      "sha256": "04725737ced716511c5c75a145cef06144793c4764ee1664a10716d5dc463441"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-session.sh",
+      "target": "hooks/lib/zensu-session.sh",
+      "sha256": "b580c7ab25bd41e39339e02d889be239af70adb4b832bb2544904339587d0c8d"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-stop-deadline.sh",
+      "target": "hooks/lib/zensu-stop-deadline.sh",
+      "sha256": "51b429034087e2c609cee870865a5bb8c6f0d9bbbe0cefecbc266a9e600af307"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-tdd-mode.sh",
+      "target": "hooks/lib/zensu-tdd-mode.sh",
+      "sha256": "abce0b9d834179b5edfc6f6478cce304512ac2bee3ea2ddb4c42c1e46fd7adaa"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-tdd-phase.sh",
+      "target": "hooks/lib/zensu-tdd-phase.sh",
+      "sha256": "472d68d39beb97e4638b87de45e93fee05ec47feb4445357d4bde1c2b9e99212"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-vcs.sh",
+      "target": "hooks/lib/zensu-vcs.sh",
+      "sha256": "36aeea3cee81aa48266976e6cd0fb3fd8ee3082da313a2235ab93208cab2327e"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-work-order-hook.sh",
+      "target": "hooks/lib/zensu-work-order-hook.sh",
+      "sha256": "54c5c5f11c2cf26311dcd387102c68cab4205bf1833af3d19e878c1806e24a43"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-work-order.sh",
+      "target": "hooks/lib/zensu-work-order.sh",
+      "sha256": "dc22dce426cb6f26486be88c0b8ea671df68321d5a3eeb80d29974c7855c32c9"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-zen-mode.sh",
+      "target": "hooks/lib/zensu-zen-mode.sh",
+      "sha256": "e0d4b50a6a2cbd5f623b78104a8631023046a3500c2339d8c93fd1d570bb762c"
+    },
+    {
+      "source": "src/plugin/hooks/lib/zensu-zen-shared.sh",
+      "target": "hooks/lib/zensu-zen-shared.sh",
+      "sha256": "0e43254c03852960932f000a959461a978c380a9fbe58eec5e8c85a3bf463396"
+    },
+    {
+      "source": "src/approval.js",
+      "target": "hooks/native/approval.js",
+      "sha256": "1aa8395512152d17ca455bc6b9f2c439c292d30d197712a4880c8729cf5acb40"
+    },
+    {
+      "source": "src/context.js",
+      "target": "hooks/native/context.js",
+      "sha256": "86e22d86635c1d35d0489d6af4636de3070a1bd517180534b9f267e92ad5ac41"
+    },
+    {
+      "source": "src/dispatcher.js",
+      "target": "hooks/native/dispatcher.js",
+      "sha256": "4aea0f8ae9c967de362f1ea07cd8814cdf8f4a57f66505c8a034cb49f5274528"
+    },
+    {
+      "source": "src/helper.js",
+      "target": "hooks/native/helper.js",
+      "sha256": "950d964548d58de6cbb6326d6778dbb421d2d7585e3a77d6592f523faf068601"
+    },
+    {
+      "source": "src/protocol.js",
+      "target": "hooks/native/protocol.js",
+      "sha256": "7a32f5bded004a8ea13d002f170385c130536bd430a4234aeff354a0ce9d2dc8"
+    },
+    {
+      "source": "src/transcript.js",
+      "target": "hooks/native/transcript.js",
+      "sha256": "0bafde4e4ba1cb3964254347d507401933bae9e80fd618e2b4f44229ceb98767"
+    },
+    {
+      "source": "src/plugin/hooks/plan-approved-delegate.sh",
+      "target": "hooks/plan-approved-delegate.sh",
+      "sha256": "88794f8fb9096b81e421f86b627ea35690fad1671001ff89f7388bbdb33dabf4"
+    },
+    {
+      "source": "src/plugin/hooks/post-artifact-redact.sh",
+      "target": "hooks/post-artifact-redact.sh",
+      "sha256": "0e6225a05e56f287d7a72851365d89407b23559f070a94dd3fc16fc21c49d8b8"
+    },
+    {
+      "source": "src/plugin/hooks/post-browser-navigation-consent.sh",
+      "target": "hooks/post-browser-navigation-consent.sh",
+      "sha256": "441842a48bf6766d108029aac342d2d275f31ebe9373af594fcfdfa7044b26da"
+    },
+    {
+      "source": "src/plugin/hooks/post-review-tdd-delegate.sh",
+      "target": "hooks/post-review-tdd-delegate.sh",
+      "sha256": "b7216bfd8a91dc6dd5eeaa23fd408f29c98aa25b41497cb5753289d7f8e065d8"
+    },
+    {
+      "source": "src/plugin/hooks/post-work-order.sh",
+      "target": "hooks/post-work-order.sh",
+      "sha256": "e2c02f40942205bcd7281c747e0a3a629422a7c7a5aa60c17f8b24f5e7790ab4"
+    },
+    {
+      "source": "src/plugin/hooks/pre-agent-reviewer-allow.sh",
+      "target": "hooks/pre-agent-reviewer-allow.sh",
+      "sha256": "7d0b57574e51591b6c8db2b51df816408833ce1d7076a32384c69542e0b9079b"
+    },
+    {
+      "source": "src/plugin/hooks/pre-bash-source-write-gate.sh",
+      "target": "hooks/pre-bash-source-write-gate.sh",
+      "sha256": "20f9b357afe6b74bac2c714cdfa550e1375c2f9cd3e5837aaf39023410ae679a"
+    },
+    {
+      "source": "src/plugin/hooks/pre-bash-zensu-gate.sh",
+      "target": "hooks/pre-bash-zensu-gate.sh",
+      "sha256": "f46fb14d384318c67e26a1538c95f4cde48949f449a25ab269218a51e08b8b2b"
+    },
+    {
+      "source": "src/plugin/hooks/pre-browser-navigation-consent.sh",
+      "target": "hooks/pre-browser-navigation-consent.sh",
+      "sha256": "5c108a4e74280e804c603ad60434e21c655bc49184d1574af2169a0863cd5025"
+    },
+    {
+      "source": "src/plugin/hooks/pre-edit-tdd-reminder.sh",
+      "target": "hooks/pre-edit-tdd-reminder.sh",
+      "sha256": "8cde50c831eeba89fc334c308f89113c186aef0f30507fba50d044aba68064d2"
+    },
+    {
+      "source": "src/plugin/hooks/pre-reviewer-capability-gate.sh",
+      "target": "hooks/pre-reviewer-capability-gate.sh",
+      "sha256": "b16b92f870353c1f2aed8b27c20f01d440caac6a33fc0915e7c2c74d22b9e66e"
+    },
+    {
+      "source": "src/plugin/hooks/pre-work-order-gate.sh",
+      "target": "hooks/pre-work-order-gate.sh",
+      "sha256": "5b16ee50d7afce69e0a6b1c8b33ed0d8545d3c2809f6b4f83764c993e5a27a4c"
+    },
+    {
+      "source": "src/plugin/hooks/pre-write-plugin-data-guard.sh",
+      "target": "hooks/pre-write-plugin-data-guard.sh",
+      "sha256": "e58faa152c91ce4ae7380f78b5d17557cf02694a21bbffc62a96fc14f8e836aa"
+    },
+    {
+      "source": "src/plugin/hooks/pre-write-secret-scan.sh",
+      "target": "hooks/pre-write-secret-scan.sh",
+      "sha256": "3d73e41e6bd931b8973a7653dc0601f55e4ad64ef3f303debe09fcb39f3e6e4c"
+    },
+    {
+      "source": "src/plugin/hooks/registry.json",
+      "target": "hooks/registry.json",
+      "sha256": "6ab933cfc47b7c4870bc8209022f1e3f18dc463196f2079c7b03d5ca6fa691f8"
+    },
+    {
+      "source": "src/plugin/hooks/review-evidence-subagent-start.sh",
+      "target": "hooks/review-evidence-subagent-start.sh",
+      "sha256": "9c2cb48266c6f5f44006f37b0ded371fbbe83c0f146e0011eea8ed01509736b6"
+    },
+    {
+      "source": "src/plugin/hooks/review-evidence-subagent-stop.sh",
+      "target": "hooks/review-evidence-subagent-stop.sh",
+      "sha256": "cc2bbd12162fdcd97870b20d025851fea7fb4a33fff11d8509d4df25a65d25bc"
+    },
+    {
+      "source": "src/plugin/hooks/session-start-autopilot-resume.sh",
+      "target": "hooks/session-start-autopilot-resume.sh",
+      "sha256": "a13e6b44adb33d7a9563efbb464e7156ec64424a71ce33ec69934941b3e7a2cd"
+    },
+    {
+      "source": "src/plugin/hooks/session-start-banner.sh",
+      "target": "hooks/session-start-banner.sh",
+      "sha256": "1dc5b8134fc718ff3575ee7b1419b3c6853840ff7defbea1cafff5107630fec9"
+    },
+    {
+      "source": "src/plugin/hooks/session-start-evidence-discipline.sh",
+      "target": "hooks/session-start-evidence-discipline.sh",
+      "sha256": "ceeee4879d41fc0750843788b6dd4c78e8bcbbba018570dfa16031f205ee15f8"
+    },
+    {
+      "source": "src/plugin/hooks/session-start-primer.sh",
+      "target": "hooks/session-start-primer.sh",
+      "sha256": "2c300ade42067cb305435734f52d64394da60a533bc7637977aa1c21a1a32b8e"
+    },
+    {
+      "source": "src/plugin/hooks/session-start-prompt-ledger.sh",
+      "target": "hooks/session-start-prompt-ledger.sh",
+      "sha256": "5b8f4e224d44ac32308ff40ada1d37e04262cb49578506ac3ce33e5e88875653"
+    },
+    {
+      "source": "src/plugin/hooks/session-start-pulse.sh",
+      "target": "hooks/session-start-pulse.sh",
+      "sha256": "7cf85b21a7acb8d135261bb82eea787d12b3848ce2f3161ed6bbab1b8bde7a58"
+    },
+    {
+      "source": "src/plugin/hooks/session-start-session-control.sh",
+      "target": "hooks/session-start-session-control.sh",
+      "sha256": "5cd149cbc9a6ac22668e21ab72fb73003f37ef5d9ff1526ee750a1bbf3e65fad"
+    },
+    {
+      "source": "src/plugin/hooks/stop-chain-enforcer.sh",
+      "target": "hooks/stop-chain-enforcer.sh",
+      "sha256": "0e172c71512efce94417e043f2bec8153d491f76c7c6fe32f38d2f6c0e4edd7b"
+    },
+    {
+      "source": "src/plugin/hooks/stop-work-order.sh",
+      "target": "hooks/stop-work-order.sh",
+      "sha256": "b393aff806023f030b353d493be8a8c1ba5bfecfff8518060a56edf23760e249"
+    },
+    {
+      "source": "src/plugin/hooks/user-prompt-best-solution-first.sh",
+      "target": "hooks/user-prompt-best-solution-first.sh",
+      "sha256": "ffa7de6f255c01cb56c977b8e7331dbede32719569628a0f8e950e619a646e4b"
+    },
+    {
+      "source": "src/plugin/hooks/user-prompt-intent-router.sh",
+      "target": "hooks/user-prompt-intent-router.sh",
+      "sha256": "ab81267ea1ee57f9cd3117c040ea6c0396180251ffcf01a4c6797d98ab23ff50"
+    },
+    {
+      "source": "src/plugin/hooks/user-prompt-tdd-reminder.sh",
+      "target": "hooks/user-prompt-tdd-reminder.sh",
+      "sha256": "9e201d7da965ebf54595ec7391913d057574a86f7165598fa52c90d740b91adf"
+    },
+    {
+      "source": "src/plugin/hooks/user-prompt-zen-mode.sh",
+      "target": "hooks/user-prompt-zen-mode.sh",
+      "sha256": "f7806f41c38b67d96ec4cd844effbed5b118ad472b6cd018a19d80c3e8c53018"
+    },
+    {
+      "source": "src/plugin/LICENSE",
+      "target": "LICENSE",
+      "sha256": "8be54ef55f08abc133085e68b58e62ad03daa6b7de4f36fe50bfe76733fe77de"
+    },
+    {
+      "source": "src/plugin/plugin.json",
+      "target": "plugin.json",
+      "sha256": "bf6f6d8824a49e02c5e1548d10d3a6ee557c6363f826bc5c6b49da59cf6627b1"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md",
+      "sha256": "7619f869fd1b85050c9ff577e1f2585abd6a92f2c976eada39243fb7869b15cf"
+    },
+    {
+      "source": "src/plugin/scripts/fixture-manifest.js",
+      "target": "scripts/fixture-manifest.js",
+      "sha256": "95c61e4e4d35cea9453d68b68b100594918f36c8440efb21664ea619a8ef9d24"
+    },
+    {
+      "source": "src/plugin/scripts/fixture-mutation-watch.js",
+      "target": "scripts/fixture-mutation-watch.js",
+      "sha256": "5ab24df284452122b6b19ef01a705e63b60dded3cb9d0a24540585fb379bc7f3"
+    },
+    {
+      "source": "src/plugin/scripts/owned-process.js",
+      "target": "scripts/owned-process.js",
+      "sha256": "cad1856a8b3311aeb01407b13dfb6584b01b4c05769d4bf7ba0f2807e72d8ceb"
+    },
+    {
+      "source": "src/plugin/scripts/process-supervisor.js",
+      "target": "scripts/process-supervisor.js",
+      "sha256": "fc8203da873a0a42e46b867f9f7a78b6fd3e4b28872db56049c604725363adfa"
+    },
+    {
+      "source": "src/plugin/scripts/verify-browser-config.js",
+      "target": "scripts/verify-browser-config.js",
+      "sha256": "fce09f9f74cf90cd85389e4fccbdd6600e0f1eabb6f2d6955afebe506b5f92af"
+    },
+    {
+      "source": "src/plugin/scripts/verify-free-port.js",
+      "target": "scripts/verify-free-port.js",
+      "sha256": "6620cafed824111ce5cc49f8530d7ac599354280bd65f7b72d887b92ca9d19f7"
+    },
+    {
+      "source": "src/plugin/skills/zensu-adopt-session/SKILL.md",
+      "target": "skills/zensu-adopt-session/SKILL.md",
+      "sha256": "409dcd3d91541ee99800edbe587cbdd2f3bc7906c8e8a8ecd69ec914403fd59a"
+    },
+    {
+      "source": "src/plugin/skills/zensu-autopilot-adopt/SKILL.md",
+      "target": "skills/zensu-autopilot-adopt/SKILL.md",
+      "sha256": "1d2ee8aa4076b158d80a13384bc4f736061a4256e168e5394971c11be5b4b38b"
+    },
+    {
+      "source": "src/plugin/skills/zensu-autopilot-release/SKILL.md",
+      "target": "skills/zensu-autopilot-release/SKILL.md",
+      "sha256": "924658f3b7878e7ac30f2e11f46f7f688f9e7d4c697bc6033dbf88ab96887f9e"
+    },
+    {
+      "source": "src/plugin/skills/zensu-autopilot/rules/auth.md",
+      "target": "skills/zensu-autopilot/rules/auth.md",
+      "sha256": "559e4ebd1dbad1d0ed06258967906223156c74c96f2bd109cc5471dc3ec60759"
+    },
+    {
+      "source": "src/plugin/skills/zensu-autopilot/rules/config.md",
+      "target": "skills/zensu-autopilot/rules/config.md",
+      "sha256": "fde754a0c24b9080579ae82256a129fdaa9a35dfebefebb50751972b976685d9"
+    },
+    {
+      "source": "src/plugin/skills/zensu-autopilot/rules/drivers.md",
+      "target": "skills/zensu-autopilot/rules/drivers.md",
+      "sha256": "f9c0d1027a3061371666234b46eee3b498ebd5a0f951266167409eed29385a9e"
+    },
+    {
+      "source": "src/plugin/skills/zensu-autopilot/rules/probe.md",
+      "target": "skills/zensu-autopilot/rules/probe.md",
+      "sha256": "d18ff967acecabbb38a6e5a8eacfb528988faa147e9d59998ee753f91d5b2283"
+    },
+    {
+      "source": "src/plugin/skills/zensu-autopilot/rules/work-order.md",
+      "target": "skills/zensu-autopilot/rules/work-order.md",
+      "sha256": "7193f62bc86f2cef5f2ffb232354f33ab88d248f5c529313ae6c24e17b7c862a"
+    },
+    {
+      "source": "src/plugin/skills/zensu-autopilot/SKILL.md",
+      "target": "skills/zensu-autopilot/SKILL.md",
+      "sha256": "303759166ef788f831563d529272061adf143722dc566bc0dfb0c142253f237a"
+    },
+    {
+      "source": "src/plugin/skills/zensu-bootstrap/SKILL.md",
+      "target": "skills/zensu-bootstrap/SKILL.md",
+      "sha256": "073a2dfcdca65a943f4455066c5282f8c1bbe3961fd2e09cb4f03033f68da097"
+    },
+    {
+      "source": "src/plugin/skills/zensu-converge/SKILL.md",
+      "target": "skills/zensu-converge/SKILL.md",
+      "sha256": "610c22db6c4f5a1dab1523fdacc2c77d30764943f66defbcbc384eeda0526ef4"
+    },
+    {
+      "source": "src/plugin/skills/zensu-cover/rules/drivers.md",
+      "target": "skills/zensu-cover/rules/drivers.md",
+      "sha256": "59576e133796613262fe9557b0d846f7c77691e9c48617ed13add8e6e7054a84"
+    },
+    {
+      "source": "src/plugin/skills/zensu-cover/rules/levels.md",
+      "target": "skills/zensu-cover/rules/levels.md",
+      "sha256": "94d21f9d7fe3e9073fb7c169821b02f4d855ca77d2d2b0c330619c830d755d10"
+    },
+    {
+      "source": "src/plugin/skills/zensu-cover/rules/probe.md",
+      "target": "skills/zensu-cover/rules/probe.md",
+      "sha256": "0b661b3148e33a8a7320581390558162f2867fb4a0115ccdf4171b3efd5032c3"
+    },
+    {
+      "source": "src/plugin/skills/zensu-cover/rules/quality.md",
+      "target": "skills/zensu-cover/rules/quality.md",
+      "sha256": "1ce924f94a1ae1b7158335a6323a488b119a75823c650f416f36756b7ac3ecdf"
+    },
+    {
+      "source": "src/plugin/skills/zensu-cover/SKILL.md",
+      "target": "skills/zensu-cover/SKILL.md",
+      "sha256": "dcdb0a7a5e8881c98db1c9ffb5ce11fa56a28c90ad78b79a47f1856e7ab06831"
+    },
+    {
+      "source": "src/plugin/skills/zensu-delivery-route/SKILL.md",
+      "target": "skills/zensu-delivery-route/SKILL.md",
+      "sha256": "04393df6c1d552f341c83ad1814fff281fcabc27930a04d90813a73483ff2724"
+    },
+    {
+      "source": "src/plugin/skills/zensu-docs/SKILL.md",
+      "target": "skills/zensu-docs/SKILL.md",
+      "sha256": "85dc1523daa6d5cd6a1810fd3470d4fc1d780b465a0d9628da77a26c6d78aa88"
+    },
+    {
+      "source": "src/plugin/skills/zensu-doctor/references/autopilot-lease.md",
+      "target": "skills/zensu-doctor/references/autopilot-lease.md",
+      "sha256": "53cc786380257000909ed4961dd2bd7f1ac8424dcc209c66689bd9651b79b09e"
+    },
+    {
+      "source": "src/plugin/skills/zensu-doctor/SKILL.md",
+      "target": "skills/zensu-doctor/SKILL.md",
+      "sha256": "cf1aec7e5badc8adf1aa9c31180274b70dd55e5341cd1d953039155403f8575a"
+    },
+    {
+      "source": "src/plugin/skills/zensu-full-suite/SKILL.md",
+      "target": "skills/zensu-full-suite/SKILL.md",
+      "sha256": "ec1587bdcbe06564c23a485a42e3450d2c355237775208abe4dbdd10cd25ac54"
+    },
+    {
+      "source": "src/plugin/skills/zensu-gauntlet-loop/references/harness.md",
+      "target": "skills/zensu-gauntlet-loop/references/harness.md",
+      "sha256": "f27d6e51ac9e93e18c4d11af13655d7552b70cb10a5a125ba3ab0aea635973af"
+    },
+    {
+      "source": "src/plugin/skills/zensu-gauntlet-loop/references/quality-bars.md",
+      "target": "skills/zensu-gauntlet-loop/references/quality-bars.md",
+      "sha256": "0970e0bbbb1d1e40064ea4ab9e15e46218d6692ae99dba70b73354d0ad32598d"
+    },
+    {
+      "source": "src/plugin/skills/zensu-gauntlet-loop/SKILL.md",
+      "target": "skills/zensu-gauntlet-loop/SKILL.md",
+      "sha256": "51c7ba17114af4438d747fc338b9b588c11c9b15a1414bda46d2a3167a53913e"
+    },
+    {
+      "source": "src/plugin/skills/zensu-ghost-scan/SKILL.md",
+      "target": "skills/zensu-ghost-scan/SKILL.md",
+      "sha256": "d75a781200f5a93d5edca67fb014bb0a0faf9688ea2681d6814978b2ea8b9e04"
+    },
+    {
+      "source": "src/plugin/skills/zensu-help/SKILL.md",
+      "target": "skills/zensu-help/SKILL.md",
+      "sha256": "c4c08992c4b6c80956b7f9ca0c589a234e28e8098f5a3a4644700d6d5afd3ccb"
+    },
+    {
+      "source": "src/plugin/skills/zensu-implement/SKILL.md",
+      "target": "skills/zensu-implement/SKILL.md",
+      "sha256": "36a1dfd44935bc1ae41f774dfe1694fe2ebd78ce7dab0fb36dfcf41dc82c7cf0"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pilot/SKILL.md",
+      "target": "skills/zensu-pilot/SKILL.md",
+      "sha256": "78ea7cf9310298ee0d45ac8e7c1fa3c2ffaa03c8880c1cea9031d6d493cd61a2"
+    },
+    {
+      "source": "src/plugin/skills/zensu-plan-review/SKILL.md",
+      "target": "skills/zensu-plan-review/SKILL.md",
+      "sha256": "31f5ff1662205277570b2e1c5a03d9488774aa6c7af61055ee5eec3d7f6cbdbd"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-fix-findings/SKILL.md",
+      "target": "skills/zensu-pr-fix-findings/SKILL.md",
+      "sha256": "0fd61902c383be6e9496c798dd0c96b4b5a0a8fa467b8a18ba9a744feb1ff7af"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/references/cast.md",
+      "target": "skills/zensu-pr-team-review/references/cast.md",
+      "sha256": "8211d24219d8ad7dd9bcc0e5d3008c24ea33756b0b90881b93dd3dcc17cd5a3d"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/references/debate.md",
+      "target": "skills/zensu-pr-team-review/references/debate.md",
+      "sha256": "92b93b49390bbc358eb172315f27c9eceb947aaa8c1ac6254c4cce4fc7c46736"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/references/delegated.md",
+      "target": "skills/zensu-pr-team-review/references/delegated.md",
+      "sha256": "ed5605f571b97f134b08eaf953f914ee6279cf658a7c8df585c8a2c9b9c4c89a"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/references/publish.md",
+      "target": "skills/zensu-pr-team-review/references/publish.md",
+      "sha256": "12dcc9c3c364fd767d9066d327f923c639d5bc5c031c04d38e53f084130d3db8"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/references/scout.md",
+      "target": "skills/zensu-pr-team-review/references/scout.md",
+      "sha256": "cd84ec5439cd51de4f0c04ed379483ba62bba44445df65a8b064d0a9d7bd2726"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/references/spawn.md",
+      "target": "skills/zensu-pr-team-review/references/spawn.md",
+      "sha256": "9e3f303ac0178190a7d3bcbda928ca36d76a76ae524ad5bc9b3c3c9f82e944e7"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/rules/github-publish.md",
+      "target": "skills/zensu-pr-team-review/rules/github-publish.md",
+      "sha256": "ddedd2eaab491f00a67a36144d2f3f3d1ddf570ae47cf87e98ec9f1fa6daff72"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/rules/gitlab-publish.md",
+      "target": "skills/zensu-pr-team-review/rules/gitlab-publish.md",
+      "sha256": "12050672d7343410ab0b8a6591e12f75225be0e0413ab0f1d45a951f3b3e9ebc"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/rules/reviewer-personas.md",
+      "target": "skills/zensu-pr-team-review/rules/reviewer-personas.md",
+      "sha256": "8c9e42310460db333baee472027f3683c5275b8e574f9a0de130bd06f5075491"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/rules/workflow.md",
+      "target": "skills/zensu-pr-team-review/rules/workflow.md",
+      "sha256": "ba2011da718037a1eaec2366ce833111dc31852bb1dc003ab0a497390affcd16"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pr-team-review/SKILL.md",
+      "target": "skills/zensu-pr-team-review/SKILL.md",
+      "sha256": "ef8a284564938f9ec4294ce2f9af8af0bd82ea8f423364909699940e20cde03d"
+    },
+    {
+      "source": "src/plugin/skills/zensu-pulse/SKILL.md",
+      "target": "skills/zensu-pulse/SKILL.md",
+      "sha256": "cef1028d4be0c0fc82bef8946e454754d4dd47f3f119b1f82580f4d7628d7eb0"
+    },
+    {
+      "source": "src/plugin/skills/zensu-recover-chain/SKILL.md",
+      "target": "skills/zensu-recover-chain/SKILL.md",
+      "sha256": "b36f1703b69dffb038cb54a49c884de684c7a76a37ba3967851e73c63161edc1"
+    },
+    {
+      "source": "src/plugin/skills/zensu-reset-review-limit/SKILL.md",
+      "target": "skills/zensu-reset-review-limit/SKILL.md",
+      "sha256": "4514a5559bc0e57a88f7952c283b6d217380645c5bb2173c452723e7c2a97b50"
+    },
+    {
+      "source": "src/plugin/skills/zensu-security-review/SKILL.md",
+      "target": "skills/zensu-security-review/SKILL.md",
+      "sha256": "7cc0b48aa99463f869aa7bb3bb9265b872b1e8261500d00780b8ec521f5ea45e"
+    },
+    {
+      "source": "src/plugin/skills/zensu-self-review/SKILL.md",
+      "target": "skills/zensu-self-review/SKILL.md",
+      "sha256": "97af7e008c1d9d7fb9a5badd8bd683fcc7106a4e8d5f25f0e5c4ba68ac459f3a"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/handover-contract.json",
+      "target": "skills/zensu-session-trail/handover-contract.json",
+      "sha256": "aa5ddf30000edf5d6f6c51d457a78dc0ed6f03c230f8b5a73c8fa9ecdb94cd22"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/references/archive.md",
+      "target": "skills/zensu-session-trail/references/archive.md",
+      "sha256": "6e995534b50829d4a4742ef207d3e264f8931af6998de200587a5a63a7c05fd2"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/references/commands.md",
+      "target": "skills/zensu-session-trail/references/commands.md",
+      "sha256": "ccdfc78450c0b967a28124f9cf12d3d804e899f772e1e009d22f63ddad11c3ab"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/references/disclosure.md",
+      "target": "skills/zensu-session-trail/references/disclosure.md",
+      "sha256": "32b1d6e9fc4fc59f68a447051f700c44c37a233dcb90ab92dbad1d784f6e3a67"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/references/gotchas.md",
+      "target": "skills/zensu-session-trail/references/gotchas.md",
+      "sha256": "e8b1cf91bfe8caa622277805067e1076ab2065f8506d512ee41a7c4c26e4f8bf"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/references/handoff.md",
+      "target": "skills/zensu-session-trail/references/handoff.md",
+      "sha256": "2444d1d0e88ceca0d36ae9a88324e5e94dfa1257e061438227901eed7ab88ae6"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/references/limits.md",
+      "target": "skills/zensu-session-trail/references/limits.md",
+      "sha256": "a2569aa414b87847e14ce5c940e132201083f45172ddd1fe4168e1ffce64d910"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/references/takeover.md",
+      "target": "skills/zensu-session-trail/references/takeover.md",
+      "sha256": "6200ad338d165924c76402c6e23df8777aa5e292ccb3194f0e7198ccc9a1e25b"
+    },
+    {
+      "source": "src/session-trail/provider.mjs",
+      "target": "skills/zensu-session-trail/scripts/provider.mjs",
+      "sha256": "2ecefdedd42e000c06a44c1ed6df223630a3dec7d5d95645a81e8a49d4a03d48"
+    },
+    {
+      "source": "src/session-trail/session-lineage-v1.mjs",
+      "target": "skills/zensu-session-trail/scripts/session-lineage-v1.mjs",
+      "sha256": "d133029c52c19f0b02363c6e743605bd8e9c3c0c5c4eb7907163e6089a7d1352"
+    },
+    {
+      "source": "src/session-trail/trail.mjs",
+      "target": "skills/zensu-session-trail/scripts/trail.mjs",
+      "sha256": "314810d1166f38cccd17b234b08f76427df189b2598624b4981f75dd00ca2a2e"
+    },
+    {
+      "source": "src/plugin/skills/zensu-session-trail/SKILL.md",
+      "target": "skills/zensu-session-trail/SKILL.md",
+      "sha256": "f563999ac802d64e606d9aed950b21fa7d91d30287f0a84156a017299bfe3082"
+    },
+    {
+      "source": "src/plugin/skills/zensu-setup/SKILL.md",
+      "target": "skills/zensu-setup/SKILL.md",
+      "sha256": "5fd10ce88ac9ee0bb0a68a0f13e5b53e0cb3525c08787d7016c30e1f2dfce893"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd-mode/SKILL.md",
+      "target": "skills/zensu-tdd-mode/SKILL.md",
+      "sha256": "cdff5568cf748246a749d45073e680a2b0cd9d73ecb33cd6704ef1776463cf83"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/audit.md",
+      "target": "skills/zensu-tdd/references/audit.md",
+      "sha256": "7f6879a104df421d18d0fd4c885f42dcad34079b1e68a5ed2e7af32d1333a064"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/discipline.md",
+      "target": "skills/zensu-tdd/references/discipline.md",
+      "sha256": "c479b0e8c0d2dc60cbcdb4122fff507298a0a58b572dc3d42cbeda978a6b2bee"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/execution.md",
+      "target": "skills/zensu-tdd/references/execution.md",
+      "sha256": "9f501942faa1222661920fedd499ba21d33ea85dd9f080a43ad3b4739f7da20d"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/modes.md",
+      "target": "skills/zensu-tdd/references/modes.md",
+      "sha256": "17bf1463a07e17a6a8af63941e8634bb6f9cd6fc3ff97c12f8a3d37c27592a67"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/planning.md",
+      "target": "skills/zensu-tdd/references/planning.md",
+      "sha256": "23598e0b343dedefc55422c9218714958f41692437ea1ca9287c0447552c0198"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/review-chain.md",
+      "target": "skills/zensu-tdd/references/review-chain.md",
+      "sha256": "48d18ce2c8d7e591a680208aaef8644577dfb4bde11c387ed7d4e75d4d6e0ad6"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/SKILL.md",
+      "target": "skills/zensu-tdd/SKILL.md",
+      "sha256": "3e8d8469421b0bd9009c52d70c7f84400b484315321a0ae08c62e65c9efa19d8"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/attach.md",
+      "target": "skills/zensu-verify-feature/rules/attach.md",
+      "sha256": "9fb4dc1e85cd36a75849892fe1f9d59cf4ba5260fc336bb1760845e6ad0de2b1"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/browser-verification.md",
+      "target": "skills/zensu-verify-feature/rules/browser-verification.md",
+      "sha256": "d79a4baf983a686545ed7a2f018ac9875da3779885a6aa3efa6094bd773f4279"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/cli-verification.md",
+      "target": "skills/zensu-verify-feature/rules/cli-verification.md",
+      "sha256": "721a0eea92201b21c74a6bb7da0f8d3f4110672b7b6063183b2d9bf5c6e726d7"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/desktop-verification.md",
+      "target": "skills/zensu-verify-feature/rules/desktop-verification.md",
+      "sha256": "ac5620b1db4577ef736faf0e7dadce90cbb12a571531881222966b83e75b1784"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/drivers.md",
+      "target": "skills/zensu-verify-feature/rules/drivers.md",
+      "sha256": "8dbce1fdf4e0479601137c2d507d9cf3a2d8df854e61ef8d318bcecaa0b6cd15"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/mobile-verification.md",
+      "target": "skills/zensu-verify-feature/rules/mobile-verification.md",
+      "sha256": "b1f9a3b2e90dd7c08c13800adc82458453be8e776022d0c0a8554a27ced41ad3"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/service-verification.md",
+      "target": "skills/zensu-verify-feature/rules/service-verification.md",
+      "sha256": "e1781ea4b21c4811ac55c6ed637e340925759c556d2ff2d16bea74a90c0dba2c"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/setup.md",
+      "target": "skills/zensu-verify-feature/rules/setup.md",
+      "sha256": "b82dc5f8e3463a5c60557638aa77db9e0fee88903db20780d42c5f0988b3dba5"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/scripts/verify-run-resources.js",
+      "target": "skills/zensu-verify-feature/scripts/verify-run-resources.js",
+      "sha256": "4c01b4a8fcbd2982049d1715f0f4000bf4d869b0a9dc12d175de7a570596bf75"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/SKILL.md",
+      "target": "skills/zensu-verify-feature/SKILL.md",
+      "sha256": "2038c89b7349dae5e5ddbdd64b0fac239296b3b26d0c3c60983b0cf06e1f4608"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/goal-contract.md",
+      "target": "skills/zensu-wargame/references/goal-contract.md",
+      "sha256": "67c76e0ada1d3207bf9e19f1babd92c56ae8a87e7449a7e7c3bdcd76c4eff312"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/success.md",
+      "target": "skills/zensu-wargame/references/success.md",
+      "sha256": "75b2c9d8280dc2a2889c163f5e193e3aa8e9f3f4d16bf5b6386651f5fa3e763b"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/01-website.md",
+      "target": "skills/zensu-wargame/references/templates/01-website.md",
+      "sha256": "62e907be2da4d8ea08d15f8e85bb7b833eb66e34f58c2b4cc052481e288d2b4b"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/02-copy.md",
+      "target": "skills/zensu-wargame/references/templates/02-copy.md",
+      "sha256": "8310d617d179cc61465daad722f51fab8166fcc7e8ad26674717d4db874a2201"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/03-localai.md",
+      "target": "skills/zensu-wargame/references/templates/03-localai.md",
+      "sha256": "f61966f270b2b768f4f0aa85cc05b1673f5634dffc28eb906b8fb4747a7d93df"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/04-tax.md",
+      "target": "skills/zensu-wargame/references/templates/04-tax.md",
+      "sha256": "ca204712faab8516fe989c21b81968c665d6a4778d0fbbc6b60701b94f428e61"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/05-offer.md",
+      "target": "skills/zensu-wargame/references/templates/05-offer.md",
+      "sha256": "6c6c7e152defff8b5e0af253aecf8cbb7d6a4c677439e376d6ed0586d734ec82"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/06-chatbot.md",
+      "target": "skills/zensu-wargame/references/templates/06-chatbot.md",
+      "sha256": "15c6532352999045b181735c54a3cfacf5a0c4859d3d40dabe1be704c439518c"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/07-bugs.md",
+      "target": "skills/zensu-wargame/references/templates/07-bugs.md",
+      "sha256": "32019e3b0dd4ccbc62286f1d6e1f438395195b72ca0ae7e36fdd406d3badf020"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/08-model.md",
+      "target": "skills/zensu-wargame/references/templates/08-model.md",
+      "sha256": "e13d95d728b048e277f2a62cdf085e8a7869ad40380eb3713e791fa703ad1d94"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/09-competitors.md",
+      "target": "skills/zensu-wargame/references/templates/09-competitors.md",
+      "sha256": "640c4c23a551b6fdd88497b6eb932fe85fa6aa28a76d646dd1efe2041cbc511e"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/templates/10-automation.md",
+      "target": "skills/zensu-wargame/references/templates/10-automation.md",
+      "sha256": "96c38bd2f170a0978cb009e5ae57759ab486768aad361355d89e3e733aa49b6a"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/references/wargame-structure.md",
+      "target": "skills/zensu-wargame/references/wargame-structure.md",
+      "sha256": "79ac0bd5bf2d17de1b022477784403a3c763a0a1ab6da962a1b24af59b0fa581"
+    },
+    {
+      "source": "src/plugin/skills/zensu-wargame/SKILL.md",
+      "target": "skills/zensu-wargame/SKILL.md",
+      "sha256": "f91cff72dfbbec0cbc1c555e9f121a1e69a0534686e34ff8568a8ed0e1cfe2f0"
+    },
+    {
+      "source": "src/plugin/skills/zensu-work/references/protocol.md",
+      "target": "skills/zensu-work/references/protocol.md",
+      "sha256": "cbb68dd402a11079faaeea9983bd9b0d5fbebdd4e2c9ecae77dedbf44732ba11"
+    },
+    {
+      "source": "src/plugin/skills/zensu-work/SKILL.md",
+      "target": "skills/zensu-work/SKILL.md",
+      "sha256": "1f196b3bc8a98843ba5899e6cef94cb738c411a86a61e0ee3d88fffe3e91abb4"
+    },
+    {
+      "source": "src/plugin/skills/zensu-zen-mode/SKILL.md",
+      "target": "skills/zensu-zen-mode/SKILL.md",
+      "sha256": "57cbefc21451f074225d4c6d86345b22433d1c848e174e339d1be06cf7d5d432"
+    },
+    {
+      "source": "src/plugin/templates/autopilot-pr-body.md",
+      "target": "templates/autopilot-pr-body.md",
+      "sha256": "18743537b2d2e9cf0979275e624ca35fcf0251281a6e34190b5579d10f912c16"
+    },
+    {
+      "source": "src/plugin/templates/autopilot-spec.md",
+      "target": "templates/autopilot-spec.md",
+      "sha256": "41d03941dfed28be1208b24e57ee2e299d2e1d58216aec4466bda047587266b4"
+    },
+    {
+      "source": "src/plugin/templates/pr-body.md",
+      "target": "templates/pr-body.md",
+      "sha256": "09eff54126ba00dab27b535dc83316ba2731fe47a428eb0d55734830a6dda7d0"
+    },
+    {
+      "source": "src/plugin/templates/tdd-plan.md",
+      "target": "templates/tdd-plan.md",
+      "sha256": "a73529ec0ad6c15398104fcb65b2309fb8b0066877e68424541e11caf60b3b34"
+    }
+  ]
+}
