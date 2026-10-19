@@ -111,3 +111,10 @@ marketplace in an isolated `COPILOT_HOME`/`COPILOT_CACHE_HOME`, install
 `zensu@zensu`, compare the installed build receipt and every package hash, and
 exercise catalog/plugin updates. Such a check validates distribution, not a new
 end-to-end execution of all Zensu workflows.
+
+The [2026-10-19 native capture](../validation/copilot-marketplace-2026-10-19.json)
+records a successful private GitHub install with Copilot CLI 1.0.98. The installed
+0.2.0 package matched all 252 recorded hashes and all 253 files, with 32 skills,
+six agents and 11 hook events. Catalog refresh, same-version plugin update and
+registration of `#marketplace/v0.2.0` also succeeded. The normal Copilot
+installation was unchanged. A forward-version live update has not been claimed.

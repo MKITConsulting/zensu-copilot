@@ -1,0 +1,96 @@
+{
+  "kind": "live-copilot-marketplace-distribution",
+  "capturedAt": "2026-10-19T14:00:43.193787+00:00",
+  "cliVersionOutput": "GitHub Copilot CLI 1.0.98.\nRun 'copilot update' to check for updates.",
+  "repository": "MKITConsulting/zensu-copilot",
+  "privateRepository": true,
+  "marketplaceSource": "MKITConsulting/zensu-copilot#marketplace",
+  "configuration": "Isolated temporary COPILOT_HOME and COPILOT_CACHE_HOME; normal installation unchanged",
+  "publication": {
+    "schemaVersion": 1,
+    "version": "0.2.0",
+    "releaseTag": "v0.2.0",
+    "sourceCommit": "d3e662d6925fd66d521b85fd709fde8aea053cda",
+    "packageCommit": "28a80d16eb4071fe10e7f6228f938c1be5b936dc",
+    "checksums": {
+      "zensu-copilot-0.2.0.tar.gz": "9bf67d5ff18fbf86be5d13fb9d12066df802a723a598790b2859b42e1962b9d8",
+      "build.json": "34c272470d037cd3f3f9bb5d4800662eb86e6eb588f266e3c2510bcc33d0e4d5"
+    }
+  },
+  "commands": [
+    {
+      "command": "copilot plugin marketplace add MKITConsulting/zensu-copilot#marketplace",
+      "exitCode": 0,
+      "observedOutput": "Marketplace \"zensu\" added successfully."
+    },
+    {
+      "command": "copilot plugin marketplace browse zensu --json",
+      "exitCode": 0,
+      "capturedOutput": [
+        {
+          "name": "zensu",
+          "description": "Zensu product lifecycle, implementation, evidence, review and session workflows for Copilot CLI",
+          "marketplace": "zensu"
+        }
+      ]
+    },
+    {
+      "command": "copilot plugin install zensu@zensu",
+      "exitCode": 0,
+      "observedOutput": "Plugin \"zensu\" installed successfully. Installed 32 skills."
+    },
+    {
+      "command": "copilot plugin marketplace update zensu",
+      "exitCode": 0,
+      "capturedOutput": "Updating marketplace \"zensu\"...\nMarketplace \"zensu\" updated successfully.\n"
+    },
+    {
+      "command": "copilot plugin update zensu@zensu",
+      "exitCode": 0,
+      "capturedOutput": "Plugin \"zensu@zensu\" updated successfully (v0.2.0, already at latest). Updated 32 skills.\n"
+    },
+    {
+      "command": "copilot plugin list --json",
+      "exitCode": 0,
+      "capturedOutput": [
+        {
+          "name": "zensu",
+          "marketplace": "zensu",
+          "version": "0.2.0",
+          "enabled": true,
+          "source": "installed"
+        },
+        {
+          "name": "github-copilot-browser",
+          "marketplace": "",
+          "version": "0.0.3",
+          "enabled": false,
+          "source": "builtin"
+        }
+      ]
+    },
+    {
+      "command": "copilot plugin marketplace add MKITConsulting/zensu-copilot#marketplace/v0.2.0",
+      "exitCode": 0,
+      "observedOutput": "Marketplace \"zensu\" added successfully.",
+      "catalog": [
+        {
+          "name": "zensu",
+          "description": "Zensu product lifecycle, implementation, evidence, review and session workflows for Copilot CLI",
+          "marketplace": "zensu"
+        }
+      ]
+    }
+  ],
+  "installedPackageVerification": {
+    "exactInventoryMatches": true,
+    "releaseBuildReceiptMatches": true,
+    "buildReceiptSha256": "34c272470d037cd3f3f9bb5d4800662eb86e6eb588f266e3c2510bcc33d0e4d5",
+    "verifiedFileHashes": 252,
+    "totalFiles": 253,
+    "skills": 32,
+    "agents": 6,
+    "hookEvents": 11
+  },
+  "scope": "Actual private GitHub marketplace registration, install, immutable catalog registration and same-version update. Forward-version updates are covered by local Git fixtures, not a new live release. This is not a new end-to-end Zensu workflow run."
+}
