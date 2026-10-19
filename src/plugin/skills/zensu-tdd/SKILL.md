@@ -20,6 +20,7 @@ This is the Copilot CLI edition. The procedures below use native tool schemas an
 - When this workflow requires native plan approval, first write the complete plan to the exact `plan.md` path supplied by Copilot for this session, using an exposed native file-editing tool. Include the full specification, acceptance criteria and any required run marker in that file. Never guess its path from cwd or treat a repository audit plan as the native approval file. If Copilot has not supplied the path, keep approval pending. Then call `exit_plan_mode` with a concise overview in its `summary` string; the summary does not replace the plan file. Only explicit acceptance starts implementation; feedback, cancellation, exit_only and successful transport do not constitute acceptance. The native human-response receipt must match this tool call and return the exact approved file bytes in `response.planContent`. Missing receipts leave approval pending; report the missing native acceptance and resume the native approval interaction when available. Never manufacture approval with an assistant command or flag.
 - The native dispatcher binds COPILOT_PLUGIN_ROOT, COPILOT_PLUGIN_DATA, COPILOT_SESSION_ID and COPILOT_PROJECT_DIR to each bash invocation. Never guess a session ID or use the latest session in a directory.
 - Run helper shell commands exactly as rendered. The native hook binds the Copilot session and installation; do not override those selectors.
+- The visible `# zensu-copilot-context-v1` header and following export line are inserted by the native hook. Submit only the original Bash command; never copy, reconstruct, strip or alter the injected binding, and do not repeat a successful command just because it appears in the transcript.
 - Use the native custom-agent review panel, with the complete evidence packet, configured aspects, judges, one-shot tickets and convergence engine.
 - Stop continuation is bounded by Copilot. If the host ends a turn with a pending chain, preserve the pending state and resume; never mark it complete to fit a limit.
 
@@ -121,7 +122,7 @@ The phases after Phase 0 live in `references/`, so each is read when it starts r
 | `references/planning.md` | Phases 1, 1.5, 2 and 3 | when Phase 0 is done |
 | `references/execution.md` | the Per-Step Logging and Task Contracts, Phase 4 cycles, Phase 5 checkpoints | before the first Phase 4 cycle |
 | `references/audit.md` | Phase 6 steps 1 to 9: full suite, build, coverage, the audits, acceptance verification, the final report | when the last Phase 4 step is done |
-| `references/review-chain.md` | Phase 6 step 10: `--tdd-complete`, the review packet, fan-out, judge, finding verification, the consume-mode spawn, fix rounds, `--chain-done` | at step 10, and at the start of every routed review round |
+| `references/review-chain.md` | Phase 6 step 10 routing index; read its four bounded stage references in order for `--tdd-complete`, packet, panel, verification, consume and terminal routing | at step 10, and at the start of every routed review round |
 
 A reference is not rendered: it spells the plugin root as `{plugin_root}` and the plugin data directory as `{plugin_data}`, which Phase 0 step 1 resolves. Substitute both like `{project_root}` before you run a command, and never run one that still carries a brace placeholder.
 

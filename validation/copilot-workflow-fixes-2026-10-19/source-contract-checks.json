@@ -1,0 +1,99 @@
+{
+  "schema": "zensu.workflow-fix-source-contract-checks.v1",
+  "kind": "deterministic-source-inspection-not-live",
+  "status": "pass",
+  "checks": [
+    {
+      "findingId": "WF-001",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Native hook provenance is explicit",
+      "path": "src/context.js",
+      "line": 15,
+      "sha256": "f6466dda18e4a2e07913fbe6d65bfffebeb887deb75fb165541114dc4de61655"
+    },
+    {
+      "findingId": "WF-003",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Withdrawal cannot clear an unlanded audit",
+      "path": "src/plugin/skills/zensu-tdd/references/review-packet.md",
+      "line": 5,
+      "sha256": "258b6283eca90948d8f26d9ec4bb7ba2a85888a85bff7f87cc19bbfcdf57b4f5"
+    },
+    {
+      "findingId": "WF-003",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Unrepairable claims preserve the failed generation",
+      "path": "src/plugin/skills/zensu-tdd/references/review-packet.md",
+      "line": 5,
+      "sha256": "258b6283eca90948d8f26d9ec4bb7ba2a85888a85bff7f87cc19bbfcdf57b4f5"
+    },
+    {
+      "findingId": "WF-004",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Vanilla guidance contains no unsupported external-review path",
+      "path": "src/plugin/skills/zensu-tdd/references/modes.md",
+      "line": null,
+      "sha256": "341e598d128c61425df8259f4d55e96be5f9418db7d3352c311fb1cc3f4ec699"
+    },
+    {
+      "findingId": "WF-004",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Native review documentation explicitly marks absent import support",
+      "path": "src/plugin/docs/review-chain.md",
+      "line": 99,
+      "sha256": "a50b789712b1ab0422d935ad17d1bb7bc68310feb6a033a215ab823a3fc9128c"
+    },
+    {
+      "findingId": "WF-011",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Reviewer reports a quality verdict",
+      "path": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
+      "line": 92,
+      "sha256": "73886053522be34858d41e21fad9036959e72bcaabba4a7f41b58cec168fbeac"
+    },
+    {
+      "findingId": "WF-011",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Native hook is sole routing authority",
+      "path": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
+      "line": 92,
+      "sha256": "73886053522be34858d41e21fad9036959e72bcaabba4a7f41b58cec168fbeac"
+    },
+    {
+      "findingId": "WF-011",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Reviewer cannot invent workflow directives",
+      "path": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
+      "line": 92,
+      "sha256": "73886053522be34858d41e21fad9036959e72bcaabba4a7f41b58cec168fbeac"
+    },
+    {
+      "findingId": "WF-011",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Main-thread instructions use the same routing authority",
+      "path": "src/plugin/skills/zensu-tdd/references/review-completion.md",
+      "line": 19,
+      "sha256": "0e11d7d20c0930900e736c0067166bd1fcaded4c0d307902567dc6a34aa308b4"
+    },
+    {
+      "findingId": "WF-013",
+      "kind": "source-contract-assertion",
+      "status": "pass",
+      "assertion": "Closed generation has a report-only native response",
+      "path": "src/plugin/hooks/lib/workflow-artifacts-v1.js",
+      "line": 121,
+      "sha256": "a3533c79616107cdf5c91da756d494e06e02aeb8a22049163452a55120da5557"
+    }
+  ],
+  "recordedAt": "2026-10-19T20:03:34.601780+00:00",
+  "frozenBuildSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076"
+}

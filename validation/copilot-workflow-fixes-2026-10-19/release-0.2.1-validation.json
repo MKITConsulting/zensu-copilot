@@ -1,0 +1,337 @@
+{
+  "schema": "zensu.copilot-release-validation.v1",
+  "version": "0.2.1",
+  "status": "passed-local-release-candidate-awaiting-ci-and-publication",
+  "sourceBaseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+  "completeWorkflow": {
+    "report": "final-native-analysis.json",
+    "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+    "frozenBuildSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076",
+    "boundary": "The full invoice workflow predates the final audit UX change. Its original candidate hashes and per-finding coverage remain unchanged."
+  },
+  "nativeAuditUx": {
+    "kind": "scripted-real-Copilot-native-tool-probe",
+    "copilotVersion": "1.0.98",
+    "modelOverride": false,
+    "attempts": [
+      {
+        "status": "probe-error-not-plugin-failure",
+        "reason": "Probe setup used an unsupported --tdd-mode vanilla flag; standalone passed, active cases were not reached.",
+        "runDirectory": "/private/tmp/zensu-copilot-audit-ux-85v2ye14",
+        "sessionId": "3accfc6f-dd60-44e3-9be0-92905cbbd9ed",
+        "frozenBuildSha256": "2f2e2a39d52f8b11dd74118716d10240aff79b27167790c7a3bb386f536feb27",
+        "version": "0.2.1",
+        "probeSha256": "57613a51b6fd616a3933375e68737dda341ccf75cd2623620c6dec17cbd74e19",
+        "nativeCall": {
+          "toolCallId": "call_I9TQyayNSwDe7zG3zkKQOIhx",
+          "eventId": "30a5796d-3152-4a3a-b661-42e3fc8d1620",
+          "timestamp": "2026-10-19T21:25:48.798Z",
+          "model": "gpt-6-luna",
+          "shellExitCode": 2,
+          "output": "PASS standalone-before-workflow\nzensu-log.sh --tdd-begin: --tdd-mode accepts only 'strict' \u2014 a caller may raise the discipline, never lower it; run /zensu-tdd-mode --vanilla to opt this session out\n<shellId: 0 completed with exit code 2>"
+        },
+        "process": {
+          "exitCode": 0,
+          "finishedAt": "2026-10-19T21:25:58.590891+00:00",
+          "elapsedSeconds": 28.39
+        },
+        "integrity": {
+          "frozenPluginUnchanged": true,
+          "globalAndMarketplaceUnchanged": true
+        },
+        "artifacts": {
+          "project/.zensu/audit-ux-probe/standalone.stderr": {
+            "bytes": 98,
+            "sha256": "8578359af817fe9bd987b6f78c34d16e49c5e669d34941e9e5af082c423cecd9"
+          },
+          "project/.zensu/audit-ux-probe/standalone.stdout": {
+            "bytes": 145,
+            "sha256": "862f21f390ed687cae407eecd07b561903844fa4f1edef1885502f931972b5b7"
+          }
+        },
+        "captures": [
+          {
+            "path": "hooks/1792445137941-42923-sessionStart.json",
+            "event": "sessionStart",
+            "sha256": "ac008d066a158ad68b0dd6f215bfe1c88cce119f30b86c51c4528564faade9c4"
+          },
+          {
+            "path": "hooks/1792445143563-44784-preToolUse.json",
+            "event": "preToolUse",
+            "sha256": "40b048d0fb91bef562e4544d982213f13b414d6d8cfc91afc2c5ede212b6e161"
+          },
+          {
+            "path": "hooks/1792445143767-44882-postToolUse.json",
+            "event": "postToolUse",
+            "sha256": "523d8af21b1c0924e9dd555de3f497a45103c466d99336fdc6de0c2940912276"
+          },
+          {
+            "path": "hooks/1792445145376-46186-preToolUse.json",
+            "event": "preToolUse",
+            "sha256": "6033ea26e5fec1b627962b2283e56d5992cda114fca5201596cad466dd600c53"
+          },
+          {
+            "path": "hooks/1792445148240-47732-postToolUse.json",
+            "event": "postToolUse",
+            "sha256": "7b8d233cb4585d1f09280fe5e4b5d67faf19608303396c29073009e02588ac57"
+          }
+        ]
+      },
+      {
+        "status": "probe-error-not-plugin-failure",
+        "reason": "Probe assertion compared raw receipt session ID with the canonical key; five checks passed and the explicit audit was clean, but the assertion failed.",
+        "runDirectory": "/private/tmp/zensu-copilot-audit-ux-vf5jl3ed",
+        "sessionId": "6f72d059-e45c-4219-bcb9-c5a3bbeb3a24",
+        "frozenBuildSha256": "2f2e2a39d52f8b11dd74118716d10240aff79b27167790c7a3bb386f536feb27",
+        "version": "0.2.1",
+        "probeSha256": "dd27b5085a40c11fc270e1471aa35477a8648ffdf078d57765105622745d9f6c",
+        "nativeCall": {
+          "toolCallId": "call_tnmp0VDPuQITKVmNpmjy3uO5",
+          "eventId": "1affea01-0227-4e38-9797-8c5f9b30afe5",
+          "timestamp": "2026-10-19T21:29:03.489Z",
+          "model": "gpt-6-luna",
+          "shellExitCode": 1,
+          "output": "PASS standalone-before-workflow\ntdd-mode: vanilla\nmode: vanilla\nPASS active-omitted-refused-before-grading\nPASS active-disabled-refused-before-grading\nPASS active-alternate-refused-before-grading\nPASS inventory-read-only\n<shellId: 0 completed with exit code 1>"
+        },
+        "process": {
+          "exitCode": 0,
+          "finishedAt": "2026-10-19T21:29:18.244678+00:00",
+          "elapsedSeconds": 39.67
+        },
+        "integrity": {
+          "frozenPluginUnchanged": true,
+          "globalAndMarketplaceUnchanged": true
+        },
+        "artifacts": {
+          "project/.zensu/audit-ux-probe/alternate.stderr": {
+            "bytes": 610,
+            "sha256": "390eb0d1cde5dfe9738cd83024994c16592b16c7a1371150a1efdc9aaf3d1770"
+          },
+          "project/.zensu/audit-ux-probe/alternate.stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/bound.stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/bound.stdout": {
+            "bytes": 145,
+            "sha256": "862f21f390ed687cae407eecd07b561903844fa4f1edef1885502f931972b5b7"
+          },
+          "project/.zensu/audit-ux-probe/disabled.stderr": {
+            "bytes": 610,
+            "sha256": "390eb0d1cde5dfe9738cd83024994c16592b16c7a1371150a1efdc9aaf3d1770"
+          },
+          "project/.zensu/audit-ux-probe/disabled.stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/inventory.stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/inventory.stdout": {
+            "bytes": 16,
+            "sha256": "b16bccf0724a147649ff57702d0a83d6a3ba37f6fcc9dac579778dafbe3674e0"
+          },
+          "project/.zensu/audit-ux-probe/omitted.stderr": {
+            "bytes": 610,
+            "sha256": "390eb0d1cde5dfe9738cd83024994c16592b16c7a1371150a1efdc9aaf3d1770"
+          },
+          "project/.zensu/audit-ux-probe/omitted.stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/standalone.stderr": {
+            "bytes": 98,
+            "sha256": "8578359af817fe9bd987b6f78c34d16e49c5e669d34941e9e5af082c423cecd9"
+          },
+          "project/.zensu/audit-ux-probe/standalone.stdout": {
+            "bytes": 145,
+            "sha256": "862f21f390ed687cae407eecd07b561903844fa4f1edef1885502f931972b5b7"
+          }
+        },
+        "captures": [
+          {
+            "path": "hooks/1792445323010-98417-sessionStart.json",
+            "event": "sessionStart",
+            "sha256": "aa668ffc155df7f3cfc655bb40c9ecdab2e58b407e1f06ca76f7d13324d21eb4"
+          },
+          {
+            "path": "hooks/1792445328273-99985-preToolUse.json",
+            "event": "preToolUse",
+            "sha256": "406b23915b214e4a1b222cdc9cb1702052066598306f508b28df45959bce11e7"
+          },
+          {
+            "path": "hooks/1792445328776-235-postToolUse.json",
+            "event": "postToolUse",
+            "sha256": "afef55aa2afec464cb2013cda1da63b568abb98c29e7392bfca04868bc1f453c"
+          },
+          {
+            "path": "hooks/1792445331763-1599-preToolUse.json",
+            "event": "preToolUse",
+            "sha256": "ee9414e11f5b8fdc1fb7e4758d149b47f652fe79aa3af577b157ace98334c136"
+          },
+          {
+            "path": "hooks/1792445343050-3554-postToolUse.json",
+            "event": "postToolUse",
+            "sha256": "29ebfb92ff474d08e56ac1a54cb900b0540533f848a1e0aed12801e380b74110"
+          },
+          {
+            "path": "hooks/1792445348845-4692-preToolUse.json",
+            "event": "preToolUse",
+            "sha256": "084d1b8f332678f0bc3a2a70e4c833a3dc5a7e13f00bc97e65d5d35131822bd6"
+          },
+          {
+            "path": "hooks/1792445349715-4897-postToolUse.json",
+            "event": "postToolUse",
+            "sha256": "dd3cced49322953c5e92db0e860b59cc68bfb9d1153d79c159e7e57a397f2e07"
+          }
+        ]
+      },
+      {
+        "status": "passed",
+        "reason": null,
+        "runDirectory": "/private/tmp/zensu-copilot-audit-ux-knykr539",
+        "sessionId": "6a7bab4e-e533-4443-9818-cc54b1bdca6f",
+        "frozenBuildSha256": "2f2e2a39d52f8b11dd74118716d10240aff79b27167790c7a3bb386f536feb27",
+        "version": "0.2.1",
+        "probeSha256": "daf5c8984cefafd582b5e2bc5014ad7e17c0406662960ba8f1bbdb3aaec53423",
+        "nativeCall": {
+          "toolCallId": "call_xZYWpltQNYD4Wzi8jUjPc9SE",
+          "eventId": "2da2c5e4-a5ab-4f85-ac21-5926686160e6",
+          "timestamp": "2026-10-19T21:30:09.539Z",
+          "model": "gpt-6-luna",
+          "shellExitCode": 0,
+          "output": "PASS standalone-before-workflow\ntdd-mode: vanilla\nmode: vanilla\nPASS active-omitted-refused-before-grading\nPASS active-disabled-refused-before-grading\nPASS active-alternate-refused-before-grading\nPASS inventory-read-only\nPASS explicit-session-clean-receipt\nPASS omitted-retry-preserves-receipt\nAUDIT-UX-NATIVE-PROBE-PASS\n<shellId: 0 completed with exit code 0>"
+        },
+        "process": {
+          "exitCode": 0,
+          "finishedAt": "2026-10-19T21:30:14.317554+00:00",
+          "elapsedSeconds": 36.17
+        },
+        "integrity": {
+          "frozenPluginUnchanged": true,
+          "globalAndMarketplaceUnchanged": true
+        },
+        "artifacts": {
+          "project/.zensu/audit-ux-probe/alternate.stderr": {
+            "bytes": 610,
+            "sha256": "d87e5a0c2b05cdd27c26edf18c52eedcef28a30e89c51722e54531b8713fe3f5"
+          },
+          "project/.zensu/audit-ux-probe/alternate.stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/bound.stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/bound.stdout": {
+            "bytes": 145,
+            "sha256": "862f21f390ed687cae407eecd07b561903844fa4f1edef1885502f931972b5b7"
+          },
+          "project/.zensu/audit-ux-probe/disabled.stderr": {
+            "bytes": 610,
+            "sha256": "d87e5a0c2b05cdd27c26edf18c52eedcef28a30e89c51722e54531b8713fe3f5"
+          },
+          "project/.zensu/audit-ux-probe/disabled.stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/inventory.stderr": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/inventory.stdout": {
+            "bytes": 16,
+            "sha256": "b16bccf0724a147649ff57702d0a83d6a3ba37f6fcc9dac579778dafbe3674e0"
+          },
+          "project/.zensu/audit-ux-probe/omitted.stderr": {
+            "bytes": 610,
+            "sha256": "d87e5a0c2b05cdd27c26edf18c52eedcef28a30e89c51722e54531b8713fe3f5"
+          },
+          "project/.zensu/audit-ux-probe/omitted.stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/receipt-before.json": {
+            "bytes": 1106,
+            "sha256": "93e160c222963a4ae6fecb52f9c2e5bbd9dbf95f8a47fb6000b8df15f64114af"
+          },
+          "project/.zensu/audit-ux-probe/repeat-omitted.stderr": {
+            "bytes": 610,
+            "sha256": "d87e5a0c2b05cdd27c26edf18c52eedcef28a30e89c51722e54531b8713fe3f5"
+          },
+          "project/.zensu/audit-ux-probe/repeat-omitted.stdout": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "project/.zensu/audit-ux-probe/standalone.stderr": {
+            "bytes": 98,
+            "sha256": "8578359af817fe9bd987b6f78c34d16e49c5e669d34941e9e5af082c423cecd9"
+          },
+          "project/.zensu/audit-ux-probe/standalone.stdout": {
+            "bytes": 145,
+            "sha256": "862f21f390ed687cae407eecd07b561903844fa4f1edef1885502f931972b5b7"
+          }
+        },
+        "captures": [
+          {
+            "path": "hooks/1792445384486-33970-sessionStart.json",
+            "event": "sessionStart",
+            "sha256": "12467f86591ef93a76bf623749fed9828190436c793fa13ea2f70ecfff251939"
+          },
+          {
+            "path": "hooks/1792445390996-62397-preToolUse.json",
+            "event": "preToolUse",
+            "sha256": "ce213c2cb66cb86182e76a8c6835c386907234816fe0b04f4c3d113a53773bbf"
+          },
+          {
+            "path": "hooks/1792445391339-63525-postToolUse.json",
+            "event": "postToolUse",
+            "sha256": "4502d289df0cd8322a3dd7d6cb60727050e9c615c845fdf104883925f7b2ed20"
+          },
+          {
+            "path": "hooks/1792445394161-75898-preToolUse.json",
+            "event": "preToolUse",
+            "sha256": "f056ec8cf9d0d51c5aea37f9a7a60bd250e3d44447032c9ca8b01bdd619da56f"
+          },
+          {
+            "path": "hooks/1792445409045-34679-postToolUse.json",
+            "event": "postToolUse",
+            "sha256": "268a678f93a511704f6777cbca9ccaeb79c70820e606df435910b921264b2e20"
+          }
+        ]
+      }
+    ],
+    "boundary": "Real Copilot hook binding and native shell execution of a prescribed diagnostic script. It is not another autonomous full workflow. Diagnostic chain reset was explicit cleanup, never workflow completion. No installed plugin or monitored global configuration was changed."
+  },
+  "recordedAt": "2026-10-19T21:33:30.188605+00:00",
+  "deterministic": {
+    "command": "npm run verify",
+    "exitCode": 0,
+    "nodeTests": {
+      "passed": 488,
+      "failed": 0,
+      "skipped": 0
+    },
+    "marketplaceTests": {
+      "passed": 6
+    },
+    "analyzerFixtures": {
+      "passed": 29
+    },
+    "controllerFixtures": {
+      "passed": 1
+    },
+    "immutableSnapshotFiles": 1015,
+    "ownedPackageHashes": 272,
+    "runtimeSyntaxChecks": 128,
+    "rawLog": "/private/tmp/zensu-copilot-0.2.1-verify-final.log",
+    "logSha256": "177795ff161b37c4850db688549b6b78687177be0531460234e762859df8910d",
+    "buildSha256": "2f2e2a39d52f8b11dd74118716d10240aff79b27167790c7a3bb386f536feb27",
+    "exactFrozenNativeProbeBuildMatch": true
+  }
+}

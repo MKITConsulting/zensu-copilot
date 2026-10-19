@@ -15,6 +15,10 @@ they appeared in another session's transcript.
 The Zensu dispatcher supplies `COPILOT_PLUGIN_ROOT`, `COPILOT_PLUGIN_DATA` and
 `COPILOT_SESSION_ID` on shell calls. Require a nonempty plugin root before running:
 
+The visible `# zensu-copilot-context-v1` header and export line are inserted by the
+native hook. Submit only the original command; do not copy or reconstruct that
+binding, or repeat a successful command because it appears in the transcript.
+
 ```bash
 test -n "${COPILOT_PLUGIN_ROOT:-}" && node "${COPILOT_PLUGIN_ROOT}/skills/zensu-session-trail/scripts/trail.mjs" list
 ```

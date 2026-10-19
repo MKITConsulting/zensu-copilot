@@ -12,6 +12,8 @@ function identity(value, label = 'session ID') {
 }
 const key = (value) => crypto.createHash('sha256').update(identity(value)).digest('hex');
 const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
+const SHELL_BINDING_NOTICE = 'The # zensu-copilot-context-v1 header and following export line in executed bash commands are inserted by the native hook, not authored by you. Submit only your original command. Do not copy, remove or reconstruct this header, change its selectors, or repeat a successful command because the header is visible.';
+const NATIVE_READ_NOTICE = 'Read large or unknown-length reference documents with native view_range: [start, end] in bounded chunks, continuing until all required sections are read. A successful view response containing a size-limit or truncation notice is not a completed read; retry the missing content with smaller explicit line ranges. Never treat an unread workflow section as optional.';
 function directory(value, create = false) {
   const resolved = path.resolve(value);
   if (create) fs.mkdirSync(resolved, { recursive: true, mode: 0o700 });
@@ -94,9 +96,20 @@ function shellBinding(context, command) {
 }
 function unbindShell(command) {
   if (typeof command !== 'string' || !command.startsWith('# zensu-copilot-context-v1\n')) return command;
-  const lines = command.split('\n');
-  if (!lines[1].startsWith('export ')) throw new Error('Malformed session binding');
-  return lines.slice(2).join('\n');
+  const original = command.slice('# zensu-copilot-context-v1\n'.length);
+  const lineEnd = original.indexOf('\n');
+  const firstLine = lineEnd < 0 ? original : original.slice(0, lineEnd);
+  const selectors = Object.keys(nativeEnv({}, {}));
+  const shellValue = /'(?:[^'\r\n]|'\\'')*'/;
+  const binding = new RegExp(`^export ${selectors.map(name => `${name}=${shellValue.source}`).join(' ')}$`);
+  if (binding.test(firstLine)) return lineEnd < 0 ? '' : original.slice(lineEnd + 1);
+  const protectedExport = new RegExp(`(?:^|\\s)(?:${selectors.join('|')})(?==|\\s|$)`);
+  if (/^export\s*$/.test(firstLine) || /^export(?:\s|$)/.test(firstLine) && protectedExport.test(firstLine)) {
+    throw new Error('Malformed session binding. Submit only the original command; the native hook supplies every protected session selector.');
+  }
+  // A copied comment alone grants no authority. Preserve every original command
+  // byte (including ordinary exports) for policy checks and fresh trusted binding.
+  return original;
 }
 function observe(context, event, extra = {}) {
   const now = new Date().toISOString();
@@ -125,4 +138,4 @@ function observe(context, event, extra = {}) {
   }
   return record;
 }
-module.exports = { identity, key, quote, directory, readPrivate, writePrivate, writePrivateText, resolveContext, nativeEnv, shellBinding, unbindShell, observe };
+module.exports = { identity, key, quote, directory, readPrivate, writePrivate, writePrivateText, resolveContext, nativeEnv, shellBinding, unbindShell, observe, SHELL_BINDING_NOTICE, NATIVE_READ_NOTICE };

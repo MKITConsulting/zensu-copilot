@@ -1,0 +1,17 @@
+{
+  "kind": "automated-fixture-not-live-model",
+  "status": "pass",
+  "capturedExit": {
+    "exitCode": -15,
+    "interruptedBySignal": 15,
+    "elapsedSeconds": 3.7,
+    "finishedAt": "2026-10-19T19:07:55.282296+00:00"
+  },
+  "childStillExists": false,
+  "integrity": {
+    "frozenPluginUnchanged": true,
+    "globalAndMarketplaceUnchanged": true
+  },
+  "evidenceDirectory": "/private/tmp/zensu-harness-signal-fixture-uymjk35o",
+  "limitation": "Initial external ps inspection was denied by the sandbox; the final process-existence check used os.kill(pid, 0)."
+}

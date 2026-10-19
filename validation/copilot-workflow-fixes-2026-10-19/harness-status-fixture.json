@@ -1,0 +1,9 @@
+{
+  "schema": "zensu.harness-status-fixture.v1",
+  "kind": "automated-fake-cli-fixture-not-live-model",
+  "status": "pass",
+  "observedAfterLaunch": "running",
+  "observedAfterExit": "process-exited-awaiting-workflow-validation",
+  "processExitCode": 0,
+  "evidenceDirectory": "/private/tmp/zensu-harness-status-fixture-12e1jspu"
+}

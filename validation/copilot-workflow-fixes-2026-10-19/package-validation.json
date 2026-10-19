@@ -1,0 +1,184 @@
+{
+  "schema": "zensu.copilot-workflow-package-validation.v1",
+  "status": "passed-deterministic-validation-and-complete-native-workflow",
+  "recordedAt": "2026-10-19T20:03:34.601780+00:00",
+  "command": "npm run verify",
+  "expandedCommand": "npm run build && npm run check && npm test && npm run test:marketplace",
+  "kind": "package-and-fixture-validation-not-a-live-Copilot-workflow",
+  "rawLog": {
+    "path": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/package-verify.log",
+    "sha256": "1d6dc2eb7d8ea8a907cb48f3fe5be0199b28de488e8328de5e9d57107bc2c907",
+    "bytes": 46710
+  },
+  "results": {
+    "nodeTests": {
+      "passed": 485,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "marketplaceTests": {
+      "passed": 6,
+      "failed": 0
+    },
+    "immutableSnapshotFilesVerified": 1015,
+    "ownedPackageHashesVerified": 272,
+    "runtimeSyntaxChecks": 128,
+    "skills": 32,
+    "agents": 6,
+    "nativeHookEvents": 11
+  },
+  "provenance": {
+    "repository": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-copilot",
+    "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+    "fixesCommitted": false,
+    "workingTree": "local-uncommitted-fixes",
+    "frozenAt": "2026-10-19T20:01:59.347691+00:00",
+    "declaredVersion": "0.2.0",
+    "newReleasePublished": false,
+    "buildReceiptSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076",
+    "frozenReceiptSha256": "394df85bf67316b4567d32088e00b5cbcb584860cd4a25e21b81fd08169aa78e",
+    "frozenPayloadFileCountIncludingBuildReceipt": 273,
+    "ownedPayloadFileCount": 272,
+    "inventory": "frozen-package-inventory.json",
+    "inventorySha256": "df9e52024df04ad4ae4a2ebe1c4f01d31385ac5a304cd478e39d16921375b88d",
+    "allFrozenFilesMatchReceipt": true,
+    "allOwnedSourcesMatchFrozenBuild": true,
+    "hashMismatchCount": 0,
+    "harnessBundledInPlugin": false
+  },
+  "sourceContractAssertions": "source-contract-checks.json",
+  "secondaryReview": {
+    "status": "reported-findings-fixed",
+    "findings": [
+      {
+        "id": "SECONDARY-001",
+        "issue": "Compact packet limit differed from indented on-disk size.",
+        "resolution": "Creation and writing use the same compact encoding including final newline.",
+        "evidence": {
+          "test": "near-limit canonical packet round-trips at the exact on-disk byte cap",
+          "log": "rawLog"
+        }
+      },
+      {
+        "id": "SECONDARY-002",
+        "issue": "The mandatory packet helper introduced an unconditional Git requirement.",
+        "resolution": "Non-Git scope is explicit and limited to declared in-root file snapshots; no Git tree or repository-wide coverage is invented. Native completion proof remains required.",
+        "evidence": {
+          "tests": [
+            "non-Git packets bind explicit file snapshots and disclose that the change inventory is limited",
+            "non-Git workflows retain required native review and invalidate edits inside the declared file scope"
+          ],
+          "log": "rawLog"
+        }
+      },
+      {
+        "id": "SECONDARY-003",
+        "issue": "Interrupting the harness could leave its Copilot/tool child running and lose final evidence.",
+        "resolution": "Own process group, bounded signal forwarding/escalation and finally-recorded exit/integrity.",
+        "evidence": {
+          "report": "harness-signal-fixture.json",
+          "kind": "fake CLI fixture; no model"
+        }
+      },
+      {
+        "id": "SECONDARY-004",
+        "issue": "Harness metadata stayed at model-not-started after launch.",
+        "resolution": "Status changes to running after Popen and process-exited-awaiting-workflow-validation at exit; current invocation metadata was correlated to process.json and corrected.",
+        "evidence": {
+          "report": "harness-status-fixture.json",
+          "kind": "fake CLI fixture; no model",
+          "limitation": "First invocation metadata was corrected only after its recorded process exit; current harness updates status itself."
+        }
+      },
+      {
+        "id": "SECONDARY-005",
+        "issue": "Independent consumer controller used an undomained raw session hash.",
+        "resolution": "Use the native domain-separated identity and reject mismatched sessions; exact actual first-run state verified read-only.",
+        "evidence": {
+          "report": "analyzer-fixtures.json",
+          "kind": "deterministic controller fixtures; no model"
+        }
+      },
+      {
+        "id": "SECONDARY-006",
+        "issue": "First live bundle exposed long audit/review/self-review references, native reanchor context drift and reviewer packet-line ambiguity.",
+        "resolution": "Final frozen package includes bounded authoritative references, native reanchor binding, exact packet-line examples, persona canonical packet parity and native search aliases.",
+        "evidence": {
+          "log": "rawLog",
+          "limitation": "Native success must be assessed from the separate fresh final run."
+        }
+      },
+      {
+        "id": "SECONDARY-007",
+        "issue": "A later omitted dirty-before flag could discard pending audit context; invalid input or Git faults could also discard scope before a retry.",
+        "resolution": "Persist cumulative project/session/generation/log/claim scope before grading, validate explicit literal/hash predicates, preserve unchanged certified claims, and require a fresh clean scope at workflow termination.",
+        "evidence": {
+          "report": "audit-scope-independent-fixture.json",
+          "log": "rawLog",
+          "kind": "deterministic native-helper fixture; the first model run exposed the original failure"
+        }
+      },
+      {
+        "id": "SECONDARY-008",
+        "issue": "Original lifecycle checkboxes contradicted a completed managed status and could preclaim final report delivery.",
+        "resolution": "Known nonblocked lifecycle labels become neutral pointers; only the bound managed block records observed workflow flags. The assistant delivers its report after closure.",
+        "evidence": {
+          "log": "rawLog",
+          "limitation": "Live final progress is assessed separately."
+        }
+      },
+      {
+        "id": "SECONDARY-009",
+        "issue": "Copied hook shell headers could generate repeated binding refusals.",
+        "resolution": "Recover only complete exact native selector headers or a naked marker; preserve ordinary commands/exports and reject partial protected selector overrides.",
+        "evidence": {
+          "test": "copied shell headers preserve ordinary exports and reject partial protected bindings",
+          "log": "rawLog"
+        }
+      },
+      {
+        "id": "SECONDARY-010",
+        "issue": "The controller inherited a stale PWD despite setting the actual project cwd, causing false path-preflight targets.",
+        "resolution": "Future harness launches set PWD to the resolved project and preflight from that directory. The completed native run remained unchanged and recovered using absolute paths.",
+        "evidence": {
+          "report": "harness-pwd-fixture.json",
+          "kind": "real fake-CLI subprocess fixture; no model",
+          "limitation": "Applied after final native exit; no fourth model run claimed."
+        }
+      },
+      {
+        "id": "SECONDARY-011",
+        "issue": "Analyzer timestamp ordering treated a temporary proof file added/removed after passing AC status as current application drift.",
+        "resolution": "Only independently validated final native evidence records and the recomputed current tree may supersede that conservative ordering; stale/failing status output remains rejected.",
+        "evidence": {
+          "report": "analyzer-fixtures.json",
+          "kind": "29 deterministic controller fixtures; final native evidence graph analyzed read-only"
+        }
+      }
+    ],
+    "remainingActionableFindingsInReviewedScope": [],
+    "limitation": "Source/fixture review does not guarantee model behavior; the native retest is tracked separately."
+  },
+  "nativeRetest": {
+    "status": "passed",
+    "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+    "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+    "result": "final-native-analysis.json",
+    "observations": "final-run-observations.json",
+    "finishedAt": "2026-10-19T20:46:06.534460+00:00"
+  },
+  "otherHosts": {
+    "sourceAudit": "cross-host-matrix.json",
+    "repositoriesModified": false,
+    "Antigravity": "quota-blocked before model tokens",
+    "Codex": "not launched: installed plugin violates unchanged-global/no-Claude-access test constraints",
+    "Kiro": "not launched: no authenticated account",
+    "Standalone CLI": "local invoice workflow is not applicable",
+    "Claude source": "read-only audit at fcc3ee58c2e9c5c44fa3129cffafdc5a39f834c4; no live process"
+  },
+  "supersededCheckpoints": [
+    "first-package-checkpoint.json",
+    "second-package-checkpoint.json"
+  ]
+}

@@ -4,7 +4,7 @@ Loaded for rows whose driver is `desktop`: macOS apps (SwiftUI, AppKit, Mac Cata
 Tauri apps, Windows and Linux desktop apps. The run builds the worktree, launches that build under
 the process supervisor, drives only its window, and stops it at teardown through the run-resource
 helper (`rules/drivers.md` section 5). Replace `<absolute-plugin-root>` with the concrete `ROOT`
-from `SKILL.md`.
+from `references/runtime.md`.
 
 ## 1. Build and launch the worktree's build
 

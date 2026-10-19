@@ -33,7 +33,7 @@ function fixture(t) {
   const root = path.join(dir, 'installed-plugins/_direct/zensu');
   fs.cpSync(path.join(repo, 'src/plugin'), root, {recursive:true});
   fs.mkdirSync(path.join(root, 'hooks/native'), {recursive:true});
-  for (const name of ['dispatcher', 'protocol', 'context', 'approval', 'helper', 'transcript']) fs.copyFileSync(path.join(repo, `src/${name}.js`), path.join(root, `hooks/native/${name}.js`));
+  for (const name of ['dispatcher', 'protocol', 'context', 'approval', 'helper', 'transcript', 'review-gate']) fs.copyFileSync(path.join(repo, `src/${name}.js`), path.join(root, `hooks/native/${name}.js`));
   seal(root);
   const project = path.join(dir, 'project'), data = path.join(dir, 'data');
   fs.mkdirSync(project, {mode:0o700});

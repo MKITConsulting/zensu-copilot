@@ -71,7 +71,7 @@ where it must be the origin of the validated remote base URL.
 
 For a build driver, propose the `validate` block instead of, or beside, the services: the
 `driver` and its block (`validate.cli`, `validate.library`, `validate.mobile` or
-`validate.desktop`, schema in `../../autopilot/rules/config.md`) with the build command, the
+`validate.desktop`, schema in `../../zensu-autopilot/rules/config.md`) with the build command, the
 artifact path, the app identifier and the device type the evidence names. Propose a desktop
 app's `dataIsolation` switch only when its code shows one; setup never invents one.
 
@@ -86,7 +86,7 @@ recipe before the answer arrives. A cancelled round writes nothing.
 native file creation `.zensu/runtime.yaml` at the physical worktree root with the native file creation tool, refuse to
 overwrite an existing file without a second explicit confirmation, print the diff, and offer
 to commit — never commit unasked. The schema is the verify-sufficient subset of
-`../../autopilot/rules/config.md`:
+`../../zensu-autopilot/rules/config.md`:
 
 ```yaml
 version: 1
@@ -109,7 +109,7 @@ reads `.zensu/autopilot.yaml` only — it does NOT read `runtime.yaml` — so a 
 recipe to serve both skills writes `autopilot.yaml` rather than `runtime.yaml`.
 `validate.navigationBroker` declares policy mode; it is optional in consent mode and honoured
 when present. `validate.networkOnly` takes `origins`, a list of exact origins, and in a remote
-recipe `appOrigin`, as `../../autopilot/rules/config.md` describes.
+recipe `appOrigin`, as `../../zensu-autopilot/rules/config.md` describes.
 
 A build driver needs no services. A native iOS app that talks to no backend:
 

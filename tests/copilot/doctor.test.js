@@ -30,7 +30,7 @@ function fixture(t) {
     type: 'command', bash: `node "\${PLUGIN_ROOT}/hooks/native/dispatcher.js" ${event}`, timeoutSec: 45,
   }]])) };
   write('com.github.copilot/hooks/hooks.json', hooks);
-  for (const file of ['protocol.js', 'transcript.js', 'dispatcher.js', 'context.js', 'helper.js', 'approval.js']) write(`hooks/native/${file}`, '// fixture');
+  for (const file of ['protocol.js', 'transcript.js', 'dispatcher.js', 'context.js', 'helper.js', 'approval.js', 'review-gate.js']) write(`hooks/native/${file}`, '// fixture');
   for (const agent of EXPECTED_AGENTS) {
     write(`com.github.copilot/agents/${agent}.agent.md`, fs.readFileSync(path.join(pluginSource, 'com.github.copilot/agents', `${agent}.agent.md`), 'utf8'));
   }

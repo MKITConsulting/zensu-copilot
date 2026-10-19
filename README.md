@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.2.0
+the complete workflow, evidence, acceptance and recovery engine. Version 0.2.1
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -60,12 +60,12 @@ This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.2.0
-cd zensu-copilot-0.2.0
-gh release download v0.2.0 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.2.0.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.2.1
+cd zensu-copilot-0.2.1
+gh release download v0.2.1 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.2.1.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.2.0.tar.gz
+tar -xzf zensu-copilot-0.2.1.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
@@ -134,6 +134,15 @@ require separate live acceptance with the applicable tools and disposable data.
 The native 0.2.0 test run passed 420 tests and completed a local Copilot workflow
 through acceptance, native review and terminal self-review. See the record for
 the exact tested build and remaining live proof boundaries.
+
+Version 0.2.1 addresses all thirteen findings from the subsequent invoice workflow
+audit, including canonical review packets, current audit receipts and terminal
+progress. The repeated native invoice workflow completed its full review chain;
+its exact candidate build and per-finding evidence are recorded in the
+[follow-up validation](https://github.com/MKITConsulting/zensu-copilot/blob/main/validation/copilot-workflow-fixes-2026-10-19/README.md).
+An active native audit now requires explicit `--session` and prints a recovery
+command when it is missing. Standalone audits clearly disclose that no workflow
+receipt is written.
 
 See [the complete parity map](docs/parity.md) for every skill, agent and host
 limitation, and [runtime and live validation](docs/copilot-runtime.md) for the

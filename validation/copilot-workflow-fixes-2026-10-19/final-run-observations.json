@@ -1,0 +1,1057 @@
+{
+  "schema": "zensu.native-workflow-observations.v1",
+  "kind": "actual-native-Copilot-run-not-fixture",
+  "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+  "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+  "frozenBuildSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076",
+  "status": "passed-complete-native-workflow-with-recovered-friction",
+  "host": {
+    "cli": "GitHub Copilot CLI 1.0.98",
+    "observedMainToolModels": {
+      "gpt-6-luna": 287
+    },
+    "firstModelEvent": {
+      "id": "c75eeb99-5a20-4ec6-9d54-64879bde38a2",
+      "timestamp": "2026-10-19T20:02:21.019Z",
+      "model": "gpt-6-luna"
+    },
+    "modelOverride": false,
+    "authentication": "Normal host authentication; no credential/configuration change."
+  },
+  "completion": {
+    "process": {
+      "exitCode": 0,
+      "interruptedBySignal": null,
+      "elapsedSeconds": 2637.31,
+      "finishedAt": "2026-10-19T20:46:06.534460+00:00"
+    },
+    "validCompleteWorkflow": true,
+    "nativeState": {
+      "revision": 9,
+      "reviewGeneration": "e22cc3ab-9ebf-416f-901b-6ee4868a8926",
+      "implComplete": true,
+      "codeReviewDone": true,
+      "chainDone": true,
+      "reviewTicketConsumed": true,
+      "reviewRound": 1,
+      "selfReviewFixed": true
+    },
+    "allMandatoryAnalyzerChecks": "pass",
+    "completedNativeReviewers": 8,
+    "nativeEvidence": {
+      "status": "pass",
+      "reason": "Exact native helper references, capture hashes, latest full-suite and four final criterion records agree on the independently checked current tree.",
+      "evidence": [
+        {
+          "manifest": "evidence-capture/manifest.json",
+          "manifestSha256": "cee748ec96798cdbf7519d61ba2fc24d1a3f73088ae5025b94100e69b6c408bd",
+          "fullSuite": "er1_1792441972742_463b87e2efea",
+          "acceptanceRecords": {
+            "AC-001": "av1_1792442418157_f46810c036a6",
+            "AC-002": "av1_1792442425482_5338b1a1f723",
+            "AC-003": "av1_1792442484747_b73505ffb13b",
+            "AC-004": "av1_1792442432205_2e0a6743d43b"
+          },
+          "acceptanceRuns": [
+            "er1_1792442396380_e78a1fbabd8c",
+            "er1_1792442475521_ee5f34a7e13b"
+          ],
+          "currentTree": {
+            "status": "pass",
+            "reason": "Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+            "evidence": [
+              {
+                "tree": "7bd0f7a42e0de6c2ab41298aeef7b8c82e540384",
+                "files": 10,
+                "mismatches": []
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "auditScope": {
+      "status": "pass",
+      "reason": "Scope identity, certified claims, append-only log prefix and current snapshots checked; Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+      "evidence": [
+        {
+          "generation": "e22cc3ab-9ebf-416f-901b-6ee4868a8926",
+          "claims": 11,
+          "snapshots": 6,
+          "inheritedDirtyPaths": 10,
+          "treeCheck": {
+            "status": "pass",
+            "reason": "Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+            "evidence": [
+              {
+                "tree": "7bd0f7a42e0de6c2ab41298aeef7b8c82e540384",
+                "files": 10,
+                "mismatches": []
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "independentRequiredChecks": {
+      "passed": 14,
+      "total": 14
+    },
+    "optionalPriorImplementationComparison": {
+      "status": "different",
+      "checks": [
+        {
+          "name": "CLI accepts exactly one MiB",
+          "status": "pass",
+          "scope": "prior-implementation-regression"
+        },
+        {
+          "name": "CLI rejects one byte over one MiB",
+          "status": "fail",
+          "error": "The input did not match the regular expression /input exceeds maximum of 1048576 bytes/. Input:\n\n'Invalid input: JSON document exceeds 1048576 bytes\\n'\n",
+          "scope": "prior-implementation-regression"
+        }
+      ]
+    },
+    "frozenPayloadUnchanged": true,
+    "globalAndMarketplaceUnchanged": true
+  },
+  "analysis": "final-native-analysis.json",
+  "independentConsumer": "final-independent-consumer.json",
+  "nativeFinalResponse": "native-final-response.json",
+  "boundedCaptureManifest": [
+    {
+      "source": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/analysis-final.json",
+      "durableCopy": "final-native-analysis.json",
+      "sha256": "9b80089feadf2d1d6e0cedd2cd5ac074b8b69fd63e2ee18271815c559b203e66",
+      "bytes": 76947
+    },
+    {
+      "source": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/independent-check.json",
+      "durableCopy": "final-independent-consumer.json",
+      "sha256": "c9b9b3c736c4584a97061513ea802f087568fa1a4cb848eddf9ac91a9ce5b398",
+      "bytes": 4928
+    },
+    {
+      "source": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/review-audit-terminal-proof.json",
+      "durableCopy": "review-audit-terminal-proof.json",
+      "sha256": "ea6bd402588ec0865507033480708d77dc6f36dbbb823ef1bab34bb3173d1390",
+      "bytes": 18929
+    },
+    {
+      "source": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/permission-friction-proof.json",
+      "durableCopy": "permission-friction-proof.json",
+      "sha256": "9f57cb0ce1e5a350e18749bfb8e617b1a555b8d61d54f7f01712bb574b6562a9",
+      "bytes": 43225
+    },
+    {
+      "source": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/native-permission-friction.json",
+      "durableCopy": "native-permission-friction.json",
+      "sha256": "b3e15ada443df00334a21e1f0e57146002f7d6ba605ac9aa1190d3cce829c727",
+      "bytes": 12282
+    },
+    {
+      "source": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/native-final-response.json",
+      "durableCopy": "native-final-response.json",
+      "sha256": "ca2477e75cbe55106feb763cc85694dd62c4c61a9db552f0c09edcdbcbf19d96",
+      "bytes": 4229
+    }
+  ],
+  "nativeEvidenceCapture": {
+    "path": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/evidence-capture/manifest.json",
+    "sha256": "cee748ec96798cdbf7519d61ba2fc24d1a3f73088ae5025b94100e69b6c408bd",
+    "capturedFileCount": 21,
+    "missingReferences": []
+  },
+  "originalFindingObservations": {
+    "WF-001": {
+      "status": "unassessed",
+      "reason": "Only actual malformed-binding errors fail. Pre-hook repeated prefixes are observable replay candidates, but can be a host retry echo and do not establish model authorship. Injected execution_start prefixes are expected.",
+      "evidence": [
+        {
+          "capture": "hooks/1792440151781-61887-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440165460-63601-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440173652-64590-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440248154-74692-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440254759-75763-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440276193-77958-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440301292-81099-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440318371-84125-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440325845-86358-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440371576-93067-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440448431-3771-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440454818-5171-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440459625-6445-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440508948-13362-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440513902-14650-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440519517-15980-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440526634-17234-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440541448-20717-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440548197-22341-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440561208-25274-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440582206-28496-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440603943-32894-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440609284-34144-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440641742-37186-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440691101-45836-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440696805-46964-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440701825-48090-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440707521-49219-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440712778-50332-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440752649-55549-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440758617-57025-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440763610-58487-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440772934-60291-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440781114-61934-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440789152-63858-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440856226-77679-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440882480-79782-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440903222-81589-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440910800-83077-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440922998-84668-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440931936-86296-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440942659-87882-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440958441-89973-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440964185-91333-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440970241-92682-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792440974671-94153-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441034532-7713-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441042837-10130-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441052722-12970-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441059984-15409-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441067011-17879-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441073703-20017-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441086776-23196-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441110253-28287-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441114781-30040-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441158277-39424-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441165235-40773-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441172386-42462-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441181731-43995-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441195646-45547-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441211028-47709-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441216822-48920-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441221627-50112-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441245788-54785-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441250886-56177-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441256162-57362-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441319251-67183-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441323601-68371-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441482956-77637-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441500921-81919-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441505821-83147-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441514950-85501-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441568471-89829-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441573918-91083-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441578676-92344-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441583301-93562-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441588338-94805-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441593383-96229-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441606681-98721-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441614757-164-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441619010-1585-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441630421-4152-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441637950-5435-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441661349-13446-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441667144-14896-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441672208-16149-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441916956-36957-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441939073-41208-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441971051-44165-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441971651-44358-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441983410-46210-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792441994848-47699-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442046197-53858-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442054985-55075-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442066403-56464-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442086463-59037-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442095190-60433-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442111946-62584-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442112569-62772-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442178766-70842-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442330272-74764-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442337723-75998-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442368157-77242-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442395303-78757-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442416417-80796-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442423695-82306-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442430432-83886-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442474418-87409-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442482858-88990-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442489644-90490-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442501712-92038-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442506764-93452-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442572471-3510-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442581906-5051-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442604463-7377-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442610044-8622-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442650798-10351-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442651466-10536-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442683239-13269-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        },
+        {
+          "capture": "hooks/1792442691109-14555-preToolUse.json",
+          "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+          "scope": "main"
+        }
+      ]
+    },
+    "WF-002": {
+      "status": "pass",
+      "reason": "Canonical packet use is observed; untracked/unborn/mid-commit edge cases remain deterministic-test coverage.",
+      "evidence": [
+        {
+          "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+          "completeAspects": [
+            "architecture",
+            "bugs",
+            "conventions",
+            "security",
+            "tests"
+          ],
+          "completedRoles": [
+            "aspect",
+            "consume",
+            "primary",
+            "secondary"
+          ],
+          "identicalInjectedBytes": true,
+          "judgesCompletedBeforeConsume": true,
+          "aspectsCompletedBeforeJudges": true,
+          "firstFullPanel": true
+        }
+      ]
+    },
+    "WF-003": {
+      "status": "unexercised",
+      "reason": "Unlanded-edit recovery is not proven by an ordinary run; dropping pending dirty-before context is a related audit-evidence failure.",
+      "evidence": []
+    },
+    "WF-004": {
+      "status": "pass",
+      "reason": "Observed reviewers use native tasks; unsupported external import branches were not exercised.",
+      "evidence": []
+    },
+    "WF-005": {
+      "status": "pass",
+      "reason": "Actual native oversized-read responses, including audit references, are counted even if later recovered.",
+      "evidence": []
+    },
+    "WF-006": {
+      "status": "unexercised",
+      "reason": "Failure-diagnostic quality needs a failing synthetic assertion; green checks alone do not demonstrate it.",
+      "evidence": []
+    },
+    "WF-007": {
+      "status": "pass",
+      "reason": "Native start ordering and all completed-stage progress rows must agree.",
+      "evidence": []
+    },
+    "WF-008": {
+      "status": "pass",
+      "reason": "Exact injected payload hashes and byte hashes are compared within each review packet.",
+      "evidence": [
+        {
+          "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+          "completeAspects": [
+            "architecture",
+            "bugs",
+            "conventions",
+            "security",
+            "tests"
+          ],
+          "completedRoles": [
+            "aspect",
+            "consume",
+            "primary",
+            "secondary"
+          ],
+          "identicalInjectedBytes": true,
+          "judgesCompletedBeforeConsume": true,
+          "aspectsCompletedBeforeJudges": true,
+          "firstFullPanel": true
+        }
+      ]
+    },
+    "WF-009": {
+      "status": "pass",
+      "reason": "Successful additive review never substitutes for substantive primary completion.",
+      "evidence": [
+        {
+          "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+          "completeAspects": [
+            "architecture",
+            "bugs",
+            "conventions",
+            "security",
+            "tests"
+          ],
+          "completedRoles": [
+            "aspect",
+            "consume",
+            "primary",
+            "secondary"
+          ],
+          "identicalInjectedBytes": true,
+          "judgesCompletedBeforeConsume": true,
+          "aspectsCompletedBeforeJudges": true,
+          "firstFullPanel": true
+        }
+      ]
+    },
+    "WF-010": {
+      "status": "pass",
+      "reason": "Structured input and exact summary/input counts are required; unresolved shell variables or absent finding files stay unassessed. Delimiter-injection negative cases remain deterministic coverage.",
+      "evidence": [
+        {
+          "callId": "call_YrtRMCGnrACM5hcm8jTZhhWX",
+          "successful": true,
+          "jsonInput": true,
+          "total": 4,
+          "inputFindingCount": 4,
+          "degraded": false
+        }
+      ]
+    },
+    "WF-011": {
+      "status": "pass",
+      "reason": "Quality reporting and the authoritative post-hook routing must remain distinct.",
+      "evidence": []
+    },
+    "WF-012": {
+      "status": "pass",
+      "reason": "A reused acceptance record with separate AC observations demonstrates sharing; distinct records alone do not prove redundant commands.",
+      "evidence": [
+        {
+          "ac": "AC-001",
+          "callId": "call_7DGL6OAGeMBZNwsDJESKq16p",
+          "record": "er1_1792441044001_596d8be13a7c"
+        },
+        {
+          "ac": "AC-002",
+          "callId": "call_d1nsb6YvkmTn7OtEdwCqauwq",
+          "record": "er1_1792441044001_596d8be13a7c"
+        },
+        {
+          "ac": "AC-003",
+          "callId": "call_uFEXIDvkSzesLnem58bKT6TW",
+          "record": "er1_1792441044001_596d8be13a7c"
+        },
+        {
+          "ac": "AC-004",
+          "callId": "call_NA5bq1n86SPr2IGN9P3p0vLq",
+          "record": "er1_1792441044001_596d8be13a7c"
+        },
+        {
+          "ac": "AC-001",
+          "callId": "call_Vzed1QHRj1xgMHrHC3TTBDD9",
+          "record": "er1_1792442396380_e78a1fbabd8c"
+        },
+        {
+          "ac": "AC-002",
+          "callId": "call_KbwkeIwAXUjBu1G9lbDBhNwk",
+          "record": "er1_1792442396380_e78a1fbabd8c"
+        },
+        {
+          "ac": "AC-004",
+          "callId": "call_HNZBqSEyqwDdZc9k2c6EIAPl",
+          "record": "er1_1792442396380_e78a1fbabd8c"
+        },
+        {
+          "ac": "AC-003",
+          "callId": "call_aNuULSTnC77jlZgnyuq9Cnrh",
+          "record": "er1_1792442475521_ee5f34a7e13b"
+        }
+      ]
+    },
+    "WF-013": {
+      "status": "pass",
+      "reason": "Bound closure and final reporting must not restart the terminal skill.",
+      "evidence": [
+        {
+          "reads": [
+            {
+              "skill": "zensu-self-review",
+              "callId": "call_eM58zqIHufkYvhnRPEIpIyrR",
+              "startedAt": "2026-10-19T20:26:40.221Z",
+              "completedAt": "2026-10-19T20:26:40.474Z"
+            }
+          ],
+          "explicitSkillInvocations": 1,
+          "postCloseEntryReads": [],
+          "postCloseWork": [],
+          "closedReportOnlyObserved": true
+        }
+      ]
+    }
+  },
+  "recoveredFriction": {
+    "nativePathPermission": {
+      "count": 19,
+      "proof": "permission-friction-proof.json",
+      "qualification": "Native tool.execution_start/complete events and raw preToolUse captures; final hook responses were not captured.",
+      "inferences": [
+        {
+          "kind": "outside-trusted-project",
+          "turns": [
+            "64",
+            "65",
+            "66",
+            "67",
+            "68",
+            "69",
+            "70",
+            "71",
+            "72",
+            "73",
+            "74",
+            "75",
+            "77",
+            "78"
+          ],
+          "basis": "Requested consumer paths are outside the project and plugin roots named by launch flags."
+        },
+        {
+          "kind": "stale-launch-PWD-path-preflight",
+          "turns": [
+            "101",
+            "102"
+          ],
+          "basis": "Native possiblePaths contains the parent checkout although captured cwd and explicit cd target name the disposable project. Equivalent absolute in-project mkdir and symlink-check commands succeed in turns103-105."
+        },
+        {
+          "kind": "unresolved-link-policy",
+          "turns": [
+            "81"
+          ],
+          "basis": "Native denial covers ln -s with a relative link target; exact policy decision not captured."
+        }
+      ],
+      "controllerFollowup": "harness-pwd-fixture.json; fix applied after this run, fake-CLI validation only."
+    },
+    "protectedContextRebind": {
+      "count": 1,
+      "proof": "native-permission-friction.json",
+      "assessment": "A standalone authored protected export without the native header was correctly refused, then the next model turn used ordinary calls successfully. This is not evidence that hook-injected context was misclassified and does not imply a zero-model-mistakes acceptance criterion."
+    },
+    "standaloneAuditSummary": {
+      "attempts": [
+        {
+          "callId": "call_20X75ER2IhiEQlR36lVSsEWD",
+          "startedAt": "2026-10-19T20:34:14.917Z",
+          "completedAt": "2026-10-19T20:34:16.389Z",
+          "commandSha256": "ba0e766bc28737d7850854a4061a5a0aa26bc91f169684eb41b4689bfb64adb4",
+          "resultSha256": "46f2601d874ebcc13c4dab0109381909a23c45ae5f45c25728d6f58750bf348a",
+          "hasSessionOperand": false,
+          "hasReceiptOperand": false,
+          "auditSummary": "EDIT LANDING AUDIT \u2014 claims=11 landed=9 not_landed=0 unverified=0 pending=2 exempt_ignored=0 exempt_verified=0",
+          "conclusion": "Standalone printed summary does not update the canonical bound receipt."
+        },
+        {
+          "callId": "call_5pNayOU7v2rqFVDua9ZX0umk",
+          "startedAt": "2026-10-19T20:34:26.332Z",
+          "completedAt": "2026-10-19T20:34:27.798Z",
+          "commandSha256": "2722fb00a3c8a47172eb78a90193f1eed552d37aaea149c65b077baa6c72ec08",
+          "resultSha256": "53fde0be7e0c0e8da2faf915daea671b500a8145203797308381eba6347dafb8",
+          "hasSessionOperand": false,
+          "hasReceiptOperand": false,
+          "auditSummary": "EDIT LANDING AUDIT \u2014 claims=11 landed=11 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=0",
+          "conclusion": "Standalone printed summary does not update the canonical bound receipt."
+        },
+        {
+          "callId": "call_XqFCokncYoxatHHz4teEIrF3",
+          "startedAt": "2026-10-19T20:41:41.642Z",
+          "completedAt": "2026-10-19T20:41:43.102Z",
+          "commandSha256": "987a8f4544dbe2a8d420f17f17e9781f6cfc9577816ff7542c376c9e61612cc1",
+          "resultSha256": "4a846f7a9018f20d3b16571812c0a09d9241560bd77dff954394b0aa154fa340",
+          "hasSessionOperand": false,
+          "hasReceiptOperand": false,
+          "auditSummary": "EDIT LANDING AUDIT \u2014 claims=11 landed=11 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=0",
+          "conclusion": "Standalone printed summary does not update the canonical bound receipt."
+        }
+      ],
+      "proof": "review-audit-terminal-proof.json",
+      "assessment": "Omitted session arguments produced standalone summaries, not durable completion proof. Closure rejected the stale canonical receipt; the model autonomously supplied explicit session, dirty context and current predicates. The final canonical 11-claim scope and current tree pass independent checks.",
+      "proposal": "omitted-session-audit-ux.md"
+    }
+  },
+  "limits": [
+    "Ten original findings have positive native observations; WF-003 and WF-006 negative branches remain unexercised in the final run and are covered deterministically. WF-001 prehook replay provenance remains unassessed, with successful native binding and a separately documented correctly blocked authored rebind.",
+    "Source/fixture checks and native model behavior remain separate. The identical copied-helper regression reproduces the shared flaw in Claude/Antigravity; their full native invoice workflows remain blocked/unrun as documented.",
+    "The final run used controller-at-launch.py; subsequent controller PWD and analyzer freshness corrections do not alter the frozen plugin or native evidence."
+  ]
+}

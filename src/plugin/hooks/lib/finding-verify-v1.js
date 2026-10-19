@@ -36,6 +36,10 @@
 // anchors, and plan-review's code references — each caller emits one line per
 // finding and matches results back by index.
 //
+// Preferred CLI mode: --input <file.json> reads {changedFiles:[], findings:[]}.
+// Create JSON with the native file tool. Finding text never becomes shell input;
+// literal FINDINGS, heredoc delimiters, backticks and substitutions remain data.
+// The legacy stdin mode remains for existing independent consumers.
 // CLI mode (input on stdin):
 //   node finding-verify-v1.js --root <abs-path>
 // prints one line per non-blank findings line:
@@ -245,29 +249,50 @@ function render(report) {
   return out.join("\n");
 }
 
+function parseJsonInput(text) {
+  const value = JSON.parse(text);
+  if (!value || !Array.isArray(value.changedFiles) || !Array.isArray(value.findings)
+      || !value.changedFiles.every(entry => typeof entry === "string" && !/[\r\n\0]/.test(entry))
+      || !value.findings.every(entry => typeof entry === "string" && entry.trim())) {
+    throw new Error("expected changedFiles and findings string arrays");
+  }
+  return { changedFiles: value.changedFiles, findings: value.findings };
+}
+
 function parseArgs(argv) {
   let root = "";
+  let input = "";
   for (let i = 0; i < argv.length; i++) {
     const arg = String(argv[i]);
     if (arg === "--root") {
       root = argv[i + 1] === undefined ? "" : String(argv[i + 1]);
       i++;
+    } else if (arg === "--input") {
+      input = argv[i + 1] === undefined ? "" : String(argv[i + 1]);
+      i++;
     } else if (arg.startsWith("--root=")) {
       root = arg.slice("--root=".length);
     }
   }
-  return { root };
+  return { root, input };
 }
 
 function cliMain(argv, stdinText) {
   const empty = render({ results: [], dropped: 0 });
-  const { root } = parseArgs(Array.isArray(argv) ? argv : []);
+  const { root, input } = parseArgs(Array.isArray(argv) ? argv : []);
   if (root === "") return empty;
   let parsed;
   try {
-    parsed = parseInput(stdinText);
+    if (input) {
+      const stat = fs.lstatSync(input);
+      if (!stat.isFile() || stat.size > STDIN_MAX_BYTES) return "invalid-input JSON file must be regular and bounded\n" + empty;
+      if (!fs.statSync(root).isDirectory()) return "invalid-input root must be a directory\n" + empty;
+      parsed = parseJsonInput(fs.readFileSync(input, "utf8"));
+    } else {
+      parsed = parseInput(stdinText);
+    }
   } catch (_) {
-    return empty;
+    return (input ? "invalid-input malformed finding JSON\n" : "") + empty;
   }
   if (parsed === null) return empty;
   try {
@@ -281,7 +306,9 @@ function cliMain(argv, stdinText) {
   }
 }
 
-if (require.main === module) {
+if (require.main === module && parseArgs(process.argv.slice(2)).input) {
+  process.stdout.write(cliMain(process.argv.slice(2), "") + "\n");
+} else if (require.main === module) {
   let buf = "";
   let bytes = 0;
   let overflow = false;
@@ -312,6 +339,7 @@ if (require.main === module) {
 } else {
   module.exports = {
     parseInput,
+    parseJsonInput,
     extractAnchor,
     verifyFindings,
     render,

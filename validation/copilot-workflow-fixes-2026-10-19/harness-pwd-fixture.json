@@ -1,0 +1,34 @@
+{
+  "schema": "zensu.harness-pwd-fixture.v1",
+  "recordedAt": "2026-10-19T20:46:56.514517+00:00",
+  "kind": "fake-cli-controller-regression-not-native-model",
+  "status": "passed",
+  "beforeFix": {
+    "exitCode": 1,
+    "observed": "The fake child had the disposable project as cwd but inherited unrelated-launch-checkout as PWD."
+  },
+  "afterFix": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-live-workflow-harness.py",
+    "exitCode": 0,
+    "testsPassed": 1,
+    "assertions": [
+      "Actual child cwd and PWD equal disposable project",
+      "Parent cwd and PWD unchanged",
+      "No --allow-all-paths and exactly one --add-dir for frozen plugin",
+      "Environment provenance records PWD",
+      "Fixture frozen files unchanged"
+    ]
+  },
+  "sources": [
+    {
+      "path": "scripts/live-copilot-workflow-retest.py",
+      "sha256": "e15d01af68755ebd990d05f05e9918eaf73669fcc338da886357de5dde0f8759"
+    },
+    {
+      "path": "scripts/test-live-workflow-harness.py",
+      "sha256": "afabcba9d7353043f98b5142350fe57a9367997adc1e755776938f18d7c21c45"
+    }
+  ],
+  "nativeRunControllerProvenance": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/controller-at-launch.json",
+  "limitation": "The complete native run used the earlier controller. This post-exit controller-only correction was verified with a real local fake-CLI child; no fourth model run was launched and no packaged plugin source changed."
+}

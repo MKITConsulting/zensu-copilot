@@ -44,7 +44,8 @@ run on it.
 
 In local mode the skill also needs a **runtime recipe** it can accept, or an application you
 already run (`--attach`). `/zensu-verify-feature --setup` writes the recipe with you. The authoritative
-contracts stay in `skills/zensu-verify-feature/SKILL.md`, `skills/zensu-verify-feature/rules/setup.md`
+contracts start in the bounded `skills/zensu-verify-feature/SKILL.md` entrypoint and its
+selected `references/` and `rules/` files, including `rules/setup.md`
 and `skills/zensu-autopilot/rules/config.md` § `validate.navigationBroker`; this page does not
 replace them.
 
@@ -56,8 +57,12 @@ the skill verifies every active `AC-###` criterion of the chain's plan on this w
 cheapest driver that can observe it: the browser for a UI criterion, a simulator for a mobile
 app, and a shell check for an API, a CLI or a queue. A shell check runs through the plugin's
 evidence runner, so the plugin records its real exit code; it reaches only an unauthenticated
-loopback target and discards its own output, because the runner shows the tail of that output
-to the model. The skill records one verdict per criterion, and the chain closes only when every
+synthetic local process or loopback target. Raw application/network output is captured or
+suppressed before it reaches the runner, which exposes its output tail to the model. A proven
+secret-free synthetic check may emit only bounded fixed criterion/check/result/category labels
+and numeric exit status; arbitrary errors, stack traces and values stay suppressed. See
+`skills/zensu-verify-feature/rules/acceptance-evidence.md` for the exact allowlist and bounds.
+The skill records one verdict per criterion, and the chain closes only when every
 active criterion has a `pass` on the tree that ships
 ([Acceptance Verification Gate](gates.md#acceptance-verification-gate)). It verifies a criterion
 that is missing, stale or partial, and never re-drives one that fails on this tree: that one needs
@@ -66,6 +71,14 @@ the tree the records bind to. The consent and policy rules below apply unchanged
 mode the later pass boots on the same loopback origin, so the prompt is not asked twice. An
 Autopilot-bound chain skips this stage: its VALIDATE stage verifies every criterion unless the
 run was started with `--no-validate`, and the chain's terminus line says which.
+
+A single completed acceptance run can support several criteria when its actual assertions
+explicitly cover each one on the same unchanged tree. Map assertions to ACs first; after the
+run passes, immediately record each AC separately with the same `er1` reference and its own
+observations. Do not rebuild and reinstall the identical package once per criterion. Reuse
+never admits a stale run, another session, unrelated tests or missing evidence planes. A
+nonzero shared run cannot support any `pass`; record demonstrated failures individually and
+leave unproven criteria partial or prove them with a targeted check.
 
 ## What it can verify
 

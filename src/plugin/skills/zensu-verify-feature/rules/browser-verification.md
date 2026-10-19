@@ -78,7 +78,7 @@ with element refs such as `e21`; target elements by those refs. Every navigating
    behalf and never work around a refusal. The floor holds in every mode: no credentials, no query
    or fragment in a navigation, and the browser refuses every HTTP(S) request to an origin outside
    the run config; a WebSocket connection is not fenced by the run config, which is an open gap.
-   The session consent memory named in SKILL.md records each approved ORIGIN; a record names the
+   The session consent memory named in `references/browser-policy.md` records each approved ORIGIN; a record names the
    route that was visited, but the route steers no later decision, and the report lists every
    record in its `Consent` block. It is yours to READ for the report and never to write, edit or
    delete: a record you place there skips the human's prompt for that origin, so writing one grants

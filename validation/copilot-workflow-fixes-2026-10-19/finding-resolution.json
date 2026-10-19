@@ -1,0 +1,1804 @@
+{
+  "schema": "zensu.copilot-workflow-finding-resolution.v1",
+  "status": "all-thirteen-local-corrections-validated-complete-native-workflow-passed",
+  "originalAudit": "../copilot-workflow-2026-10-19.json",
+  "scope": "The thirteen original findings; deterministic checks, live observations and other-host source inspection are independent evidence categories.",
+  "liveRun": {
+    "status": "passed",
+    "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+    "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+    "frozenBuildSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076",
+    "analysis": "final-native-analysis.json",
+    "observations": "final-run-observations.json",
+    "processExit": {
+      "exitCode": 0,
+      "interruptedBySignal": null,
+      "elapsedSeconds": 2637.31,
+      "finishedAt": "2026-10-19T20:46:06.534460+00:00"
+    }
+  },
+  "findings": [
+    {
+      "id": "WF-001",
+      "title": "Hook-injected shell bindings are mistaken for forbidden model-authored overrides",
+      "originalSeverity": "medium",
+      "plannedCorrection": "Explain native hook provenance; accept successful commands without replaying the binding.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/context.js",
+            "sha256": "f6466dda18e4a2e07913fbe6d65bfffebeb887deb75fb165541114dc4de61655"
+          },
+          {
+            "path": "src/dispatcher.js",
+            "sha256": "74aff1eb0d388a46211ac46cb9b3ddb290cac8ef1963662d195b3729e6cb8114"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "native bash binding runs a native session helper and preserves shell command bytes",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 160
+          },
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Native hook provenance is explicit",
+            "report": "source-contract-checks.json",
+            "path": "src/context.js",
+            "line": 15
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "copied shell headers preserve ordinary exports and reject partial protected bindings",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 161
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "unassessed",
+        "requiredObservations": [
+          "Native first-run session starts without model-authored selector repair loops."
+        ],
+        "evidence": [
+          {
+            "capture": "hooks/1792440151781-61887-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440165460-63601-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440173652-64590-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440248154-74692-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440254759-75763-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440276193-77958-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440301292-81099-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440318371-84125-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440325845-86358-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440371576-93067-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440448431-3771-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440454818-5171-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440459625-6445-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440508948-13362-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440513902-14650-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440519517-15980-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440526634-17234-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440541448-20717-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440548197-22341-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440561208-25274-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440582206-28496-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440603943-32894-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440609284-34144-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440641742-37186-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440691101-45836-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440696805-46964-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440701825-48090-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440707521-49219-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440712778-50332-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440752649-55549-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440758617-57025-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440763610-58487-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440772934-60291-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440781114-61934-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440789152-63858-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440856226-77679-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440882480-79782-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440903222-81589-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440910800-83077-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440922998-84668-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440931936-86296-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440942659-87882-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440958441-89973-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440964185-91333-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440970241-92682-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792440974671-94153-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441034532-7713-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441042837-10130-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441052722-12970-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441059984-15409-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441067011-17879-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441073703-20017-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441086776-23196-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441110253-28287-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441114781-30040-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441158277-39424-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441165235-40773-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441172386-42462-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441181731-43995-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441195646-45547-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441211028-47709-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441216822-48920-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441221627-50112-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441245788-54785-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441250886-56177-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441256162-57362-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441319251-67183-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441323601-68371-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441482956-77637-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441500921-81919-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441505821-83147-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441514950-85501-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441568471-89829-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441573918-91083-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441578676-92344-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441583301-93562-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441588338-94805-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441593383-96229-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441606681-98721-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441614757-164-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441619010-1585-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441630421-4152-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441637950-5435-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441661349-13446-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441667144-14896-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441672208-16149-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441916956-36957-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441939073-41208-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441971051-44165-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441971651-44358-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441983410-46210-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792441994848-47699-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442046197-53858-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442054985-55075-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442066403-56464-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442086463-59037-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442095190-60433-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442111946-62584-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442112569-62772-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442178766-70842-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442330272-74764-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442337723-75998-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442368157-77242-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442395303-78757-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442416417-80796-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442423695-82306-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442430432-83886-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442474418-87409-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442482858-88990-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442489644-90490-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442501712-92038-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442506764-93452-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442572471-3510-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442581906-5051-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442604463-7377-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442610044-8622-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442650798-10351-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442651466-10536-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442683239-13269-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          },
+          {
+            "capture": "hooks/1792442691109-14555-preToolUse.json",
+            "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+            "scope": "main"
+          }
+        ],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Only actual malformed-binding errors fail. Pre-hook repeated prefixes are observable replay candidates, but can be a host retry echo and do not establish model authorship. Injected execution_start prefixes are expected.",
+        "additionalObservation": "Native bound commands executed successfully. One genuinely authored protected export without the native header was correctly refused and autonomously corrected; see final-run-observations.json. Repeated prehook prefixes alone cannot establish model authorship."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-001",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-unassessed",
+      "remainingLimitations": [],
+      "implementedCorrection": "Explain native hook provenance and recover exact complete copied native headers or a naked marker, while preserving original commands and refusing partial protected selector overrides."
+    },
+    {
+      "id": "WF-002",
+      "title": "Review file enumeration refers to a removed procedure",
+      "originalSeverity": "medium",
+      "plannedCorrection": "Use one canonical change-set helper in review and terminal self-review.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/hooks/lib/review-packet-v1.js",
+            "sha256": "12c30c5ccb5a31973643f5016358e81525ffa1ed5202bf2822a56ef0bd673220"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-packet.md",
+            "sha256": "258b6283eca90948d8f26d9ec4bb7ba2a85888a85bff7f87cc19bbfcdf57b4f5"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/SKILL.md",
+            "sha256": "3aa23069fa3197fabe9c6462ffc5fa4110d565bd5d9b98295446ee36e89c0ff9"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/references/reflection.md",
+            "sha256": "550121b398fba3558d4e7ff7a48848205d764366c8111bebd8c0becf4744ee3d"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "canonical change set includes untracked, staged, mid-run committed and nested-root changes",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 490
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "unborn change set includes index and untracked files; invalid baseline fails loudly",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 491
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "Review packet includes all invoice source, test and documentation changes."
+        ],
+        "evidence": [
+          {
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "completeAspects": [
+              "architecture",
+              "bugs",
+              "conventions",
+              "security",
+              "tests"
+            ],
+            "completedRoles": [
+              "aspect",
+              "consume",
+              "primary",
+              "secondary"
+            ],
+            "identicalInjectedBytes": true,
+            "judgesCompletedBeforeConsume": true,
+            "aspectsCompletedBeforeJudges": true,
+            "firstFullPanel": true
+          }
+        ],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Canonical packet use is observed; untracked/unborn/mid-commit edge cases remain deterministic-test coverage."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-002",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Use one canonical change-set helper in review and terminal self-review."
+    },
+    {
+      "id": "WF-003",
+      "title": "Unlanded-edit recovery instructions contradict the evidence helper",
+      "originalSeverity": "medium",
+      "plannedCorrection": "Make unlanded-claim recovery agree with the audit receipt.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-packet.md",
+            "sha256": "258b6283eca90948d8f26d9ec4bb7ba2a85888a85bff7f87cc19bbfcdf57b4f5"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/audit-integrity.md",
+            "sha256": "d02431f8da496448211f09db9045138887ee2f8bba0859bb7b68db47ce2cec10"
+          },
+          {
+            "path": "src/plugin/hooks/lib/edit-landing-receipt-v1.js",
+            "sha256": "421beb7eeb4d92cbd12a99c03976e2153c09899c97a9a91d378acacb2fa946d3"
+          },
+          {
+            "path": "src/plugin/hooks/lib/zensu-edit-landing.sh",
+            "sha256": "09e449ad599ce4b8d6c983811127cc3697a768dc4b5b582e49955fb9ace136dd"
+          },
+          {
+            "path": "src/plugin/hooks/lib/zensu-log.sh",
+            "sha256": "731ec06f763d2ba03704be8c6f953c0098bd7590be8e2e159757dff477549686"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/references/fix-round.md",
+            "sha256": "cf969baa6f632cd56165a60dc7233c909bfd847ee6d0ba56abccf48d2b0db279"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "clean receipts with invalid counts, omitted evidence or unresolved edits fail before dispatch",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 493
+          },
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Withdrawal cannot clear an unlanded audit",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/skills/zensu-tdd/references/review-packet.md",
+            "line": 5
+          },
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Unrepairable claims preserve the failed generation",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/skills/zensu-tdd/references/review-packet.md",
+            "line": 5
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "omitting dirty-before cannot launder a pending receipt; literal/hash proof clears it",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 290
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "changed certified content requires current proof even when dirty-before is omitted",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 292
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "terminal accepts ordinary log appends, rejects new claims, new tree edits and generation changes",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 295
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "first-attempt invalid predicate input persists dirty scope before validation fails",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 303
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "Git faults retain dirty scope and invalidate prior clean receipts until a real retry",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 304
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "deletion proofs require a real prior file, and survive a pending audit before clearance",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 307
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "a later ignore rule cannot clear a persisted pending dirty claim",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 308
+          },
+          {
+            "kind": "independent-deterministic-fixture",
+            "report": "audit-scope-independent-fixture.json",
+            "limitation": "Temporary shell fixture; no native model run."
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "unexercised",
+        "requiredObservations": [
+          "Do not manufacture a live unlanded-claim branch if the model does not encounter it; rely on clearly labeled deterministic coverage for that branch."
+        ],
+        "evidence": [],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Unlanded-edit recovery is not proven by an ordinary run; dropping pending dirty-before context is a related audit-evidence failure."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-003",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-unexercised",
+      "remainingLimitations": [
+        "A passing invoice run does not claim live coverage of an unexercised recovery or failure branch."
+      ],
+      "implementedCorrection": "Keep withdrawal truthful and preserve cumulative session/generation/log/claim audit scope. Current literal/hash predicates or unchanged certified claims resolve pending work; terminal completion requires a fresh clean scope."
+    },
+    {
+      "id": "WF-004",
+      "title": "Documentation advertises external review imports not shipped by the native port",
+      "originalSeverity": "low",
+      "plannedCorrection": "Remove unsupported external-review import instructions from the native port.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/docs/configuration.md",
+            "sha256": "2a9e56f7f8d86940b9f0ad165f7d98ee34cb53f463f60ead2ec3aa6ef2caf7ee"
+          },
+          {
+            "path": "src/plugin/docs/review-chain.md",
+            "sha256": "a50b789712b1ab0422d935ad17d1bb7bc68310feb6a033a215ab823a3fc9128c"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/modes.md",
+            "sha256": "341e598d128c61425df8259f4d55e96be5f9418db7d3352c311fb1cc3f4ec699"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Vanilla guidance contains no unsupported external-review path",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/skills/zensu-tdd/references/modes.md",
+            "line": null
+          },
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Native review documentation explicitly marks absent import support",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/docs/review-chain.md",
+            "line": 99
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "All observed review calls use native Copilot agents."
+        ],
+        "evidence": [],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Observed reviewers use native tasks; unsupported external import branches were not exercised."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-004",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Remove unsupported external-review import instructions from the native port."
+    },
+    {
+      "id": "WF-005",
+      "title": "Oversized verification skill cannot be read in one native view call",
+      "originalSeverity": "medium",
+      "plannedCorrection": "Split verification entrypoint into bounded, selectively loaded references.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/SKILL.md",
+            "sha256": "e7954278216cb095cdadf670005fb466ff6f4c48a3a782565b48fb6959d4729b"
+          },
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/references/browser-policy.md",
+            "sha256": "9fb190a5f816b6466df1f84563e63c3e3920ba82ba687092949c6258f2059a0a"
+          },
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/references/browser-session.md",
+            "sha256": "d50b2529e1321cfeb7d75c50c5d4c58f304df4d817eee33fb9200aae384e3efa"
+          },
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/references/chain.md",
+            "sha256": "ca203c40819e9bc45ab24a2f97456e94c64724490a0126c8865e2c2b2f2fab2f"
+          },
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/references/execution.md",
+            "sha256": "8e567ddfd9e2326c48b08dffeb0f96d44dfafb950725b706aec47510510954a4"
+          },
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/references/runtime.md",
+            "sha256": "e6805882d99ce40c6b525ea6fca2e97859e2121c14f34427c7f32c83315d7059"
+          },
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/references/scope.md",
+            "sha256": "261fbd5e72b98b3f4e2992d554b5be7009c4deb7b8f020ca099eaa190262cad7"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/audit-acceptance.md",
+            "sha256": "3b4e2a3b6e7a19236f14e23115f9676d5f8040d219ecf4f1e0c6b90be9bc1fee"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/audit-integrity.md",
+            "sha256": "d02431f8da496448211f09db9045138887ee2f8bba0859bb7b68db47ce2cec10"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/audit.md",
+            "sha256": "ebb5210113f1095178445de8402ffed9e0b523e051f6f6d32d50707dc465eff8"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/audit-evidence.md",
+            "sha256": "4886439536727fe98b8bba23d31b9ec8e1e54d0b8ce0ca0b97cf9bcb43a63074"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-chain.md",
+            "sha256": "a3693ccf543132ee8732054639527e6bf4af24e4f402433063764246379ab4eb"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-packet.md",
+            "sha256": "258b6283eca90948d8f26d9ec4bb7ba2a85888a85bff7f87cc19bbfcdf57b4f5"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-verification.md",
+            "sha256": "2df1821bc73b34af870327f5f3c221b44f58857535560c1140f6de3fa3453c60"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-panel.md",
+            "sha256": "6aa43ff4f885d570e989dd6b3c6391d2940af496fdaff0807aca44b8bc24ede2"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-completion.md",
+            "sha256": "0e11d7d20c0930900e736c0067166bd1fcaded4c0d307902567dc6a34aa308b4"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/SKILL.md",
+            "sha256": "3aa23069fa3197fabe9c6462ffc5fa4110d565bd5d9b98295446ee36e89c0ff9"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/references/fix-round.md",
+            "sha256": "cf969baa6f632cd56165a60dc7233c909bfd847ee6d0ba56abccf48d2b0db279"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/references/report.md",
+            "sha256": "40049ce6f0a1dea45448ec7a355bc7dc0ce031bfea78883ef2ed6ee5ad9b01da"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/references/reflection.md",
+            "sha256": "550121b398fba3558d4e7ff7a48848205d764366c8111bebd8c0becf4744ee3d"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "verification instructions fit bounded native reads and every phase is reachable from the entrypoint",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 239
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "splitting verification preserves pre-read remote rejection and browser safety references",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 240
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "the audit index routes every original phase to one bounded authoritative reference",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 25
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "self-review stays view-loadable and the generation guard precedes all deferred stages",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 26
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "Required verification guidance is actually read without an unrecovered native content-limit response."
+        ],
+        "evidence": [],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Actual native oversized-read responses, including audit references, are counted even if later recovered."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-005",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Split verification entrypoint into bounded, selectively loaded references."
+    },
+    {
+      "id": "WF-006",
+      "title": "Synthetic local acceptance runs suppress all assertion diagnostics",
+      "originalSeverity": "low",
+      "plannedCorrection": "Allow bounded known-safe assertion diagnostics while suppressing raw application and network values.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/rules/acceptance-evidence.md",
+            "sha256": "78f90bce236576ba85dccbf300f1a3ada9440b0560799fd21f1bae38a2de54ba"
+          },
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/references/chain.md",
+            "sha256": "ca203c40819e9bc45ab24a2f97456e94c64724490a0126c8865e2c2b2f2fab2f"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "chain evidence guidance bounds diagnostic output and guards multi-criterion reuse",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 241
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "unexercised",
+        "requiredObservations": [
+          "Inspect actual acceptance command output and diagnostic boundaries; distinguish a passed run from an unexercised failure diagnostic branch."
+        ],
+        "evidence": [],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Failure-diagnostic quality needs a failing synthetic assertion; green checks alone do not demonstrate it."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-006",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-unexercised",
+      "remainingLimitations": [
+        "A passing invoice run does not claim live coverage of an unexercised recovery or failure branch."
+      ],
+      "implementedCorrection": "Allow bounded known-safe assertion diagnostics while suppressing raw application and network values."
+    },
+    {
+      "id": "WF-007",
+      "title": "Required execution and progress markers are not maintained reliably",
+      "originalSeverity": "low",
+      "plannedCorrection": "Bind execution-start and progress reconciliation to native generation evidence.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/hooks/lib/workflow-artifacts-v1.js",
+            "sha256": "a3533c79616107cdf5c91da756d494e06e02aeb8a22049163452a55120da5557"
+          },
+          {
+            "path": "src/plugin/hooks/lib/zensu-log.sh",
+            "sha256": "731ec06f763d2ba03704be8c6f953c0098bd7590be8e2e159757dff477549686"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/execution.md",
+            "sha256": "4b5cb9dfda32f7a087b19bc044d2bf458196eb92c495a74d4a490d42b494bf3c"
+          },
+          {
+            "path": "src/context.js",
+            "sha256": "f6466dda18e4a2e07913fbe6d65bfffebeb887deb75fb165541114dc4de61655"
+          },
+          {
+            "path": "src/dispatcher.js",
+            "sha256": "74aff1eb0d388a46211ac46cb9b3ddb290cac8ef1963662d195b3729e6cb8114"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "execution start creates a generation-bound marker exactly once and rejects another log or completed state",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 499
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "native progress reconciles stage rows without claiming blocked or arbitrary tasks passed",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 500
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "native shell lifecycle wires markers, progress closure and generation reset without changing the old log",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 504
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "progress instructions reserve lifecycle stages for observed flags and do not preclaim report delivery",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 27
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "Exactly one native EXECUTION STARTED marker exists for the generation.",
+          "Final progress agrees with native audit, review and closed-chain evidence."
+        ],
+        "evidence": [],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Native start ordering and all completed-stage progress rows must agree."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-007",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Bind execution-start and progress to native generation/revision evidence. Known lifecycle rows become neutral pointers to the sole managed observed-status block; report delivery is not preclaimed."
+    },
+    {
+      "id": "WF-008",
+      "title": "Manually duplicated review packets drifted despite an identical-bytes contract",
+      "originalSeverity": "low",
+      "plannedCorrection": "Produce and enforce one immutable hashed packet for each review generation.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/hooks/lib/review-packet-v1.js",
+            "sha256": "12c30c5ccb5a31973643f5016358e81525ffa1ed5202bf2822a56ef0bd673220"
+          },
+          {
+            "path": "src/review-gate.js",
+            "sha256": "7fdde6e37961cb7ecd969d193828a5e3e98f10a58f9115e78e56da90dd78eed3"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-panel.md",
+            "sha256": "6aa43ff4f885d570e989dd6b3c6391d2940af496fdaff0807aca44b8bc24ede2"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "canonical bytes are injected identically; only a completed primary unlocks consume",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 121
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "packet writes once, preserves receipt summary and detects tampering before dispatch",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 492
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "source edits, foreign receipt, packet edits and symlink ancestry fail before dispatch",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 130
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "Compare injected packet bytes and hashes across every required native reviewer and judge."
+        ],
+        "evidence": [
+          {
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "completeAspects": [
+              "architecture",
+              "bugs",
+              "conventions",
+              "security",
+              "tests"
+            ],
+            "completedRoles": [
+              "aspect",
+              "consume",
+              "primary",
+              "secondary"
+            ],
+            "identicalInjectedBytes": true,
+            "judgesCompletedBeforeConsume": true,
+            "aspectsCompletedBeforeJudges": true,
+            "firstFullPanel": true
+          }
+        ],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Exact injected payload hashes and byte hashes are compared within each review packet."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-008",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Produce and enforce one immutable hashed packet for each review generation."
+    },
+    {
+      "id": "WF-009",
+      "title": "Primary judge rejected valid evidence and the workflow continued without substantive primary review",
+      "originalSeverity": "high",
+      "plannedCorrection": "Validate canonical landing evidence and require substantive primary completion before consume review.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/hooks/lib/review-packet-v1.js",
+            "sha256": "12c30c5ccb5a31973643f5016358e81525ffa1ed5202bf2822a56ef0bd673220"
+          },
+          {
+            "path": "src/review-gate.js",
+            "sha256": "7fdde6e37961cb7ecd969d193828a5e3e98f10a58f9115e78e56da90dd78eed3"
+          },
+          {
+            "path": "src/plugin/com.github.copilot/agents/review-judge.agent.md",
+            "sha256": "1be22385e898bb76aa120a9434fc3467b91e71da0040d6e9f67c88209cc6bb04"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-panel.md",
+            "sha256": "6aa43ff4f885d570e989dd6b3c6391d2940af496fdaff0807aca44b8bc24ede2"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "primary result requires substantive primary completion, not second-judge or invalid output",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 494
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "canonical bytes are injected identically; only a completed primary unlocks consume",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 121
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "two failed primary attempts leave the chain pending and refuse a third",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 125
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "model claims, child events, async dispatches and mismatched task names never prove primary completion",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 129
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "invalid consume reports stop downstream ticket advancement",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 131
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "Full five-aspect panel, primary judge and independent additive judge return substantive results.",
+          "Consume review cannot substitute a failed primary with a successful secondary."
+        ],
+        "evidence": [
+          {
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "completeAspects": [
+              "architecture",
+              "bugs",
+              "conventions",
+              "security",
+              "tests"
+            ],
+            "completedRoles": [
+              "aspect",
+              "consume",
+              "primary",
+              "secondary"
+            ],
+            "identicalInjectedBytes": true,
+            "judgesCompletedBeforeConsume": true,
+            "aspectsCompletedBeforeJudges": true,
+            "firstFullPanel": true
+          }
+        ],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Successful additive review never substitutes for substantive primary completion."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-009",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Validate canonical landing evidence and require substantive primary completion before consume review."
+    },
+    {
+      "id": "WF-010",
+      "title": "Quoted heredoc delimiter collided with the required FINDINGS payload marker",
+      "originalSeverity": "medium",
+      "plannedCorrection": "Read finding verification input as bounded JSON data.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/hooks/lib/finding-verify-v1.js",
+            "sha256": "bc2c6fc162cc88f18fc0b4067dcbd15b875c066255e729e0c16d33f99497d5e1"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-verification.md",
+            "sha256": "2df1821bc73b34af870327f5f3c221b44f58857535560c1140f6de3fa3453c60"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "JSON file protocol keeps delimiter and shell syntax inert and counts every finding",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 417
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "malformed and oversized JSON files are explicit degraded input, including zero findings",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 418
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "Actual findings use structured JSON input and verifier totals match; zero findings do not claim a live delimiter-collision branch."
+        ],
+        "evidence": [
+          {
+            "callId": "call_YrtRMCGnrACM5hcm8jTZhhWX",
+            "successful": true,
+            "jsonInput": true,
+            "total": 4,
+            "inputFindingCount": 4,
+            "degraded": false
+          }
+        ],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Structured input and exact summary/input counts are required; unresolved shell variables or absent finding files stay unassessed. Delimiter-injection negative cases remain deterministic coverage."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-010",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [
+        "A passing invoice run does not claim live coverage of an unexercised recovery or failure branch."
+      ],
+      "implementedCorrection": "Read finding verification input as bounded JSON data."
+    },
+    {
+      "id": "WF-011",
+      "title": "Reviewer fix directive contradicts effective critical-only convergence policy",
+      "originalSeverity": "medium",
+      "plannedCorrection": "Separate the reviewer quality verdict from the authoritative native post-review routing decision; do not inject or duplicate effective routing policy in the reviewer.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
+            "sha256": "73886053522be34858d41e21fad9036959e72bcaabba4a7f41b58cec168fbeac"
+          },
+          {
+            "path": "src/plugin/skills/zensu-tdd/references/review-completion.md",
+            "sha256": "0e11d7d20c0930900e736c0067166bd1fcaded4c0d307902567dc6a34aa308b4"
+          },
+          {
+            "path": "src/plugin/hooks/post-review-tdd-delegate.sh",
+            "sha256": "3a5402814a0408400b3c094691ccf90ead5d2d44aea20a06d77683f874a12e29"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Reviewer reports a quality verdict",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
+            "line": 92
+          },
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Native hook is sole routing authority",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
+            "line": 92
+          },
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Reviewer cannot invent workflow directives",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
+            "line": 92
+          },
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Main-thread instructions use the same routing authority",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/skills/zensu-tdd/references/review-completion.md",
+            "line": 19
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "Reviewer emits a quality/severity verdict without its own fix-round directive; authoritative hook guidance supplies the effective routing decision.",
+          "Terminal self-review fixes stay within its single-round policy."
+        ],
+        "evidence": [],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Quality reporting and the authoritative post-hook routing must remain distinct."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-011",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Separate the reviewer quality verdict from the authoritative native post-review routing decision; do not inject or duplicate effective routing policy in the reviewer."
+    },
+    {
+      "id": "WF-012",
+      "title": "Identical package acceptance suite reruns once per criterion despite reusable evidence",
+      "originalSeverity": "low",
+      "plannedCorrection": "Reuse one unchanged-tree acceptance run for each explicitly covered criterion.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/rules/acceptance-evidence.md",
+            "sha256": "78f90bce236576ba85dccbf300f1a3ada9440b0560799fd21f1bae38a2de54ba"
+          },
+          {
+            "path": "src/plugin/skills/zensu-verify-feature/references/chain.md",
+            "sha256": "ca203c40819e9bc45ab24a2f97456e94c64724490a0126c8865e2c2b2f2fab2f"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "one real acceptance execution supports separate AC records but stops being reusable after a tree change",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 242
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "Record criterion-specific observations against shared acceptance evidence; inspect whether redundant package suites recur."
+        ],
+        "evidence": [
+          {
+            "ac": "AC-001",
+            "callId": "call_7DGL6OAGeMBZNwsDJESKq16p",
+            "record": "er1_1792441044001_596d8be13a7c"
+          },
+          {
+            "ac": "AC-002",
+            "callId": "call_d1nsb6YvkmTn7OtEdwCqauwq",
+            "record": "er1_1792441044001_596d8be13a7c"
+          },
+          {
+            "ac": "AC-003",
+            "callId": "call_uFEXIDvkSzesLnem58bKT6TW",
+            "record": "er1_1792441044001_596d8be13a7c"
+          },
+          {
+            "ac": "AC-004",
+            "callId": "call_NA5bq1n86SPr2IGN9P3p0vLq",
+            "record": "er1_1792441044001_596d8be13a7c"
+          },
+          {
+            "ac": "AC-001",
+            "callId": "call_Vzed1QHRj1xgMHrHC3TTBDD9",
+            "record": "er1_1792442396380_e78a1fbabd8c"
+          },
+          {
+            "ac": "AC-002",
+            "callId": "call_KbwkeIwAXUjBu1G9lbDBhNwk",
+            "record": "er1_1792442396380_e78a1fbabd8c"
+          },
+          {
+            "ac": "AC-004",
+            "callId": "call_HNZBqSEyqwDdZc9k2c6EIAPl",
+            "record": "er1_1792442396380_e78a1fbabd8c"
+          },
+          {
+            "ac": "AC-003",
+            "callId": "call_aNuULSTnC77jlZgnyuq9Cnrh",
+            "record": "er1_1792442475521_ee5f34a7e13b"
+          }
+        ],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "A reused acceptance record with separate AC observations demonstrates sharing; distinct records alone do not prove redundant commands."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-012",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Reuse one unchanged-tree acceptance run for each explicitly covered criterion."
+    },
+    {
+      "id": "WF-013",
+      "title": "Self-review skill is reinvoked after successful chain closure",
+      "originalSeverity": "low",
+      "plannedCorrection": "Return a report-only result for an already closed generation.",
+      "implementation": {
+        "status": "implemented-local-uncommitted",
+        "verifiedCommit": null,
+        "baseCommit": "fd627713dbaf4d11df03ed19e6fd531e0195e42e",
+        "sources": [
+          {
+            "path": "src/plugin/hooks/lib/workflow-artifacts-v1.js",
+            "sha256": "a3533c79616107cdf5c91da756d494e06e02aeb8a22049163452a55120da5557"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/SKILL.md",
+            "sha256": "3aa23069fa3197fabe9c6462ffc5fa4110d565bd5d9b98295446ee36e89c0ff9"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/references/report.md",
+            "sha256": "40049ce6f0a1dea45448ec7a355bc7dc0ce031bfea78883ef2ed6ee5ad9b01da"
+          },
+          {
+            "path": "src/plugin/skills/zensu-self-review/references/fix-round.md",
+            "sha256": "cf969baa6f632cd56165a60dc7233c909bfd847ee6d0ba56abccf48d2b0db279"
+          }
+        ],
+        "packageValidation": "package-validation.json"
+      },
+      "deterministicValidation": {
+        "status": "passed",
+        "evidence": [
+          {
+            "kind": "automated-fixture-test",
+            "title": "closed reports are read-only, reject stale tickets and never reopen a completed workflow",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 502
+          },
+          {
+            "kind": "automated-fixture-test",
+            "title": "native shell lifecycle wires markers, progress closure and generation reset without changing the old log",
+            "packageRun": "package-validation.json",
+            "rawLogLine": 504
+          },
+          {
+            "kind": "source-contract-assertion",
+            "assertion": "Closed generation has a report-only native response",
+            "report": "source-contract-checks.json",
+            "path": "src/plugin/hooks/lib/workflow-artifacts-v1.js",
+            "line": 121
+          }
+        ],
+        "limitation": "Source/fixture checks do not establish model-generated live execution of every branch."
+      },
+      "nativeCopilotRetest": {
+        "status": "pass",
+        "requiredObservations": [
+          "After successful bound closure, render final evidence once without restarted review discovery or mutation."
+        ],
+        "evidence": [
+          {
+            "reads": [
+              {
+                "skill": "zensu-self-review",
+                "callId": "call_eM58zqIHufkYvhnRPEIpIyrR",
+                "startedAt": "2026-10-19T20:26:40.221Z",
+                "completedAt": "2026-10-19T20:26:40.474Z"
+              }
+            ],
+            "explicitSkillInvocations": 1,
+            "postCloseEntryReads": [],
+            "postCloseWork": [],
+            "closedReportOnlyObserved": true
+          }
+        ],
+        "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+        "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+        "limitation": "This observation is independent from source and deterministic validation. Negative branches and ambiguous prehook provenance are not counted as live passes.",
+        "analysis": "final-native-analysis.json",
+        "reason": "Bound closure and final reporting must not restart the terminal skill."
+      },
+      "crossHostAudit": {
+        "reference": "cross-host-matrix.json",
+        "findingId": "WF-013",
+        "otherRepositoriesModified": false
+      },
+      "resolutionStatus": "implemented-validated-native-observation-pass",
+      "remainingLimitations": [],
+      "implementedCorrection": "Return a report-only result for an already closed generation."
+    }
+  ],
+  "supersededCheckpoints": [
+    "first-package-checkpoint.json",
+    "second-package-checkpoint.json"
+  ]
+}

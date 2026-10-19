@@ -1,7 +1,7 @@
 # CLI and library verification rules (`cli`, `library`)
 
 Loaded for rows whose driver is `cli` or `library`. These drivers need no running service unless the
-command under test talks to one; then start that service through `SKILL.md` Phase 2 first. Every
+command under test talks to one; then start that service through `references/runtime.md` Phase 2 first. Every
 resource the run creates goes through the run-resource helper (`rules/drivers.md` section 5).
 
 ## 1. Build the artifact from the worktree

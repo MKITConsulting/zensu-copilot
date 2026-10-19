@@ -1,0 +1,292 @@
+{
+  "schema": "zensu.native-permission-friction.v1",
+  "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+  "observedAt": "2026-10-19T20:46:47.513456+00:00",
+  "hostPermissionDenials": 19,
+  "protectedBindingDenials": 1,
+  "observations": [
+    {
+      "at": "2026-10-19T20:10:41.673Z",
+      "toolCallId": "call_WyrLgB8DFILF1HnOpYyhiYGX",
+      "turnId": "64",
+      "precedingModelCall": {
+        "turnId": "64",
+        "at": "2026-10-19T20:10:19.165Z"
+      },
+      "commandSha256": "bef1e072137dbe85d768021cdb3cc5979b8ce516b157dc6aff52b91ca58eab74",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:10:58.232Z",
+      "toolCallId": "call_dXHayhPEp1JL3DXh0tzZsxsu",
+      "turnId": "65",
+      "precedingModelCall": {
+        "turnId": "65",
+        "at": "2026-10-19T20:10:42.516Z"
+      },
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:05.538Z",
+      "toolCallId": "call_M5tFpBRc8hqDvRnYOFYbYLth",
+      "turnId": "66",
+      "precedingModelCall": {
+        "turnId": "66",
+        "at": "2026-10-19T20:10:58.995Z"
+      },
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:10.753Z",
+      "toolCallId": "call_Zeweh6C7KjGieAPrGLVIrWOk",
+      "turnId": "67",
+      "precedingModelCall": {
+        "turnId": "67",
+        "at": "2026-10-19T20:11:06.322Z"
+      },
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:17.039Z",
+      "toolCallId": "call_UkmZxpeKtF52EgGW2Vg0tQbl",
+      "turnId": "68",
+      "precedingModelCall": {
+        "turnId": "68",
+        "at": "2026-10-19T20:11:11.493Z"
+      },
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:21.264Z",
+      "toolCallId": "call_aqIKfShhSBnyuIg1AJO3TwVs",
+      "turnId": "69",
+      "precedingModelCall": {
+        "turnId": "69",
+        "at": "2026-10-19T20:11:17.752Z"
+      },
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:25.202Z",
+      "toolCallId": "call_C2fE5PFkr906q8FbAkHfn3em",
+      "turnId": "70",
+      "precedingModelCall": {
+        "turnId": "70",
+        "at": "2026-10-19T20:11:21.972Z"
+      },
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:31.036Z",
+      "toolCallId": "call_vv1f6OdzW1uKt1JRLmgVBv04",
+      "turnId": "71",
+      "precedingModelCall": {
+        "turnId": "71",
+        "at": "2026-10-19T20:11:25.986Z"
+      },
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:36.742Z",
+      "toolCallId": "call_lz1rYLtsOf2BTVjEqEpOZfqD",
+      "turnId": "72",
+      "precedingModelCall": {
+        "turnId": "72",
+        "at": "2026-10-19T20:11:31.820Z"
+      },
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:41.762Z",
+      "toolCallId": "call_JM84Xb8Y3lKYdFdDvYn5aOm5",
+      "turnId": "73",
+      "precedingModelCall": {
+        "turnId": "73",
+        "at": "2026-10-19T20:11:37.447Z"
+      },
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:47.459Z",
+      "toolCallId": "call_UKUoJzgiRRbVv5PeCdYIh7TH",
+      "turnId": "74",
+      "precedingModelCall": {
+        "turnId": "74",
+        "at": "2026-10-19T20:11:42.510Z"
+      },
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:11:52.714Z",
+      "toolCallId": "call_sqenuIP9Bji7MM1hCda40oto",
+      "turnId": "75",
+      "precedingModelCall": {
+        "turnId": "75",
+        "at": "2026-10-19T20:11:48.194Z"
+      },
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:12:17.348Z",
+      "toolCallId": "call_cvq7oQMjpjM2KiChH7DY6Npb",
+      "turnId": "77",
+      "precedingModelCall": {
+        "turnId": "77",
+        "at": "2026-10-19T20:12:01.010Z"
+      },
+      "commandSha256": "c16a5ce259f510dc3822283c43c050dda19830e1724af8a3074df9e0c37056ea",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:12:25.957Z",
+      "toolCallId": "call_9bw5B5LzVPKTqA9HjWlhnfyk",
+      "turnId": "78",
+      "precedingModelCall": {
+        "turnId": "78",
+        "at": "2026-10-19T20:12:18.103Z"
+      },
+      "commandSha256": "a2060c047f897a535b071cdfd7dd80cc6d84e49fbba9e883c8fead42e026b228",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:12:43.550Z",
+      "toolCallId": "call_RfUQEnt7d5KZoNTMwwWBgflo",
+      "turnId": "81",
+      "precedingModelCall": {
+        "turnId": "81",
+        "at": "2026-10-19T20:12:39.797Z"
+      },
+      "commandSha256": "a903b0f4003d708ab55e70701e1ee918631e1edd07313bc4a6e1d7fb11ff5915",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:15:31.871Z",
+      "toolCallId": "call_qJL51QAHpthK0LDUBSIKYd6H",
+      "turnId": "101",
+      "precedingModelCall": {
+        "turnId": "101",
+        "at": "2026-10-19T20:15:24.097Z"
+      },
+      "commandSha256": "ee9e2095972717030308980c26c120a0e3deba9148d6c14b27c2cef01534859e",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:15:42.588Z",
+      "toolCallId": "call_lHAfnqTQc8vJO2351Pir0XWP",
+      "turnId": "102",
+      "precedingModelCall": {
+        "turnId": "102",
+        "at": "2026-10-19T20:15:32.547Z"
+      },
+      "commandSha256": "ec6f8d1b03cf6439df9d0051a67fda3969ec9d6094a6a1c34529f6299c19d00d",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:37:57.327Z",
+      "toolCallId": "call_wQs5BRZzd8zEHWpMzevZ3uPz",
+      "turnId": "212",
+      "precedingModelCall": {
+        "turnId": "212",
+        "at": "2026-10-19T20:36:19.903Z"
+      },
+      "commandSha256": "053bd1e43cc8ab2bc0d8355fddcb4ce2760e4f099eaca75954a7abb807aee517",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    },
+    {
+      "at": "2026-10-19T20:38:57.661Z",
+      "toolCallId": "call_Yv9SKOspDXI84saWJETlK5LX",
+      "turnId": "214",
+      "precedingModelCall": {
+        "turnId": "214",
+        "at": "2026-10-19T20:38:51.756Z"
+      },
+      "commandSha256": "6adcbac619edc876965f187753723a6e535288c4db4bc30e3a427e698d72da9c",
+      "error": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      }
+    }
+  ],
+  "protectedBindingObservations": [
+    {
+      "at": "2026-10-19T20:29:14.215Z",
+      "toolCallId": "call_ctbkDMZUabndWk4lcXtMlTqR",
+      "turnId": "180",
+      "precedingModelCall": {
+        "turnId": "180",
+        "at": "2026-10-19T20:29:06.612Z"
+      },
+      "commandSha256": "a89f66681e51b70ef93a951e92929112c491d42edff0911d8fab5190cfad72b8",
+      "error": {
+        "message": "Denied by preToolUse hook: Blocked a bash rebind of protected Session Control input COPILOT_SESSION_ID. Start a fresh Copilot CLI session instead.",
+        "code": "denied"
+      }
+    }
+  ],
+  "qualification": "Native host permission errors do not expose the policy decision. External temp paths, stale PWD, and compound path resolution are candidate causes, not proven attribution. Project-local absolute-path install controls subsequently succeeded. Each denial has its own model call and turn."
+}

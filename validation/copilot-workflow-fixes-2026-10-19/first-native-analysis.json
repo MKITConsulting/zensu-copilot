@@ -1,0 +1,1758 @@
+{
+  "schema": "zensu.native-workflow-multi-run-analysis.v1",
+  "runs": [
+    {
+      "schema": "zensu.native-workflow-final-analysis.v1",
+      "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0",
+      "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+      "observedAt": "2026-10-19T20:09:24.912852+00:00",
+      "status": "failed",
+      "nativeResultIsFinal": true,
+      "baselineCommit": "1f1d96a026b1f63f716518f185e4cb2119c94c10",
+      "controllerInterruption": null,
+      "frozenBuildSha256": "3a5392d07ab1bdb14238ee787ca91505b6d6f71b2e61e74d4f70ffa3daf6815c",
+      "eventSources": [
+        {
+          "path": "output.jsonl",
+          "bytes": 33520612,
+          "sha256": "019b16ff1e2ad41317c4349d87deb099bebf47a66ca8e69ebed362d0f1d595db"
+        }
+      ],
+      "checks": {
+        "sessionIsolation": {
+          "status": "pass",
+          "reason": "Exact main identity and only child sessions bound by its native subagent.started events; foreign captures are excluded.",
+          "evidence": []
+        },
+        "requiredGates": {
+          "status": "pass",
+          "reason": "Invoice full-suite and acceptance gates remain required/local, the full panel remains configured, and neither explicit captured gate escapes nor the native bypass ledger may relax the workflow.",
+          "evidence": [
+            {
+              "capturedEscapes": [],
+              "nativeBypasses": [],
+              "configurationMatches": true
+            }
+          ]
+        },
+        "frozenPayload": {
+          "status": "pass",
+          "reason": "Current run-local payload compared with every frozen digest.",
+          "evidence": []
+        },
+        "pluginRoot": {
+          "status": "pass",
+          "reason": "Every captured plugin root must be this run's frozen payload.",
+          "evidence": [
+            "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu"
+          ]
+        },
+        "globalIntegrity": {
+          "status": "pass",
+          "reason": "Compare captured before/after global and marketplace hashes; do not inspect ambient global files.",
+          "evidence": []
+        },
+        "workflowClosure": {
+          "status": "pass",
+          "reason": "Requires exact-session native state and a successful ticket-qualified chain-done call.",
+          "evidence": [
+            "call_Bt6sApy2ixAZxv7yv1zfrbNS"
+          ]
+        },
+        "editLanding": {
+          "status": "pass",
+          "reason": "Final current-session, bound-log edit-landing receipt must remain clean. Historical pending/unverified markers are retained separately and never overwritten by closure state.",
+          "evidence": [
+            {
+              "receipt": "project/.zensu/state/edit-landing-scv1_b27a1be4212c6eceec0b238a894623b3c5e4764e18ae3f3f5d555a57bde60bce.json",
+              "sha256": "3e007999a001e339818bd5f6952feff78bd095d5a7dfeba1db5831526d3126cd",
+              "currentReceipt": {
+                "schema": "edit-landing-v2",
+                "session": "scv1_b27a1be4212c6eceec0b238a894623b3c5e4764e18ae3f3f5d555a57bde60bce",
+                "log": ".zensu/logs/2026-10-19-2111_tdd-invoice-quote.log",
+                "claims": 13,
+                "landed": 13,
+                "notLanded": 0,
+                "unverified": 0,
+                "pending": 0,
+                "exemptIgnored": 0,
+                "exemptVerified": 0,
+                "clean": true
+              },
+              "historicalNonCleanMarkers": [
+                {
+                  "line": 38,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 39,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 40,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 41,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 42,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 43,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 44,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 45,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 46,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 47,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 48,
+                  "marker": "PENDING PREDICATE"
+                },
+                {
+                  "line": 49,
+                  "marker": "PENDING PREDICATE"
+                }
+              ]
+            }
+          ]
+        },
+        "editLandingContext": {
+          "status": "fail",
+          "reason": "Omitting a repeated flag is valid only when current certified scope preserves the previously pending paths. A clean boolean alone cannot erase historical pending context.",
+          "evidence": [
+            {
+              "audits": [
+                {
+                  "callId": "call_RsShuQeyAmzSXtxePeJeUjJd",
+                  "startedAt": "2026-10-19T19:19:06.634Z",
+                  "completedAt": "2026-10-19T19:19:08.181Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": false,
+                  "pending": 0,
+                  "resultSha256": "7c255d2db66df195221e71bb87565a8e6564245d0d5b9c02399b6cb84ccf3e6e",
+                  "commandSha256": "2d2f9fe4c88f1ca8a4d9831f44c704a3b68472747fadcd6cd5ac730fcf2a9b3d"
+                },
+                {
+                  "callId": "call_7q7GOLYCPb3qHVqvK4rLjmjG",
+                  "startedAt": "2026-10-19T19:24:41.176Z",
+                  "completedAt": "2026-10-19T19:24:42.555Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": false,
+                  "pending": 0,
+                  "resultSha256": "db04a20fc22d5b005b94c6dfee5278eb20632b3b8161d8a619fb509a8d93beb0",
+                  "commandSha256": "2d2f9fe4c88f1ca8a4d9831f44c704a3b68472747fadcd6cd5ac730fcf2a9b3d"
+                },
+                {
+                  "callId": "call_oN8H5RCMz25TMfkohUbr6DvC",
+                  "startedAt": "2026-10-19T19:37:00.977Z",
+                  "completedAt": "2026-10-19T19:37:02.845Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 1,
+                  "dirtyBeforeContextSupplied": true,
+                  "pending": 12,
+                  "resultSha256": "9c10519cfc45e5cd2e535bd371b366d41ebd69555305645df4c4a8311d7a7312",
+                  "commandSha256": "47619550ede22287ac092e847cdc37a526d4ce3f802af04f13b19e59019f18ad"
+                },
+                {
+                  "callId": "call_NXVBI48qfPCrDVlAZ0md2G2J",
+                  "startedAt": "2026-10-19T19:37:21.697Z",
+                  "completedAt": "2026-10-19T19:37:23.714Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": false,
+                  "pending": 0,
+                  "resultSha256": "a38dec73ba97e43ade79645ee9ef2c15c7e4f20cb645da083a59ffaf987197d4",
+                  "commandSha256": "0c957bbf10611993311af300801feb1428f7f69655a1b8787d97232f471003be"
+                }
+              ],
+              "contextDowngradeCalls": [
+                "call_NXVBI48qfPCrDVlAZ0md2G2J"
+              ],
+              "contextInheritedCalls": [],
+              "pendingPaths": [
+                ".gitignore",
+                "README.md",
+                "package.json",
+                "src/cli.js",
+                "src/index.js",
+                "tests/cli.test.js",
+                "tests/quote.test.js"
+              ],
+              "persistedScope": {
+                "status": "unassessed",
+                "reason": "Historical receipt has no persisted scope; clean alone cannot prove context preservation.",
+                "evidence": []
+              }
+            }
+          ]
+        },
+        "executionStart": {
+          "status": "pass",
+          "reason": "One generation marker and a successful native start must precede the first observed source-edit tool.",
+          "evidence": [
+            {
+              "markerCount": 1,
+              "helperCompletedAt": "2026-10-19T19:12:51.258Z",
+              "firstObservedSourceEditAt": "2026-10-19T19:13:16.574Z",
+              "limitation": "Shell-based source mutations are not inferred from arbitrary command text."
+            }
+          ]
+        },
+        "progress": {
+          "status": "fail",
+          "reason": "Both managed native status and original stage rows must agree; a managed checkbox alone is insufficient.",
+          "evidence": [
+            "Chain close and final report \u2014 close only with the bound native ticket and render the report once."
+          ]
+        },
+        "nativeReviewChain": {
+          "status": "pass",
+          "reason": "Requires completed native worker results, the first five-aspect panel, both first judges and primary-before-consume ordering.",
+          "evidence": [
+            {
+              "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "canonicalPackets": {
+          "status": "pass",
+          "reason": "Every reference is rehashed; native injected bytes must be identical within each packet generation.",
+          "evidence": [
+            {
+              "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "terminalSelfReview": {
+          "status": "fail",
+          "reason": "Native self-review loads after convergence and before closure. Repeated explicit skill invocations fail. Bounded native file reads are not themselves extra invocations. A later entry read requires a closed report-only response and no further work.",
+          "evidence": [
+            {
+              "reads": [
+                {
+                  "skill": "zensu-self-review",
+                  "callId": "call_rQjwTg3ervOz9SXILYaeBqWA",
+                  "startedAt": "2026-10-19T19:32:07.825Z",
+                  "completedAt": "2026-10-19T19:32:08.081Z"
+                },
+                {
+                  "skill": "zensu-self-review",
+                  "callId": "call_m0JvO5RDyUthlH2IEgWuj3EN",
+                  "startedAt": "2026-10-19T19:34:24.276Z",
+                  "completedAt": "2026-10-19T19:34:24.541Z"
+                }
+              ],
+              "explicitSkillInvocations": 2,
+              "postCloseEntryReads": [],
+              "postCloseWork": [],
+              "closedReportOnlyObserved": true
+            }
+          ]
+        },
+        "reviewRouting": {
+          "status": "pass",
+          "reason": "Quality verdict must not invent a routing directive. Missing captured hook guidance requires manual assessment.",
+          "evidence": []
+        },
+        "acceptance": {
+          "status": "pass",
+          "reason": "Four observed per-criterion records plus a successful native current-tree 4/4 status are required.",
+          "evidence": [
+            {
+              "ac": "AC-001",
+              "callId": "call_dE8kg1SXJnB5cAzu6hJqTHwW",
+              "record": "er1_1792437833375_c05e5e2d307a"
+            },
+            {
+              "ac": "AC-002",
+              "callId": "call_Ghbdo5atR0e1CIO60rfyNFvM",
+              "record": "er1_1792437833375_c05e5e2d307a"
+            },
+            {
+              "ac": "AC-003",
+              "callId": "call_Ectdp1mEXUzgcfZ4K7vWXf39",
+              "record": "er1_1792437833375_c05e5e2d307a"
+            },
+            {
+              "ac": "AC-004",
+              "callId": "call_NVKncxgWXy8z023elunPjzLh",
+              "record": "er1_1792437833375_c05e5e2d307a"
+            },
+            {
+              "ac": "AC-001",
+              "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+              "record": "er1_1792438769944_0f4062866a8e"
+            },
+            {
+              "ac": "AC-002",
+              "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+              "record": "er1_1792438769944_0f4062866a8e"
+            },
+            {
+              "ac": "AC-003",
+              "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+              "record": "er1_1792438769944_0f4062866a8e"
+            },
+            {
+              "ac": "AC-004",
+              "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+              "record": "er1_1792438769944_0f4062866a8e"
+            }
+          ]
+        },
+        "nativeEvidenceRecords": {
+          "status": "pass",
+          "reason": "Exact native helper references, capture hashes, latest full-suite and four final criterion records agree on the independently checked current tree.",
+          "evidence": [
+            {
+              "manifest": "evidence-capture/manifest.json",
+              "manifestSha256": "f785d2d9509745fc7ad9ac77c893118333c4c8775a290380a5f0947adae0b604",
+              "fullSuite": "er1_1792438566976_1eb28951a088",
+              "acceptanceRecords": {
+                "AC-001": "av1_1792438785944_256b2146a274",
+                "AC-002": "av1_1792438787361_27f05a37bb0c",
+                "AC-003": "av1_1792438788759_a24b44df9ad2",
+                "AC-004": "av1_1792438790173_62319b4d86d5"
+              },
+              "acceptanceRuns": [
+                "er1_1792438769944_0f4062866a8e"
+              ],
+              "currentTree": {
+                "status": "pass",
+                "reason": "Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+                "evidence": [
+                  {
+                    "tree": "c820512e5cd6fe5c62c0d7a66cccc16ce2c6a771",
+                    "files": 11,
+                    "mismatches": []
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "independentConsumer": {
+          "status": "pass",
+          "reason": "Original acceptance assertions, offline packaged installation and final source/installed digest equality; prior one-MiB comparisons are separate.",
+          "evidence": []
+        },
+        "eventCompleteness": {
+          "status": "pass",
+          "reason": "Invalid/trailing JSONL records prevent a complete final assertion.",
+          "evidence": [
+            {
+              "unparsedLines": 0
+            }
+          ]
+        },
+        "processExit": {
+          "status": "pass",
+          "reason": "A clean process exit is necessary but never sufficient for workflow success.",
+          "evidence": []
+        }
+      },
+      "originalFindings": {
+        "WF-001": {
+          "status": "unassessed",
+          "reason": "Only actual malformed-binding errors fail. Pre-hook repeated prefixes are observable replay candidates, but can be a host retry echo and do not establish model authorship. Injected execution_start prefixes are expected.",
+          "evidence": [
+            {
+              "capture": "hooks/1792437211930-70351-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437251948-77190-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437267829-81711-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437287111-84746-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437296221-86125-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437303399-87375-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437318636-90594-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437325906-91906-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437337323-93223-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437350832-96985-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437359466-99265-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437365723-997-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437371786-2628-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437379447-4016-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437414289-5609-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437455561-11913-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437461261-13111-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437476644-16404-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437482330-18077-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437487970-19471-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437499783-22410-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437505024-24208-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437509801-25611-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437513909-26959-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437540992-34376-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437546702-36237-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437551990-38380-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437606752-49246-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437617732-52415-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437659238-65651-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437684576-69500-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437689791-70919-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437698867-72241-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437706726-73618-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437794695-36116-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437800344-39470-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437807013-44589-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437811505-48315-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437821658-51602-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437826360-53840-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437832229-57411-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437839676-62269-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437845954-65411-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437852443-67619-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437859688-69384-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437866100-70986-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437876195-72832-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437881246-74106-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437886071-75527-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437894585-77305-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437901063-78757-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437907324-80220-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437922275-81776-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437937037-85076-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437963300-1865-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437971466-7048-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437980251-71881-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437988105-16766-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437993818-35388-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792437998847-49946-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438004390-52301-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438016356-56311-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438040190-67712-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438137137-93072-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438141375-94504-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438147019-95737-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438152695-97239-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438225079-17743-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438248880-23454-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438267397-25995-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438309326-31401-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438316991-33024-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438322196-34715-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438332581-38123-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438338803-39694-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438344252-41337-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438353569-44264-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438388085-59403-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438392584-61118-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438426633-67185-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438497411-33580-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438565867-61095-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438641767-74280-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438650234-76827-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438784194-6048-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438806081-10239-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438836710-13406-preToolUse.json",
+              "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+              "scope": "main"
+            }
+          ]
+        },
+        "WF-002": {
+          "status": "pass",
+          "reason": "Canonical packet use is observed; untracked/unborn/mid-commit edge cases remain deterministic-test coverage.",
+          "evidence": [
+            {
+              "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "WF-003": {
+          "status": "fail",
+          "reason": "Unlanded-edit recovery is not proven by an ordinary run; dropping pending dirty-before context is a related audit-evidence failure.",
+          "evidence": [
+            {
+              "audits": [
+                {
+                  "callId": "call_RsShuQeyAmzSXtxePeJeUjJd",
+                  "startedAt": "2026-10-19T19:19:06.634Z",
+                  "completedAt": "2026-10-19T19:19:08.181Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": false,
+                  "pending": 0,
+                  "resultSha256": "7c255d2db66df195221e71bb87565a8e6564245d0d5b9c02399b6cb84ccf3e6e",
+                  "commandSha256": "2d2f9fe4c88f1ca8a4d9831f44c704a3b68472747fadcd6cd5ac730fcf2a9b3d"
+                },
+                {
+                  "callId": "call_7q7GOLYCPb3qHVqvK4rLjmjG",
+                  "startedAt": "2026-10-19T19:24:41.176Z",
+                  "completedAt": "2026-10-19T19:24:42.555Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": false,
+                  "pending": 0,
+                  "resultSha256": "db04a20fc22d5b005b94c6dfee5278eb20632b3b8161d8a619fb509a8d93beb0",
+                  "commandSha256": "2d2f9fe4c88f1ca8a4d9831f44c704a3b68472747fadcd6cd5ac730fcf2a9b3d"
+                },
+                {
+                  "callId": "call_oN8H5RCMz25TMfkohUbr6DvC",
+                  "startedAt": "2026-10-19T19:37:00.977Z",
+                  "completedAt": "2026-10-19T19:37:02.845Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 1,
+                  "dirtyBeforeContextSupplied": true,
+                  "pending": 12,
+                  "resultSha256": "9c10519cfc45e5cd2e535bd371b366d41ebd69555305645df4c4a8311d7a7312",
+                  "commandSha256": "47619550ede22287ac092e847cdc37a526d4ce3f802af04f13b19e59019f18ad"
+                },
+                {
+                  "callId": "call_NXVBI48qfPCrDVlAZ0md2G2J",
+                  "startedAt": "2026-10-19T19:37:21.697Z",
+                  "completedAt": "2026-10-19T19:37:23.714Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": false,
+                  "pending": 0,
+                  "resultSha256": "a38dec73ba97e43ade79645ee9ef2c15c7e4f20cb645da083a59ffaf987197d4",
+                  "commandSha256": "0c957bbf10611993311af300801feb1428f7f69655a1b8787d97232f471003be"
+                }
+              ],
+              "contextDowngradeCalls": [
+                "call_NXVBI48qfPCrDVlAZ0md2G2J"
+              ],
+              "contextInheritedCalls": [],
+              "pendingPaths": [
+                ".gitignore",
+                "README.md",
+                "package.json",
+                "src/cli.js",
+                "src/index.js",
+                "tests/cli.test.js",
+                "tests/quote.test.js"
+              ],
+              "persistedScope": {
+                "status": "unassessed",
+                "reason": "Historical receipt has no persisted scope; clean alone cannot prove context preservation.",
+                "evidence": []
+              }
+            }
+          ]
+        },
+        "WF-004": {
+          "status": "pass",
+          "reason": "Observed reviewers use native tasks; unsupported external import branches were not exercised.",
+          "evidence": []
+        },
+        "WF-005": {
+          "status": "fail",
+          "reason": "Actual native oversized-read responses, including audit references, are counted even if later recovered.",
+          "evidence": [
+            {
+              "callId": "call_NPrskcY3CJhu2DK8ffkUDm3Z",
+              "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu/skills/zensu-tdd/references/audit.md"
+            },
+            {
+              "callId": "call_LYIfodb42Jgag26evwaf3Asn",
+              "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu/skills/zensu-tdd/references/review-chain.md"
+            },
+            {
+              "callId": "call_BSVWx6eIeuD8ZH9L8RbhBfIz",
+              "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu/skills/zensu-tdd/references/audit.md"
+            },
+            {
+              "callId": "call_npwK9pxtoUtoyXPcnHUW5B1k",
+              "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu/skills/zensu-tdd/SKILL.md"
+            }
+          ]
+        },
+        "WF-006": {
+          "status": "unexercised",
+          "reason": "Failure-diagnostic quality needs a failing synthetic assertion; green checks alone do not demonstrate it.",
+          "evidence": []
+        },
+        "WF-007": {
+          "status": "fail",
+          "reason": "Native start ordering and all completed-stage progress rows must agree.",
+          "evidence": [
+            "Chain close and final report \u2014 close only with the bound native ticket and render the report once."
+          ]
+        },
+        "WF-008": {
+          "status": "pass",
+          "reason": "Exact injected payload hashes and byte hashes are compared within each review packet.",
+          "evidence": [
+            {
+              "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "WF-009": {
+          "status": "pass",
+          "reason": "Successful additive review never substitutes for substantive primary completion.",
+          "evidence": [
+            {
+              "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "WF-010": {
+          "status": "pass",
+          "reason": "Structured input and exact summary/input counts are required; unresolved shell variables or absent finding files stay unassessed. Delimiter-injection negative cases remain deterministic coverage.",
+          "evidence": [
+            {
+              "callId": "call_dbBOQWPZOk8peHHpYwTENUqE",
+              "successful": true,
+              "jsonInput": true,
+              "total": 3,
+              "inputFindingCount": 3,
+              "degraded": false
+            }
+          ]
+        },
+        "WF-011": {
+          "status": "pass",
+          "reason": "Quality reporting and the authoritative post-hook routing must remain distinct.",
+          "evidence": []
+        },
+        "WF-012": {
+          "status": "pass",
+          "reason": "A reused acceptance record with separate AC observations demonstrates sharing; distinct records alone do not prove redundant commands.",
+          "evidence": [
+            {
+              "ac": "AC-001",
+              "callId": "call_dE8kg1SXJnB5cAzu6hJqTHwW",
+              "record": "er1_1792437833375_c05e5e2d307a"
+            },
+            {
+              "ac": "AC-002",
+              "callId": "call_Ghbdo5atR0e1CIO60rfyNFvM",
+              "record": "er1_1792437833375_c05e5e2d307a"
+            },
+            {
+              "ac": "AC-003",
+              "callId": "call_Ectdp1mEXUzgcfZ4K7vWXf39",
+              "record": "er1_1792437833375_c05e5e2d307a"
+            },
+            {
+              "ac": "AC-004",
+              "callId": "call_NVKncxgWXy8z023elunPjzLh",
+              "record": "er1_1792437833375_c05e5e2d307a"
+            },
+            {
+              "ac": "AC-001",
+              "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+              "record": "er1_1792438769944_0f4062866a8e"
+            },
+            {
+              "ac": "AC-002",
+              "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+              "record": "er1_1792438769944_0f4062866a8e"
+            },
+            {
+              "ac": "AC-003",
+              "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+              "record": "er1_1792438769944_0f4062866a8e"
+            },
+            {
+              "ac": "AC-004",
+              "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+              "record": "er1_1792438769944_0f4062866a8e"
+            }
+          ]
+        },
+        "WF-013": {
+          "status": "fail",
+          "reason": "Bound closure and final reporting must not restart the terminal skill.",
+          "evidence": [
+            {
+              "reads": [
+                {
+                  "skill": "zensu-self-review",
+                  "callId": "call_rQjwTg3ervOz9SXILYaeBqWA",
+                  "startedAt": "2026-10-19T19:32:07.825Z",
+                  "completedAt": "2026-10-19T19:32:08.081Z"
+                },
+                {
+                  "skill": "zensu-self-review",
+                  "callId": "call_m0JvO5RDyUthlH2IEgWuj3EN",
+                  "startedAt": "2026-10-19T19:34:24.276Z",
+                  "completedAt": "2026-10-19T19:34:24.541Z"
+                }
+              ],
+              "explicitSkillInvocations": 2,
+              "postCloseEntryReads": [],
+              "postCloseWork": [],
+              "closedReportOnlyObserved": true
+            }
+          ]
+        }
+      },
+      "nativeTasks": [
+        {
+          "callId": "call_RR7imC7K3yqbP3oIHIQKjBXq",
+          "name": "invoice-conventions",
+          "role": "aspect",
+          "aspect": null,
+          "startedAt": "2026-10-19T19:27:34.100Z",
+          "completedAt": "2026-10-19T19:27:34.436Z",
+          "nativeSuccess": false,
+          "mode": "sync",
+          "workerStarted": false,
+          "workerCompleted": false,
+          "substantive": false,
+          "resultSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "formatWarnings": [],
+          "packet": {
+            "valid": false,
+            "references": 0,
+            "injected": false
+          }
+        },
+        {
+          "callId": "call_65Z7vbiPdgBoNTvpokOPXVMA",
+          "name": "invoice-bugs",
+          "role": "aspect",
+          "aspect": null,
+          "startedAt": "2026-10-19T19:27:34.100Z",
+          "completedAt": "2026-10-19T19:27:34.438Z",
+          "nativeSuccess": false,
+          "mode": "sync",
+          "workerStarted": false,
+          "workerCompleted": false,
+          "substantive": false,
+          "resultSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "formatWarnings": [],
+          "packet": {
+            "valid": false,
+            "references": 0,
+            "injected": false
+          }
+        },
+        {
+          "callId": "call_ScQRGIakrhHqPC5hUc5jNQsX",
+          "name": "invoice-architecture",
+          "role": "aspect",
+          "aspect": null,
+          "startedAt": "2026-10-19T19:27:34.101Z",
+          "completedAt": "2026-10-19T19:27:34.438Z",
+          "nativeSuccess": false,
+          "mode": "sync",
+          "workerStarted": false,
+          "workerCompleted": false,
+          "substantive": false,
+          "resultSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "formatWarnings": [],
+          "packet": {
+            "valid": false,
+            "references": 0,
+            "injected": false
+          }
+        },
+        {
+          "callId": "call_AtKryak5ksmlT47EuXkwPcCN",
+          "name": "invoice-tests",
+          "role": "aspect",
+          "aspect": null,
+          "startedAt": "2026-10-19T19:27:34.101Z",
+          "completedAt": "2026-10-19T19:27:34.440Z",
+          "nativeSuccess": false,
+          "mode": "sync",
+          "workerStarted": false,
+          "workerCompleted": false,
+          "substantive": false,
+          "resultSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "formatWarnings": [],
+          "packet": {
+            "valid": false,
+            "references": 0,
+            "injected": false
+          }
+        },
+        {
+          "callId": "call_I488eD7ND0fm1pGP0cGZLfWr",
+          "name": "invoice-security",
+          "role": "aspect",
+          "aspect": null,
+          "startedAt": "2026-10-19T19:27:34.102Z",
+          "completedAt": "2026-10-19T19:27:34.441Z",
+          "nativeSuccess": false,
+          "mode": "sync",
+          "workerStarted": false,
+          "workerCompleted": false,
+          "substantive": false,
+          "resultSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "formatWarnings": [],
+          "packet": {
+            "valid": false,
+            "references": 0,
+            "injected": false
+          }
+        },
+        {
+          "callId": "call_k2ezfJ03Nyy5cZe6H0cFFVbe",
+          "name": "invoice-conventions-retry",
+          "role": "aspect",
+          "aspect": "conventions",
+          "startedAt": "2026-10-19T19:27:49.034Z",
+          "completedAt": "2026-10-19T19:28:15.234Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "272d4712b30c278daf68dd3c91c87540725596cdc9bc262bf98e417fd1008419",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+            "reference": "project/.zensu/reviews/run.u2l3Ib/round-1-packet.json",
+            "changedFiles": [
+              ".gitignore",
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_ILqaIfoCToxqJEeJx70WA612",
+          "name": "invoice-bugs-retry",
+          "role": "aspect",
+          "aspect": "bugs",
+          "startedAt": "2026-10-19T19:27:49.034Z",
+          "completedAt": "2026-10-19T19:28:32.844Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "cce3aace11fdcd439bd9d66b4e337906eda0dbef0bac37372a94a2cb6c1fd9b4",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+            "reference": "project/.zensu/reviews/run.u2l3Ib/round-1-packet.json",
+            "changedFiles": [
+              ".gitignore",
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_mmsDtYMPnHmHSS5EQsWTTikT",
+          "name": "invoice-architecture-retry",
+          "role": "aspect",
+          "aspect": "architecture",
+          "startedAt": "2026-10-19T19:27:49.035Z",
+          "completedAt": "2026-10-19T19:28:11.281Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "faf1ad3bdef22aa6e0f3b2651fa92c193fd8d53f7753b63a7db158fa6c94f717",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+            "reference": "project/.zensu/reviews/run.u2l3Ib/round-1-packet.json",
+            "changedFiles": [
+              ".gitignore",
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_QF8gzg3AQpxGQsPO2J6JbxE3",
+          "name": "invoice-tests-retry",
+          "role": "aspect",
+          "aspect": "tests",
+          "startedAt": "2026-10-19T19:27:49.035Z",
+          "completedAt": "2026-10-19T19:28:21.408Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "daf4815b467d520e8cfeb5ba302e089dc3958eac4ae7963337da9837ed31eb73",
+          "formatWarnings": [
+            "Finding has no explicit Fix: label; substantive cited evidence is present."
+          ],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+            "reference": "project/.zensu/reviews/run.u2l3Ib/round-1-packet.json",
+            "changedFiles": [
+              ".gitignore",
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_zdDXeAZ26sFWYXq0hABAkAoU",
+          "name": "invoice-security-retry",
+          "role": "aspect",
+          "aspect": "security",
+          "startedAt": "2026-10-19T19:27:49.035Z",
+          "completedAt": "2026-10-19T19:28:22.150Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "3d1c53217f4a37cad60c283332ab3a455dd9fce4670c83c7161a8592488efe05",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+            "reference": "project/.zensu/reviews/run.u2l3Ib/round-1-packet.json",
+            "changedFiles": [
+              ".gitignore",
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_0ZuGTAJg08aTbNQZ2qW9whAw",
+          "name": "invoice-judge-primary",
+          "role": "primary",
+          "aspect": null,
+          "startedAt": "2026-10-19T19:29:25.196Z",
+          "completedAt": "2026-10-19T19:29:55.179Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "4cba8401beab876d7b33c365fe91f85a7c4047a7033a885abc0540ff22b87987",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+            "reference": "project/.zensu/reviews/run.u2l3Ib/round-1-packet.json",
+            "changedFiles": [
+              ".gitignore",
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_qUUR3fFTwVfZETN8yBlStGk2",
+          "name": "invoice-judge-second",
+          "role": "secondary",
+          "aspect": null,
+          "startedAt": "2026-10-19T19:29:25.197Z",
+          "completedAt": "2026-10-19T19:30:06.298Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "d2c5e34591b461608189afedcd5c06d9329a1cff3f4acc2ec0cd387bd5d7870e",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+            "reference": "project/.zensu/reviews/run.u2l3Ib/round-1-packet.json",
+            "changedFiles": [
+              ".gitignore",
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_pPOOrkcvEWc5ACUHl5x2ePWh",
+          "name": "invoice-review-consumer",
+          "role": "consume",
+          "aspect": null,
+          "startedAt": "2026-10-19T19:31:17.722Z",
+          "completedAt": "2026-10-19T19:31:33.872Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "a7446eebc37ee04d1bf448fd23ea73b73c245067fa11cef8bc14ea69ff4ca160",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "9595615ef9c8d95a29e0c18d1c0089d7144f9a96bd087bf5197fd3acc16a298c",
+            "reference": "project/.zensu/reviews/run.u2l3Ib/round-1-packet.json",
+            "changedFiles": [
+              ".gitignore",
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        }
+      ],
+      "milestones": [
+        {
+          "operation": "--tdd-begin",
+          "callId": "call_Xtc9b4CJofLYT0z5Jwwtg4H9",
+          "startedAt": "2026-10-19T19:11:37.202Z",
+          "completedAt": "2026-10-19T19:11:41.535Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "5d0077b5b5b386b472c6bedf38ce54c15b23dd69f8d420c11c03c14f7ef71d1f"
+        },
+        {
+          "operation": "--execution-start",
+          "callId": "call_MXg40Lu2WlcsXvW05K6aT5HW",
+          "startedAt": "2026-10-19T19:12:49.741Z",
+          "completedAt": "2026-10-19T19:12:51.258Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "f84f36a616f83063e8295d1d93158e19b9fc79be754801ecf09c2ab8279ccdd1"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_oyfIYEhq5hF5PRV9plAileE4",
+          "startedAt": "2026-10-19T19:20:06.680Z",
+          "completedAt": "2026-10-19T19:20:08.897Z",
+          "successful": false,
+          "exitCode": 1,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "cb28e0a0246482778de498f983d432cd727f520df5126b3f8cf41418c39935da"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_dE8kg1SXJnB5cAzu6hJqTHwW",
+          "startedAt": "2026-10-19T19:23:59.617Z",
+          "completedAt": "2026-10-19T19:24:02.155Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "569e51cca61a513a910f80d4695c07818e80b7adbe78cd7f4c96d73560aff7ce"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_Ghbdo5atR0e1CIO60rfyNFvM",
+          "startedAt": "2026-10-19T19:24:05.895Z",
+          "completedAt": "2026-10-19T19:24:08.422Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "9e6ec027d232bb5691cca23009b3bad9ee4573ee622e5d460df9c778a5075e55"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_Ectdp1mEXUzgcfZ4K7vWXf39",
+          "startedAt": "2026-10-19T19:24:12.381Z",
+          "completedAt": "2026-10-19T19:24:14.977Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "61e845778f9a1ad825e3b9542e6252fe1ec141ef4c774b1259e2626d8f1e1bb3"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_NVKncxgWXy8z023elunPjzLh",
+          "startedAt": "2026-10-19T19:24:19.618Z",
+          "completedAt": "2026-10-19T19:24:22.078Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "d4930464c13ff9e94c10324077ab794af6b8fa70ea33d12ffe10b5933ddb0181"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_CjjNDxVMbJlIeLIXeqhDI111",
+          "startedAt": "2026-10-19T19:24:26.034Z",
+          "completedAt": "2026-10-19T19:24:28.229Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "bfb356958a332aa4ab0a32cdaa72eeed4f535573d6d86802fec08842b8f358ea"
+        },
+        {
+          "operation": "--tdd-complete",
+          "callId": "call_mJuDjh3XzUVX2KwryEqpyFfY",
+          "startedAt": "2026-10-19T19:26:11.370Z",
+          "completedAt": "2026-10-19T19:26:14.970Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "f946b107a0e619fdb6f1b1b815f548538884c966aea6177b3721854347c1a1a0"
+        },
+        {
+          "operation": "--code-review-done",
+          "callId": "call_TqYSemvAiOI6uJ1nvammlPkQ",
+          "startedAt": "2026-10-19T19:32:02.131Z",
+          "completedAt": "2026-10-19T19:32:04.865Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "c5f669a6d83891a1c0c2b9afe911bbb8f360bdc7be6d84643d98395c6b3c83cd"
+        },
+        {
+          "operation": "--chain-report",
+          "callId": "call_pnB5OJb7DzUxINu4hpbLw3j2",
+          "startedAt": "2026-10-19T19:32:12.516Z",
+          "completedAt": "2026-10-19T19:32:13.884Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "e10dfe51cb21b1533cdff8d46613ba114e8a4519cf7df9f48960b1969e9979d2"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_fRhDm2Vr6UTu7UmmDpR5tgp4",
+          "startedAt": "2026-10-19T19:33:12.522Z",
+          "completedAt": "2026-10-19T19:33:14.802Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "cd38737f14b045eff1f965545ca5898ae0b5908d2b5c909fb26230bd3b9efa8e"
+        },
+        {
+          "operation": "--chain-report",
+          "callId": "call_jOGguHEnz9QfGbFj0E0cmofk",
+          "startedAt": "2026-10-19T19:34:28.261Z",
+          "completedAt": "2026-10-19T19:34:29.688Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "e770c95d3e04647d4f4e1ecb2ca60e77a48ab2956d7296ff2e7531f5442b3c8f"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_dpbdcIr1sDgi2bxh5U4W8COe",
+          "startedAt": "2026-10-19T19:34:57.350Z",
+          "completedAt": "2026-10-19T19:35:01.027Z",
+          "successful": false,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "7651fa46b0f597d6d75fe403e74364e75d006eaa5b22600f120c986ffe8eb369"
+        },
+        {
+          "operation": "--self-review-fixed",
+          "callId": "call_w62Cp8pNXex1uslheHsIZ4wK",
+          "startedAt": "2026-10-19T19:37:30.164Z",
+          "completedAt": "2026-10-19T19:37:33.068Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "44cbddc3cbb55db421afa7cfb6626e3d99a2809d791ce3dd2968df765ac740b8"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_rsJe5HZ2rfOhCLmQh5bc9xYY",
+          "startedAt": "2026-10-19T19:38:07.628Z",
+          "completedAt": "2026-10-19T19:38:09.861Z",
+          "successful": false,
+          "exitCode": 1,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "10af226674a1e9afaddb9a9b9f7fc595e8820ac600443bf17dbe38a0300f75ca"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_38RJtEOiErysZRip8RO95rZQ",
+          "startedAt": "2026-10-19T19:39:44.134Z",
+          "completedAt": "2026-10-19T19:39:50.819Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "1a91dedd8d4f6ee7ef8535b188f8c37829bac99746b33ce4102dee156081d292"
+        },
+        {
+          "operation": "--chain-done",
+          "callId": "call_Bt6sApy2ixAZxv7yv1zfrbNS",
+          "startedAt": "2026-10-19T19:40:05.989Z",
+          "completedAt": "2026-10-19T19:40:14.118Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "cedab4b6192e22f4d0efc849b8c6fcd9b047f440b8aad42cae1e235bffa6ec4d"
+        },
+        {
+          "operation": "--chain-report",
+          "callId": "call_Bt6sApy2ixAZxv7yv1zfrbNS",
+          "startedAt": "2026-10-19T19:40:05.989Z",
+          "completedAt": "2026-10-19T19:40:14.118Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "cedab4b6192e22f4d0efc849b8c6fcd9b047f440b8aad42cae1e235bffa6ec4d"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_Bt6sApy2ixAZxv7yv1zfrbNS",
+          "startedAt": "2026-10-19T19:40:05.989Z",
+          "completedAt": "2026-10-19T19:40:14.118Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "cedab4b6192e22f4d0efc849b8c6fcd9b047f440b8aad42cae1e235bffa6ec4d"
+        },
+        {
+          "operation": "--chain-report",
+          "callId": "call_d66YafA1mZHNU7T7KJ5VtZBo",
+          "startedAt": "2026-10-19T19:40:36.643Z",
+          "completedAt": "2026-10-19T19:40:39.853Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "788b4a74c2addb76445a2854d92de7399a231b0a79c7f877d693c9027d3f1acf"
+        }
+      ],
+      "acceptanceRuns": [
+        {
+          "callId": "call_HqIZJMKJcuu3a4mAKmjrOOYF",
+          "successful": true,
+          "record": "er1_1792437833375_c05e5e2d307a",
+          "resultSha256": "4c51fff78ffc1abca4a784362ba33e0974c4d10ff71f57ac2aad0e6cc87b42ae"
+        },
+        {
+          "callId": "call_1dbUp5MQZrePRvDqnvDjYhSn",
+          "successful": true,
+          "record": "er1_1792438769944_0f4062866a8e",
+          "resultSha256": "c0b12b20c7c5120a3d4ce1a6163621952caff658f8a1272088fdee8ed3a951d1"
+        }
+      ],
+      "integrity": {
+        "frozenPayload": {
+          "files": 263,
+          "mismatches": [],
+          "buildSha256": "3a5392d07ab1bdb14238ee787ca91505b6d6f71b2e61e74d4f70ffa3daf6815c"
+        },
+        "globalCaptureComparison": true,
+        "recordedPostcheck": {
+          "frozenPluginUnchanged": true,
+          "globalAndMarketplaceUnchanged": true
+        }
+      },
+      "priorImplementationComparison": "different",
+      "state": {
+        "revision": 9,
+        "reviewGeneration": "207d3938-0e1e-46ee-bfc2-b75c90e3b94e",
+        "implComplete": true,
+        "codeReviewDone": true,
+        "chainDone": true,
+        "reviewTicketConsumed": true,
+        "reviewRound": 1,
+        "selfReviewFixed": true
+      },
+      "limits": [
+        "No model, workflow helper, shell interpreter, state transition or ambient credential/configuration read is performed; bounded read-only Git inventory commands are permitted for the named invoice project.",
+        "Source-only and negative branches can remain unexercised; this report never upgrades fixtures to live evidence.",
+        "A superseded run remains its own result; multiple runs never share completion proof."
+      ]
+    }
+  ]
+}

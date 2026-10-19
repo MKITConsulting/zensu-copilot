@@ -21,7 +21,9 @@ Tasks are not optional decoration — they are the only channel the user watches
 
 ## Phase 4: Execute TDD Cycles
 
-Log `EXECUTION STARTED` before the first step. All log-append commands in this phase use the writer from Principle 3: `COPILOT_PLUGIN_DATA="{plugin_data}" bash "{plugin_root}/hooks/lib/zensu-log.sh" append --log {log_file} --message "<message>" --start $SESSION_EPOCH`. Do not inline `[$(date +%H:%M:%S)]` — the user-configured `logging.timestampStyle` may suppress or reformat the prefix — and do not redirect into `{log_file}` yourself, which skips the path redaction that makes the artifact safe to commit.
+Before the first step, run `COPILOT_PLUGIN_DATA="{plugin_data}" bash "{plugin_root}/hooks/lib/zensu-log.sh" --execution-start --log {log_file}`. This idempotent helper writes the generation-bound `EXECUTION STARTED` marker and binds the matching progress file; require its successful result before editing. Keep this call in vanilla mode too. Do not replace it with a prose claim or a hand-written marker. All log-append commands in this phase use the writer from Principle 3: `COPILOT_PLUGIN_DATA="{plugin_data}" bash "{plugin_root}/hooks/lib/zensu-log.sh" append --log {log_file} --message "<message>" --start $SESSION_EPOCH`. Do not inline `[$(date +%H:%M:%S)]` — the user-configured `logging.timestampStyle` may suppress or reformat the prefix — and do not redirect into `{log_file}` yourself, which skips the path redaction that makes the artifact safe to commit.
+
+The helper owns the three canonical lifecycle checkboxes in `Native workflow status`. Read the current progress file before editing other tasks, preserve that managed block, and do not reintroduce duplicate audit/review/closure or combined `Chain close and final report` checkboxes. The artifact tracks workflow state; the final assistant response carries the report.
 
 ### Feature Cycle (per step)
 

@@ -1,0 +1,1918 @@
+{
+  "schema": "zensu.native-workflow-multi-run-analysis.v1",
+  "runs": [
+    {
+      "schema": "zensu.native-workflow-final-analysis.v1",
+      "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+      "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+      "observedAt": "2026-10-19T20:47:47.232801+00:00",
+      "status": "passed",
+      "nativeResultIsFinal": true,
+      "baselineCommit": "1f1d96a026b1f63f716518f185e4cb2119c94c10",
+      "controllerInterruption": null,
+      "frozenBuildSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076",
+      "eventSources": [
+        {
+          "path": "output.jsonl",
+          "bytes": 41785241,
+          "sha256": "89285f90f0f8d32e3f93522fc559b2577f6ead167a42b1d08a0d691b6d239d92"
+        }
+      ],
+      "checks": {
+        "sessionIsolation": {
+          "status": "pass",
+          "reason": "Exact main identity and only child sessions bound by its native subagent.started events; foreign captures are excluded.",
+          "evidence": []
+        },
+        "requiredGates": {
+          "status": "pass",
+          "reason": "Invoice full-suite and acceptance gates remain required/local, the full panel remains configured, and neither explicit captured gate escapes nor the native bypass ledger may relax the workflow.",
+          "evidence": [
+            {
+              "capturedEscapes": [],
+              "nativeBypasses": [],
+              "configurationMatches": true
+            }
+          ]
+        },
+        "frozenPayload": {
+          "status": "pass",
+          "reason": "Current run-local payload compared with every frozen digest.",
+          "evidence": []
+        },
+        "pluginRoot": {
+          "status": "pass",
+          "reason": "Every captured plugin root must be this run's frozen payload.",
+          "evidence": [
+            "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu"
+          ]
+        },
+        "globalIntegrity": {
+          "status": "pass",
+          "reason": "Compare captured before/after global and marketplace hashes; do not inspect ambient global files.",
+          "evidence": []
+        },
+        "workflowClosure": {
+          "status": "pass",
+          "reason": "Requires exact-session native state and a successful ticket-qualified chain-done call.",
+          "evidence": [
+            "call_syVJWpd4MlIbxcbLGNe43rbp"
+          ]
+        },
+        "editLanding": {
+          "status": "pass",
+          "reason": "Final current-session, bound-log edit-landing receipt must remain clean. Historical pending/unverified markers are retained separately and never overwritten by closure state.",
+          "evidence": [
+            {
+              "receipt": "project/.zensu/state/edit-landing-scv1_7562c56040493225f28bec41d7f2b1f56b603262e89d0ba525f1dfa9d24aeabb.json",
+              "sha256": "d70faa2d093fa8a983301e68534566612f93eb67d3b441f5971e27b7062f46dc",
+              "currentReceipt": {
+                "schema": "edit-landing-v2",
+                "session": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+                "log": ".zensu/logs/2026-10-19-2202_tdd-invoice-quote.log",
+                "claims": 11,
+                "landed": 11,
+                "notLanded": 0,
+                "unverified": 0,
+                "pending": 0,
+                "exemptIgnored": 0,
+                "exemptVerified": 0,
+                "clean": true,
+                "auditScope": {
+                  "schema": "edit-landing-scope-v1",
+                  "root": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+                  "claimRoot": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+                  "log": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu/logs/2026-10-19-2202_tdd-invoice-quote.log",
+                  "sessionKey": "scv1_7562c56040493225f28bec41d7f2b1f56b603262e89d0ba525f1dfa9d24aeabb",
+                  "generation": "e22cc3ab-9ebf-416f-901b-6ee4868a8926",
+                  "baseline": "624e0efe69863accf58458a7ff662e2ca74b3460",
+                  "epoch": "1792440157",
+                  "dirty": [
+                    ".zensu/plans/2026-10-19-2202_tdd-invoice-quote.md",
+                    ".zensu/reviews/run.CjZ3HW/round-1-findings.json",
+                    ".zensu/reviews/run.CjZ3HW/round-1-input.json",
+                    ".zensu/reviews/run.CjZ3HW/round-1-packet.json",
+                    "README.md",
+                    "package.json",
+                    "src/cli.js",
+                    "src/index.js",
+                    "tests/cli.test.js",
+                    "tests/quote.test.js"
+                  ],
+                  "logPrefix": {
+                    "bytes": 6096,
+                    "sha256": "362740e7b8dd0f96db5ee4b5b36ab3a121db8010e18674cf29806f1653554360"
+                  },
+                  "claims": [
+                    {
+                      "step": "quote-api",
+                      "raw": " src/index.js",
+                      "path": "src/index.js",
+                      "certified": true
+                    },
+                    {
+                      "step": "quote-api",
+                      "raw": " tests/quote.test.js",
+                      "path": "tests/quote.test.js",
+                      "certified": true
+                    },
+                    {
+                      "step": "cli-package",
+                      "raw": " src/cli.js",
+                      "path": "src/cli.js",
+                      "certified": true
+                    },
+                    {
+                      "step": "cli-package",
+                      "raw": " tests/cli.test.js",
+                      "path": "tests/cli.test.js",
+                      "certified": true
+                    },
+                    {
+                      "step": "tests-docs",
+                      "raw": " package.json",
+                      "path": "package.json",
+                      "certified": true
+                    },
+                    {
+                      "step": "tests-docs",
+                      "raw": " README.md",
+                      "path": "README.md",
+                      "certified": true
+                    },
+                    {
+                      "step": "tests-docs",
+                      "raw": " tests/cli.test.js",
+                      "path": "tests/cli.test.js",
+                      "certified": true
+                    },
+                    {
+                      "step": "SR1",
+                      "raw": " src/cli.js",
+                      "path": "src/cli.js",
+                      "certified": true
+                    },
+                    {
+                      "step": "SR1",
+                      "raw": " tests/cli.test.js",
+                      "path": "tests/cli.test.js",
+                      "certified": true
+                    },
+                    {
+                      "step": "SR1",
+                      "raw": " package.json",
+                      "path": "package.json",
+                      "certified": true
+                    },
+                    {
+                      "step": "SR1",
+                      "raw": " README.md",
+                      "path": "README.md",
+                      "certified": true
+                    }
+                  ],
+                  "snapshots": {
+                    "src/index.js": {
+                      "path": "src/index.js",
+                      "exists": true,
+                      "bytes": 1591,
+                      "sha256": "5d2bffc55c2a56b4a673173aa34703ab56ce50fcb08a3fb8c087754681daeb41"
+                    },
+                    "tests/quote.test.js": {
+                      "path": "tests/quote.test.js",
+                      "exists": true,
+                      "bytes": 2882,
+                      "sha256": "2f4f1cf33eafb42365cb9d7f7ca174bed66bf0db58361b9fc2a363df453ab620"
+                    },
+                    "src/cli.js": {
+                      "path": "src/cli.js",
+                      "exists": true,
+                      "bytes": 5465,
+                      "sha256": "8478d23c0d52ba021c92681f454cfd86c2d8c00c5c5365999b2b502b28aa1b3c"
+                    },
+                    "tests/cli.test.js": {
+                      "path": "tests/cli.test.js",
+                      "exists": true,
+                      "bytes": 5692,
+                      "sha256": "eb7b1bce4645406d78d279375a21b6da3ac4ada3ca913f98c4e8279d36f3afa4"
+                    },
+                    "package.json": {
+                      "path": "package.json",
+                      "exists": true,
+                      "bytes": 634,
+                      "sha256": "481d9c4197e94814c115c7d7b20e6930995363283ce97b3dbefdc0e8e4bec90c"
+                    },
+                    "README.md": {
+                      "path": "README.md",
+                      "exists": true,
+                      "bytes": 1658,
+                      "sha256": "3e0115d08c32e751988ad837474f0e7d2065557b37da688a244a3de5214c803b"
+                    }
+                  },
+                  "observedFiles": [
+                    "README.md",
+                    "package.json",
+                    "src/cli.js",
+                    "src/index.js",
+                    "tests/cli.test.js",
+                    "tests/quote.test.js"
+                  ],
+                  "tree": {
+                    "kind": "git",
+                    "tree": "7bd0f7a42e0de6c2ab41298aeef7b8c82e540384"
+                  }
+                }
+              },
+              "historicalNonCleanMarkers": []
+            }
+          ]
+        },
+        "editLandingScope": {
+          "status": "pass",
+          "reason": "Scope identity, certified claims, append-only log prefix and current snapshots checked; Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+          "evidence": [
+            {
+              "generation": "e22cc3ab-9ebf-416f-901b-6ee4868a8926",
+              "claims": 11,
+              "snapshots": 6,
+              "inheritedDirtyPaths": 10,
+              "treeCheck": {
+                "status": "pass",
+                "reason": "Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+                "evidence": [
+                  {
+                    "tree": "7bd0f7a42e0de6c2ab41298aeef7b8c82e540384",
+                    "files": 10,
+                    "mismatches": []
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "editLandingContext": {
+          "status": "pass",
+          "reason": "Omitting a repeated flag is valid only when current certified scope preserves the previously pending paths. A clean boolean alone cannot erase historical pending context.",
+          "evidence": [
+            {
+              "audits": [
+                {
+                  "callId": "call_NPF8PE2lfRHHJvPKitF9Bwyo",
+                  "startedAt": "2026-10-19T20:10:09.222Z",
+                  "completedAt": "2026-10-19T20:10:11.138Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": false,
+                  "pending": 0,
+                  "resultSha256": "ccaa1bfda05da149c01ab387bea6b8876013a07096b4dff9eb1a09e34d46cce8",
+                  "commandSha256": "48860893d7add9ae23c516f379a2f651880f50b51537b7b1ca6702f3f3dc3f4b"
+                },
+                {
+                  "callId": "call_JMJj8Hfw7mA2WLLiLyB16O83",
+                  "startedAt": "2026-10-19T20:31:25.397Z",
+                  "completedAt": "2026-10-19T20:31:28.326Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 2,
+                  "dirtyBeforeContextSupplied": false,
+                  "pending": null,
+                  "resultSha256": "d57783b754b8919ca5248917daf53c6fa413fd8b07bc5cd6929242c91cf61a9d",
+                  "commandSha256": "f653f80ad29428a0ebbce2a4a99fe8eb02bd9d421aeafb0cfd58b83a2c19ed4c"
+                },
+                {
+                  "callId": "call_20X75ER2IhiEQlR36lVSsEWD",
+                  "startedAt": "2026-10-19T20:34:14.917Z",
+                  "completedAt": "2026-10-19T20:34:16.389Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 1,
+                  "dirtyBeforeContextSupplied": true,
+                  "pending": 2,
+                  "resultSha256": "46f2601d874ebcc13c4dab0109381909a23c45ae5f45c25728d6f58750bf348a",
+                  "commandSha256": "ba0e766bc28737d7850854a4061a5a0aa26bc91f169684eb41b4689bfb64adb4"
+                },
+                {
+                  "callId": "call_5pNayOU7v2rqFVDua9ZX0umk",
+                  "startedAt": "2026-10-19T20:34:26.332Z",
+                  "completedAt": "2026-10-19T20:34:27.798Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": true,
+                  "pending": 0,
+                  "resultSha256": "53fde0be7e0c0e8da2faf915daea671b500a8145203797308381eba6347dafb8",
+                  "commandSha256": "2722fb00a3c8a47172eb78a90193f1eed552d37aaea149c65b077baa6c72ec08"
+                },
+                {
+                  "callId": "call_XqFCokncYoxatHHz4teEIrF3",
+                  "startedAt": "2026-10-19T20:41:41.642Z",
+                  "completedAt": "2026-10-19T20:41:43.102Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": true,
+                  "pending": 0,
+                  "resultSha256": "4a846f7a9018f20d3b16571812c0a09d9241560bd77dff954394b0aa154fa340",
+                  "commandSha256": "987a8f4544dbe2a8d420f17f17e9781f6cfc9577816ff7542c376c9e61612cc1"
+                },
+                {
+                  "callId": "call_6EMypQmFwo0DbnC7X11x09lP",
+                  "startedAt": "2026-10-19T20:42:52.402Z",
+                  "completedAt": "2026-10-19T20:42:54.205Z",
+                  "toolSucceeded": true,
+                  "wholeShellExitCode": 0,
+                  "dirtyBeforeContextSupplied": true,
+                  "pending": 0,
+                  "resultSha256": "f54d7517ad938609ced704542df11d1387b421a616b30cb6976e627fa858d24e",
+                  "commandSha256": "f6465cd2f4aea89f7d4cf10e8b73ee8eacb3243c78a1e597653b4eccfcec0cac"
+                }
+              ],
+              "contextDowngradeCalls": [],
+              "contextInheritedCalls": [],
+              "pendingPaths": [],
+              "persistedScope": {
+                "status": "pass",
+                "reason": "Scope identity, certified claims, append-only log prefix and current snapshots checked; Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+                "evidence": [
+                  {
+                    "generation": "e22cc3ab-9ebf-416f-901b-6ee4868a8926",
+                    "claims": 11,
+                    "snapshots": 6,
+                    "inheritedDirtyPaths": 10,
+                    "treeCheck": {
+                      "status": "pass",
+                      "reason": "Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+                      "evidence": [
+                        {
+                          "tree": "7bd0f7a42e0de6c2ab41298aeef7b8c82e540384",
+                          "files": 10,
+                          "mismatches": []
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "executionStart": {
+          "status": "pass",
+          "reason": "One generation marker and a successful native start must precede the first observed source-edit tool.",
+          "evidence": [
+            {
+              "markerCount": 1,
+              "helperCompletedAt": "2026-10-19T20:05:27.314Z",
+              "firstObservedSourceEditAt": "2026-10-19T20:05:48.845Z",
+              "limitation": "Shell-based source mutations are not inferred from arbitrary command text."
+            }
+          ]
+        },
+        "progress": {
+          "status": "pass",
+          "reason": "Both managed native status and original stage rows must agree; a managed checkbox alone is insufficient.",
+          "evidence": []
+        },
+        "nativeReviewChain": {
+          "status": "pass",
+          "reason": "Requires completed native worker results, the first five-aspect panel, both first judges and primary-before-consume ordering.",
+          "evidence": [
+            {
+              "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "canonicalPackets": {
+          "status": "pass",
+          "reason": "Every reference is rehashed; native injected bytes must be identical within each packet generation.",
+          "evidence": [
+            {
+              "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "terminalSelfReview": {
+          "status": "pass",
+          "reason": "Native self-review loads after convergence and before closure. Repeated explicit skill invocations fail. Bounded native file reads are not themselves extra invocations. A later entry read requires a closed report-only response and no further work.",
+          "evidence": [
+            {
+              "reads": [
+                {
+                  "skill": "zensu-self-review",
+                  "callId": "call_eM58zqIHufkYvhnRPEIpIyrR",
+                  "startedAt": "2026-10-19T20:26:40.221Z",
+                  "completedAt": "2026-10-19T20:26:40.474Z"
+                }
+              ],
+              "explicitSkillInvocations": 1,
+              "postCloseEntryReads": [],
+              "postCloseWork": [],
+              "closedReportOnlyObserved": true
+            }
+          ]
+        },
+        "reviewRouting": {
+          "status": "pass",
+          "reason": "Quality verdict must not invent a routing directive. Missing captured hook guidance requires manual assessment.",
+          "evidence": []
+        },
+        "nativeEvidenceRecords": {
+          "status": "pass",
+          "reason": "Exact native helper references, capture hashes, latest full-suite and four final criterion records agree on the independently checked current tree.",
+          "evidence": [
+            {
+              "manifest": "evidence-capture/manifest.json",
+              "manifestSha256": "cee748ec96798cdbf7519d61ba2fc24d1a3f73088ae5025b94100e69b6c408bd",
+              "fullSuite": "er1_1792441972742_463b87e2efea",
+              "acceptanceRecords": {
+                "AC-001": "av1_1792442418157_f46810c036a6",
+                "AC-002": "av1_1792442425482_5338b1a1f723",
+                "AC-003": "av1_1792442484747_b73505ffb13b",
+                "AC-004": "av1_1792442432205_2e0a6743d43b"
+              },
+              "acceptanceRuns": [
+                "er1_1792442396380_e78a1fbabd8c",
+                "er1_1792442475521_ee5f34a7e13b"
+              ],
+              "currentTree": {
+                "status": "pass",
+                "reason": "Read-only native Git inventory plus independently hashed current blobs and executable modes.",
+                "evidence": [
+                  {
+                    "tree": "7bd0f7a42e0de6c2ab41298aeef7b8c82e540384",
+                    "files": 10,
+                    "mismatches": []
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "acceptance": {
+          "status": "pass",
+          "reason": "Four observed per-criterion records and a successful 4/4 status require either status-after-edit ordering or independently validated current-tree native records. Stale/failing status output is never overridden.",
+          "evidence": [
+            {
+              "ac": "AC-001",
+              "callId": "call_7DGL6OAGeMBZNwsDJESKq16p",
+              "record": "er1_1792441044001_596d8be13a7c"
+            },
+            {
+              "ac": "AC-002",
+              "callId": "call_d1nsb6YvkmTn7OtEdwCqauwq",
+              "record": "er1_1792441044001_596d8be13a7c"
+            },
+            {
+              "ac": "AC-003",
+              "callId": "call_uFEXIDvkSzesLnem58bKT6TW",
+              "record": "er1_1792441044001_596d8be13a7c"
+            },
+            {
+              "ac": "AC-004",
+              "callId": "call_NA5bq1n86SPr2IGN9P3p0vLq",
+              "record": "er1_1792441044001_596d8be13a7c"
+            },
+            {
+              "ac": "AC-001",
+              "callId": "call_Vzed1QHRj1xgMHrHC3TTBDD9",
+              "record": "er1_1792442396380_e78a1fbabd8c"
+            },
+            {
+              "ac": "AC-002",
+              "callId": "call_KbwkeIwAXUjBu1G9lbDBhNwk",
+              "record": "er1_1792442396380_e78a1fbabd8c"
+            },
+            {
+              "ac": "AC-004",
+              "callId": "call_HNZBqSEyqwDdZc9k2c6EIAPl",
+              "record": "er1_1792442396380_e78a1fbabd8c"
+            },
+            {
+              "ac": "AC-003",
+              "callId": "call_aNuULSTnC77jlZgnyuq9Cnrh",
+              "record": "er1_1792442475521_ee5f34a7e13b"
+            }
+          ]
+        },
+        "independentConsumer": {
+          "status": "pass",
+          "reason": "Original acceptance assertions, offline packaged installation and final source/installed digest equality; prior one-MiB comparisons are separate.",
+          "evidence": []
+        },
+        "eventCompleteness": {
+          "status": "pass",
+          "reason": "Invalid/trailing JSONL records prevent a complete final assertion.",
+          "evidence": [
+            {
+              "unparsedLines": 0
+            }
+          ]
+        },
+        "processExit": {
+          "status": "pass",
+          "reason": "A clean process exit is necessary but never sufficient for workflow success.",
+          "evidence": []
+        }
+      },
+      "originalFindings": {
+        "WF-001": {
+          "status": "unassessed",
+          "reason": "Only actual malformed-binding errors fail. Pre-hook repeated prefixes are observable replay candidates, but can be a host retry echo and do not establish model authorship. Injected execution_start prefixes are expected.",
+          "evidence": [
+            {
+              "capture": "hooks/1792440151781-61887-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440165460-63601-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440173652-64590-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440248154-74692-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440254759-75763-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440276193-77958-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440301292-81099-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440318371-84125-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440325845-86358-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440371576-93067-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440448431-3771-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440454818-5171-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440459625-6445-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440508948-13362-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440513902-14650-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440519517-15980-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440526634-17234-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440541448-20717-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440548197-22341-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440561208-25274-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440582206-28496-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440603943-32894-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440609284-34144-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440641742-37186-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440691101-45836-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440696805-46964-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440701825-48090-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440707521-49219-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440712778-50332-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440752649-55549-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440758617-57025-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440763610-58487-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440772934-60291-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440781114-61934-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440789152-63858-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440856226-77679-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440882480-79782-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440903222-81589-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440910800-83077-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440922998-84668-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440931936-86296-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440942659-87882-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440958441-89973-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440964185-91333-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440970241-92682-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792440974671-94153-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441034532-7713-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441042837-10130-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441052722-12970-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441059984-15409-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441067011-17879-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441073703-20017-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441086776-23196-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441110253-28287-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441114781-30040-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441158277-39424-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441165235-40773-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441172386-42462-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441181731-43995-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441195646-45547-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441211028-47709-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441216822-48920-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441221627-50112-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441245788-54785-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441250886-56177-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441256162-57362-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441319251-67183-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441323601-68371-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441482956-77637-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441500921-81919-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441505821-83147-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441514950-85501-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441568471-89829-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441573918-91083-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441578676-92344-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441583301-93562-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441588338-94805-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441593383-96229-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441606681-98721-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441614757-164-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441619010-1585-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441630421-4152-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441637950-5435-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441661349-13446-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441667144-14896-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441672208-16149-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441916956-36957-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441939073-41208-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441971051-44165-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441971651-44358-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441983410-46210-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792441994848-47699-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442046197-53858-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442054985-55075-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442066403-56464-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442086463-59037-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442095190-60433-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442111946-62584-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442112569-62772-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442178766-70842-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442330272-74764-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442337723-75998-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442368157-77242-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442395303-78757-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442416417-80796-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442423695-82306-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442430432-83886-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442474418-87409-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442482858-88990-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442489644-90490-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442501712-92038-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442506764-93452-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442572471-3510-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442581906-5051-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442604463-7377-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442610044-8622-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442650798-10351-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442651466-10536-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442683239-13269-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792442691109-14555-preToolUse.json",
+              "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+              "scope": "main"
+            }
+          ]
+        },
+        "WF-002": {
+          "status": "pass",
+          "reason": "Canonical packet use is observed; untracked/unborn/mid-commit edge cases remain deterministic-test coverage.",
+          "evidence": [
+            {
+              "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "WF-003": {
+          "status": "unexercised",
+          "reason": "Unlanded-edit recovery is not proven by an ordinary run; dropping pending dirty-before context is a related audit-evidence failure.",
+          "evidence": []
+        },
+        "WF-004": {
+          "status": "pass",
+          "reason": "Observed reviewers use native tasks; unsupported external import branches were not exercised.",
+          "evidence": []
+        },
+        "WF-005": {
+          "status": "pass",
+          "reason": "Actual native oversized-read responses, including audit references, are counted even if later recovered.",
+          "evidence": []
+        },
+        "WF-006": {
+          "status": "unexercised",
+          "reason": "Failure-diagnostic quality needs a failing synthetic assertion; green checks alone do not demonstrate it.",
+          "evidence": []
+        },
+        "WF-007": {
+          "status": "pass",
+          "reason": "Native start ordering and all completed-stage progress rows must agree.",
+          "evidence": []
+        },
+        "WF-008": {
+          "status": "pass",
+          "reason": "Exact injected payload hashes and byte hashes are compared within each review packet.",
+          "evidence": [
+            {
+              "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "WF-009": {
+          "status": "pass",
+          "reason": "Successful additive review never substitutes for substantive primary completion.",
+          "evidence": [
+            {
+              "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+              "completeAspects": [
+                "architecture",
+                "bugs",
+                "conventions",
+                "security",
+                "tests"
+              ],
+              "completedRoles": [
+                "aspect",
+                "consume",
+                "primary",
+                "secondary"
+              ],
+              "identicalInjectedBytes": true,
+              "judgesCompletedBeforeConsume": true,
+              "aspectsCompletedBeforeJudges": true,
+              "firstFullPanel": true
+            }
+          ]
+        },
+        "WF-010": {
+          "status": "pass",
+          "reason": "Structured input and exact summary/input counts are required; unresolved shell variables or absent finding files stay unassessed. Delimiter-injection negative cases remain deterministic coverage.",
+          "evidence": [
+            {
+              "callId": "call_YrtRMCGnrACM5hcm8jTZhhWX",
+              "successful": true,
+              "jsonInput": true,
+              "total": 4,
+              "inputFindingCount": 4,
+              "degraded": false
+            }
+          ]
+        },
+        "WF-011": {
+          "status": "pass",
+          "reason": "Quality reporting and the authoritative post-hook routing must remain distinct.",
+          "evidence": []
+        },
+        "WF-012": {
+          "status": "pass",
+          "reason": "A reused acceptance record with separate AC observations demonstrates sharing; distinct records alone do not prove redundant commands.",
+          "evidence": [
+            {
+              "ac": "AC-001",
+              "callId": "call_7DGL6OAGeMBZNwsDJESKq16p",
+              "record": "er1_1792441044001_596d8be13a7c"
+            },
+            {
+              "ac": "AC-002",
+              "callId": "call_d1nsb6YvkmTn7OtEdwCqauwq",
+              "record": "er1_1792441044001_596d8be13a7c"
+            },
+            {
+              "ac": "AC-003",
+              "callId": "call_uFEXIDvkSzesLnem58bKT6TW",
+              "record": "er1_1792441044001_596d8be13a7c"
+            },
+            {
+              "ac": "AC-004",
+              "callId": "call_NA5bq1n86SPr2IGN9P3p0vLq",
+              "record": "er1_1792441044001_596d8be13a7c"
+            },
+            {
+              "ac": "AC-001",
+              "callId": "call_Vzed1QHRj1xgMHrHC3TTBDD9",
+              "record": "er1_1792442396380_e78a1fbabd8c"
+            },
+            {
+              "ac": "AC-002",
+              "callId": "call_KbwkeIwAXUjBu1G9lbDBhNwk",
+              "record": "er1_1792442396380_e78a1fbabd8c"
+            },
+            {
+              "ac": "AC-004",
+              "callId": "call_HNZBqSEyqwDdZc9k2c6EIAPl",
+              "record": "er1_1792442396380_e78a1fbabd8c"
+            },
+            {
+              "ac": "AC-003",
+              "callId": "call_aNuULSTnC77jlZgnyuq9Cnrh",
+              "record": "er1_1792442475521_ee5f34a7e13b"
+            }
+          ]
+        },
+        "WF-013": {
+          "status": "pass",
+          "reason": "Bound closure and final reporting must not restart the terminal skill.",
+          "evidence": [
+            {
+              "reads": [
+                {
+                  "skill": "zensu-self-review",
+                  "callId": "call_eM58zqIHufkYvhnRPEIpIyrR",
+                  "startedAt": "2026-10-19T20:26:40.221Z",
+                  "completedAt": "2026-10-19T20:26:40.474Z"
+                }
+              ],
+              "explicitSkillInvocations": 1,
+              "postCloseEntryReads": [],
+              "postCloseWork": [],
+              "closedReportOnlyObserved": true
+            }
+          ]
+        }
+      },
+      "nativeTasks": [
+        {
+          "callId": "call_iU039DgY3d80y7KXpX7NApvz",
+          "name": "invoice-review-conventions",
+          "role": "aspect",
+          "aspect": "conventions",
+          "startedAt": "2026-10-19T20:21:11.496Z",
+          "completedAt": "2026-10-19T20:21:39.826Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "43fc5f8f597014df798e2406f2704dcb487a56bdc52081b99e854da0c6316517",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "reference": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+            "changedFiles": [
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_njoW66lWIV8oNyHks1MuIZl9",
+          "name": "invoice-review-bugs",
+          "role": "aspect",
+          "aspect": "bugs",
+          "startedAt": "2026-10-19T20:21:11.496Z",
+          "completedAt": "2026-10-19T20:21:40.468Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "cce3aace11fdcd439bd9d66b4e337906eda0dbef0bac37372a94a2cb6c1fd9b4",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "reference": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+            "changedFiles": [
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_SQ22YwK3o7rGiCEcg5syMn4A",
+          "name": "invoice-review-architecture",
+          "role": "aspect",
+          "aspect": "architecture",
+          "startedAt": "2026-10-19T20:21:11.496Z",
+          "completedAt": "2026-10-19T20:21:41.127Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "c7d6c74111f8050733cb71a1196e292b133ecc120c975af086628df88c4cac1d",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "reference": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+            "changedFiles": [
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_0RH798C23c1PdthTbk9qqYyX",
+          "name": "invoice-review-tests",
+          "role": "aspect",
+          "aspect": "tests",
+          "startedAt": "2026-10-19T20:21:11.497Z",
+          "completedAt": "2026-10-19T20:21:44.296Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "1f0d8b7d3c903cd236d8e0cfbc4db8b21ba8db05f3ae9c43b4a58f75e4dda9e8",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "reference": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+            "changedFiles": [
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_Mj7uW0DOy0Vzzhvc6vOAPCKm",
+          "name": "invoice-review-security",
+          "role": "aspect",
+          "aspect": "security",
+          "startedAt": "2026-10-19T20:21:11.497Z",
+          "completedAt": "2026-10-19T20:21:33.458Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "0b8885fe53d336a08a9cf809799de8a38fa955bdcbf3bcfac49499832788be3e",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "reference": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+            "changedFiles": [
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_gipDjUDpMtFVwFLJ2pLHjOWd",
+          "name": "invoice-review-judge-primary",
+          "role": "primary",
+          "aspect": null,
+          "startedAt": "2026-10-19T20:22:14.382Z",
+          "completedAt": "2026-10-19T20:22:41.104Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "4cba8401beab876d7b33c365fe91f85a7c4047a7033a885abc0540ff22b87987",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "reference": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+            "changedFiles": [
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_igDKMnwr06f5JZZzLFwKVp1L",
+          "name": "invoice-review-judge-second",
+          "role": "secondary",
+          "aspect": null,
+          "startedAt": "2026-10-19T20:22:14.382Z",
+          "completedAt": "2026-10-19T20:22:56.519Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "a25f45d6c2abe5114116034b7a725e9e30564899006f9d6cdce465e9f86da70b",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "reference": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+            "changedFiles": [
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        },
+        {
+          "callId": "call_9PKp78ILn6rrYraiHHoaIH1H",
+          "name": "invoice-review-consume-r1",
+          "role": "consume",
+          "aspect": null,
+          "startedAt": "2026-10-19T20:25:28.516Z",
+          "completedAt": "2026-10-19T20:25:48.423Z",
+          "nativeSuccess": true,
+          "mode": "sync",
+          "workerStarted": true,
+          "workerCompleted": true,
+          "substantive": true,
+          "resultSha256": "cb3de5486bcfa8d78635a273aaec4891148f725753624afd9fd24c6c5681da50",
+          "formatWarnings": [],
+          "packet": {
+            "valid": true,
+            "references": 1,
+            "injected": false,
+            "packetHash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+            "reference": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+            "changedFiles": [
+              "README.md",
+              "package.json",
+              "src/cli.js",
+              "src/index.js",
+              "tests/cli.test.js",
+              "tests/quote.test.js"
+            ]
+          }
+        }
+      ],
+      "milestones": [
+        {
+          "operation": "--tdd-begin",
+          "callId": "call_SeRS11e99Wn3czjVgur56VoZ",
+          "startedAt": "2026-10-19T20:02:53.579Z",
+          "completedAt": "2026-10-19T20:02:57.900Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "d4156ab8d68dae09df435987454a6c2a9886a0f719de9a263bf0f06da0bcae96"
+        },
+        {
+          "operation": "--execution-start",
+          "callId": "call_rtGr95tuIRlH9LTlw1t6zJg3",
+          "startedAt": "2026-10-19T20:05:25.771Z",
+          "completedAt": "2026-10-19T20:05:27.314Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "3997f9831d69486c4cd31c8ca6d3df7eef2661629c17716d68ba0644654eb7c9"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_pRwwldmywLT26go5YpdvYUgF",
+          "startedAt": "2026-10-19T20:14:42.416Z",
+          "completedAt": "2026-10-19T20:14:44.747Z",
+          "successful": false,
+          "exitCode": 1,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "5898d2766f84245873372c306ef4818b6961e56e3b1bb70acfefc12d37c475ba"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_1mYODdol2vel9fTESFnVKvfk",
+          "startedAt": "2026-10-19T20:17:14.468Z",
+          "completedAt": "2026-10-19T20:17:16.798Z",
+          "successful": false,
+          "exitCode": 1,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "2af44ba59083b3f12f34994ebb43e3e30c660c6f0aaee9e0b5033ccc8d3bf160"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_7DGL6OAGeMBZNwsDJESKq16p",
+          "startedAt": "2026-10-19T20:17:32.655Z",
+          "completedAt": "2026-10-19T20:17:35.202Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "926063359be9e6627522162d72bb6ee7a2e15081e454172b85d5ec3c2c438966"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_d1nsb6YvkmTn7OtEdwCqauwq",
+          "startedAt": "2026-10-19T20:17:39.923Z",
+          "completedAt": "2026-10-19T20:17:42.587Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "0bcba60715a3bb444309906dac51b09ec89899c6d2d4d96f67b1b3488418dba5"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_uFEXIDvkSzesLnem58bKT6TW",
+          "startedAt": "2026-10-19T20:17:46.946Z",
+          "completedAt": "2026-10-19T20:17:49.500Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "52a8e66c38c2a0d72f5a5cb6d193a51f5f3b378f980cb43d8eb367ec15f7a053"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_NA5bq1n86SPr2IGN9P3p0vLq",
+          "startedAt": "2026-10-19T20:17:53.634Z",
+          "completedAt": "2026-10-19T20:17:56.320Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "67ab95b8bf2476605d02c3d445537a066993a8c4be1a3d2d3e8aacc5d16df6ba"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_MHNIS7KcysVwEzpEf9eeRnjc",
+          "startedAt": "2026-10-19T20:18:34.721Z",
+          "completedAt": "2026-10-19T20:18:36.964Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "6493ddb3e08097a53b65e4731235fc5349f9952f69da4ae438e691501ff4f07d"
+        },
+        {
+          "operation": "--tdd-complete",
+          "callId": "call_x2SDI3OffWrqAYEjG97QdzGe",
+          "startedAt": "2026-10-19T20:19:25.166Z",
+          "completedAt": "2026-10-19T20:19:27.900Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "941bd8356fcd14282fdeff6e7283ad73912f3f6817a1563624ae7f2783c6113e"
+        },
+        {
+          "operation": "--code-review-done",
+          "callId": "call_qEuNlyC79kevxA9cL0WAe4Rh",
+          "startedAt": "2026-10-19T20:26:33.311Z",
+          "completedAt": "2026-10-19T20:26:36.029Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "006f0090cabc35f6d2409f79933cf26961bae6a2448f23821321da26ec358c5f"
+        },
+        {
+          "operation": "--chain-report",
+          "callId": "call_uDLudrROyg0RugyPGKgiDeab",
+          "startedAt": "2026-10-19T20:26:46.620Z",
+          "completedAt": "2026-10-19T20:26:47.943Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "bf285871e87515e708548b5731801a59f1dbe4ce8c54481454917acbb2d54940"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_WUSzeSetwYY1zsrCjRjOqcLU",
+          "startedAt": "2026-10-19T20:27:41.288Z",
+          "completedAt": "2026-10-19T20:27:43.524Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "d87162b5599262d2a7d1932a553d4d90dc87455ff7dd28ca8a1a1d6a4dcfdb6d"
+        },
+        {
+          "operation": "--self-review-fixed",
+          "callId": "call_Q2TrPLQOYEIx9nfCcdUG4FIH",
+          "startedAt": "2026-10-19T20:34:46.395Z",
+          "completedAt": "2026-10-19T20:34:49.029Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "d5f59a3985bda1deb0351d944a0c7eda0d6bcb31017d2246e497fc358c975ae9"
+        },
+        {
+          "operation": "--chain-done",
+          "callId": "call_UusOHBdMhRu9pwEHEqkznzwl",
+          "startedAt": "2026-10-19T20:34:55.123Z",
+          "completedAt": "2026-10-19T20:34:59.250Z",
+          "successful": false,
+          "exitCode": 1,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "3f3ea2465d171fecb90329ace0af12a1de165c9ea1a77bc68ecba71798985bcf"
+        },
+        {
+          "operation": "--chain-report",
+          "callId": "call_U1XSAq06cF09VuNngAgbiZ6R",
+          "startedAt": "2026-10-19T20:35:11.708Z",
+          "completedAt": "2026-10-19T20:35:14.118Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "b6139904833ee2d6d95f334ca1301bb752e28cedac57bf5e7ffe95bba99b70f5"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_H5mZNaJ5jD1pHhwcjKs5NwQb",
+          "startedAt": "2026-10-19T20:35:46.325Z",
+          "completedAt": "2026-10-19T20:35:49.247Z",
+          "successful": false,
+          "exitCode": 1,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "15c602b83e837bd281b5574469523bef5526a62a3278507169529fb484957779"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_Vzed1QHRj1xgMHrHC3TTBDD9",
+          "startedAt": "2026-10-19T20:40:16.350Z",
+          "completedAt": "2026-10-19T20:40:18.764Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "9eabced2da922597d4126df64fa25e8efe18f33e6289545367aee07e23e97d6b"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_KbwkeIwAXUjBu1G9lbDBhNwk",
+          "startedAt": "2026-10-19T20:40:23.626Z",
+          "completedAt": "2026-10-19T20:40:26.105Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "e18a7c1163dd72cd90229e00fbb2bae3f146a9ff6d3d97f781affb0325074a72"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_HNZBqSEyqwDdZc9k2c6EIAPl",
+          "startedAt": "2026-10-19T20:40:30.365Z",
+          "completedAt": "2026-10-19T20:40:32.804Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "8ee7709a816ff34b793b25b17773c1fa3fed9a83e78ee62b594dc69e9ed1aea1"
+        },
+        {
+          "operation": "--acceptance-record",
+          "callId": "call_aNuULSTnC77jlZgnyuq9Cnrh",
+          "startedAt": "2026-10-19T20:41:22.787Z",
+          "completedAt": "2026-10-19T20:41:25.380Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "b209cae2412875c93f9111f711da5640d8d05a878b1f840d41e3d115307139aa"
+        },
+        {
+          "operation": "--acceptance-status",
+          "callId": "call_yLhJKKB0QsaoIIZxfermis1U",
+          "startedAt": "2026-10-19T20:41:29.575Z",
+          "completedAt": "2026-10-19T20:41:31.935Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "bae3ecca817843a7b47a3fbe8ad3810fd5e4cc96de4dfc51b85bb602a47c8179"
+        },
+        {
+          "operation": "--chain-done",
+          "callId": "call_yMkLHMJgYr7F59fdCOX87WYz",
+          "startedAt": "2026-10-19T20:41:46.698Z",
+          "completedAt": "2026-10-19T20:41:51.246Z",
+          "successful": false,
+          "exitCode": 1,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "911393bce2cb4e8410878342e9ae61d2d31aee79e6007d050f1f134deb07f54e"
+        },
+        {
+          "operation": "--chain-done",
+          "callId": "call_syVJWpd4MlIbxcbLGNe43rbp",
+          "startedAt": "2026-10-19T20:43:01.841Z",
+          "completedAt": "2026-10-19T20:43:08.480Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "3ced2d673bed9e39105b96609d4a05abed5d496de6889185abbf5dd6e35af849"
+        },
+        {
+          "operation": "--chain-report",
+          "callId": "call_fqrHVX4URWFzYIRmTb4b7eIS",
+          "startedAt": "2026-10-19T20:43:29.987Z",
+          "completedAt": "2026-10-19T20:43:31.550Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": true,
+          "resultSha256": "10c71d0ca366bc66b2dbc76292f75571acd46d31d42a60985d3b4f5e544bc4e9"
+        }
+      ],
+      "acceptanceRuns": [
+        {
+          "callId": "call_sSLHceyY8sx2UH06mmiU8Tah",
+          "successful": true,
+          "record": "er1_1792441044001_596d8be13a7c",
+          "resultSha256": "f1d139d8d5cf3e050224acb5c1ed47792a0b360e526e44e65c1b58d1abf6f3c1"
+        },
+        {
+          "callId": "call_kuY63rIpRVOdUekMl6OvntDW",
+          "successful": true,
+          "record": "er1_1792441995924_637479cbb8d9",
+          "resultSha256": "df84f6448400ca54ef4b5273a5e86582efc5c113490ebaa25613bd2437cab838"
+        },
+        {
+          "callId": "call_G4nIbsUiKjySFDp3USvrNsdE",
+          "successful": true,
+          "record": "er1_1792442396380_e78a1fbabd8c",
+          "resultSha256": "4efa466bb85c7e422e55ad5ffe1271ee15fb19c576e0ee2c4b803d27b823322d"
+        },
+        {
+          "callId": "call_4fS1Q73TFHIykVVNNNgfFszU",
+          "successful": true,
+          "record": "er1_1792442475521_ee5f34a7e13b",
+          "resultSha256": "5f838535276ac630a26916d875d060bed4d85c8e2d529ae24022c0a363fc8124"
+        }
+      ],
+      "integrity": {
+        "frozenPayload": {
+          "files": 273,
+          "mismatches": [],
+          "buildSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076"
+        },
+        "globalCaptureComparison": true,
+        "recordedPostcheck": {
+          "frozenPluginUnchanged": true,
+          "globalAndMarketplaceUnchanged": true
+        }
+      },
+      "priorImplementationComparison": "different",
+      "state": {
+        "revision": 9,
+        "reviewGeneration": "e22cc3ab-9ebf-416f-901b-6ee4868a8926",
+        "implComplete": true,
+        "codeReviewDone": true,
+        "chainDone": true,
+        "reviewTicketConsumed": true,
+        "reviewRound": 1,
+        "selfReviewFixed": true
+      },
+      "limits": [
+        "No model, workflow helper, shell interpreter, state transition or ambient credential/configuration read is performed; bounded read-only Git inventory commands are permitted for the named invoice project.",
+        "Source-only and negative branches can remain unexercised; this report never upgrades fixtures to live evidence.",
+        "A superseded run remains its own result; multiple runs never share completion proof."
+      ]
+    }
+  ]
+}
