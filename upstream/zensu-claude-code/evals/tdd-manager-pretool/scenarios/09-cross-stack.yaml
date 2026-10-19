@@ -1,0 +1,13 @@
+description: "Cross-stack: feature spans frontend + backend. Phase state must hold across both subprojects in the same session."
+vars:
+  spec_path: prompts/feature-spec-cross-stack.md
+  expected_paths:
+    - 'frontend/src/utils/debounce.ts'
+    - 'backend/internal/auth/token.go'
+assert:
+  - type: contains
+    value: "RED"
+  - type: contains
+    value: "GREEN"
+  - type: javascript
+    value: file://assertions/assert-file-exists.js

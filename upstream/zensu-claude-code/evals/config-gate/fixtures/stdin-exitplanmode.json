@@ -1,0 +1,1 @@
+{"hook_event_name":"PostToolUse","tool_name":"ExitPlanMode","tool_input":{"plan":"## Plan\n- step 1\n- step 2"},"session_id":"gate-plan-session"}

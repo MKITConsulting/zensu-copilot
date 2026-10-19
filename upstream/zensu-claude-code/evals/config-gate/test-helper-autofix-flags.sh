@@ -1,0 +1,234 @@
+#!/bin/bash
+set -u
+
+PLUGIN_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+HELPER="$PLUGIN_DIR/hooks/lib/zensu-config.sh"
+
+PASS=0; FAIL=0
+check() {
+  local label="$1" cond="$2"
+  if [ "$cond" = "PASS" ]; then echo "  PASS  $label"; PASS=$((PASS+1));
+  else echo "  FAIL  $label"; FAIL=$((FAIL+1)); fi
+}
+
+if [ ! -f "$HELPER" ]; then
+  check "helper file exists" FAIL
+  echo "----"
+  echo "test-helper-autofix-flags: $PASS PASS / $FAIL FAIL"
+  exit 1
+fi
+
+TMP_CFG="/tmp/zensu-autofix-flags-$$.json"
+cleanup() { rm -f "$TMP_CFG"; }
+trap cleanup EXIT
+
+source "$HELPER"
+
+# --- zensu_autofix_severity ---
+
+export ZENSU_CONFIG="$TMP_CFG"
+severity_case() {
+  local label="$1" json="$2" want="$3" val
+  printf '%s\n' "$json" > "$TMP_CFG"
+  val=$(zensu_autofix_severity)
+  if [ "$val" = "$want" ]; then check "severity: $label echoes $want" PASS
+  else check "severity: $label echoes $want (got '$val')" FAIL; fi
+}
+severity_case "absent key" '{"hooks": {"autoFix": true}}' critical
+severity_case "explicit critical" '{"hooks": {"autoFixSeverity": "critical"}}' critical
+severity_case "explicit important" '{"hooks": {"autoFixSeverity": "important"}}' important
+severity_case "explicit all" '{"hooks": {"autoFixSeverity": "all"}}' all
+severity_case "legacy autoFixIncludeSuggestions true" '{"hooks": {"autoFixIncludeSuggestions": true}}' all
+severity_case "legacy autoFixIncludeSuggestions false" '{"hooks": {"autoFixIncludeSuggestions": false}}' critical
+severity_case "legacy string 'true' (strict ===)" '{"hooks": {"autoFixIncludeSuggestions": "true"}}' critical
+severity_case "explicit critical beats legacy true" '{"hooks": {"autoFixSeverity": "critical", "autoFixIncludeSuggestions": true}}' critical
+severity_case "unknown value falls back to legacy true" '{"hooks": {"autoFixSeverity": "blocker", "autoFixIncludeSuggestions": true}}' all
+severity_case "unknown value alone" '{"hooks": {"autoFixSeverity": "blocker"}}' critical
+severity_case "malformed JSON" '{this is not json' critical
+
+MISSING_CFG="/tmp/zensu-autofix-flags-missing-$$.json"
+rm -f "$MISSING_CFG"
+export ZENSU_CONFIG="$MISSING_CFG"
+val=$(zensu_autofix_severity)
+if [ "$val" = "critical" ]; then check "severity: missing config echoes critical" PASS
+else check "severity: missing config echoes critical (got '$val')" FAIL; fi
+export ZENSU_CONFIG="$TMP_CFG"
+
+# --- zensu_autofix_max_rounds ---
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"autoFix": true}}
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "2" ]; then
+  check "max_rounds: absent flag echoes default 2" PASS
+else
+  check "max_rounds: absent flag echoes default 2 (got '$val')" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"autoFixMaxRounds": 3}}
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "3" ]; then
+  check "max_rounds: explicit 3 echoes 3" PASS
+else
+  check "max_rounds: explicit 3 echoes 3 (got '$val')" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"autoFixMaxRounds": 1}}
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "1" ]; then
+  check "max_rounds: explicit 1 (lower bound) echoes 1" PASS
+else
+  check "max_rounds: explicit 1 echoes 1 (got '$val')" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"autoFixMaxRounds": 99}}
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "99" ]; then
+  check "max_rounds: explicit 99 (upper bound) echoes 99" PASS
+else
+  check "max_rounds: explicit 99 echoes 99 (got '$val')" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"autoFixMaxRounds": 0}}
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "2" ]; then
+  check "max_rounds: 0 out of range, fallback to 2" PASS
+else
+  check "max_rounds: 0 out of range, fallback to 2 (got '$val')" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"autoFixMaxRounds": 100}}
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "2" ]; then
+  check "max_rounds: 100 out of range, fallback to 2" PASS
+else
+  check "max_rounds: 100 out of range, fallback to 2 (got '$val')" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"autoFixMaxRounds": "five"}}
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "2" ]; then
+  check "max_rounds: non-int 'five', fallback to 2" PASS
+else
+  check "max_rounds: non-int 'five', fallback to 2 (got '$val')" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"autoFixMaxRounds": 1.5}}
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "2" ]; then
+  check "max_rounds: non-integer 1.5, fallback to 2" PASS
+else
+  check "max_rounds: non-integer 1.5, fallback to 2 (got '$val')" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{also broken
+EOF
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "2" ]; then
+  check "max_rounds: malformed JSON, fallback to 2" PASS
+else
+  check "max_rounds: malformed JSON, fallback to 2 (got '$val')" FAIL
+fi
+
+export ZENSU_CONFIG="$MISSING_CFG"
+val=$(zensu_autofix_max_rounds)
+if [ "$val" = "2" ]; then
+  check "max_rounds: missing config, fallback to 2" PASS
+else
+  check "max_rounds: missing config, fallback to 2 (got '$val')" FAIL
+fi
+
+# --- zensu_combined_summary_enabled ---
+
+rm -f "$MISSING_CFG"
+export ZENSU_CONFIG="$MISSING_CFG"
+if zensu_combined_summary_enabled; then
+  check "combined_summary: missing config returns 0 (enabled, default on)" PASS
+else
+  check "combined_summary: missing config returns 0 (enabled, default on)" FAIL
+fi
+
+export ZENSU_CONFIG="$TMP_CFG"
+cat > "$TMP_CFG" <<'EOF'
+{}
+EOF
+if zensu_combined_summary_enabled; then
+  check "combined_summary: empty {} returns 0 (enabled)" PASS
+else
+  check "combined_summary: empty {} returns 0 (enabled)" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"combinedSummary": true}}
+EOF
+if zensu_combined_summary_enabled; then
+  check "combined_summary: explicit true returns 0 (enabled)" PASS
+else
+  check "combined_summary: explicit true returns 0 (enabled)" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"combinedSummary": false}}
+EOF
+if zensu_combined_summary_enabled; then
+  check "combined_summary: explicit false returns non-zero (disabled)" FAIL
+else
+  check "combined_summary: explicit false returns non-zero (disabled)" PASS
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"combinedSummary": "yes"}}
+EOF
+if zensu_combined_summary_enabled; then
+  check "combined_summary: non-bool 'yes' returns 0 (only literal false disables)" PASS
+else
+  check "combined_summary: non-bool 'yes' returns 0 (only literal false disables)" FAIL
+fi
+
+cat > "$TMP_CFG" <<'EOF'
+{"hooks": {"combinedSummary": false}}
+EOF
+ORIG_PATH="$PATH"
+HIDE_DIR="/tmp/zensu-no-node-$$"
+mkdir -p "$HIDE_DIR"
+for sysbin in /bin /usr/bin /sbin /usr/sbin; do
+  if [ -d "$sysbin" ]; then
+    for f in "$sysbin"/*; do
+      [ "$(basename "$f")" = "node" ] && continue
+      ln -sf "$f" "$HIDE_DIR/$(basename "$f")" 2>/dev/null
+    done
+  fi
+done
+export PATH="$HIDE_DIR"
+if zensu_combined_summary_enabled; then
+  check "combined_summary: node missing on PATH returns 0 (fail-open enabled)" PASS
+else
+  check "combined_summary: node missing on PATH returns 0 (fail-open enabled)" FAIL
+fi
+if [ "$(zensu_autofix_severity)" = "critical" ]; then
+  check "severity: node missing on PATH echoes critical" PASS
+else
+  check "severity: node missing on PATH echoes critical" FAIL
+fi
+export PATH="$ORIG_PATH"
+rm -rf "$HIDE_DIR"
+
+echo "----"
+echo "test-helper-autofix-flags: $PASS PASS / $FAIL FAIL"
+[ "$FAIL" -eq 0 ]

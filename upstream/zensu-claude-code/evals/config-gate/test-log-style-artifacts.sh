@@ -1,0 +1,179 @@
+#!/bin/bash
+set -u
+
+PLUGIN_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+ROUNDS_HOOK="$PLUGIN_DIR/hooks/post-review-tdd-delegate.sh"
+LIB="$PLUGIN_DIR/hooks/lib/zensu-tdd-phase.sh"
+LOG="$PLUGIN_DIR/hooks/lib/zensu-log.sh"
+SESSION_CORE="$PLUGIN_DIR/hooks/lib/session-control-core-v1.js"
+BASELINE="$PLUGIN_DIR/tests/session-control/initialize-baseline.sh"
+EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
+CFG_NONE="$EVAL_DIR/fixtures/config-log-none.json"
+CFG_WALL="$EVAL_DIR/fixtures/config-log-wall.json"
+PROJECT_ROOT="$(mktemp -d)"
+export CLAUDE_PROJECT_DIR="$PROJECT_ROOT"
+trap 'rm -rf "$PROJECT_ROOT"' EXIT
+
+PASS=0; FAIL=0
+check() {
+  local label="$1" cond="$2"
+  if [ "$cond" = "PASS" ]; then echo "  PASS  $label"; PASS=$((PASS+1));
+  else echo "  FAIL  $label"; FAIL=$((FAIL+1)); fi
+}
+
+if ! command -v node >/dev/null 2>&1; then
+  check "node available (required for artifact timestamp eval)" FAIL
+  echo "----"
+  echo "test-log-style-artifacts: $PASS PASS / $FAIL FAIL"
+  exit 1
+fi
+
+session_key() { node "$SESSION_CORE" session-key "$1"; }
+
+# ---- Evidence run line: none suppresses the [HH:MM:SS] prefix ----------------
+WPROJ="$(mktemp -d)"
+SID="wt-none-$$"
+export CLAUDE_PROJECT_DIR="$WPROJ"
+# shellcheck disable=SC1090
+source "$BASELINE" "$SID"
+mkdir -p "$WPROJ/.zensu/logs"
+RLOG="$WPROJ/.zensu/logs/2026-01-01-0000_tdd-style.log"
+: > "$RLOG"
+(cd "$WPROJ" && env CLAUDE_PROJECT_DIR="$WPROJ" ZENSU_CONFIG="$CFG_NONE" \
+  bash "$LOG" --evidence-run --scope lint --cmd 'true' --log "$RLOG" >/dev/null 2>&1)
+WLINE="$(head -n1 "$RLOG" 2>/dev/null)"
+case "$WLINE" in
+  "EVIDENCE RUN — scope=lint exit=0 "*) check "evidence run none: line has NO timestamp prefix (starts 'EVIDENCE RUN')" PASS ;;
+  *)                                    check "evidence run none: no timestamp prefix (got '$WLINE')" FAIL ;;
+esac
+if printf '%s' "$WLINE" | grep -qF '| cmd: true'; then
+  check "evidence run none: the command is still recorded" PASS
+else
+  check "evidence run none: the command is still recorded (got '$WLINE')" FAIL
+fi
+rm -rf "$WPROJ"
+
+# ---- Evidence run line: wall keeps the [HH:MM:SS] prefix ---------------------
+WPROJ2="$(mktemp -d)"
+SID2="wt-wall-$$"
+export CLAUDE_PROJECT_DIR="$WPROJ2"
+# shellcheck disable=SC1090
+source "$BASELINE" "$SID2"
+mkdir -p "$WPROJ2/.zensu/logs"
+RLOG2="$WPROJ2/.zensu/logs/2026-01-01-0000_tdd-style.log"
+: > "$RLOG2"
+(cd "$WPROJ2" && env CLAUDE_PROJECT_DIR="$WPROJ2" ZENSU_CONFIG="$CFG_WALL" \
+  bash "$LOG" --evidence-run --scope lint --cmd 'true' --log "$RLOG2" >/dev/null 2>&1)
+WLINE2="$(head -n1 "$RLOG2" 2>/dev/null)"
+if printf '%s' "$WLINE2" | grep -qE '^\[[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\] EVIDENCE RUN — scope=lint exit=0 '; then
+  check "evidence run wall: line keeps [HH:MM:SS] prefix" PASS
+else
+  check "evidence run wall: keeps [HH:MM:SS] prefix (got '$WLINE2')" FAIL
+fi
+rm -rf "$WPROJ2"
+
+# ---- Phase state JSON: none omits history[].ts, keeps step+phase -------------
+PSTATE="$(mktemp -d)"
+export CLAUDE_PROJECT_DIR="$PSTATE/project"
+mkdir -p "$CLAUDE_PROJECT_DIR"
+source "$LIB"
+
+export ZENSU_CONFIG="$CFG_NONE"
+PSID_N="ph-none-$$"
+# shellcheck disable=SC1090
+source "$BASELINE" "$PSID_N"
+tdd_write_phase "$PSID_N" "S1" "RED_WRITE" "" >/dev/null 2>&1
+PF_N="$(tdd_state_file "$PSID_N")"
+HAS_TS_N=$(node -e '
+  const h=(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).history||[])[0]||{};
+  process.stdout.write(("ts" in h)?"yes":"no");
+' "$PF_N" 2>/dev/null)
+[ "$HAS_TS_N" = "no" ] && check "phase none: history entry omits ts" PASS \
+  || check "phase none: history entry omits ts (got '$HAS_TS_N')" FAIL
+STEP_N=$(node -e '
+  const h=(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).history||[])[0]||{};
+  process.stdout.write((h.step==="S1"&&h.phase==="RED_WRITE")?"ok":"no");
+' "$PF_N" 2>/dev/null)
+[ "$STEP_N" = "ok" ] && check "phase none: step+phase still recorded" PASS \
+  || check "phase none: step+phase still recorded (got '$STEP_N')" FAIL
+
+export ZENSU_CONFIG="$CFG_WALL"
+PSID_W="ph-wall-$$"
+# shellcheck disable=SC1090
+source "$BASELINE" "$PSID_W"
+tdd_write_phase "$PSID_W" "S1" "RED_WRITE" "" >/dev/null 2>&1
+PF_W="$(tdd_state_file "$PSID_W")"
+TS_W=$(node -e '
+  const h=(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).history||[])[0]||{};
+  process.stdout.write((typeof h.ts==="string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(h.ts))?"ok":"no");
+' "$PF_W" 2>/dev/null)
+[ "$TS_W" = "ok" ] && check "phase wall: history entry keeps ISO-UTC ts" PASS \
+  || check "phase wall: history entry keeps ISO-UTC ts (got '$TS_W')" FAIL
+
+unset ZENSU_CONFIG CLAUDE_PROJECT_DIR
+rm -rf "$PSTATE"
+
+# ---- Integrated review counter: log style cannot weaken CAS timestamps ------
+RSTATE="$(mktemp -d)"
+SIDR="rd-none-$$"
+mkdir -p "$RSTATE/project"
+export CLAUDE_PROJECT_DIR="$RSTATE/project"
+# shellcheck disable=SC1090
+source "$BASELINE" "$SIDR"
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$RSTATE/project" ZENSU_CONFIG="$CFG_NONE" \
+  bash "$LOG" --tdd-begin --session "$SIDR" >/dev/null 2>&1
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$RSTATE/project" ZENSU_CONFIG="$CFG_NONE" \
+  bash "$LOG" --tdd-complete --session "$SIDR" >/dev/null 2>&1
+TICKETR="$(env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$RSTATE/project" ZENSU_CONFIG="$CFG_NONE" \
+  bash "$LOG" --review-ticket --session "$SIDR")"
+STDINR="{\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"Agent\",\"tool_input\":{\"subagent_type\":\"zensu:code-reviewer\",\"prompt\":\"PRE-MERGED FINDINGS (fan-out)\\nREVIEW-TICKET: ${TICKETR}\\nfixture\"},\"session_id\":\"${SIDR}\"}"
+printf '%s' "$STDINR" | env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$RSTATE/project" ZENSU_CONFIG="$CFG_NONE" \
+  bash "$ROUNDS_HOOK" >/dev/null 2>&1
+R_N=$(CORE="$SESSION_CORE" PROJECT_ROOT="$RSTATE/project" SID="$SIDR" node -e '
+  const core=require(process.env.CORE);
+  const j=core.readWorkflowState({projectRoot:process.env.PROJECT_ROOT,sessionId:process.env.SID});
+  const iso=typeof j.updated_at==="string" && !Number.isNaN(Date.parse(j.updated_at));
+  process.stdout.write((j.reviewRound===1?"r1":"rX")+"|"+(iso?"iso":"nots"));
+' 2>/dev/null)
+[ "$R_N" = "r1|iso" ] && check "review counter none: reviewRound=1 with integrity timestamp" PASS \
+  || check "review counter none: reviewRound=1 with integrity timestamp (got '$R_N')" FAIL
+if compgen -G "$RSTATE/project/.zensu/state/rounds-*.json" >/dev/null; then
+  check "review counter none: no standalone rounds sidecar" FAIL
+else
+  check "review counter none: no standalone rounds sidecar" PASS
+fi
+rm -rf "$RSTATE"
+
+RSTATE2="$(mktemp -d)"
+SIDR2="rd-wall-$$"
+mkdir -p "$RSTATE2/project"
+export CLAUDE_PROJECT_DIR="$RSTATE2/project"
+# shellcheck disable=SC1090
+source "$BASELINE" "$SIDR2"
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$RSTATE2/project" ZENSU_CONFIG="$CFG_WALL" \
+  bash "$LOG" --tdd-begin --session "$SIDR2" >/dev/null 2>&1
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$RSTATE2/project" ZENSU_CONFIG="$CFG_WALL" \
+  bash "$LOG" --tdd-complete --session "$SIDR2" >/dev/null 2>&1
+TICKETR2="$(env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$RSTATE2/project" ZENSU_CONFIG="$CFG_WALL" \
+  bash "$LOG" --review-ticket --session "$SIDR2")"
+STDINR2="{\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"Agent\",\"tool_input\":{\"subagent_type\":\"zensu:code-reviewer\",\"prompt\":\"PRE-MERGED FINDINGS (fan-out)\\nREVIEW-TICKET: ${TICKETR2}\\nfixture\"},\"session_id\":\"${SIDR2}\"}"
+printf '%s' "$STDINR2" | env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$RSTATE2/project" ZENSU_CONFIG="$CFG_WALL" \
+  bash "$ROUNDS_HOOK" >/dev/null 2>&1
+R_W=$(CORE="$SESSION_CORE" PROJECT_ROOT="$RSTATE2/project" SID="$SIDR2" node -e '
+  const core=require(process.env.CORE);
+  const j=core.readWorkflowState({projectRoot:process.env.PROJECT_ROOT,sessionId:process.env.SID});
+  const iso=typeof j.updated_at==="string" && !Number.isNaN(Date.parse(j.updated_at));
+  process.stdout.write((j.reviewRound===1?"r1":"rX")+"|"+(iso?"iso":"nots"));
+' 2>/dev/null)
+[ "$R_W" = "r1|iso" ] && check "review counter wall: reviewRound=1 with integrity timestamp" PASS \
+  || check "review counter wall: reviewRound=1 with integrity timestamp (got '$R_W')" FAIL
+if compgen -G "$RSTATE2/project/.zensu/state/rounds-*.json" >/dev/null; then
+  check "review counter wall: no standalone rounds sidecar" FAIL
+else
+  check "review counter wall: no standalone rounds sidecar" PASS
+fi
+rm -rf "$RSTATE2"
+
+echo "----"
+echo "test-log-style-artifacts: $PASS PASS / $FAIL FAIL"
+[ "$FAIL" -eq 0 ]

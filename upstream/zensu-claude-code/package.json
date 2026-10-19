@@ -1,0 +1,50 @@
+{
+  "name": "zensu-claude-code-evals",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "session-control:selfcheck": "bash evals/session-control/run-self-check.sh",
+    "session-control:contract": "bash evals/session-control/run-eval.sh contract",
+    "session-control:upgrade": "bash evals/session-control/run-eval.sh upgrade",
+    "session-control:live": "bash evals/session-control/run-eval.sh live",
+    "session-control:concurrency": "bash evals/session-control/run-eval.sh concurrency",
+    "session-control:adversarial": "bash evals/session-control/run-eval.sh adversarial",
+    "session-control:release": "bash evals/session-control/run-eval.sh release",
+    "reset-review-limit:eval": "bash evals/reset-review-limit/run-eval.sh",
+    "session-trail:coverage": "c8 --reporter=text --reporter=text-summary --include=\"skills/session-trail/scripts/*.mjs\" --all bash tests/structure/run-session-trail-coverage.sh"
+  },
+  "devDependencies": {
+    "c8": "12.0.0",
+    "jks-js": "file:evals/stubs/jks-js",
+    "promptfoo": "0.121.20",
+    "yaml": "2.9.0"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@hono/node-server": "^2.0.5",
+    "adm-zip": "^0.6.1",
+    "fast-uri": "^3.1.7",
+    "fast-xml-parser": "^5.10.1",
+    "hono": "^4.13.5",
+    "ip-address": "^10.7.1",
+    "@apidevtools/json-schema-ref-parser": {
+      "js-yaml": "^4.3.2"
+    },
+    "sharp": "^0.35.5",
+    "undici": "^7.29.1",
+    "@huggingface/transformers": "^4.3.0",
+    "axios": "^1.20.0",
+    "brace-expansion@2": "^2.1.7",
+    "brace-expansion@5": "^5.0.12",
+    "compression": "^1.8.2",
+    "engine.io": "^6.6.10",
+    "jks-js": "$jks-js",
+    "js-yaml@5": "^5.4.2",
+    "proxy-addr": "^2.0.8",
+    "simple-git": "^4.0.2",
+    "basic-ftp": "^6.2.1",
+    "nunjucks": {
+      "chokidar": "^4.0.3"
+    }
+  }
+}

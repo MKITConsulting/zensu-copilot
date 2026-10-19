@@ -1,0 +1,5897 @@
+#!/usr/bin/env node
+// zensu-doctor-report.js — read-only diagnostics renderer for /zensu:doctor.
+// Reads the plugin's own manifest/hooks, the effective config files, and the
+// session state dir, then prints a four-block status table using ✅/⚠️/❌
+// glyphs. NEVER writes, NEVER throws out (every failure degrades to a ⚠️ row),
+// ALWAYS exits 0 — the skill decides what to do about warnings.
+//
+// Tool facts (zensu CLI, node, the code-forge CLI, Playwright) and the pending-
+// review TTL are resolved by the bash wrapper (command -v + the VCS-driver forge
+// detection are shell concerns; the TTL comes from the canonical
+// zensu_pending_review_ttl_hours getter so the doctor and the real Stop enforcer
+// agree) and handed in via ZDOC_* env, so this file stays a pure file/JSON
+// reader that a structure test can drive with fixtures.
+//
+// Inputs (all overridable so the structure test can point at a sandbox):
+//   ZENSU_DOCTOR_PLUGIN_DIR  plugin root holding .claude-plugin/ + hooks/
+//   ZENSU_CONFIG             full-override config file (else HOME + project)
+//   HOME, CLAUDE_PROJECT_DIR config-resolution roots. Session state is NOT among
+//                            them: that block anchors on ZDOC_SESSION_PROJECT_ROOT
+//                            under a bound verdict and falls back to
+//                            CLAUDE_PROJECT_DIR only without one — see
+//                            stateProjectRoot. The Config block stays
+//                            harness-anchored, so a session whose two roots differ
+//                            reads its config overlay from one and its workflow
+//                            documents from the other; the wrapper re-resolves
+//                            ZDOC_TTL_HOURS, ZDOC_OWNER_ACTIVITY_TTL_HOURS and
+//                            ZDOC_RELEASE_OWNER_ACTIVITY_TTL_HOURS from
+//                            the record root, while ZDOC_IMPL_STOP_NUDGE_AFTER stays
+//                            harness-anchored by decision. HOME is
+//                            also the ONLY root the reviewer-spawn permission
+//                            check reads (HOME/.claude/settings.json) — see
+//                            permissionExposureRows below for why no second
+//                            settings file is opened or named.
+//   ZDOC_NODE/ZENSU/PLAYWRIGHT            tool probe results from the wrapper/skill
+//   ZDOC_PLAYWRIGHT_VERSION, ZDOC_VERIFY/ZDOC_VERIFY_REASON  version and verify state,
+//                            re-derived unless ZDOC_PLAYWRIGHT / ZDOC_VERIFY is injected
+//   ZDOC_FORGE_PROVIDER/CLI/STATE/EDITION forge detection from the VCS driver
+//   ZDOC_TTL_HOURS           pending-review TTL from the canonical getter
+//   ZDOC_IMPL_STOP_NUDGE_AFTER  implementing-turns bound from the
+//                            canonical getter; blank falls back, 0 disables the row
+//   ZDOC_OWNER_ACTIVITY_TTL_HOURS  adoption's owner-liveness window from the
+//                            canonical getter, quoted by the `autopilot:` row; blank
+//                            falls back, 0 renders a switched-off disclosure
+//   ZDOC_RELEASE_OWNER_ACTIVITY_TTL_HOURS  the release's own owner-liveness window,
+//                            under the same rules
+//   ZDOC_DELIVERY_ROUTE      this session's resolved delivery route from the wrapper:
+//                            one of the five zensu_delivery_route_field spellings
+//                            (`tdd (session marker)`, `direct (session marker)`,
+//                            `tdd (hooks.defaultDeliveryRoute)`,
+//                            `direct (hooks.defaultDeliveryRoute)`, `ask`), or
+//                            `unknown` (no session key or project root reached the
+//                            probe: the session is unbound, or bound with the pair
+//                            withheld by the shape check) / `unjudged` (the shared
+//                            library is missing or answered outside its vocabulary,
+//                            or the recorded root could not be entered); blank
+//                            withholds the row
+//   ZDOC_NOW_MS              clock override for deterministic tests
+//   ZDOC_BINDING             the wrapper's binding verdict (bound / unbound /
+//                            orphaned-project-root / incompatible-runtime /
+//                            orphaned-project-root+incompatible-runtime /
+//                            pruned-plugin-root / unavailable / unknown). Keep this
+//                            enumeration complete: a verdict the wrapper emits and
+//                            bindingLine's switch does not know falls to its
+//                            `default`, and a port implementing only what is listed
+//                            here would render no binding row at all in that state.
+//                            The COMBINED verdict is a real value the wrapper sets,
+//                            not a description of two: it is the state where the
+//                            lineage broke AND the recorded project root is gone,
+//                            and bindingLine switches on it for its own three-slot
+//                            row. It was missing from this roster while that row was
+//                            being rewritten. Read by bindingLine for its own row AND
+//                            by currentSessionKey, which refuses a session key that
+//                            arrives under any other verdict.
+//   ZDOC_BINDING_PROJECT_ROOT        the recorded project root, non-empty under
+//                            orphaned-project-root and under the combined verdict.
+//                            Folded before rendering — it is a directory name the
+//                            session's own starter chose.
+//   ZDOC_BINDING_RECORDED_VERSION    the version that minted the record, and
+//   ZDOC_BINDING_EXECUTING_VERSION   the version now executing; both non-empty
+//                            under incompatible-runtime, under pruned-plugin-root
+//                            and under the combined verdict, all folded, all
+//                            shape-screened upstream.
+//   ZDOC_BINDING_ROOT_UNKNOWN        set when the orphan probe could not answer,
+//                            which is what makes the plain lineage row state its
+//                            Edit/Write clause CONDITIONALLY instead of asserting
+//                            a workflow document it has not established.
+//   ZDOC_SESSION_KEY         this session's own Session Control key, non-empty
+//                            only when the wrapper's binding verdict is bound.
+//                            The ONLY thing that tells a chain this session owns
+//                            from one it does not; empty, malformed, or present
+//                            under a non-bound ZDOC_BINDING means chainRows
+//                            declines that row rather than reading every chain
+//                            as foreign.
+//   ZDOC_SESSION_PROJECT_ROOT the RECORD's own project anchor, from the same
+//                            bind as ZDOC_SESSION_KEY, and the root the WHOLE
+//                            Session state block reads when it is present under a
+//                            bound verdict — every writer anchors there, so the
+//                            harness value is the fallback and not the authority.
+//
+//   PORT NOTE — the foreign-chain row is FOUR halves and a port that takes three
+//   gets a row that silently never renders: the wrapper must export both values
+//   above out of its own bind AND clear both unconditionally rather than
+//   :=-seeding them like every other ZDOC_*, the renderer must anchor the state block on the
+//   recorded root and keep the predicate, the chain-shape OWNER must export
+//   INERT_SHAPES, and the operator docs must carry the diagnose-only limit. Its premise is host-coupled: it presumes a
+//   host that can mint a NEW session id mid-conversation while carrying the
+//   history over. A host that cannot do that has nothing to diagnose here.
+
+'use strict';
+var fs = require('fs');
+var path = require('path');
+
+var OK = '✅';
+var WARN = '⚠️';
+var BAD = '❌';
+
+// Mirror of hooks/lib/zensu-config.sh zensu_pending_review_ttl_hours: the wrapper
+// passes the canonical value via ZDOC_TTL_HOURS; these apply only to a direct
+// (test/no-wrapper) invocation and must stay in lockstep with that getter.
+// PINNED by C57 in tests/structure/test-impl-stop-counter.sh, which derives both sides —
+// these two constants against the getter's own operands, through `getter_operand`. The pair
+// declared itself a mirror in prose and was pinned by nothing until the three duplicated
+// getters collapsed onto one call shape that a single extractor could read.
+var TTL_HOURS_FALLBACK = 6;
+var TTL_HOURS_MAX = 8760;
+// Mirror of hooks/lib/zensu-config.sh zensu_autopilot_owner_activity_ttl_hours
+// (default 1, bounds 0..8760), the window `--autopilot-adopt` judges owner liveness
+// against. It is a SECOND window and not the one above: the `autopilot:` row quoted
+// the pending-review value for one release while the verbs had already moved, which
+// promised protection the destructive verb no longer gave. PINNED by C57b in
+// tests/structure/test-impl-stop-counter.sh, the same derivation C57 applies to the
+// pair above.
+var OWNER_ACTIVITY_TTL_FALLBACK = 1;
+var OWNER_ACTIVITY_TTL_MAX = 8760;
+// Mirror of hooks/lib/zensu-config.sh zensu_autopilot_release_owner_activity_ttl_hours
+// (default 6, bounds 0..8760), the release's OWN window. The two verbs read separate
+// keys, so the row quotes each verb's number and never one for both. PINNED by C57e.
+var RELEASE_OWNER_ACTIVITY_TTL_FALLBACK = 6;
+var RELEASE_OWNER_ACTIVITY_TTL_MAX = 8760;
+// Mirror of hooks/lib/zensu-config.sh zensu_impl_stop_nudge_after (default 12,
+// bounds 0..999999): the wrapper passes the canonical value via
+// ZDOC_IMPL_STOP_NUDGE_AFTER; these apply only to a direct (test/no-wrapper)
+// invocation and must stay in lockstep with that getter.
+var IMPL_STOP_NUDGE_FALLBACK = 12;
+// STRICTLY BELOW the counter's own storage ceiling. `_tdd_increment_counter_critical`
+// refuses `current >= 1000000` before incrementing, so a configured threshold of
+// exactly 1000000 could be reached once and never again — the notice firing a single
+// time while this row kept rendering off the frozen value.
+// PINNED, and by three checks with three different jobs: C14a and C31a compare the
+// DEFAULT pair (`IMPL_STOP_NUDGE_FALLBACK` against the getter's `12`), and C31 compares
+// the MAX pair. Each derives its side from source rather than restating a number, so
+// neither literal can be edited alone. `C31` names one comparison throughout this block.
+//
+// WHAT it derives them from moved, and the old spelling is named here because a
+// comment that sends a maintainer after bytes the code no longer carries is its own
+// defect. The three duplicated getters collapsed onto `_zensu_config_bounded_int`, so
+// `zensu_impl_stop_nudge_after` has no function body of its own any more — the bound
+// comparison lives in the shared helper as `n<=Number(process.argv[4])` and the value
+// travels as an operand of the one-line
+// `_zensu_config_bounded_int implStopNudgeAfter 12 0 999999` call.
+//
+// C31 and C31a read that call through the single `getter_operand` extraction, and they read
+// DIFFERENT operands: C31 takes the captured max (`999999`), C31a the captured default
+// (`12`). C14a compares the same default by RUNNING the getter in a subshell rather than
+// extracting an operand, which is why it is a separate check and not a third extraction.
+// Naming one operand for all of them was wrong in the first revision of this sentence, and
+// naming C29 among them was wrong in the second — C29 is a behavioural fallback check.
+// The extraction is anchored on the getter's own definition line, so an unrelated bound
+// elsewhere in that file cannot satisfy it.
+var IMPL_STOP_NUDGE_MAX = 999999;
+var CHAIN_ROW_LIMIT = 8;
+var NOTE_MAX_BYTES = 4096;
+var RECEIPT_SCHEMAS = ['edit-landing-v1', 'edit-landing-v2'];
+var CLAIM_INVENTORY_TIMEOUT_MS = 5000;
+var SETTINGS_MAX_BYTES = 1048576;
+// The forgeability clause, hand-copied from `zensu-autopilot-state.sh`, which owns it as
+// `forgeableSource` and states it in three renderers of its own. Module scope because the
+// two consumers here sit in different functions — the owner-silence clause and the adopt
+// remedy — and spelling it twice is how one of them goes stale. `P1nky` holds the two
+// files against each other; before it, a reword on either side left the other behind, on
+// the one clause whose whole job is to stop a planted document reading as measured fact.
+var AUTOPILOT_FORGEABLE_SOURCE = 'read from the run document, which is an ordinary file any session in this project can write';
+// A hand-copy of REVIEWER_SUBAGENT_TYPE in hooks/lib/reviewer-spawn-denial-v1.js,
+// which exports it. Deliberate, not an oversight: that module is required lazily
+// inside reviewerDenialRows and a load failure there degrades one row, while a
+// top-level require would take the whole report down with it.
+//
+// Do NOT read the sentence above as a census of the tree. An earlier version named
+// stop-chain-enforcer.sh's DENIAL_RULE as "a third copy" and CLAUDE.md turned that
+// into "the three copies — check them by hand", which made the by-hand instruction
+// unfollowable: the literal really lives in EIGHT files under hooks/ (27 occurrences,
+// measured 2026-08-23 — the grep instruction below is one of them, so the occurrence
+// number moves when this comment is edited while the FILE count does not; that is the
+// second reason to trust the grep over any number written here), and two of them are
+// functional comparisons a rename breaks
+// silently — post-review-tdd-delegate.sh's SUBAGENT_TYPE test and
+// claude-principal-v1.js's list entry. An enumeration in a comment goes stale the next
+// time one is added, so the instruction is a GREP, not a list: before renaming this
+// identity, `grep -rn 'zensu:code-reviewer' hooks/` and change every site.
+// One pair IS machine-checked — P1by pins THIS constant against the exporting one, so
+// the two spellings cannot drift apart unnoticed. The other six files are not pinned.
+var REVIEWER_AGENT = 'zensu:code-reviewer';
+
+function playwrightVersionModule() {
+  try {
+    var info = fs.lstatSync(path.join(__dirname, 'playwright-cli-version-v1.js'));
+    if (!info.isFile()) return null;
+    return require('./playwright-cli-version-v1.js');
+  } catch (_error) {
+    return null;
+  }
+}
+function safePlaywrightVersion(value) {
+  var mod = playwrightVersionModule();
+  var text = String(value);
+  return mod && mod.validVersion(text) ? text : '';
+}
+function safePlaywrightOwner(value) {
+  var mod = playwrightVersionModule();
+  var text = String(value);
+  return mod && mod.validName(text) ? text : '';
+}
+function playwrightCliMeasuredVersion() {
+  try {
+    var info = fs.lstatSync(path.join(__dirname, 'verify-consent-v1.js'));
+    if (!info.isFile()) return '';
+    return safePlaywrightVersion(require('./verify-consent-v1.js').PLAYWRIGHT_CLI_SOURCE_VERSION || '');
+  } catch (_error) {
+    return '';
+  }
+}
+function playwrightPinnedInstall(measured) {
+  return '`npm install -g @playwright/cli' + (measured ? '@' + measured : '') + '`';
+}
+// The wrapper's REASON reaches a rendered line, and it carries a free-form cause rather than
+// a state word, so it gets its own bound instead of the state filter above: a newline plus one of
+// this report's own severity glyphs forges an extra row, which is the one thing a reader of the
+// report cannot check. Everything else a cause names is kept.
+function safeVerifyReason(value) {
+  return String(value).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ').replace(/[\u2705\u26a0\ufe0f\u274c]/g, '').slice(0, 200);
+}
+// The Claude Code build (2.1.235) whose settings shape and permission-rule
+// grammar the check below was read against. Recorded for the same reason
+// DENIAL_MARKERS_SOURCE_BUILD is: only a named build lets a human re-verify
+// instead of assume. The parenthesised form above is the ONE spelling of the
+// version in this comment — the structure suite extracts the constant below and
+// requires exactly it, and a second prose copy would sit outside that
+// line-oriented check and could go stale unnoticed.
+//
+// Every item below is host-coupled, and a port (zensu-codex, zensu-kiro,
+// zensu-antigravity) must re-decide each against its own harness:
+//   * `permissions.{defaultMode,allow,deny,ask}` and the `auto` value
+//   * `autoMode.allow`
+//   * the `Agent(<name>)` rule spelling AND the bare tool name `Agent` as a
+//     wildcard grant. The bare form matters more than it looks: on the allow
+//     list a match SUPPRESSES the exposure row, so a host that does not treat
+//     it as a grant inherits a silently-suppressing check.
+//   * the `Task` and `Task(` rule spellings, admitted by the LOW-CLAIM predicate only
+//     and NOT verified against this build. They are listed here because a port must
+//     re-decide them like every other spelling: this tree's own
+//     reviewer-spawn-denial-v1.js treats `Task` as a name the spawn travels under in a
+//     TRANSCRIPT, which is not the same thing as a permission-rule spelling. A host
+//     where `Task` is not a rule form should drop the arm rather than keep a row it
+//     cannot support.
+//   * whether the host trims whitespace in a rule string. Unverified here, so
+//     deny/ask trim (over-matching is safe) and allow does not — a port that
+//     learns the real answer can collapse the asymmetry.
+//   * the HOME/.claude/settings.json layout
+//   * `RULE_LADDER` below, which IS that order. `FATAL_RULE_KEYS` is computed from
+//     it — exactly the keys evaluated before `allow` — so a port reorders that one
+//     array and the fatal/deferred split follows instead of drifting from it.
+//   * the deny -> ask -> allow evaluation order, first match wins. This one is
+//     listed separately because its failure mode is the opposite of the others':
+//     a rename makes the check fall silent, which is merely useless, while a
+//     REORDER leaves every row still rendering and turns the deny row's
+//     "adding a permissions.allow rule changes nothing" into a false statement.
+var SETTINGS_SOURCE_BUILD = '2.1.235';
+
+var env = process.env;
+var out = [];
+var warnCount = 0;
+var badCount = 0;
+
+function line(glyph, text) {
+  if (glyph === WARN) warnCount++;
+  else if (glyph === BAD) badCount++;
+  out.push('  ' + glyph + '  ' + text);
+}
+function block(title) {
+  out.push('');
+  out.push(title);
+}
+// Same closed failure vocabulary as readSettingsJson, and for the same reason: V8 quotes
+// a ten-character window from the start of the input in its parse message — measured on
+// node v23.11.0, `Unexpected token 's', "sk-CFGDECO"... is not valid JSON` — so passing
+// the raw text through put the opening bytes of the file into a report the doctor skill
+// tells the model to print verbatim.
+//
+// This reader used to be exempt, on the argument that it reads a different file class
+// whose path the row already prints. That argument does not hold: printing the PATH and
+// printing a slice of the CONTENT are different disclosures, and only the second is the
+// hazard. It also assumed the file class was fixed, which it is not — configFiles()
+// honours ZENSU_CONFIG as an unconstrained path override, so this reader can be aimed at
+// any file, including the settings file the sibling reader exists to protect. One reader
+// in a block with a closed vocabulary and one without is not a policy.
+//
+// The path stays in the row: it is a fact about the filesystem, not about the contents.
+var CONFIG_MAX_BYTES = 1024 * 1024;
+function readJson(p) {
+  var text;
+  var fd;
+  try {
+    // NON-BLOCKING plus a regular-file test, and deliberately NOTHING else from the settings
+    // reader. ZENSU_CONFIG can aim this reader at any path, so a FIFO blocked
+    // fs.readFileSync forever and the module header's "ALWAYS exits 0" contract was false
+    // with no output saying so — measured, not assumed: the unhardened reader hung past a
+    // 30 s bound and had to be killed. O_NONBLOCK plus isFile() closes exactly that.
+    //
+    // O_NOFOLLOW is deliberately ABSENT, and copying it here was a real regression: a
+    // dotfile manager links a config routinely, the canonical reader (rd() in
+    // hooks/lib/zensu-config.sh) uses readFileSync and follows the link, and the sibling
+    // settings reader declines the flag for the same reason with P1ba pinning it. With the
+    // flag, a file every hook reads fine rendered a ❌ claiming it was ignored.
+    // `|| 0` is banned on BOTH flags — it hides an unavailable constant on a Windows build
+    // instead of failing visibly. The win32 conjunct belongs ONLY to readNoteJson's
+    // O_NOFOLLOW, and the portability inventory caps that spelling at one occurrence
+    // file-wide, so do not add it here.
+    var nonBlock = Number.isInteger(fs.constants.O_NONBLOCK) ? fs.constants.O_NONBLOCK : 0;
+    fd = fs.openSync(p, fs.constants.O_RDONLY | nonBlock);
+    var st = fs.fstatSync(fd);
+    // No `loaderFallback`, and the class is deliberately COARSE: one !isFile() covers a FIFO,
+    // a directory and a socket alike. Only the FIFO's loader consequence is established — rd()'s
+    // blocking readFileSync would HANG rather than fall back — while a directory or socket would
+    // probably make it throw and return {}. Withholding the flag for all three costs precision,
+    // never correctness: the check-limited wording is weaker than the loader verdict, so the
+    // conflation can only under-claim. Split the class if the sub-cases are ever verified.
+    if (!st.isFile()) return { ok: false, missing: false, io: true, err: 'not a regular file' };
+    if (st.size > CONFIG_MAX_BYTES) {
+      // `cap` is a FLAG for the same reason `io` is: the render site must not sniff this
+      // message, or rewording it silently moves the row back into the branch that asserts a
+      // loader verdict this class cannot support.
+      return { ok: false, missing: false, io: true, cap: true,
+        err: 'larger than ' + CONFIG_MAX_BYTES + ' bytes' };
+    }
+    var buf = Buffer.alloc(st.size);
+    var read = 0;
+    while (read < st.size) {
+      var n = fs.readSync(fd, buf, read, st.size - read, read);
+      if (n <= 0) break;
+      read += n;
+    }
+    if (read !== st.size) {
+      return { ok: false, missing: false, io: true, err: 'incomplete (short read)' };
+    }
+    // No BOM strip and no empty-file acceptance here, unlike the settings reader. Those two
+    // are LENIENCY, not hardening, and this reader models a consumer that has neither: rd()
+    // hands the raw string — BOM included — straight to JSON.parse and returns {} on throw.
+    // Tolerating them would print a green row for a config every hook discards, which is the
+    // divergence rule of this file applied backwards: fail toward "no rules found" UNLESS
+    // the host would reject the file too. Here it does.
+    text = buf.toString('utf8', 0, read);
+  } catch (e) {
+    if (e && e.code === 'ENOENT') return { ok: false, missing: true };
+    // `io` is what the RENDER sites need and the message alone cannot give them. Widening
+    // the vocabulary to include an I/O cause without widening the callers left every one
+    // of them printing "invalid JSON — unreadable (EACCES)": a content verdict on a file
+    // that was never read. The flag, not the string, is the discriminator — a caller that
+    // sniffed the prefix would re-open the same defect the moment a wording changed.
+    // `loaderFallback` is the THIRD discriminator, and a flag for the same reason as the
+    // other two. It says what the CONSUMER does, which is the only thing that licenses the
+    // "(the whole file is ignored, defaults apply)" clause: an open or read error makes
+    // rd()'s readFileSync throw and return {}, so the clause is true here. A FIFO and a
+    // short read do not fall back that way and carry no flag, so they get the
+    // check-limited wording instead.
+    return { ok: false, missing: false, io: true, loaderFallback: true,
+      err: 'unreadable (' + ((e && e.code) ? e.code : 'unknown') + ')' };
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch (e) { /* already closed */ } }
+  }
+  try {
+    return { ok: true, data: JSON.parse(text) };
+  } catch (e) {
+    return { ok: false, missing: false, io: false, loaderFallback: true, err: 'unparseable JSON' };
+  }
+}
+// THREE of the four render sites consume this: plugin.json, marketplace.json and
+// hooks.json, which differ only in their subject. The config site does NOT — it embeds the
+// path inside its lead-in, so it cannot take this signature without changing bytes that
+// P1bt1/P1bt4 pin, and it re-spells the `io` test instead. That is a hand-copy, named here
+// rather than hidden: change the decision below and the config site must move with it.
+// An I/O failure names the operation that failed, a parse failure names the content.
+function jsonFailure(r) {
+  // The io:false vocabulary is a single value, so appending it after a lead-in that already
+  // says the same thing produced "invalid JSON — unparseable JSON" at three sites. The lead-in
+  // carries the meaning; the value adds nothing and is dropped for that class.
+  return (r && r.io) ? r.err : 'invalid JSON';
+}
+function pluginDir() {
+  if (env.ZENSU_DOCTOR_PLUGIN_DIR) return env.ZENSU_DOCTOR_PLUGIN_DIR;
+  return path.resolve(__dirname, '..', '..');
+}
+function configFiles() {
+  if (env.ZENSU_CONFIG) return [env.ZENSU_CONFIG];
+  var files = [];
+  if (env.HOME) files.push(path.join(env.HOME, '.zensu', 'config.json'));
+  if (env.CLAUDE_PROJECT_DIR) files.push(path.join(env.CLAUDE_PROJECT_DIR, '.zensu', 'config.json'));
+  return files;
+}
+
+function toolBlock() {
+  block('CLI & tooling');
+  var z = env.ZDOC_ZENSU || 'absent';
+  if (z === 'authed') line(OK, 'zensu CLI: installed and authenticated');
+  else if (z === 'present') line(WARN, 'zensu CLI: installed but not authenticated — run `zensu auth login`');
+  else line(WARN, 'zensu CLI: not found on PATH — feature tracking commands will be unavailable');
+
+  var n = env.ZDOC_NODE || '';
+  if (n) line(OK, 'node: ' + n);
+  else line(BAD, 'node: not found on PATH — the plugin hooks require node');
+
+  // Forge CLI (code host): the bash wrapper detects the repo's provider through
+  // the VCS driver and hands us ZDOC_FORGE_* — so we name the RIGHT CLI (gh for
+  // GitHub, glab for GitLab) and its auth state, instead of hard-probing gh and
+  // falsely telling a GitLab checkout that "gh is missing".
+  var fp = env.ZDOC_FORGE_PROVIDER || 'unknown';
+  var fc = env.ZDOC_FORGE_CLI || '';
+  var fst = env.ZDOC_FORGE_STATE || 'missing';
+  var fed = env.ZDOC_FORGE_EDITION || '';
+  var pname = fp === 'github' ? 'GitHub' : (fp === 'gitlab' ? 'GitLab' : '');
+  var plabel = pname + (fed && fed !== 'cloud' ? ' (' + fed + ')' : '');
+  if (fp === 'unknown' || !fc || !pname) {
+    line(WARN, 'forge CLI: no GitHub/GitLab remote detected — needs a repo with a GitHub (gh) or GitLab (glab) remote (or ZENSU_VCS_PROVIDER set for a self-hosted host)');
+  } else if (fst === 'ready') {
+    line(OK, plabel + ' CLI (' + fc + '): installed and authenticated');
+  } else if (fst === 'unauthed') {
+    line(WARN, plabel + ' CLI (' + fc + '): installed but not authenticated — run `' + fc + ' auth login` (needed to open/review PRs)');
+  } else {
+    line(WARN, plabel + ' CLI (' + fc + '): not found on PATH — PR create/review for ' + pname + ' will be unavailable');
+  }
+
+  var p = env.ZDOC_PLAYWRIGHT || 'absent';
+  var pv = safePlaywrightVersion(env.ZDOC_PLAYWRIGHT_VERSION || '');
+  var ps = env.ZDOC_PLAYWRIGHT_SOURCE || '';
+  var po = safePlaywrightOwner(env.ZDOC_PLAYWRIGHT_OWNER || '');
+  var measured = playwrightCliMeasuredVersion();
+  var pin = playwrightPinnedInstall(measured);
+  if (p !== 'present') line(WARN, 'playwright-cli: not found on PATH — /zensu:verify-feature cannot drive the UI and autopilot browser validation may skip; install the version the browser consent gate was measured against with ' + pin + '; `brew install playwright-cli` is unpinned and installs whichever version Homebrew ships');
+  else if (!playwrightVersionModule()) line(WARN, "playwright-cli: installed, but the plugin's version module hooks/lib/playwright-cli-version-v1.js could not be loaded — reinstall the plugin; the installed CLI was not judged");
+  else if (ps === 'foreign') line(WARN,'playwright-cli: the binary on PATH belongs to the package ' + (po || 'whose name could not be read') + ', not @playwright/cli — it was not run, and the run-config helper refuses to start /zensu:verify-feature on it; install @playwright/cli with ' + pin);
+  else if (ps === 'malformed') line(WARN, 'playwright-cli: the package manifest beside the binary on PATH could not be judged — it was not run: the manifest is unreadable, over 64 KiB, or carries no valid package name and version, so the run-config helper refuses to start /zensu:verify-feature on it; reinstall it with ' + pin);
+  else if (ps === 'cwd-relative') line(WARN, 'playwright-cli: PATH reaches it through an empty or relative entry, which the shell reads against the working directory of each call — it was not run, and the run-config helper refuses to start /zensu:verify-feature while such an entry comes before or holds playwright-cli, because a gated call could run another binary than the one measured; remove that entry from PATH, or move it behind the directory that holds playwright-cli');
+  else if (ps === 'self-reported' && pv) line(WARN, 'playwright-cli: installed, and reports ' + pv + ' when run, but no @playwright/cli package manifest was found beside it, as happens when the playwright-cli on PATH is a wrapper script outside the package — a self-reported version is never taken as measured, so the run-config helper refuses to start /zensu:verify-feature on it; install it with ' + pin + ' and put the directory npm installs it into first on PATH, ahead of any wrapper');
+  else if (ps === 'manifest' && pv && measured && pv === measured) line(OK, 'playwright-cli: installed (' + pv + ') — /zensu:verify-feature and the autopilot browser driver run through it');
+  else if (ps === 'manifest' && pv && measured) line(WARN, 'playwright-cli: installed (' + pv + '), not the version the browser consent gate was measured against (' + measured + ') — its argument parser, ambient-variable names, global-config keys and run-config schema were not measured against ' + pv + ', so the run-config helper refuses to start /zensu:verify-feature on it; install the measured version with ' + pin);
+  else if (ps === 'manifest' && pv) line(WARN, 'playwright-cli: installed (' + pv + '), but the version the browser consent gate was measured against could not be read — its argument parser, ambient-variable names, global-config keys and run-config schema were not checked against ' + pv + '; an argument shape the gate does not recognize is denied rather than admitted');
+  else line(WARN, 'playwright-cli: installed, but its version could not be read — the run-config helper refuses to start /zensu:verify-feature until it reads the version from the @playwright/cli package manifest; reinstall it with ' + pin);
+
+  var v = env.ZDOC_VERIFY || '';
+  var vr = env.ZDOC_VERIFY_REASON || '';
+  if (v === 'policy') line(OK, 'verify-feature: environment policy active — ZENSU_VERIFY_NAVIGATION_POLICY_V1 was set when Claude Code started and passes the policy contract; the browser consent gate admits its target origins, and every route on them, without a prompt in every permission mode, and lets pages request its network-only origins, if any, while it denies every navigation command that names one; any other origin is asked at the permission prompt where one can be shown and denied under bypass permissions or dontAsk');
+  else if (v === 'consent') line(OK, 'verify-feature: consent mode ready — no navigation policy; the browser consent gate on the Bash matcher asks you once per session for each new loopback origin of a zensu-verify playwright-cli session and at every browser start for a remote HTTPS origin, then admits every route on an approved origin; under bypass permissions or dontAsk a remote origin needs the policy; a runtime recipe is present');
+  else if (v === 'consent-no-recipe') line(WARN, 'verify-feature: consent mode ready, no runtime recipe — run /zensu:verify-feature --setup to write .zensu/runtime.yaml, or pass --attach=<loopback-origin> for an app you already run; a remote run needs no recipe');
+  else if (v === 'consent-recipe-unchecked') line(WARN, 'verify-feature: consent mode ready, recipe not checked — no project root resolved, so no .zensu/runtime.yaml was looked for; this is a missing check rather than a missing recipe');
+  else if (v === 'policy-invalid') line(BAD, 'verify-feature: ZENSU_VERIFY_NAVIGATION_POLICY_V1 is set but invalid (' + (safeVerifyReason(vr) || 'reason unknown') + ') — the browser consent gate denies every zensu-verify navigation until you fix that value or unset it to fall back to consent mode');
+  else if (v === 'policy-unchecked') line(WARN, 'verify-feature: ZENSU_VERIFY_NAVIGATION_POLICY_V1 is set but could not be checked (' + (safeVerifyReason(vr) || 'reason unknown') + ') — this is a missing check rather than an invalid policy, and this report cannot say whether the browser consent gate accepts it; reinstall the plugin if it repeats');
+  else if (v === 'unavailable') line(BAD, 'verify-feature: cannot start (' + (safeVerifyReason(vr) || 'reason unknown') + ') — the consent hook pair, its module and the run-config helper must ship together; reinstall the plugin');
+  else line(WARN, 'verify-feature: not checked — the wrapper reported no verify state, so this is a missing check rather than an all-clear; run /zensu:doctor from a session whose plugin root resolves');
+}
+
+function pluginBlock() {
+  block('Plugin integrity');
+  var dir = pluginDir();
+  var pj = readJson(path.join(dir, '.claude-plugin', 'plugin.json'));
+  var mj = readJson(path.join(dir, '.claude-plugin', 'marketplace.json'));
+
+  if (!pj.ok) {
+    line(BAD, 'plugin.json: ' + (pj.missing ? 'missing' : jsonFailure(pj)));
+  } else if (!mj.ok) {
+    line(WARN, 'marketplace.json: ' + (mj.missing ? 'missing' : jsonFailure(mj)));
+  } else {
+    var name = pj.data && pj.data.name;
+    var pv = pj.data && pj.data.version;
+    var entry = null;
+    var plugins = (mj.data && mj.data.plugins) || [];
+    for (var i = 0; i < plugins.length; i++) {
+      if (plugins[i] && plugins[i].name === name) { entry = plugins[i]; break; }
+    }
+    if (!entry) {
+      line(WARN, 'version sync: plugin "' + name + '" not listed in marketplace.json');
+    } else if (String(pv) !== String(entry.version)) {
+      line(BAD, 'version sync: plugin.json ' + pv + ' != marketplace.json ' + entry.version + ' — bump both together');
+    } else {
+      line(OK, 'version sync: plugin.json and marketplace.json agree (' + pv + ')');
+    }
+  }
+
+  var hj = readJson(path.join(dir, 'hooks', 'hooks.json'));
+  if (!hj.ok) {
+    line(BAD, 'hooks.json: ' + (hj.missing ? 'missing' : jsonFailure(hj)));
+    return;
+  }
+  var wired = {};
+  var events = (hj.data && hj.data.hooks) || {};
+  Object.keys(events).forEach(function (ev) {
+    var matchers = events[ev] || [];
+    matchers.forEach(function (m) {
+      (m && m.hooks || []).forEach(function (h) {
+        var cmd = (h && typeof h.command === 'string') ? h.command : '';
+        var mm = cmd.match(/\/hooks\/([A-Za-z0-9._-]+\.sh)/);
+        if (mm) wired[mm[1]] = true;
+      });
+    });
+  });
+  var onDisk = {};
+  try {
+    fs.readdirSync(path.join(dir, 'hooks')).forEach(function (f) {
+      if (/\.sh$/.test(f)) onDisk[f] = true;
+    });
+  } catch (e) { /* no hooks dir */ }
+
+  var missing = Object.keys(wired).filter(function (f) { return !onDisk[f]; }).sort();
+  var unwired = Object.keys(onDisk).filter(function (f) { return !wired[f]; }).sort();
+  if (missing.length) {
+    line(BAD, 'hooks wiring: ' + missing.length + ' referenced but missing on disk — ' + missing.join(', '));
+  }
+  if (unwired.length) {
+    line(WARN, 'hooks wiring: ' + unwired.length + ' script(s) on disk not referenced in hooks.json — ' + unwired.join(', '));
+  }
+  if (!missing.length && !unwired.length) {
+    line(OK, 'hooks wiring: all ' + Object.keys(wired).length + ' hooks referenced in hooks.json exist on disk');
+  }
+}
+
+// Two hooks inject a rule read at RUN TIME from a one-line marker block under docs/,
+// and both fail silent on every input fault: an absent, symlinked, oversized or
+// malformed file exits 0 with no output. On an installed tree no suite runs, so an
+// operator error — a hand-edited or re-wrapped block, a symlinked docs/, a partial
+// install — persists indefinitely and is byte-identical to a healthy install from
+// outside. `hooks wiring` above reports that the SCRIPT is on disk; it never looks at
+// the data file that script depends on, so it goes green either way. That green is
+// what makes this row necessary rather than merely nice.
+//
+// The marker parse is NOT re-implemented here. The row calls the same
+// hooks/lib/rule-block-v1.js the hooks call, so the diagnostic cannot disagree with
+// the thing it diagnoses — a hand-copied parser would report on bytes the hook would
+// have refused. The require is lazy and guarded for the reason reviewerDenialRows
+// states: a load fault costs this row, not the whole report.
+var RULE_CARRIERS = [
+  {
+    id: 'best-solution-first',
+    doc: 'docs/best-solution-first.md',
+    open: '<!-- zensu:best-solution-first -->',
+    close: '<!-- /zensu:best-solution-first -->',
+    flag: 'bestSolutionFirst',
+    off: 'the main thread does not receive it at session start, every subagent still does',
+  },
+  {
+    id: 'best-solution-first-reminder',
+    doc: 'docs/best-solution-first.md',
+    open: '<!-- zensu:best-solution-first-reminder -->',
+    close: '<!-- /zensu:best-solution-first-reminder -->',
+    flag: 'bestSolutionFirst',
+    off: 'the main thread does not receive it on any prompt',
+  },
+  {
+    id: 'evidence-discipline',
+    doc: 'docs/evidence-discipline.md',
+    open: '<!-- zensu:evidence-discipline -->',
+    close: '<!-- /zensu:evidence-discipline -->',
+    flag: null,
+  },
+];
+
+// Every refusal the reader can name, worded as a remedy rather than as a code. An
+// unknown reason renders as unknown rather than as health: a reason added to the
+// module and not here must never read as "fine".
+var RULE_REASON_TEXT = {
+  'not-a-file': 'is not a regular file — a symlink or a directory, which the reader refuses',
+  swapped: 'was replaced between the check and the read',
+  'file-too-large': "exceeds the reader's file-size ceiling",
+  'short-read': 'could not be read completely',
+  unreadable: 'is absent or unreadable',
+  'no-open-marker': 'has no opening marker',
+  'no-close-marker': 'does not carry the block as exactly one line between the markers',
+  'empty-block': 'has an empty block between the markers',
+  'block-too-large': 'carries a block past the injection size ceiling',
+};
+
+// Precedence follows configFiles(), exactly as reviewerSpawnCheckDisabled documents:
+// the project config is read last and wins over the global one, in both directions.
+function hookFlagDisabled(cfgReads, key) {
+  var disabled = false;
+  cfgReads.forEach(function (entry) {
+    var data = entry.r && entry.r.ok ? entry.r.data : null;
+    if (!data || typeof data !== 'object') return;
+    var hooks = data.hooks;
+    if (!hooks || typeof hooks !== 'object') return;
+    if (hooks[key] === false) disabled = true;
+    else if (hooks[key] === true) disabled = false;
+  });
+  return disabled;
+}
+
+function ruleCarrierRows(cfgReads) {
+  var mod = null;
+  try {
+    mod = require(path.join(pluginDir(), 'hooks', 'lib', 'rule-block-v1.js'));
+  } catch (e) {
+    line(WARN, 'rule carriers: hooks/lib/rule-block-v1.js could not be loaded ('
+      + String((e && e.message) || e) + ') — carrier health was NOT checked');
+    return;
+  }
+  if (typeof mod.readRuleBlock !== 'function') {
+    line(WARN, 'rule carriers: hooks/lib/rule-block-v1.js exports no readRuleBlock — carrier health was NOT checked');
+    return;
+  }
+  RULE_CARRIERS.forEach(function (c) {
+    var out = null;
+    try {
+      out = mod.readRuleBlock(path.join(pluginDir(), c.doc), c.open, c.close);
+    } catch (e) {
+      line(WARN, 'rule carriers: ' + c.id + ' could not be checked ('
+        + String((e && e.message) || e) + ')');
+      return;
+    }
+    if (out && out.block) {
+      if (c.flag && hookFlagDisabled(cfgReads, c.flag)) {
+        line(WARN, 'rule carriers: ' + c.id + ' block is intact (' + out.block.length
+          + ' chars) but hooks.' + c.flag + ' is false — ' + c.off);
+      } else {
+        line(OK, 'rule carriers: ' + c.id + ' block is intact (' + out.block.length + ' chars)');
+      }
+      return;
+    }
+    var known = Object.prototype.hasOwnProperty.call(RULE_REASON_TEXT, String(out && out.reason));
+    var why = known
+      ? RULE_REASON_TEXT[out.reason]
+      : 'was refused for an unrecognized reason (' + String(out && out.reason) + ')';
+    line(BAD, 'rule carriers: ' + c.id + ' is NOT injecting — ' + c.doc + ' ' + why
+      + '. The hook exits 0 silently, so nothing else reports this.');
+  });
+}
+
+// A STRING-typed key whose own row judges its value is not a quoted boolean: for
+// hooks.defaultDeliveryRoute "false", "drop the quotes" would lead to boolean false,
+// which that key's own row rejects too, so the report would carry two remedies that
+// contradict each other. Its own row names the right one.
+var STRING_TYPED_KEYS = { 'hooks.defaultDeliveryRoute': true };
+function walkQuotedBooleans(obj, prefix, hits) {
+  if (obj === null || typeof obj !== 'object') return;
+  Object.keys(obj).forEach(function (k) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') return;
+    var v = obj[k];
+    var dotted = prefix ? prefix + '.' + k : k;
+    if (Object.prototype.hasOwnProperty.call(STRING_TYPED_KEYS, dotted)) return;
+    if (typeof v === 'string' && (v === 'true' || v === 'false')) {
+      hits.push(dotted + ' = "' + v + '"');
+    } else if (v && typeof v === 'object' && !Array.isArray(v)) {
+      walkQuotedBooleans(v, dotted, hits);
+    }
+  });
+}
+// The reviewer-spawn permission check. `reviewerDenialRows` below is REACTIVE —
+// it counts refusal notes the Stop enforcer already wrote, so it can only speak
+// after a chain has wedged. This one is proactive: it reads the settings that
+// decide the refusal and reports the exposure beforehand.
+//
+// It opens exactly ONE path and names exactly one path, both of them
+// ~/.claude/settings.json. The project-local spelling is deliberately absent for
+// the reason stop-chain-enforcer.sh gives where it builds the same remedy: that
+// file sits inside the session root and is a path the agent itself could write,
+// so printing it beside the exact rule that grants the refused capability is an
+// invitation. These rows are read by the model too.
+// Deliberately NOT given a ZDOC_/ZENSU_ override of its own, unlike every other
+// input this file takes. An override would be a second agent-writable channel
+// able to aim a check ABOUT the agent's own permissions at a file that shows a
+// grant. Stated honestly, this NARROWS the channel rather than closing it: HOME
+// is itself settable, so a redirect can still suppress or forge a row. What it
+// cannot do is disclose anything, because the failure vocabulary below is
+// closed — no byte of whatever file it lands on reaches the report. Adding a
+// dedicated override would widen the surface for no gain; the structure suite
+// sandboxes HOME wholesale for the same reason.
+//
+// "Suppress or forge a row" understates what a forged row IS, so say it plainly:
+// every row names the display string ~/.claude/settings.json and never the path
+// that was actually opened. Under a redirected HOME a planted deny entry produces
+// a row asserting, in this plugin's own voice, that the user's REAL
+// ~/.claude/settings.json denies the reviewer spawn, and telling them to go remove
+// an entry that is not there — a misattribution, not merely a false positive. The
+// inverse is quieter and worse: a planted allow rule silences the one proactive
+// warning this check exists to produce, and skills/doctor/SKILL.md then has the
+// model report the table as green. Naming the opened path instead would trade the
+// misattribution for the disclosure this file refuses, so the display string stays.
+//
+// The bound that actually exists is the recognizer's, not this comment's:
+// hooks/lib/zensu-doctor-invocation.js admits a CLOSED assignment allowlist —
+// CLAUDE_PLUGIN_DATA, CLAUDE_PROJECT_DIR, ZDOC_PLAYWRIGHT_TOOLS — and neither HOME
+// nor ZENSU_CONFIG is in it, so the RECOGNIZED doctor invocation cannot carry a
+// redirect. Whether an ordinary Bash call in a healthy session can is UNVERIFIED:
+// zensu-doctor.sh never reads or normalises HOME, and the Bash gates cover zensu
+// mutations and source writes, neither of which a read-only doctor run is.
+function claudeSettingsFile() {
+  if (!env.HOME) return null;
+  return path.join(env.HOME, '.claude', 'settings.json');
+}
+// No O_NOFOLLOW: unlike a refusal note this is the user's own file in the user's
+// own home, and Claude Code itself follows a symlink there. A dotfile manager
+// (stow, chezmoi) links it routinely, and refusing to follow would report a ⚠️
+// did-not-run row for a healthy setup. The descriptor-side discipline IS kept — decide shape
+// and size from the DESCRIPTOR, not from a second path resolution, open
+// non-blocking so a path swapped to a FIFO cannot hang a process contracted to
+// always exit 0, and read bounded to the size that was actually vetted. Two of
+// readNoteJson's guards are deliberately absent, not overlooked: O_NOFOLLOW, for
+// the symlink reason above, and its `nlink !== 1` hard-link refusal, which
+// belongs to a file in a session-writable directory rather than to the user's
+// own home.
+function readSettingsJson(file) {
+  var fd;
+  var text;
+  try {
+    // The `: 0` arm is UNEXERCISED, and stating that is the whole mitigation taken
+    // here. It is taken only where O_NONBLOCK is not an integer constant — i.e. not
+    // on the POSIX hosts this suite runs on — and tests/structure/test-doctor.sh
+    // appears in no shard of tests/profiles/windows-ci.v1.json and sits in the
+    // `excluded` list of tests/profiles/windows-native-structure.v1.json. So the one
+    // platform family the fallback exists for never runs this path, and whether
+    // `O_RDONLY | 0` still behaves on a host without the flag has no CI evidence
+    // anywhere. The alternative — adding a doctor entry to a Windows shard — is not
+    // free wall clock (P1az4 writes 1.1 MB, P1bg polls a FIFO to a 30 s deadline) and
+    // under CLAUDE.md it must be budgeted against a MEASURED figure, which nobody has
+    // taken. Left unexercised deliberately; say "unverified", never "covered".
+    var nonBlock = Number.isInteger(fs.constants.O_NONBLOCK) ? fs.constants.O_NONBLOCK : 0;
+    fd = fs.openSync(file, fs.constants.O_RDONLY | nonBlock);
+    var st = fs.fstatSync(fd);
+    if (!st.isFile()) return { ok: false, missing: false, io: true, err: 'not a regular file' };
+    if (st.size > SETTINGS_MAX_BYTES) {
+      return { ok: false, missing: false, io: true, err: 'larger than ' + SETTINGS_MAX_BYTES + ' bytes' };
+    }
+    // Buffer.alloc, not allocUnsafe, and the content class is the whole reason: this
+    // buffer holds the user's settings file, which is exactly where an API key lives.
+    // The bound below (`toString(..., 0, read)`) does keep uninitialised memory out of
+    // the report today — but it is one token, on a path no ordinary fixture reaches, in
+    // a report the doctor skill tells the model to print verbatim. The size is capped at
+    // SETTINGS_MAX_BYTES two lines up and the renderer runs once per invocation, so the
+    // zero-fill is unmeasurable against node's own startup.
+    //
+    // readNoteJson below deliberately keeps allocUnsafe: it reads this plugin's own
+    // note in the state directory, not the user's credential file. The divergence is a
+    // decision about content class, not an oversight — P1br1 pins the count.
+    var buf = Buffer.alloc(st.size);
+    var read = 0;
+    while (read < st.size) {
+      var n = fs.readSync(fd, buf, read, st.size - read, read);
+      if (n <= 0) break;
+      read += n;
+    }
+    // The loop exits on `n <= 0` as well as on completion, so reaching here does NOT
+    // mean the file was read. Without this the truncated prefix went straight to
+    // JSON.parse and the failure surfaced as `unparseable JSON` — a CONTENT fault
+    // reported for an I/O truncation, which is the exact mirror of the mislabel the
+    // `!shape.ok` branch below guards against. The two other bounded readers in this
+    // tree (plan-payload-v1.js, session-control-core-v1.js) already carry this guard.
+    if (read !== st.size) {
+      return { ok: false, missing: false, io: true, err: 'incomplete (short read)' };
+    }
+    // This reader models a consumer whose parser it does not share, so every strictness
+    // divergence should fail toward "no rules found" rather than toward "the check did
+    // not run" — unless the host would reject the file too. Two such divergences, both
+    // routine artefacts rather than corruption: JSON.parse rejects a leading U+FEFF as a
+    // spec property, and it rejects empty input, which is what an interrupted write
+    // leaves behind. Reporting either as a fault costs more than it buys: all three
+    // permission rows share one prefix, so a user who learns to dismiss a false
+    // did-not-run row dismisses the deny row with it.
+    text = buf.toString('utf8', 0, read);
+  } catch (e) {
+    if (e && e.code === 'ENOENT') return { ok: false, missing: true };
+    // A CLOSED vocabulary, never the raw exception text. JSON.parse embeds a
+    // leading slice of its input in the message — measured on node 23:
+    // `Unexpected token 'o', "notjson sk-"... is not valid JSON` — so passing it
+    // through would put bytes of the user's settings file into a report the
+    // doctor skill tells the model to print verbatim. An errno describes the
+    // open; it is a fact about the filesystem, not about the file's contents.
+    //
+    // Only I/O reaches this handler now, so the reason is an I/O reason on every
+    // path through it. `unknown` replaces what used to be a fall-through to
+    // 'unparseable JSON': a code-less error from open/fstat/read is still an I/O
+    // failure, and blaming it on the file's contents was the same mislabel in
+    // miniature.
+    return { ok: false, missing: false, io: true,
+      err: 'unreadable (' + ((e && e.code) ? e.code : 'unknown') + ')' };
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch (e) { /* already closed */ } }
+  }
+  // Parsing sits OUTSIDE the I/O try, and after the descriptor is closed. Sharing one
+  // try meant the two failure classes were told apart by the ABSENCE of `e.code` — true
+  // on current node, because V8 does not decorate SyntaxError, but a property of the
+  // runtime rather than of this code. Now each handler covers exactly the operation it
+  // wraps, and a code-bearing parse failure can no longer be reported as an I/O fault.
+  //
+  // The closed vocabulary is preserved verbatim on both sides: no exception text
+  // reaches a row. That rule is LOCAL to this reader — see readJson.
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  if (text.trim() === '') return { ok: true, data: {} };
+  try {
+    return { ok: true, data: JSON.parse(text) };
+  } catch (e) {
+    // io:false, and this is why the flag has to exist here too. The sibling reader gained it
+    // one step earlier and this one did not, so a PARSE failure was announced under a "could
+    // not be read" lead-in — the same cause/operation mislabel FR-003 and FR-005 removed,
+    // running in the opposite direction. Naming the wrong cause sends the user hunting for a
+    // filesystem problem that does not exist.
+    return { ok: false, missing: false, io: false, err: 'unparseable JSON' };
+  }
+}
+// A present-but-wrong shape is a check that could not run, never an all-clear:
+// `typeof [] === 'object'`, so without the Array test `"permissions": []` would
+// read exactly like a settings file with no permissions key at all.
+function plainObject(v) {
+  return (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
+}
+// An ABSENT key is a fact about the settings ({} reads correctly as "no rules");
+// a PRESENT key of the wrong shape is not, and must reach the did-not-run row
+// rather than silently render as an empty rule set.
+//
+// The vetting goes to the RULE LISTS, not just to the two containers. Stopping
+// at depth 1 was the earlier defect: `matchesDenyOrAskRule` opens with an
+// Array.isArray guard, so a `deny` written as an object read as "no deny rules"
+// and the exposure row then recommended an allow rule while an unevaluated deny
+// key sat in the same file — a confidently WRONG remedy, which is worse than the
+// silence this doctrine exists to remove.
+//
+// Returns the same `{ ok: ... }` discriminator readJson and readSettingsJson use.
+// An untagged union would make a forgotten check a property read on undefined,
+// and a throw here costs the whole report, not one row.
+// The unjudgeable keys split by CONSEQUENCE, not by depth — and the consequence
+// is NOT whether the exposure row survives. BOTH classes suppress that row, since
+// neither can support an allow remedy. What they differ in is the deny/ask rows:
+// a malformed `deny` or `ask` is FATAL and takes those down with it, because the
+// determination itself is unreadable. Everything else is DEFERRED and is reported
+// only AFTER the deny/ask branches have had their say, because those two do not
+// depend on it — swallowing the deny row over an unrelated malformed key would
+// drop the highest-value row this check emits.
+// The evaluation ORDER is the single source; the fatal set is DERIVED from it here
+// rather than asserted by a comment. As a literal, `['deny', 'ask']` claimed to be
+// "exactly the keys evaluated before allow" while nothing performed that derivation
+// and no pin observed it — so a port that reordered the ladder and left the constant
+// alone shipped a wrong fatal/deferred split with every check still green. Reorder
+// RULE_LADDER and the split follows. P1bi pins the derivation; P1bd2 pins that this
+// array still agrees with the order the ladder actually dereferences, which is the
+// half a constant can never state about itself.
+var RULE_LADDER = ['deny', 'ask', 'allow'];
+var FATAL_RULE_KEYS = RULE_LADDER.slice(0, RULE_LADDER.indexOf('allow'));
+function settingsShape(raw) {
+  var data = plainObject(raw);
+  if (!data) return { ok: false, err: 'the settings root is not a JSON object' };
+  var perms = data.permissions === undefined ? {} : plainObject(data.permissions);
+  if (!perms) return { ok: false, err: 'permissions is present but not an object' };
+  // NOT fatal, and the asymmetry is the lesson the autoMode.allow carrier already taught
+  // one level down: the only claim that depends on this container is the prose guidance
+  // row. Returning ok:false here withheld the deny, ask, could-not-judge and exposure
+  // determinations — all of them fully computable from `permissions`, which was readable —
+  // because a key none of them consults had the wrong type. FATAL_RULE_KEYS is exactly the
+  // keys evaluated before `allow`; `autoMode` is not one of them, so it defers like any
+  // other key whose row can be suppressed alone.
+  var autoModeRaw = data.autoMode === undefined ? {} : plainObject(data.autoMode);
+  var autoMode = autoModeRaw || {};
+  for (var i = 0; i < FATAL_RULE_KEYS.length; i++) {
+    var k = FATAL_RULE_KEYS[i];
+    if (perms[k] !== undefined && !Array.isArray(perms[k])) {
+      return { ok: false, err: 'permissions.' + k + ' is present but not an array' };
+    }
+  }
+  // TWO deferred carriers, not one. A single carrier meant a malformed `autoMode.allow`
+  // suppressed the EXPOSURE row — the primary output of this whole check — even though
+  // that row's claim rests only on `permissions.allow` and `permissions.defaultMode`.
+  // The exposure determination was fully computable and was thrown away. Each carrier
+  // now suppresses exactly the row whose claim depends on it, and nothing else.
+  var deferredExposure = '';
+  if (perms.allow !== undefined && !Array.isArray(perms.allow)) {
+    deferredExposure = 'permissions.allow is present but not an array';
+  } else if (perms.defaultMode !== undefined && typeof perms.defaultMode !== 'string') {
+    deferredExposure = 'permissions.defaultMode is present but not a string';
+  }
+  var deferredAutoMode = '';
+  if (!autoModeRaw) {
+    deferredAutoMode = 'autoMode is present but not an object';
+  } else if (autoMode.allow !== undefined && !Array.isArray(autoMode.allow)) {
+    deferredAutoMode = 'autoMode.allow is present but not an array';
+  }
+  return { ok: true, permissions: perms, autoMode: autoMode,
+    deferredExposure: deferredExposure, deferredAutoMode: deferredAutoMode };
+}
+// TWO wordings, and the split is the point. The fatal site returns, so there "the
+// reviewer-spawn permission check did not run" is simply true. The two DEFERRED sites do
+// not return, and the deny, ask, could-not-judge and unreadable-entry branches have all
+// already run and judged by the time they are reached — so the same sentence there printed
+// a whole-check claim directly beneath a substantive finding and contradicted it. The
+// second phrasing costs a carry into skills/doctor/SKILL.md, the operator docs and the
+// P1be drift pin; that price buys a report that does not argue with itself.
+//
+// Both rows keep the "not an all-clear" doctrine and both keep naming the malformed key,
+// because a reader who cannot see WHICH key is malformed cannot repair the file. Two
+// malformed carriers therefore still render two rows — they differ, and dropping one
+// would hide a real defect.
+// These BUILD text and no longer emit it. Every row this check can produce is reached
+// through ROW_TEXT below, so the roster of rows is a table a reader can enumerate rather
+// than a set of emission points scattered through a branch ladder.
+function shapeRowText(err) {
+  return 'permissions: ~/.claude/settings.json has a shape this check cannot judge — ' + err
+    + '; the reviewer-spawn permission check did not run. That is a missing check, not an all-clear.';
+}
+function deferredShapeRowText(err, scope) {
+  return 'permissions: ~/.claude/settings.json has a shape this check cannot judge — ' + err
+    + '; the ' + scope + ' could not be determined. That is a missing part of the check, not an '
+    + 'all-clear.';
+}
+// Reused verbatim by the ask row, the exposure row and the granted exposure row — THREE
+// consumers since the reviewer-spawn grant landed. Its second clause is now the
+// constant DENY_OUTRANKS below, so the two IN-FILE copies — this caveat and the
+// reactive row — SHARE one source instead of being byte-identical by hand. That was
+// the remaining defect in this class: a shared constant sitting beside an unconsumed
+// copy is worse than either honest duplication or one source, because a reader who
+// rewords the constant reasonably believes both rows changed. They do now.
+//
+// It still shares that clause with THREE copies this file cannot reach: DENIAL_REMEDY
+// in hooks/stop-chain-enforcer.sh, the refused-spawn bullet in skills/doctor/SKILL.md,
+// and the DENY row here, which states the same precedence in its own words rather than
+// with this clause. Each states the same deny-before-allow precedence.
+// `unjudgeableRow` deliberately does NOT reuse this constant: it tells the reader
+// to go and READ the entry, while this text tells them to REMOVE a deny, so
+// pasting it there would give the wrong instruction.
+// EVERY remaining member is machine-held, and the pins work precisely BECAUSE the
+// clause is shared verbatim rather than paraphrased: DENY_OUTRANKS reaches the report
+// through both in-file rows and is matched by P1be and P1qr; the SKILL.md bullets are
+// matched by the grep -qF side of those pins and, per REGION, by P1bx; and
+// DENIAL_REMEDY is matched by test-stop-enforcer-self-review-routing.sh, which greps
+// 'A deny rule outranks an allow rule, so the deny has to go first' — note the CAPITAL
+// A, because that copy opens a sentence. A review of this PR read that capital as
+// evidence the copy escapes the case-sensitive needles; it does not, it has a needle of
+// its own. The DENY row is held by its own clause instead: P1bv and P1bm3 match
+// 'Deny is evaluated before ask and allow' literally.
+// `unjudgeableRow` deliberately does NOT reuse DENY_OUTRANKS: it tells the reader to go
+// and READ the entry, while this text tells them to REMOVE a deny, so pasting it there
+// would give the wrong instruction. It is the one member whose own sentence no grep
+// matches — check it by hand after any reword.
+//
+// Both allow-ward rows recommend an allow rule, and such a rule takes no effect
+// behind a deny this check could not see or could not judge — a wildcard
+// spelling, a deny in a settings source this file never opens. Saying so costs
+// one clause and is true regardless of spelling, which is why it is preferred
+// over guessing at the host's rule grammar.
+var DENY_OUTRANKS = 'a deny rule outranks an allow rule, so the deny has to go first';
+var DENY_FIRST_CAVEAT = ' Remove any deny rule that names the Agent tool first — ' + DENY_OUTRANKS + '.';
+// RESIDUAL, recorded because it is a channel and not a defect: the top-level handler at
+// the bottom of this file interpolates `String(e.message)`. No reader here lets a parse
+// throw escape to it — each one catches and maps into its own closed vocabulary — so no
+// settings byte reaches it today. A future reader that omits that mapping would reopen
+// the leak THERE rather than at its own call site, which is the harder place to notice.
+// A new reader owns its own catch.
+//
+// The self-permission bar, carried by every row that INSTRUCTS a settings edit and by
+// no other — five rows: deny, ask, could-not-judge, exposure, and the reactive
+// refused-spawn row. "Every row except the OK one" was the earlier wording and it was
+// false: the could-not-be-read row, all three shape rows, the autoMode.allow prose row,
+// the HOME-unset row and the containment row instruct nothing and correctly omit it.
+// It is deliberately the
+// bare clause rather than a whole sentence, so each row supplies its own lead-in and
+// all five call sites CONSUME it: two of them (the exposure row and the reactive
+// refused-spawn row) previously spelled it inline, and their emitted bytes are
+// unchanged, which is what keeps P1be and P1qr green. A shared constant with an
+// unconsumed copy beside it is worse than either honest duplication or one source,
+// because it advertises a single source that does not exist.
+// The deny-first class gained a SEVENTH member outside this file:
+// `REVIEWER_SPAWN_DENY_FIRST` in `hooks/stop-chain-enforcer.sh`, interpolated into the
+// implementing-turns refused-spawn notice and pinned by `C27`. Named here because the
+// census ABOVE — beside `DENY_OUTRANKS` — enumerates the copies this file cannot reach,
+// and it was one short.
+var SELF_PERMISSION_BAR = 'no agent may edit a settings file to widen its own permissions';
+// Only the two spellings verified against a live permission decision on Claude
+// Code SETTINGS_SOURCE_BUILD are accepted. A wildcard form may well work too,
+// but it is not a verified spelling.
+// TWO named predicates rather than one with a boolean flag, because the flag named
+// the INPUT ("padded") while it decided the BEHAVIOUR, and `true` at a call site
+// said nothing about which side of the asymmetry was meant. Whether the host trims a
+// rule string is unverified against SETTINGS_SOURCE_BUILD, so trimming has to fall on
+// the side where a wrong guess only over-warns: on deny/ask an extra match costs a row
+// the user can dismiss, while on allow it SUPPRESSES the warning — the direction that
+// leaves no diagnosis at all. The names now carry that asymmetry; do not collapse them
+// back behind a parameter.
+//
+// Not widened to `Task(...)` on purpose, and the divergence is worth stating
+// because the sibling module invites the opposite conclusion:
+// reviewer-spawn-denial-v1.js declares SPAWN_TOOL_NAMES = ['Agent', 'Task'], but
+// that set governs TRANSCRIPT tool names, not permission-rule spellings. Nothing
+// in this tree verifies `Task(...)` as a permission-RULE spelling, so it stays out
+// of THIS table, whose row asserts that every /zensu:tdd run wedges. It IS admitted
+// by the low-claim predicate — see `namesReviewerSpawn`, whose 'shaped' arm claims
+// only that the entry cannot be judged. Do not promote it here: what separates the
+// two tables is the strength of the claim, not the spelling.
+// ONE spelling test, consulted by every predicate that needs it. It used to be written
+// out twice — here and again inside namesReviewerSpawn — where the second copy carried
+// four lines apologising for being unreachable BECAUSE it duplicated the first. The
+// branch is worth keeping; the hand-maintained duplicate was not.
+function isVerifiedSpelling(entry) {
+  return entry === 'Agent' || entry === 'Agent(' + REVIEWER_AGENT + ')';
+}
+function matchesDenyOrAskRule(rules) {
+  if (!Array.isArray(rules)) return false;
+  for (var i = 0; i < rules.length; i++) {
+    if (typeof rules[i] !== 'string') continue;
+    if (isVerifiedSpelling(rules[i].trim())) return true;
+  }
+  return false;
+}
+function matchesAllowRule(rules) {
+  if (!Array.isArray(rules)) return false;
+  for (var i = 0; i < rules.length; i++) {
+    if (typeof rules[i] !== 'string') continue;
+    if (isVerifiedSpelling(rules[i])) return true;
+  }
+  return false;
+}
+// A deny/ask entry that clearly means this spawn but is not one of the two
+// verified spellings. Broadening matchesDenyOrAskRule to swallow it was rejected:
+// the deny row makes a strong claim ("every /zensu:tdd run wedges at the review
+// step") that must not fire for an unrelated agent, and a wildcard spelling is
+// the same unverified host grammar moved onto the loud side. Reporting that the
+// entry could not be JUDGED keeps the fall-through from ending at the allow
+// remedy, without asserting what the entry does.
+// Returns WHICH arm matched, never a bare boolean, because the two arms support
+// different claims and the caller renders a sentence about the user's file.
+//   'named'  — the entry really does contain REVIEWER_AGENT, in an unverified spelling
+//   'shaped' — the entry scopes the Agent/Task TOOL and names some OTHER agent, or none
+//   ''       — no entry in the list is relevant
+// Collapsing these back into one boolean is what produced a row telling a user with
+// `deny: ["Agent(docs-writer)"]` that the entry names zensu:code-reviewer. It does not,
+// and warnCount then denies that user a green summary forever.
+function namesReviewerSpawn(rules) {
+  if (!Array.isArray(rules)) return '';
+  // Scan the WHOLE list. Returning at the first match made position decide instead of
+  // strength: `['Agent(*)', 'Agent(zensu:code-reviewer-canary)']` answered 'shaped' and
+  // the report then told the user their entry names a different agent, which is false of
+  // element 1. The cross-list reduction below could not repair it, because both lists are
+  // already collapsed by the time it runs. 'named' still short-circuits — nothing outranks
+  // it — so only the weaker verdict pays for the full scan.
+  var shaped = false;
+  for (var i = 0; i < rules.length; i++) {
+    if (typeof rules[i] !== 'string') continue;
+    var r = rules[i].trim();
+    // Defensive and UNREACHABLE from the only caller, which reaches this
+    // predicate solely after matchesDenyOrAskRule rejected the same list with the
+    // same trim and the same spelling test. Kept so the predicate is correct
+    // standing alone, not because a fixture covers it — and it now costs one
+    // clause through the shared test rather than a hand-maintained copy.
+    if (isVerifiedSpelling(r)) continue;
+    if (r.indexOf(REVIEWER_AGENT) !== -1) return 'named';
+    // Any OTHER `Agent(...)` rule. Without this the predicate did not do what the
+    // comment above claims: a wildcard spelling names no agent, so it matched
+    // neither this nor matchesDenyOrAskRule, and the ladder fell through — to the
+    // wrong remedy in auto mode and to complete SILENCE in every other mode, for an
+    // entry that plausibly blocks every run. `Agent(*)` is valid host grammar, so
+    // that was a reachable green report, not a hypothetical. It stays on the
+    // low-claim side deliberately: this row says only that the entry cannot be
+    // judged, which is the fail-safe direction. Never move it into
+    // matchesDenyOrAskRule — that row asserts every /zensu:tdd run wedges.
+    if (r.indexOf('Agent(') === 0) { shaped = true; continue; }
+    // The same treatment for the OTHER tool name the host uses for this spawn.
+    // reviewer-spawn-denial-v1.js exports SPAWN_TOOL_NAMES = ['Agent', 'Task'], so
+    // this tree's own code already treats `Task` as a name a reviewer spawn travels
+    // under. Before this, `Task(zensu:code-reviewer)` matched by substring while a
+    // bare `Task` matched nothing — an inconsistency by accident rather than by
+    // decision. PORT NOTE, and it is why this stays on the low-claim side: whether
+    // `Task` is an accepted permission-RULE spelling is NOT verified against
+    // SETTINGS_SOURCE_BUILD. Exact equality plus a `Task(` prefix, so an unrelated
+    // tool such as `TaskRunner(build)` is not swept in.
+    if (r === 'Task' || r.indexOf('Task(') === 0) { shaped = true; }
+  }
+  return shaped ? 'shaped' : '';
+}
+// 'named' outranks 'shaped' across the two lists: a list holding an entry that really
+// does name the reviewer must not be described by the weaker sentence just because the
+// other list was scanned first.
+function reviewerSpawnMention(deny, ask) {
+  var a = namesReviewerSpawn(deny);
+  var b = namesReviewerSpawn(ask);
+  if (a === 'named' || b === 'named') return 'named';
+  if (a === 'shaped' || b === 'shaped') return 'shaped';
+  return '';
+}
+// settingsShape vets deny/ask as ARRAYS; this vets their ELEMENTS. Without it the
+// original defect stayed open one level deeper: both predicates above skip a
+// non-string, so `deny: [{"tool":"Agent"}]` read as "no deny rules" and the ladder
+// fell through to the exposure row's allow remedy while an unevaluated deny sat in
+// the same file — the confidently WRONG remedy the fatal/deferred split exists to
+// remove. Deliberately NOT fatal and deliberately evaluated AFTER the two predicates:
+// a list that also holds a matching string must still fire the deny row.
+function hasUnreadableEntry(rules) {
+  if (!Array.isArray(rules)) return false;
+  for (var i = 0; i < rules.length; i++) {
+    if (typeof rules[i] !== 'string') return true;
+  }
+  return false;
+}
+// One remedy tail, two causes. They are kept apart on purpose: an unverified SPELLING
+// is a string this check read and declined to judge, while an unreadable ENTRY names
+// nothing at all — telling the user the second is the first would be a false statement
+// about their file, which is the failure class this whole feature exists to avoid.
+function unjudgeableRowText(cause) {
+  return 'permissions: ' + cause + ' Read the entry yourself before adding any '
+    + 'permissions.allow rule: deny and ask are both evaluated before allow, so an entry that does '
+    + 'block would make an allow rule take no effect. You have to apply this yourself — '
+    + SELF_PERMISSION_BAR + '.';
+}
+// A FOURTH predicate, and deliberately not another spelling of the other three:
+// this one scans `autoMode.allow`, which holds classifier guidance in PROSE
+// rather than permission rules. So it does not trim (there is no rule to
+// normalize) and it does not exclude the two verified spellings (a prose line
+// that happens to quote one still is not a grant). Collapsing it into
+// namesReviewerSpawn would import both of those behaviours and make this row
+// silent on exactly the sentence it exists to correct.
+function mentionsReviewerAgent(rules) {
+  if (!Array.isArray(rules)) return false;
+  for (var i = 0; i < rules.length; i++) {
+    if (typeof rules[i] === 'string' && rules[i].indexOf(REVIEWER_AGENT) !== -1) return true;
+  }
+  return false;
+}
+// The DECISION, and it holds no row text at all. It answers WHICH verdicts hold, in
+// emission order; the caller turns each into a row through ROW_TEXT. That split is what
+// removed the navigation comments this code used to need: the fact that the auto-mode
+// verdict and the autoMode.allow verdict can BOTH hold is now visible in the return type
+// — the list simply has two members — instead of being asserted in prose above an `else`,
+// and the inventory of early exits is the run of single-member returns you can read off
+// the page rather than a paragraph enumerating them.
+function classifyPermissionExposure(shape, grantActive) {
+  if (!shape.ok) {
+    // NOT "could not be read": this verdict is reached only after the file was read and
+    // parsed successfully, and naming the wrong cause sends the user hunting for a
+    // filesystem problem that does not exist.
+    return [{ kind: 'shape', err: shape.err }];
+  }
+  var perms = shape.permissions;
+  var mode = typeof perms.defaultMode === 'string' ? perms.defaultMode : '';
+  // Claude Code evaluates deny, then ask, then allow, and the first match wins —
+  // so a deny is reported even when an allow rule for the same spawn is present,
+  // and neither depends on the permission mode.
+  if (matchesDenyOrAskRule(perms.deny)) return [{ kind: 'deny' }];
+  if (matchesDenyOrAskRule(perms.ask)) return [{ kind: 'ask' }];
+  // Before the fall-through: an entry that plainly names this spawn but is not a spelling
+  // this check verified. Saying nothing here would drop straight to the exposure verdict,
+  // which recommends an allow rule that such an entry may outrank. The weaker 'shaped'
+  // verdict names a DIFFERENT agent, or none — it is reported because an Agent/Task rule
+  // of unknown reach may still outrank that allow rule, not because it was found to
+  // mention this spawn.
+  var mention = reviewerSpawnMention(perms.deny, perms.ask);
+  if (mention === 'named') return [{ kind: 'named' }];
+  if (mention === 'shaped') return [{ kind: 'shaped' }];
+  // AFTER the spelling predicate, so a list holding a readable, matching string still
+  // reaches the verdict that names its real cause.
+  if (hasUnreadableEntry(perms.deny) || hasUnreadableEntry(perms.ask)) return [{ kind: 'unreadable' }];
+  // Resolved BEFORE the deferred branches, not inside them. A user who already holds the
+  // rule must not be told to add it, and that has to hold on a deferred failure too. Safe
+  // even when `permissions.allow` is itself the malformed key: the predicate opens with an
+  // Array.isArray guard and simply answers false.
+  var granted = matchesAllowRule(perms.allow);
+  var verdicts = [];
+  // TWO independent carriers, and each verdict is gated by the one its own claim rests on.
+  // That is why a malformed `autoMode.allow` no longer deletes the exposure verdict. The
+  // OTHER suppression stays by decision: a real grant still suppresses the autoMode prose
+  // correction, because that row exists to correct a user who mistook prose guidance for a
+  // grant, and a user holding the real grant has nothing to correct. P1au3 pins that
+  // suppression as intended; do not "restore" it.
+  if (shape.deferredExposure) {
+    verdicts.push({ kind: 'deferred', err: shape.deferredExposure,
+      scope: 'auto-mode exposure of the reviewer spawn' });
+  } else if (!granted && mode === 'auto') {
+    // The plugin's own PreToolUse grant admits the reviewer spawn before the classifier is
+    // consulted, so telling this user to add a permissions.allow rule for it would be
+    // advice for a problem they no longer have. It is a DIFFERENT verdict, not a dropped
+    // one: the mode is still auto, every OTHER spawn is still classifier-subject, and a
+    // deny or ask rule still outranks the grant.
+    verdicts.push({ kind: grantActive ? 'auto-exposure-granted' : 'auto-exposure' });
+  }
+  // Its OWN deferred carrier comes first: when `autoMode.allow` is unreadable this verdict
+  // cannot make its claim about it, and saying nothing there would be the silence this
+  // check exists to remove. Deliberately not gated on `granted` — the shape of the file is
+  // a fact regardless of who holds which rule.
+  if (shape.deferredAutoMode) {
+    verdicts.push({ kind: 'deferred', err: shape.deferredAutoMode,
+      scope: 'autoMode.allow guidance row' });
+  } else if (!granted && !grantActive && mentionsReviewerAgent(shape.autoMode.allow)) {
+    // `!grantActive` for the same reason `!granted` is here: this row exists to correct a
+    // user who mistook prose guidance for a grant, and a user who already HOLDS a grant has
+    // nothing to correct. Without the conjunct both this row and `auto-exposure-granted`
+    // fire together, and this one's closing sentence — only a permissions.allow entry
+    // grants the spawn — flatly contradicts the other. It is also a WARN, so it would deny
+    // a green summary for an exposure the grant already covers.
+    verdicts.push({ kind: 'automode-prose' });
+  }
+  // What this still does NOT say, unchanged: a deny in a spelling this check declined to
+  // judge can sit in the same file and outrank a grant, and no verdict reports that — the
+  // deny-first caveat is not reachable from a granted state.
+  return verdicts;
+}
+// The TEXT, keyed by verdict kind, and the only place a row is worded. Adding a row means
+// adding a kind here and returning it above; neither half can grow a branch the other does
+// not know about.
+//
+// THREE maps now, not two, and the third has the OPPOSITE totality contract: `ROW_LEVEL`
+// below is consumed as `ROW_LEVEL[v.kind] || WARN`, so it MAY silently not know about a
+// kind and that omission means WARN. A kind missing from `ROW_TEXT` throws instead, and the
+// throw is swallowed by the wrapper, costing every exposure row. Keep the invariant above
+// as stated for `ROW_TEXT`; do not extend it to `ROW_LEVEL`, whose default is deliberate.
+var ROW_TEXT = {
+  shape: function (v) { return shapeRowText(v.err); },
+  deferred: function (v) { return deferredShapeRowText(v.err, v.scope); },
+  deny: function () {
+    return 'permissions: a permissions.deny entry in ~/.claude/settings.json matches the '
+      + REVIEWER_AGENT + ' spawn. Deny is evaluated before ask and allow, so the review chain can never '
+      + 'spawn its reviewer and every /zensu:tdd run wedges at the review step. Remove that entry '
+      // Self-contained on purpose. This used to point at "the refused-spawn row
+      // below", but that row renders only when a refusal note exists, so the
+      // reference dangled in the ordinary case. Naming the RULE instead is true
+      // whether or not the other row prints.
+      + 'yourself if the block was not intended: while it stands, adding a permissions.allow rule for '
+      + 'this spawn changes nothing — including the "Agent(' + REVIEWER_AGENT + ')" rule that a '
+      + 'refused-spawn report recommends. You have to apply this yourself — ' + SELF_PERMISSION_BAR + '.';
+  },
+  ask: function () {
+    return 'permissions: a permissions.ask entry in ~/.claude/settings.json matches the '
+      + REVIEWER_AGENT + ' spawn. Ask is evaluated before allow, so the spawn prompts every time and a '
+      + 'turn that cannot answer the prompt refuses it. Move the rule to permissions.allow yourself if '
+      + 'you meant to grant it.' + DENY_FIRST_CAVEAT
+      + ' You have to apply this yourself — ' + SELF_PERMISSION_BAR + '.';
+  },
+  named: function () {
+    return unjudgeableRowText('a permissions.deny or permissions.ask entry in ~/.claude/settings.json names '
+      + REVIEWER_AGENT + ' in a spelling this check has not verified, so it cannot judge whether '
+      + 'that entry blocks the spawn.');
+  },
+  shaped: function () {
+    return unjudgeableRowText('a permissions.deny or permissions.ask entry in ~/.claude/settings.json scopes '
+      + 'the Agent or Task tool in a spelling this check has not verified, so it cannot judge '
+      + 'whether that entry blocks the ' + REVIEWER_AGENT + ' spawn.');
+  },
+  unreadable: function () {
+    return unjudgeableRowText('permissions.deny or permissions.ask in ~/.claude/settings.json contains an '
+      + 'entry this check cannot read — it is not a string, so this check cannot judge whether it '
+      + 'blocks the spawn.');
+  },
+  'auto-exposure': function () {
+    return 'permissions: permission mode "auto" is set in ~/.claude/settings.json and no '
+      + 'permissions.allow entry there spells either "Agent(' + REVIEWER_AGENT + ')" or the bare "Agent" '
+      + '— the auto-mode classifier can refuse the reviewer spawn, and a refused spawn leaves the review '
+      + 'chain with no review it can close on. Add "Agent(' + REVIEWER_AGENT + ')" to permissions.allow in '
+      + '~/.claude/settings.json yourself; ' + SELF_PERMISSION_BAR + '.'
+      + DENY_FIRST_CAVEAT
+      + ' This row reports an exposure, never a prediction: the classifier decides per session context, and '
+      + 'settings sources this check does not read may already grant it. The reverse holds too — the '
+      + 'permission mode can be in effect for a session without being written into this file, so the '
+      + 'absence of this row is not evidence that auto mode is inactive.';
+  },
+  // Self-contained: it used to end "the permissions.allow rule named above", which
+  // dangles whenever the row above did not print — the same defect the deny row was
+  // corrected for. Which verdicts precede it is now read off classifyPermissionExposure
+  // rather than restated here.
+  'auto-exposure-granted': function () {
+    return 'permissions: permission mode "auto" is set in ~/.claude/settings.json and no '
+      + 'permissions.allow entry there spells either "Agent(' + REVIEWER_AGENT + ')" or the bare '
+      + '"Agent" — but this plugin admits its own confined reviewer spawns through the PreToolUse '
+      + 'hook pre-agent-reviewer-allow.sh before the classifier is consulted, so no settings edit is '
+      + 'needed for them. This covers the plugin\'s own reviewers only; every other spawn in this '
+      + 'session is still classifier-subject.' + DENY_FIRST_CAVEAT;
+  },
+  'automode-prose': function () {
+    return 'permissions: an autoMode.allow entry in ~/.claude/settings.json mentions '
+      + REVIEWER_AGENT + ', but autoMode.allow carries classifier guidance in prose — it is not a '
+      + 'permission rule and does not grant the spawn. Only a permissions.allow entry spelling '
+      + '"Agent(' + REVIEWER_AGENT + ')" or the bare "Agent" does.';
+  }
+};
+// Severity, keyed by the same verdict kind. WARN is the default because every verdict here
+// reports something the reader has to act on — except the granted one, which reports that
+// the action is already taken and would read as an open problem in a ⚠️ table. A kind
+// missing from this map is a warning; only an explicit entry lowers it.
+var ROW_LEVEL = {
+  'auto-exposure-granted': OK
+};
+// Read, classify, render — three steps, and the branch ladder lives in exactly one of
+// them. It emits when it has something to say and stays silent otherwise;
+// permissionExposureRowsInner below turns that silence into a statement, so no branch
+// here has to remember to close itself out.
+function permissionExposureLadder(file, grantActive) {
+  var r = readSettingsJson(file);
+  if (r.missing) return;
+  if (!r.ok) {
+    line(WARN, 'permissions: ~/.claude/settings.json ' + (r.io ? ('could not be read — ' + r.err) : 'could not be parsed')
+      + '; the reviewer-spawn permission check did not run. That is a missing check, not an all-clear.');
+    return;
+  }
+  classifyPermissionExposure(settingsShape(r.data), grantActive).forEach(function (v) {
+    line(ROW_LEVEL[v.kind] || WARN, ROW_TEXT[v.kind](v));
+  });
+}
+// The check speaks on EVERY path. Silence used to be its default verdict and the one
+// verdict it could not qualify: the not-an-all-clear doctrine hung entirely off rows
+// that printed, so the ordinary reader saw nothing at all and — because a proactive
+// permission check is advertised in the skill frontmatter — read that as "checked, and
+// fine". Three prose restatements existed to compensate for what no artifact carried.
+//
+// Counting rows rather than threading a flag through the ladder's exits is
+// deliberate: a branch added later cannot forget to close itself out, and the ladder
+// keeps its early returns.
+// Containment. The outer handler around main() discards the ENTIRE four-block report on
+// any throw and still exits 0, so an escape from here would cost the hook-integrity
+// rows, the session-state rows and the refused-spawn row — for a user who ran the
+// doctor precisely because something is already broken, and with no trace that anything
+// was lost. Every other risky reader in this file is individually contained; this is the
+// newest and least-exercised code in it. No reachable throw is known: the reader wraps
+// its own I/O and parse, and every predicate is guarded by Array.isArray plus a typeof
+// test. This buys the cost of being wrong once, and it costs one row.
+// The OFF-SWITCH, and it is a CONFIG BOOLEAN rather than a path override on purpose.
+// claudeSettingsFile above refuses a ZDOC_/ZENSU_ override because an agent-writable
+// channel could aim a check ABOUT the agent's own permissions at a file that shows a
+// grant. That argument is about INJECTION and it holds; it never answered SUPPRESSION,
+// which is a real complaint from a real population: a user whose permissions come from a
+// source that OUTRANKS the one file this check reads — managed settings, or the
+// project-local carrier docs/configuration.md documents and this file deliberately never
+// spells (see claudeSettingsFile; P1bc pins the absence) — with `defaultMode: "auto"` in
+// their user file otherwise gets a permanent warning telling them to edit a file that is
+// overridden, and no way to silence it. This
+// closes that without conceding anything on the injection axis: it suppresses the ROW and
+// can never redirect WHICH file is opened.
+//
+// Disabling does NOT produce silence, and that is the whole design. Silence is the one
+// verdict this check cannot qualify — removing it is what the feature is for — so an
+// off-switch that simply hid the rows would reintroduce the defect under a config key.
+// The check reports that it was switched off instead, and says the row is not an
+// all-clear, exactly as every other did-not-run row does.
+//
+// Strict `=== false`, matching every other boolean this tree reads: a QUOTED "false" does
+// NOT disable, and the doctor's own quoted-boolean row is what tells the user why.
+// Precedence follows configFiles(): the project config is read last and wins over the
+// global one, in both directions, so a project may re-enable what a global config turned
+// off. Reads the SAME cfgReads the config block already gathered — a second readJson pass
+// would double the non-blocking opens the FIFO hardening exists for.
+function reviewerSpawnCheckDisabled(cfgReads) {
+  var disabled = false;
+  cfgReads.forEach(function (entry) {
+    var data = entry.r && entry.r.ok ? entry.r.data : null;
+    if (!data || typeof data !== 'object') return;
+    var hooks = data.hooks;
+    if (!hooks || typeof hooks !== 'object') return;
+    if (hooks.reviewerSpawnPermissionCheck === false) disabled = true;
+    else if (hooks.reviewerSpawnPermissionCheck === true) disabled = false;
+  });
+  return disabled;
+}
+// Same permissive read as reviewerSpawnCheckDisabled, against the OTHER key. Two
+// readers rather than one parameterised helper because the two flags govern opposite
+// things — one suppresses a diagnostic, this one withdraws a capability grant — and a
+// shared reader would invite a caller to pass the wrong key without the name saying so.
+// Mirrors `zensu_hook_enabled_strict`, which is what actually enforces this key — NOT
+// `zensu_hook_enabled`, and not the merged read. That reader is STICKY and FAIL-CLOSED:
+// `false` in ANY candidate file withdraws the grant regardless of precedence, and a
+// candidate that is present but unreadable or malformed withdraws it too. Mirroring the
+// merge instead was wrong in both directions — a project overlay replacing the `hooks`
+// node erased a global `false` here while the hook still granted, and an unreadable file
+// read as "not disabled" while the hook declined.
+// Three answers, not two. Folding every readJson failure into "disabled" made the only
+// renderer of that boolean assert ONE cause — the config key — for a trailing comma the
+// user never wrote, which is the failure this file's own doctrine forbids one function
+// below. Worse for the SIZE class: readJson caps at CONFIG_MAX_BYTES while the enforcing
+// zensu_hook_enabled_strict has no cap, so an oversized well-formed config is read and
+// applied by the hook — which GRANTS — while the row claimed the grant was switched off.
+// A cap is this reader's own bound, never a verdict about the config.
+function reviewerSpawnAutoAllowDisabled(cfgReads) {
+  var verdict = false;
+  cfgReads.forEach(function (entry) {
+    var r = entry.r;
+    if (!r || r.missing) return;
+    if (!r.ok) {
+      // A check-limited failure (this reader's size cap, a non-regular file) establishes
+      // nothing about the config — the enforcing reader has neither bound. A genuine parse
+      // failure DOES decline there too, so the grant really is not in force; only the
+      // reported CAUSE differs from an explicit key.
+      raise(r.cap || r.io ? 'unjudgeable' : 'broken');
+      return;
+    }
+    var data = r.data;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) { raise('broken'); return; }
+    if (data.hooks === undefined) return;
+    var hooks = data.hooks;
+    if (!hooks || typeof hooks !== 'object' || Array.isArray(hooks)) { raise('broken'); return; }
+    if (hooks.reviewerSpawnAutoAllow === false) raise('off');
+  });
+  return verdict;
+
+  // An explicit key is the most informative answer, then a config that is present but
+  // unusable, then a bound this check could not see past. Never let a weaker finding
+  // overwrite a stronger one just because it was read later.
+  function raise(next) {
+    var rank = { unjudgeable: 1, broken: 2, off: 3 };
+    if (!verdict || rank[next] > rank[verdict]) verdict = next;
+  }
+}
+// Is the grant hook actually referenced by hooks.json? File presence alone is not the
+// grant: an unwired script never runs, and the ✅ row would then assert a capability the
+// harness never invokes.
+// Three answers, not two. Collapsing "could not read hooks.json" into "not wired" would
+// assert a specific cause the parse never established — the failure this file's own
+// doctrine forbids one function below. Reads through the hardened `readJson`, whose header
+// records the measured FIFO hang that the bare readFileSync used here at first gives up.
+// The MATCHER is part of the answer: a hook registered under a matcher that does not test
+// true for the spawn tool names is exactly as inert as an unregistered one.
+function reviewerSpawnHookWired(root, spawnTools) {
+  var r = readJson(path.join(root, 'hooks', 'hooks.json'));
+  if (r.missing || !r.ok) return 'unknown';
+  var tools = Array.isArray(spawnTools) && spawnTools.length ? spawnTools : ['Agent', 'Task'];
+  var shared;
+  try { shared = require('./hook-registration-v1.js'); }
+  catch (_error) { return 'unknown'; }
+  var answer = shared.registration(r.data, {
+    event: 'PreToolUse',
+    tools: tools,
+    names: function (command) { return command.indexOf('pre-agent-reviewer-allow.sh') !== -1; },
+    reading: shared.READINGS.REGEX,
+  });
+  if (answer === shared.REGISTRATION.REGISTERED) return 'wired';
+  if (answer === shared.REGISTRATION.UNREGISTERED) return 'unwired';
+  return 'unknown';
+}
+// The grant is a capability the plugin hands ITSELF, so it is reported whether it is on
+// or off — a silent grant would be the same undisclosed widening this row exists to make
+// visible. The agent list is read from the owning module through a LAZY, guarded require,
+// exactly as reviewerDenialRows does: a load fault costs this row, never the whole report.
+function reviewerSpawnGrantRows(disabled) {
+  var root = pluginDir();
+  // Absence of the HOOK means this installation predates the grant feature — there is no
+  // grant, nothing to disclose, and the ordinary exposure rows below already give that
+  // reader the right advice. Warning there would fire on every older plugin root. The
+  // asymmetric case IS worth a row: the hook is installed but its decision module is not,
+  // because then the hook loads nothing and silently declines while the reader has every
+  // reason to believe the grant is in force.
+  // lstat, not stat: pre-agent-reviewer-allow.sh refuses a symlinked decider outright
+  // ([ -f ] && [ ! -L ]), so a report that follows links can assert a grant the hook
+  // declines on every spawn. A symlinked hook is a BROKEN installation rather than one
+  // predating the feature, so it must reach a row instead of the silent return below.
+  var hookPath = path.join(root, 'hooks', 'pre-agent-reviewer-allow.sh');
+  var hookInstalled = false;
+  var hookIsLink = false;
+  try {
+    var hookStat = fs.lstatSync(hookPath);
+    hookIsLink = hookStat.isSymbolicLink();
+    hookInstalled = hookStat.isFile() || hookIsLink;
+  } catch (e) { hookInstalled = false; }
+  if (!hookInstalled) return false;
+  if (hookIsLink) {
+    line(WARN, 'permissions: hooks/pre-agent-reviewer-allow.sh is a symlink. The hook itself '
+      + 'refuses a symlinked decision module and this report holds its own paths to the same '
+      + 'standard, so no reviewer-spawn grant is in force. This is a broken installation, not a '
+      + 'configuration choice.');
+    return false;
+  }
+  var agents = null;
+  var spawnTools = null;
+  try {
+    var modPath = path.join(root, 'hooks', 'lib', 'reviewer-spawn-allow-v1.js');
+    if (!fs.lstatSync(modPath).isFile()) throw new Error('decision module is not a regular file');
+    var allow = require(modPath);
+    if (Array.isArray(allow.CONFINED_REVIEWER_AGENTS) && allow.CONFINED_REVIEWER_AGENTS.length) {
+      agents = allow.CONFINED_REVIEWER_AGENTS.slice();
+    }
+    if (Array.isArray(allow.SPAWN_TOOL_NAMES) && allow.SPAWN_TOOL_NAMES.length) {
+      spawnTools = allow.SPAWN_TOOL_NAMES.slice();
+    }
+  } catch (e) { agents = null; }
+  var wiring = reviewerSpawnHookWired(root, spawnTools);
+  if (wiring === 'unknown') {
+    line(WARN, 'permissions: hooks/pre-agent-reviewer-allow.sh is installed but hooks/hooks.json '
+      + 'could not be read or parsed, so whether the harness invokes it — and therefore whether '
+      + 'any reviewer-spawn grant is in force — could not be judged by this check.');
+    return false;
+  }
+  if (wiring === 'unwired') {
+    line(WARN, 'permissions: hooks/pre-agent-reviewer-allow.sh is present on disk but hooks/hooks.json '
+      + 'does not register it on a PreToolUse matcher covering the spawn tools, so the harness never '
+      + 'invokes it for a spawn and no reviewer-spawn grant is in force. This is a broken '
+      + 'installation, not a configuration choice.');
+    return false;
+  }
+  if (!agents) {
+    // Three distinct causes reach here — the module itself, either of the two siblings it
+    // requires, and an empty derived set — so the row names the load rather than asserting
+    // which file is absent. Naming the wrong cause is the failure this file's own doctrine
+    // forbids one branch above.
+    line(WARN, 'permissions: hooks/pre-agent-reviewer-allow.sh is installed but its decision module '
+      + 'hooks/lib/reviewer-spawn-allow-v1.js could not be loaded — it, or one of the siblings it '
+      + 'requires (reviewer-spawn-denial-v1.js, claude-principal-v1.js), is missing or unreadable, '
+      + 'or the set it derives is empty. That hook then declines every spawn and no reviewer-spawn '
+      + 'grant is in force. This is a broken installation, not a configuration choice.');
+    return false;
+  }
+  if (disabled === 'unjudgeable') {
+    line(WARN, 'permissions: a config source could not be read or parsed within this check\'s own '
+      + 'bounds, so whether the reviewer-spawn grant is in force could not be judged. That is a '
+      + 'missing check, not a configuration choice: the enforcing reader carries no size limit of '
+      + 'its own, so it may well be granting on the same file.');
+    return false;
+  }
+  if (disabled === 'broken') {
+    line(WARN, 'permissions: a config source could not be read or parsed, so the enforcing reader '
+      + 'declines and no reviewer-spawn grant is in force. That is a broken config file, not a '
+      + 'configuration choice — no hooks.reviewerSpawnAutoAllow key was involved. Fix the file to '
+      + 'get the grant back.');
+    return false;
+  }
+  if (disabled === 'off') {
+    line(WARN, 'permissions: the reviewer-spawn grant is switched off by hooks.reviewerSpawnAutoAllow '
+      + 'in .zensu/config.json, so the host permission layer decides every reviewer spawn. Under '
+      + 'permission mode "auto" the classifier can refuse one, and a refused spawn leaves the review '
+      + 'chain with no review it can close on.');
+    return false;
+  }
+  line(OK, 'permissions: this plugin admits its own read-only reviewer spawns (' + agents.join(', ')
+    + ') through the PreToolUse hook pre-agent-reviewer-allow.sh, so the host permission layer — '
+    + 'including the auto-mode classifier — is not consulted for them. Each is confined to '
+    + 'Read/Grep/Glob by its agent frontmatter, and the grant covers only these plugin-scoped names. '
+    + 'It admits the whole spawn CALL, not only the identity: other tool_input fields such as '
+    + 'isolation travel unexamined, and the read-trio confinement bounds what the child may then do. '
+    + 'Three conditions this check cannot see still apply per call: the spawn must come from the '
+    + 'main thread; the session must bind to a valid Session Control record — in an unbound session '
+    + 'the hook declines and no grant is in force, so read the binding rows in this report '
+    + 'alongside this one; and the hook re-reads the flag fail-closed at call time, so a host where '
+    + 'that read cannot run declines even though this row rendered. '
+    + 'A permissions.deny or permissions.ask entry still overrides it. Turn it '
+    + 'off with hooks.reviewerSpawnAutoAllow=false.');
+  return true;
+}
+function permissionExposureRows(disabled, grantActive) {
+  try {
+    permissionExposureRowsInner(disabled, grantActive);
+  } catch (e) {
+    line(WARN, 'permissions: the reviewer-spawn permission check failed to run. That is a missing '
+      + 'check, not an all-clear.');
+  }
+}
+function permissionExposureRowsInner(disabled, grantActive) {
+  if (disabled) {
+    line(OK, 'permissions: the reviewer-spawn permission check is switched off by '
+      + 'hooks.reviewerSpawnPermissionCheck in .zensu/config.json, so it did not run. That is a '
+      + 'skipped check, not an all-clear. Turn it back on if your permissions are not governed by '
+      + 'a settings source that outranks ~/.claude/settings.json.');
+    return;
+  }
+  var file = claudeSettingsFile();
+  if (!file) {
+    // NOT the clean row. The check could not even locate its input, and an unset HOME
+    // reported as "no exposure found" would be the exact false all-clear this change
+    // exists to remove.
+    line(WARN, 'permissions: HOME is not set, so ~/.claude/settings.json could not be located; '
+      + 'the reviewer-spawn permission check did not run. That is a missing check, not an all-clear.');
+    return;
+  }
+  var before = out.length;
+  permissionExposureLadder(file, grantActive);
+  if (out.length !== before) return;
+  line(OK, 'permissions: no reviewer-spawn exposure found in ~/.claude/settings.json — that is the '
+    + 'only settings source this check reads, and the permission mode can be active for a session '
+    + 'without being written there.');
+}
+
+function configBlock() {
+  block('Config');
+  var anyPresent = false;
+  // KNOWN GAP, recorded rather than fixed: the axis here is PRESENT-ness, not effectiveness.
+  // When BOTH defaults are present and both degrade to {} — both malformed, or one malformed and
+  // one unreadable — presentCount is 2, so each row says "the other config source still applies"
+  // while defaults actually apply. It is not a regression: the earlier candidate-count predicate
+  // was wrong in that case too, so this strictly reduces the set of wrong answers. It is also
+  // self-limiting, because the doctor prints a failure row for each broken file and the user sees
+  // both faults. Closing it means counting entries that are present AND not `loaderFallback`,
+  // which needs its own fixture; deliberately out of scope here.
+  //
+  // Read ONCE, then decide. `configFiles()` returns candidate PATHS, and gating the clause on
+  // how many candidates exist was the mirror of the bug it replaced: both defaults are always
+  // candidates when HOME and CLAUDE_PROJECT_DIR are set, so a lone broken project config
+  // promised an "other config source" the report never prints a row for — while defaults
+  // really did apply. PRESENT-ness decides it. Reading once also matters: a second readJson
+  // pass would double the non-blocking opens the FIFO hardening exists for.
+  var cfgReads = configFiles().map(function (f) { return { file: f, r: readJson(f) }; });
+  var presentCount = cfgReads.filter(function (x) { return !x.r.missing; }).length;
+  var soleSource = presentCount === 1;
+  cfgReads.forEach(function (entry) {
+    var f = entry.file;
+    var r = entry.r;
+    if (r.missing) return;
+    anyPresent = true;
+    if (!r.ok) {
+      // The trailing clause asserts what the LOADER does, so it may only be said where that
+      // is true. Every io class except the size cap makes rd() return {} — but the cap is the
+      // DOCTOR's own memory bound and the loader has none, so an oversized well-formed config
+      // is read and applied by every hook while this row would have claimed it was ignored.
+      // Report the limit of the check there instead of a verdict about the loader.
+      var capped = r.io && r.cap === true;
+      if (capped) {
+        // Everything here is knowable from the fstat alone. The doctor did NOT parse this
+        // file, so it cannot say the loader applies it — an oversized MALFORMED config still
+        // makes rd() return {}. What IS knowable: the loader has no size limit, so the file
+        // is not skipped for its SIZE. Whether it parses is outside what this check saw.
+        line(WARN, 'config: ' + foldPath(f, ' is ') + ' is ' + r.err + ' — this check declined to read it and '
+          + 'cannot judge it; the config loader has no size limit, so the file is not skipped '
+          + 'for its size, but whether it parses is unknown to this check');
+      } else {
+        // The trailing clause is a LOADER verdict and is appended only where it holds.
+        // `unreadable (<errno>)` and the parse class both make rd() return {}. A FIFO does
+        // not: rd()'s blocking readFileSync would HANG rather than fall back — the very hazard
+        // this reader's non-blocking open exists for. A short read is the doctor's own
+        // truncation and says nothing about what the loader gets. Those two get the
+        // check-limited wording instead.
+        var loaderFallsBack = r.loaderFallback === true;
+        if (loaderFallsBack) {
+          // "the whole file is ignored" is always true here. "defaults apply" is NOT: the
+          // loader MERGES a global config with a project one, so a broken overlay leaves the
+          // other source's values in force. Say the second half only when this file is the
+          // sole source — the ZENSU_CONFIG override, or a single-file install.
+          line(BAD, 'config: ' + (r.io ? (f + ' is ' + r.err) : ('invalid JSON in ' + f))
+            + (soleSource
+              ? ' (the whole file is ignored, defaults apply)'
+              : ' (the whole file is ignored; the other config source still applies)'));
+        } else {
+          line(BAD, 'config: ' + foldPath(f, ' is ') + ' is ' + r.err + ' — this check could not read it and '
+            + 'cannot say what the config loader gets from it');
+        }
+      }
+      return;
+    }
+    var hits = [];
+    walkQuotedBooleans(r.data, '', hits);
+    if (hits.length) {
+      line(WARN, 'config: quoted boolean(s) in ' + foldPath(f, ' are ') + ' are ignored by strict `===` checks — ' + hits.join('; ') + ' (drop the quotes)');
+    } else {
+      line(OK, 'config: valid JSON, no quoted-boolean traps in ' + f);
+    }
+  });
+  if (!anyPresent) {
+    line(OK, 'config: no config file present — built-in defaults apply');
+  }
+  // The grant row comes FIRST and its state is threaded into the exposure check below,
+  // because the exposure check's auto-mode advice is only correct when the grant is not
+  // already covering the spawn it recommends a rule for.
+  var grantActive = reviewerSpawnGrantRows(reviewerSpawnAutoAllowDisabled(cfgReads));
+  permissionExposureRows(reviewerSpawnCheckDisabled(cfgReads), grantActive);
+  // Here rather than in pluginBlock() because the row needs the resolved flag, and
+  // cfgReads is gathered in this block. It reports on plugin DATA, so it reads as a
+  // continuation of `hooks wiring` above.
+  ruleCarrierRows(cfgReads);
+  deliveryRouteConfigRow(cfgReads);
+}
+
+// The two ask-hooks each exit on their own flag BEFORE they resolve the route, so a
+// route, configured or recorded, decides only the half whose reader is on. Both
+// delivery-route rows name a switched-off half in these words, and the SessionStart
+// banner carries the same three literals plus the message-preference literal of the
+// Config row; test-delivery-route.sh compares the two carriers.
+var ROUTE_PLAN_HALF_OFF = 'the plan-approval half is off: hooks.autoTdd=false';
+var ROUTE_PROMPT_HALF_OFF = 'the code-request half is off: hooks.tddReminder=false';
+var ROUTE_BOTH_READERS_OFF = 'both readers are off (hooks.autoTdd=false, hooks.tddReminder=false), and each hook exits on its own flag before the route is resolved';
+// The two reader flags as configBlock resolved them from its one cfgReads pass;
+// stateBlock's session row reads them here instead of opening the files again.
+var routeReaders = null;
+
+// hooks.defaultDeliveryRoute is a STRING key — the first under `hooks` — so the
+// quoted-boolean walk above cannot see its one trap: a value that is not one of the
+// three words the hooks accept. They read it PERMISSIVELY (anything else is `ask`), so
+// a misspelling silently keeps the question the user meant to switch off. Merge
+// semantics match hookFlagDisabled: the last file that carries the key wins. Absent
+// and `ask` render nothing — the question is the shipped default, not a finding.
+function deliveryRouteConfigRow(cfgReads) {
+  var value;
+  var seen = false;
+  routeReaders = {
+    planOff: hookFlagDisabled(cfgReads, 'autoTdd'),
+    promptOff: hookFlagDisabled(cfgReads, 'tddReminder'),
+  };
+  cfgReads.forEach(function (entry) {
+    var data = entry.r && entry.r.ok ? entry.r.data : null;
+    if (!data || typeof data !== 'object') return;
+    var hooks = data.hooks;
+    if (!hooks || typeof hooks !== 'object') return;
+    if (Object.prototype.hasOwnProperty.call(hooks, 'defaultDeliveryRoute')) {
+      value = hooks.defaultDeliveryRoute;
+      seen = true;
+    }
+  });
+  if (!seen || value === 'ask') return;
+  if (value === 'tdd' || value === 'direct') {
+    // The default reaches the plan-approval hook only while hooks.autoTdd is on and
+    // the per-prompt reminder only while hooks.tddReminder is on — each hook exits on
+    // its own flag BEFORE it resolves the route — so the row names the half that is
+    // live. Read through the same merged cfgReads, never a second readJson pass.
+    var effect = value === 'tdd' ? 'takes the Zensu workflow' : 'is implemented directly, without the review chain';
+    var planOff = routeReaders.planOff;
+    var promptOff = routeReaders.promptOff;
+    var subject = null;
+    if (!planOff && !promptOff) subject = 'an approved plan or a code request ' + effect;
+    else if (!planOff) subject = 'an approved plan ' + effect + ' (' + ROUTE_PROMPT_HALF_OFF + ')';
+    else if (!promptOff) subject = 'a code request ' + effect + ' (' + ROUTE_PLAN_HALF_OFF + ', so an approved plan is implemented directly)';
+    if (subject === null) {
+      line(WARN, 'config: hooks.defaultDeliveryRoute=' + value + ' is configured but decides nothing — ' + ROUTE_BOTH_READERS_OFF);
+      return;
+    }
+    line(OK, 'config: hooks.defaultDeliveryRoute=' + value + ' — the delivery-route question is skipped: ' + subject
+      + '; a preference stated in the user\'s own message decides only that request, and /zensu:delivery-route changes the route for this session');
+    return;
+  }
+  var shown = safeConfigValue(value, ' is not tdd');
+  line(WARN, 'config: hooks.defaultDeliveryRoute=' + (shown.ok ? shown.text : '(' + FOLD_UNAVAILABLE + ')')
+    + ' is not tdd, direct or ask — the hooks read it as ask, so the delivery-route question is asked; use one of those three lowercase words');
+}
+
+// A value from a session-writable or committed file reaches a model-relayed row. A
+// string renders as itself and anything else as its JSON spelling, so a quoted value
+// is never quoted twice; it is bounded to 40 characters with a visible `…` when cut,
+// then folded through foldSlot, the ONE display rule this file consumes. Returns the
+// slot shape `{ text, ok }` with BARE text: the call site supplies any parentheses,
+// and on a load fault it renders FOLD_UNAVAILABLE rather than re-authoring it.
+function safeConfigValue(value, followedBy) {
+  var text = typeof value === 'string' ? value : String(JSON.stringify(value));
+  if (text === '') return { text: '""', ok: true };
+  var cut = text.length > 40 ? '…' : '';
+  var slot = foldSlot(text.slice(0, 40), cut + (followedBy || ''));
+  return { text: slot.ok ? slot.text + cut : '', ok: slot.ok };
+}
+
+// The bound session's recorded delivery route, resolved by the wrapper through the
+// same zensu-config.sh ladder both ask-hooks use (ZDOC_DELIVERY_ROUTE). A route that
+// is fixed is ordinary, disclosed state, so it renders OK; what must never render
+// green is a session whose marker could not be looked for. The reader flags qualify
+// every sentence that says where the question is or is not asked, because each hook
+// exits on its own flag before it resolves the route.
+function deliveryRouteRow() {
+  var v = String(env.ZDOC_DELIVERY_ROUTE || '');
+  if (v === '') return;
+  var planOff = !!(routeReaders && routeReaders.planOff);
+  var promptOff = !!(routeReaders && routeReaders.promptOff);
+  var halfOff = '';
+  if (planOff && !promptOff) halfOff = ' (' + ROUTE_PLAN_HALF_OFF + ')';
+  else if (promptOff && !planOff) halfOff = ' (' + ROUTE_PROMPT_HALF_OFF + ')';
+  if (v === 'unknown') {
+    // The tail names the cause the binding verdict gives. `unknown` prints no binding
+    // row at all, and a `bound` verdict whose key/root pair failed the wrapper's shape
+    // check prints the valid-record row, so pointing at "the binding row above" is
+    // right only for the other verdicts.
+    var binding = String(env.ZDOC_BINDING || '');
+    var cause = 'read the binding row above';
+    if (binding === '' || binding === 'unknown') {
+      cause = 'this report ran without CLAUDE_CODE_SESSION_ID or CLAUDE_PLUGIN_DATA, so no session could be bound; run /zensu:doctor inside the session to check it';
+    } else if (binding === 'bound') {
+      cause = 'the session is bound, but its recorded session key or project root failed the report\'s shape check and was withheld';
+    }
+    line(WARN, 'delivery route: not checked — no bound session key or recorded project root was available, so this session\'s /zensu:delivery-route marker was never looked for; a missing check rather than an all-clear — ' + cause);
+  } else if (v === 'unjudged') {
+    line(WARN, 'delivery route: could not be read — the shared config library did not answer for this session, or its recorded project root could not be entered; a missing check rather than an all-clear. Run /zensu:delivery-route --status from the session to see what the hooks resolve');
+  } else if (planOff && promptOff && (v === 'ask' || /^(tdd|direct) \((session marker|hooks\.defaultDeliveryRoute)\)$/.test(v))) {
+    line(OK, 'delivery route: ' + v + ' — decides nothing this session: ' + ROUTE_BOTH_READERS_OFF);
+  } else if (v === 'ask') {
+    var where = planOff ? 'on a code request' : (promptOff ? 'after a plan approval' : 'after a plan approval and on a code request');
+    line(OK, 'delivery route: ask — the route question is asked ' + where + halfOff
+      + '; /zensu:delivery-route fixes it for this session, hooks.defaultDeliveryRoute for the project');
+  } else if (/^(tdd|direct) \((session marker|hooks\.defaultDeliveryRoute)\)$/.test(v)) {
+    var dispatch = '; code changes go through /zensu:tdd';
+    if (v.indexOf('direct') === 0) dispatch = '; code changes are implemented directly, without the review chain';
+    else if (planOff) dispatch = '; a code request goes through /zensu:tdd, while an approved plan is implemented directly';
+    else if (promptOff) dispatch = '; an approved plan goes through /zensu:tdd';
+    line(OK, 'delivery route: ' + v + ' — the route question is not asked this session' + halfOff
+      + dispatch + '. Change it with /zensu:delivery-route (--tdd, --direct, --auto)');
+  } else {
+    var shown = safeConfigValue(v, ') — the');
+    line(WARN, 'delivery route: state not recognized (' + (shown.ok ? shown.text : FOLD_UNAVAILABLE)
+      + ') — the wrapper reported a state this report has no row for; a missing check rather than an all-clear');
+  }
+}
+
+// ONE reader for every bounded `ZDOC_*` integer, because the rule below is what its
+// callers kept getting differently — count them by grepping the calls rather than
+// trusting a number here. An ABSENT or blank value falls back, and that distinction
+// is load-bearing: `Number('')` is `0`, `0` passes the `n >= 0` bound, and for EVERY
+// variable read through here `0` is the documented value
+// that DISABLES the guard. `zensu-doctor.sh` exports each of them unconditionally
+// after a conditional resolve, so a wrapper fault reaches this file as an empty
+// string — which used to switch the pending-review TTL off silently. The
+// implementing-turns reader guarded it; its twin did not, so the class was named
+// and one of its two instances repaired. Now there is one instance.
+function boundedEnvIntResolve(name, fallback, max) {
+  var raw = env[name];
+  if (envBlank(raw)) return { value: fallback, accepted: false };
+  var n = Number(raw);
+  if (Number.isInteger(n) && n >= 0 && n <= max) return { value: n, accepted: true };
+  return { value: fallback, accepted: false };
+}
+
+function boundedEnvInt(name, fallback, max) {
+  return boundedEnvIntResolve(name, fallback, max).value;
+}
+
+function envBlank(raw) {
+  return typeof raw !== 'string' || raw.trim() === '';
+}
+
+
+function ttlHours() {
+  return boundedEnvInt('ZDOC_TTL_HOURS', TTL_HOURS_FALLBACK, TTL_HOURS_MAX);
+}
+
+// The owner-activity window has no accessor of this shape. `ownerActivityWindow`
+// resolves it, because its consumer needs the ACCEPTED flag beside the value and a
+// value-only accessor would drop exactly the distinction the clause states. One was
+// kept here for a round with no caller left, and a dead accessor is not inert: C57c
+// in tests/structure/test-impl-stop-counter.sh pins the constant pair by grepping a
+// reader's spelling, so the pin moved onto code the report never ran and would have
+// stayed green with the live resolution rewritten onto the pending-review pair.
+function implStopThreshold() {
+  return boundedEnvInt('ZDOC_IMPL_STOP_NUDGE_AFTER', IMPL_STOP_NUDGE_FALLBACK, IMPL_STOP_NUDGE_MAX);
+}
+
+function worktreeKeepRows(nowMs, ownKey, projectRoot) {
+  var mod;
+  var underContainer = (path.sep + projectRoot + path.sep).indexOf(path.sep + '.claude' + path.sep + 'worktrees' + path.sep) !== -1;
+  try {
+    mod = require(path.join(pluginDir(), 'hooks', 'lib', 'worktree-keep-v1.js'));
+  } catch (e) {
+    if (!underContainer) {
+      line(OK, 'worktree: not under a .claude/worktrees container — ' + foldPath(projectRoot, ' needs no keep marker') + ' needs no keep marker');
+      return;
+    }
+    line(WARN, 'worktree: keep check NOT performed — hooks/lib/worktree-keep-v1.js could not be loaded ('
+      + worktreeFaultText(e) + ')');
+    return;
+  }
+  var managed = null;
+  try {
+    managed = mod.managedWorktree(projectRoot);
+  } catch (e) {
+    if (underContainer) {
+      line(WARN, 'worktree: keep check NOT performed for ' + foldPath(projectRoot, ' (') + ' (' + worktreeFaultText(e) + ')');
+      return;
+    }
+    managed = null;
+  }
+  if (!managed) {
+    line(OK, 'worktree: not an app-managed worktree — ' + foldPath(projectRoot, ' needs no keep marker') + ' needs no keep marker');
+    return;
+  }
+  var root = managed.worktreeRoot;
+  function nestedHoldVerdict() {
+    if (typeof mod.nestedHold !== 'function' || !mod.NESTED_HOLDS) return null;
+    try {
+      return mod.nestedHold(root);
+    } catch (e) {
+      return { reason: mod.NESTED_HOLDS.SCAN_INCOMPLETE, scan: worktreeFaultText(e) };
+    }
+  }
+  function nestedHoldRow(held) {
+    if (held === null) return;
+    if (held.reason === mod.NESTED_HOLDS.REPOSITORY) {
+      line(OK, 'worktree: a nested repository in ' + foldPath(root, ' keeps the keep marker once no session anchor holds it — ')
+        + ' keeps the keep marker once no session anchor holds it — the first in name order is ' + foldPath(held.nested.path, ' (')
+        + ' (' + held.nested.kind + '); Claude Desktop then leaves the directory on disk when a session is archived, '
+        + 'until every nested repository in it is moved out or removed, because its cleanup would delete them with the directory');
+    } else {
+      line(WARN, 'worktree: the scan for nested repositories in ' + foldPath(root, ' did not finish (') + ' did not finish ('
+        + held.scan + ') — the keep marker stays once no session anchor holds it, until a scan finishes; '
+        + 'make every directory there readable, or remove dependency or build directories you no longer need, '
+        + 'because an unfinished scan cannot rule out a repository the archive cleanup would delete');
+    }
+  }
+  if (env.ZDOC_WORKTREE_KEEP === 'off') {
+    var offMarker = null;
+    try {
+      offMarker = mod.markerState(root);
+    } catch (e) {
+      offMarker = null;
+    }
+    if (offMarker && offMarker.state === mod.MARKER_STATES.OURS) {
+      var hold;
+      try {
+        hold = mod.listAnchors(root, nowMs, mod.idleMsFromHours(env.ZDOC_WORKTREE_KEEP_IDLE_HOURS));
+      } catch (e) {
+        hold = { ok: false, reason: worktreeFaultText(e) };
+      }
+      var offNested = nestedHoldVerdict();
+      var afterNested = offNested === null ? '' : ' once nothing else holds it';
+      var stranded = 'worktree: keep marker still present although hooks.worktreeKeep=false — ' + foldPath(offMarker.file, ' keeps')
+        + ' keeps this directory out of the desktop pool';
+      if (!hold.ok) {
+        var offDrain = hold.reapable ? hold.reapable.length : 0;
+        line(WARN, stranded + '; the anchor directory could not be read (' + hold.reason + '), so '
+          + (offDrain > 0
+            ? 'the next SessionStart or SessionEnd in it reaps the ' + offDrain
+              + ' expired anchor(s) it read and releases the marker once the directory is back under the bound and nothing else holds it'
+            : 'the release pass leaves the marker as it stands'));
+      } else if (hold.live.length) {
+        line(WARN, stranded + ' while ' + hold.live.length + ' live session anchor(s) hold it; the next SessionStart or SessionEnd in it after they end releases the marker' + afterNested);
+      } else if (hold.rejected.length) {
+        line(WARN, stranded + ' while anchor file(s) this build cannot validate sit beside it ('
+          + hold.rejected.map(function (r) { return r.name; }).join(', ')
+          + '); remove one by hand only after confirming no session on another plugin version is live there, '
+          + 'then the next SessionStart or SessionEnd in it releases the marker' + afterNested);
+      } else if (offNested !== null && offNested.reason === mod.NESTED_HOLDS.REPOSITORY) {
+        line(WARN, stranded + ' while a nested repository sits inside it; the release pass keeps the marker until every nested repository there is moved out or removed');
+      } else if (offNested !== null) {
+        line(WARN, stranded + ' while the scan for nested repositories in it did not finish; the release pass keeps the marker until a scan finishes');
+      } else {
+        line(WARN, stranded + ' until the next SessionStart or SessionEnd in it releases the marker');
+      }
+      nestedHoldRow(offNested);
+    } else if (offMarker && offMarker.state === mod.MARKER_STATES.FOREIGN) {
+      line(OK, 'worktree: keep marker in ' + foldPath(root, ' was not written by this plugin')
+        + ' was not written by this plugin — left alone, the desktop pool still honours it');
+    } else {
+      line(OK, 'worktree: keep marker switched off (hooks.worktreeKeep=false) — the desktop pool may reuse or reap '
+        + foldPath(root, ' while a session is live here') + ' while a session is live here');
+    }
+    return;
+  }
+  // Every module call below reads a session-writable directory, so one errno the module
+  // re-throws would otherwise propagate out of stateBlock and discard the WHOLE report,
+  // which is accumulated and written once. The cost of a fault here is this row family.
+  try {
+    var idleMs = mod.idleMsFromHours(env.ZDOC_WORKTREE_KEEP_IDLE_HOURS);
+    var anchors = mod.listAnchors(root, nowMs, idleMs);
+    var marker = mod.markerState(root);
+    // listAnchors answers ok:false with EMPTY lists, so reading live.length as a count
+    // would render a green row with 0 over a directory the check never read.
+    var readable = anchors.ok !== false;
+    if (!readable) {
+      var drain = anchors.reapable ? anchors.reapable.length : 0;
+      line(WARN, 'worktree: anchors in ' + foldPath(root, ' could not be read') + ' could not be read ('
+        + anchors.reason + ') — that is a missing check, not an all-clear, and '
+        + (drain > 0
+          ? 'the next prompt reaps the ' + drain + ' expired anchor(s) it read and judges the keep marker again once the directory is back under its bound'
+          : 'the keep marker is left as it stands'));
+    }
+    if (marker.state === mod.MARKER_STATES.REFUSED) {
+      line(WARN, 'worktree: keep marker refused — ' + foldPath(marker.file, ' is not a plain file')
+        + ' is not a plain file; the plugin neither creates nor removes it, inspect it by hand');
+    } else if (marker.state === mod.MARKER_STATES.FOREIGN) {
+      line(OK, 'worktree: keep marker in ' + foldPath(root, ' was not written by this plugin')
+        + ' was not written by this plugin — left alone, the desktop pool still honours it');
+    } else if (marker.state === mod.MARKER_STATES.OURS && readable) {
+      line(OK, 'worktree: keep marker present in ' + foldPath(root, ' (') + ' (' + anchors.live.length + ' live session anchor(s))');
+    } else if (marker.state === mod.MARKER_STATES.OURS) {
+      line(OK, 'worktree: keep marker present in ' + foldPath(root, ' — ') + ' — how many session anchors are live could not be read');
+    }
+    nestedHoldRow(marker.state === mod.MARKER_STATES.OURS ? nestedHoldVerdict() : null);
+    if (ownKey !== '') {
+      var own = mod.anchorVerdict(root, ownKey, nowMs, idleMs);
+      if (own.verdict === mod.VERDICTS.MISSING) {
+        line(WARN, 'worktree: this session has no anchor in ' + foldPath(root, ' yet')
+          + ' yet — the next prompt writes one and adopts the branch checked out then as its baseline without verification, so a takeover before that point cannot be ruled out');
+      } else if (own.verdict === mod.VERDICTS.REJECTED) {
+        var remedy = mod.anchorRemedy(root, ownKey);
+        var unvalidated = 'worktree: this build cannot validate this session\'s anchor in ' + foldPath(root, ' (')
+          + ' (' + own.reason + ') — ';
+        if (remedy === mod.ANCHOR_REMEDIES.REPLACED) {
+          line(WARN, unvalidated + 'the next prompt replaces it with this session\'s own record');
+        } else if (remedy === mod.ANCHOR_REMEDIES.REMOVE_BY_HAND) {
+          line(WARN, unvalidated + 'the plugin never replaces a symlink, a hard link or a non-file there; remove it by hand, then the next prompt rewrites it');
+        } else if (remedy === mod.ANCHOR_REMEDIES.STATE_COMPONENT) {
+          line(WARN, unvalidated + 'a component of ' + mod.STATE_SEGMENTS.join('/')
+            + ' on its path is a symlink or not a directory, so the plugin neither reads nor writes anchors there; fix that component by hand');
+        } else {
+          line(WARN, unvalidated + 'this report cannot say whether the next prompt can replace it; inspect it by hand');
+        }
+      } else {
+        if (own.verdict === mod.VERDICTS.STALE) {
+          line(WARN, 'worktree: this session\'s anchor in ' + foldPath(root, ' is stale')
+            + ' is stale — it no longer holds the keep marker, so the desktop pool may reuse or reap the directory until the next prompt refreshes it');
+        }
+        if (marker.state === mod.MARKER_STATES.ABSENT && own.verdict === mod.VERDICTS.LIVE) {
+          var ignore = mod.markerIgnoreState(root);
+          var missing = 'worktree: keep marker MISSING in ' + foldPath(root, ' while this session')
+            + ' while this session\'s anchor is live — the desktop pool may reuse or reap it';
+          var refusal = missing + ', and the plugin does not create the marker there: ';
+          if (ignore.state === mod.IGNORE_STATES.NOT_IGNORED) {
+            line(WARN, refusal + 'git does not ignore ' + mod.KEEP_FILENAME
+              + ' although info/exclude lists it, so an ignore rule such as !' + mod.KEEP_FILENAME + ' re-includes it');
+          } else if (ignore.state === mod.IGNORE_STATES.EXCLUDE_REFUSED) {
+            line(WARN, refusal + 'it cannot add the marker to info/exclude (' + ignore.reason + ')');
+          } else if (ignore.state !== mod.IGNORE_STATES.IGNORED && ignore.state !== mod.IGNORE_STATES.NOT_YET_EXCLUDED) {
+            line(WARN, refusal + 'git could not say whether it ignores ' + mod.KEEP_FILENAME);
+          } else if (!readable) {
+            line(WARN, missing + '; the plugin restores it only once the anchor directory can be read');
+          } else {
+            line(WARN, missing + '; the next prompt restores the marker');
+          }
+        }
+        var states = mod.BRANCH_STATES;
+        var verdict = mod.branchState(root, own.record, mod.currentBranch(root));
+        var recorded = own.record.drift;
+        if (!mod.anchorMatchesRoot(own.record, root)) {
+          line(WARN, 'worktree: this session\'s anchor in ' + foldPath(root, ' names another worktree')
+            + ' names another worktree — the next prompt replaces it with this session\'s own record and adopts the branch checked out then '
+            + 'as its baseline without verification, so a takeover before that point cannot be ruled out');
+        } else if (verdict.state === states.UNRESOLVED_PAUSED) {
+          line(WARN, 'worktree: this session\'s anchor in ' + foldPath(root, ' recorded no branch')
+            + ' recorded no branch — a ' + verdict.paused + ' paused there holds a detached HEAD; the next prompt records the branch it returns to, '
+            + 'or the branch checked out once it finishes when git\'s record of that branch cannot be read');
+        } else if (verdict.state === states.UNRESOLVED) {
+          line(WARN, 'worktree: this session\'s anchor in ' + foldPath(root, ' recorded no branch')
+            + ' recorded no branch — the branch read failed when the session started; the next prompt records the current one');
+        } else if (verdict.state === states.UNRESOLVED_UNREADABLE) {
+          line(WARN, 'worktree: this session\'s anchor in ' + foldPath(root, ' recorded no branch')
+            + ' recorded no branch — the branch read failed when the session started and still fails, so a takeover could not be ruled out; '
+            + 'the next prompt records the branch once git can answer');
+        } else if (verdict.state === states.DRIFT_HELD) {
+          line(WARN, 'worktree: branch drift — this session\'s anchor recorded a move of '
+            + mod.recordedMoveSentence(foldPath(root, ' from '), recorded, verdict)
+            + '; another session may have taken the directory. '
+            + mod.remedyLines({ from: recorded.from }).join(' '));
+        } else if (verdict.state === states.PAUSED) {
+          line(OK, 'worktree: a paused ' + verdict.paused + ' holds a detached HEAD in ' + foldPath(root, ' — ')
+            + ' — the branch check waits until it finishes');
+        } else if (verdict.state === states.DRIFT) {
+          line(WARN, 'worktree: branch drift — ' + mod.driftSentence(foldPath(root, ' is now on '), verdict.drift)
+            + '; another session may have taken the directory. '
+            + mod.remedyLines({ from: verdict.drift.from }).join(' '));
+        } else if (verdict.state === states.ON_BASELINE) {
+          line(OK, 'worktree: this session still sits on its recorded ' + mod.branchNoun(own.record.branch)
+            + ' in ' + foldPath(root, ''));
+        } else {
+          line(WARN, 'worktree: current branch unreadable in ' + foldPath(root, ', so a takeover could not be ruled out')
+            + ', so a takeover could not be ruled out');
+        }
+      }
+    } else if (marker.state === mod.MARKER_STATES.ABSENT) {
+      line(OK, 'worktree: no keep marker in ' + foldPath(root, ' and this session is not bound')
+        + ' and this session is not bound, so its own anchor was not judged');
+    }
+    var others = anchors.rejected.filter(function (r) { return r.key !== ownKey; });
+    if (others.length) {
+      line(WARN, 'worktree: anchor file(s) this build cannot validate in ' + foldPath(root, ' — ')
+        + ' — ' + others.map(function (r) { return r.name; }).join(', ')
+        + '; such a file is usually the live anchor of a session on another plugin version and holds the keep marker'
+        + ' — remove one by hand only after confirming no such session is live there');
+    }
+  } catch (e) {
+    line(WARN, 'worktree: keep check NOT performed for ' + foldPath(root, ' (') + ' (' + worktreeFaultText(e) + ')');
+  }
+}
+
+function worktreeFaultText(e) {
+  var kind = e && e.code ? String(e.code) : e && typeof e.name === 'string' && e.name !== '' ? e.name : 'error';
+  return foldPath(kind, ')');
+}
+// The shapes that carry no work forward. Taken from chain-recovery-v1.js, which
+// OWNS the vocabulary and mints these literals a few lines from where it lists
+// them. A hand-copy here was tried and was wrong in the one direction that
+// matters: it compared against the `NEXT_COMMAND` lookup table, so renaming the
+// literal `chainShape` RETURNS while leaving the table key in place kept the
+// copy agreeing while a genuinely closed foreign chain rendered as an open one.
+// A consumer cannot check the producer it does not own; asking the owner is the
+// only version of this that works.
+// The element check is not decoration. Arity alone accepts an export whose members
+// are not the strings `chainShape` returns — a different type, or a different
+// spelling — and `indexOf` then never matches, so every closed foreign chain
+// renders as an open one with no row saying the check did not run. That is the
+// silent wrong answer moving the set here was meant to remove; anything unusable
+// falls through to `null` and the disclosed WARN.
+function inertShapes(chain) {
+  var shapes = chain && chain.INERT_SHAPES;
+  if (!Array.isArray(shapes) || !shapes.length) return null;
+  return shapes.every(function (s) { return typeof s === 'string' && s !== ''; }) ? shapes : null;
+}
+
+// The document's own age. `.zensu/state/` is writable from inside a session, so
+// a bare `touch -t` would move a filesystem mtime out of the window without
+// producing a document `validateWorkflowState` accepts — `updated_at` is a field
+// that validator already requires to parse as a finite date, so it is the
+// cheaper thing to trust. It narrows the forgery channel rather than closing it:
+// `session_id_hash` is derivable from the file's own name, so a writer can still
+// mint an accepted document carrying any stamp it likes.
+//
+// No mtime fallback: `readWorkflowState` throws unless `updated_at` parses
+// finite, and a throw sends the file to `invalid` instead of into `states`, so
+// an entry reaching here always carries one. A fallback would be dead code
+// pretending to be a safety net.
+//
+// A stamp in the FUTURE is treated as out of window rather than absolute-valued.
+// This is the sibling `reviewerDenialRows` policy one screen down, and for its
+// reason: a negative age would sail under any `<= ttl` bound forever, so a
+// clock-skewed or planted document would render this row until someone deleted
+// it. Returning null rather than a number keeps "not in the window" and "could
+// not be measured" one answer, which is all the caller needs.
+function documentAgeMs(entry, nowMs) {
+  var stamped = entry.state && entry.state.updated_at;
+  var parsed = typeof stamped === 'string' ? Date.parse(stamped) : NaN;
+  if (!Number.isFinite(parsed) || parsed > nowMs) return null;
+  return nowMs - parsed;
+}
+
+// Shape-validated here as well as in the wrapper, because a malformed injected
+// value must never be TREATED as the current key: every chain would then read as
+// foreign and the row would accuse the session of stranding its own work.
+//
+// The BINDING verdict is required alongside it. The wrapper states that the key
+// is empty for every verdict but `bound`, and it now clears the variable
+// unconditionally so that holds — but the wrapper's whole resolution block is
+// skipped when a caller supplies `ZDOC_BINDING`, so the reader enforces the
+// invariant its producer only asserts. Without this, a report could print the ❌
+// "no valid Session Control record" row and, below it, a row keyed on a session
+// key it had just said does not exist.
+function currentSessionKey() {
+  var key = env.ZDOC_SESSION_KEY;
+  if (env.ZDOC_BINDING !== 'bound') return '';
+  return typeof key === 'string' && /^scv1_[a-f0-9]{64}$/.test(key) ? key : '';
+}
+
+// WHERE the workflow documents actually are. Every writer anchors on the RECORD:
+// `zensu-log.sh` re-exports `CLAUDE_PROJECT_DIR` from `zensu_resolve_project_dir`,
+// which resolves `ZENSU_PROJECT_ROOT` out of the immutable record, before any verb
+// body runs. Reading the raw harness value here instead made this whole block look
+// in a directory no writer uses whenever the two differ — and they differ in the
+// ordinary case, a session whose cwd is a worktree while the harness reports the
+// origin repo. That was not a rendering detail: `readWorkflowState` is rooted here
+// too, so the documents were never read at all.
+//
+// An earlier attempt compared the two and withheld the row when they disagreed.
+// That was worse: it withheld exactly the fork-in-a-worktree case the row exists
+// for, and it did so silently. There is one authority; the caller's value is the
+// fallback, and only because a session with no bound record has nothing better.
+// Control bytes, refused wherever a value reaches the report or a shell. Declared
+// here because `stateProjectRoot` below is the first consumer.
+// C0, DEL, C1, and the Unicode line/paragraph separators. The last two are the ones a
+// forged report line would use, and this file's own threat model for the sibling value
+// is exactly line forging.
+var CONTROL_BYTE_RE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+
+
+// The ROW-FORGERY half of the display fold, without its character allowlist.
+//
+// `deletableTarget` cannot use the fold itself: the skill copies its bytes into an `rm`,
+// so a folded path names a file that does not exist. But it cannot skip the question
+// either — `current` derives from the recorded project root, screened for NUL/CR/LF
+// only, so a directory named `/home/u/x provenance : recorded` renders a forged
+// `label : value` pair inside the one line the skill is told it may use verbatim.
+//
+// Applying `safeDisplayValue` here was tried first and was WRONG in the other direction:
+// its allowlist rejects every shell-active character, so an ordinary `~/My $tuff/repo`
+// was withheld as unrenderable when `shellQuotePath` handles exactly that — P1o4/P1o4a
+// caught it. The allowlist protects a value being READ; these four rules protect the
+// ROW's structure, and only the second question applies to a path that will be quoted.
+//
+// The rules are IMPORTED, never re-spelled: that module owns them, and a second copy
+// here is the two-implementation class the extraction removed. A load failure answers
+// TRUE — withholding a copyable path costs one convenience, emitting an unchecked one is
+// the defect this exists to prevent.
+function forgesReportRow(value) {
+  try {
+    var rules = require('./zensu-safe-display-v1.js');
+    return rules.PAIR_SEPARATOR.test(value)
+      || rules.DOUBLE_SPACE.test(value)
+      || rules.SEPARATOR_ADJACENT_MODIFIER_LETTER.test(value)
+      || rules.INVISIBLE.test(value)
+      // ORPHAN_MARK arrived with the merge, from the branch that closed the same
+      // forgery class in the report. It belongs here for the same reason as its four
+      // siblings: a combining mark on a space paints ON that space, which is a ROW
+      // STRUCTURE forgery rather than an unreadable character. Omitting it would make
+      // this predicate a stale subset of the rule set it claims to consult — the
+      // divergence a shared owner exists to prevent.
+      || rules.ORPHAN_MARK.test(value);
+  } catch (e) {
+    return true;
+  }
+}
+
+// The reader re-enforces the ONE invariant of its producer that has a consequence
+// here, which is the rule `currentSessionKey` states one function up: a caller
+// supplying `ZDOC_BINDING` skips the wrapper's whole resolution block, so a guard
+// that lives only there is not a guard. This screen is the LAST bound on the recorded
+// root that is not a fold: it rejects control bytes, so a newline cannot inject
+// fabricated lines into a report the model reads back — and it rejects NOTHING else,
+// so every positional rule (`PAIR_SEPARATOR`, `DOUBLE_SPACE`, `INVISIBLE`,
+// `ORPHAN_MARK`, `SEPARATOR_ADJACENT_MODIFIER_LETTER`) survives it. Do NOT restate
+// this as a census of raw rows: one was written that way, it named `stateBlock`'s three,
+// and it went stale the moment those three were folded while six in `autopilotRows`
+// were not. Every consumer of this value now folds it; before adding a seventh, grep
+// `+ dir` and `path.join(dir` in this file rather than trusting a number here.
+//
+// Deliberately NOT re-checked here: that the root is an existing directory. The
+// wrapper refuses a non-directory, and adding the same test to this side would make
+// an unreadable recorded root fall back to `CLAUDE_PROJECT_DIR` — silently scanning
+// a DIFFERENT project, which is worse than letting `readdirSync` fail and say so.
+// One missing directory should be reported, not routed around.
+//
+// Neither case is reachable through the shipped invocation (the wrapper clears both
+// values unconditionally and the recognizer's assignment allowlist is closed). It is
+// here for the PORT NOTE at the top of this file: a port that gets the clear-vs-seed
+// rule right and the shape guard wrong lands the value here with nothing to catch it.
+function stateProjectRoot() {
+  var recorded = env.ZDOC_SESSION_PROJECT_ROOT;
+  if (env.ZDOC_BINDING === 'bound' && typeof recorded === 'string' && recorded !== ''
+    && !CONTROL_BYTE_RE.test(recorded)) {
+    return path.resolve(recorded);
+  }
+  return path.resolve(env.CLAUDE_PROJECT_DIR || '.');
+}
+
+// A path is printed as a deletion target only when a shell can be handed it
+// safely, because `skills/doctor/SKILL.md` Phase 3 feeds exactly these bytes to
+// `rm`. Three conditions: NO component of the chain is a symlink — the scanned
+// root included, which is why the walk starts from its canonical spelling rather
+// than from the caller's; the resolved file is a plain, single-linked file inside
+// that root; and the path carries no control byte. Any failure returns '' and the
+// caller withholds the path rather than the finding.
+//
+// The value is emitted SHELL-QUOTED rather than filtered against a character
+// class. An allowlist was tried first and was wrong in BOTH directions: it
+// excluded `path.sep`, so on win32 no candidate could ever match and the cleanup
+// was unreachable on that host entirely, and it excluded the space, so an ordinary
+// `~/My Projects/...` was refused with a message blaming the user's filesystem.
+// Inside single quotes every byte but the quote itself is literal, so quoting is
+// the total answer the class was approximating. A control byte is still refused:
+// quoting would make it harmless to the shell, but it would corrupt the report
+// line a model reads back.
+//
+// `root` is canonicalized rather than compared against its own realpath. Requiring
+// equality would refuse every macOS session under `/var/folders`, which is a
+// symlink to `/private/var` — an ordinary temp root, not a hostile one. Resolving
+// instead makes the stated invariant TRUE, and the printed path is then the one
+// `rm` will actually act on.
+function shellQuotePath(value) {
+  return "'" + value.split("'").join("'\\''") + "'";
+}
+
+// Returns `{ path, reason }`. Exactly one is ever non-empty. The reason is
+// rendered to the operator, because "the path is withheld" plus an unresolvable
+// disjunction reads as a fault in their filesystem rather than as the specific
+// condition the renderer actually hit.
+function deletableTarget(file, root) {
+  try {
+    var rest = path.relative(root, file);
+    if (rest === '' || rest === '..' || rest.startsWith('..' + path.sep) || path.isAbsolute(rest)) {
+      return { path: '', reason: 'it resolves outside the scanned project root' };
+    }
+    var current = fs.realpathSync.native(root);
+    var parts = rest.split(path.sep);
+    for (var i = 0; i < parts.length; i++) {
+      current = path.join(current, parts[i]);
+      var st = fs.lstatSync(current);
+      if (st.isSymbolicLink()) return { path: '', reason: 'a component of its path is a symlink' };
+      if (i < parts.length - 1) {
+        if (!st.isDirectory()) return { path: '', reason: 'a component of its path is not a directory' };
+      } else if (!st.isFile()) {
+        return { path: '', reason: 'it is not a plain file' };
+      } else if (st.nlink !== 1) {
+        return { path: '', reason: 'it has more than one hard link' };
+      }
+    }
+    if (CONTROL_BYTE_RE.test(current)) return { path: '', reason: 'its path carries a control character' };
+    // The FOURTH row carrying this project-root-derived path, and the one the fold
+    // cannot be applied to: the skill copies these bytes into an `rm`, so folding here
+    // would hand it a path that does not exist. Withhold instead. `current` comes from
+    // the same recorded root the three folded `state:` rows use — screened for NUL, CR
+    // and LF only — so without this a root named `/home/u/x provenance : recorded`
+    // reaches the row as a forged `label : value` pair inside the one line the file's
+    // own comment says the skill may use verbatim. Dropping only the copyable literal
+    // keeps the verdict and its reason, which is the shape every other refusal here uses.
+    if (forgesReportRow(current)) {
+      return { path: '', reason: 'its path would read as a second report row' };
+    }
+    return { path: shellQuotePath(current), reason: '' };
+  } catch (e) {
+    return { path: '', reason: 'it could not be examined (' + (e && e.code ? e.code : 'unknown error') + ')' };
+  }
+}
+
+// The marker's OWN `ts` decides its age when it carries one, exactly as
+// `_tdd_pending_file_stale` in `hooks/lib/zensu-tdd-phase.sh` decides staleness.
+// Reading the filesystem mtime alone let this row print "safe to clear" for a
+// marker the Stop enforcer still treats as LIVE: an mtime-preserving restore, a
+// `cp -p` or a container layer moves the two apart without touching `ts`, and
+// `.zensu/state/` is session-writable besides. Two readers of one file must not
+// disagree about which markers are dead. The size bound keeps a planted file from
+// turning a diagnostic row into an unbounded read.
+function pendingReviewStamp(file, st) {
+  try {
+    if (st.size <= 65536) {
+      var parsed = Date.parse(JSON.parse(fs.readFileSync(file, 'utf8')).ts);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  } catch (e) { /* an absent or unreadable `ts` falls back to the filesystem stamp */ }
+  return st.mtimeMs;
+}
+
+// `dirEntries` and `stateDir` are the raw `.zensu/state` listing and its path, and
+// they are here for ONE question: does this session still stand refused? Without
+// them the implementing-turns row recommended the completion verb on exactly the
+// chain whose Stop notice had just qualified it, so the two surfaces contradicted
+// each other in the same minute. Both are optional — a caller with no listing gets
+// the previous behaviour, never a TypeError. **Accepted design debt, named rather
+// than left to be discovered:** they are one datum split into an unchecked pair, and
+// an omitted argument degrades to "no refusal" SILENTLY, which is the shape this file
+// refuses everywhere else. There is exactly one caller and it passes both, so the
+// degradation is unreachable today; make them required if a second caller appears.
+function chainRows(entries, nowMs, dirEntries, stateDir) {
+  if (!entries.length) return;
+  var chain;
+  try {
+    chain = require(path.join(pluginDir(), 'hooks', 'lib', 'chain-recovery-v1.js'));
+  } catch (e) {
+    line(WARN, 'chain: chain-recovery-v1.js is unreadable — chain shapes cannot be classified');
+    return;
+  }
+  var shapes = [];
+  var unclassifiable = 0;
+  var recoverable = [];
+  var blocked = [];
+  var deadEnds = [];
+  var foreignOpen = [];
+  // A STRING, not a list. The push is gated on `entry.key === ownKey` and each entry
+  // carries a distinct key, so at most one chain can ever qualify — holding a single
+  // value puts that invariant in the type instead of in a comment defending an array
+  // that could only ever have one element.
+  var parkedImpl = '';
+  // The row states the MEASURED magnitude, so the count has to survive the loop.
+  // Rendering `implThreshold` instead made the sentence read "across at least 12
+  // turns" at turn 300 — the bound, not the finding.
+  var parkedTurns = 0;
+  var implThreshold = implStopThreshold();
+  var ownKey = currentSessionKey();
+  var ttl = ttlHours();
+  // Gated on the same two conditions the only consumer needs. State the gate honestly:
+  // it is WEAKER than the consumer's, which additionally requires the entry to be this
+  // session's own chain at `implementing` with the counter at or past the bound — so a
+  // bound session with a note and no implementing chain still pays one note read.
+  // Resolved here rather than above, because it consumes the `ttl` on the line before.
+  var ownRefused = implThreshold > 0 && ownKey !== ''
+    && ownRefusalNoteLive(dirEntries || [], stateDir || '', ownKey, nowMs, ttl);
+  var inert = inertShapes(chain);
+  // Whether the foreign-open row can render AT ALL. Neither half depends on an
+  // entry, so it is decided once here rather than re-tested per entry and then
+  // re-spelled independently by the disclosures below.
+  var rowArmed = ownKey !== '' && inert !== null;
+  entries.forEach(function (entry) {
+    var report;
+    try {
+      report = chain.classifyChain(entry.state);
+    } catch (e) {
+      shapes.push(entry.session + ': unclassifiable');
+      unclassifiable++;
+      return;
+    }
+    shapes.push(entry.session + ': ' + report.shape
+      + (report.recoveries ? ' (repaired ' + report.recoveries + '×)' : ''));
+    if (report.deadEnd) {
+      deadEnds.push(entry.session + ' → ' + report.nextCommand);
+      return;
+    }
+    if (report.wedged) {
+      if (report.recoverable) recoverable.push(entry.session + ' → ' + report.nextCommand);
+      else blocked.push(entry.session + ' → ' + report.nextCommand);
+      return;
+    }
+    // Below the two early returns, on the same side of the ordering contract as
+    // the foreign-open push: a chain already named as wedged or dead-ended must
+    // never be named a second time with a different instruction. Gated on the
+    // session key ALONE — deliberately not on `rowArmed`, whose `inert` half
+    // belongs to the foreign-open filter and would withhold this row for a reason
+    // it does not depend on, silently.
+    if (implThreshold > 0 && ownKey !== '' && entry.key === ownKey
+      && report.shape === 'implementing') {
+      // Read through the classifier, not off the raw document: that module owns
+      // chain semantics, projects the sibling counters the same way, and serialises
+      // the whole report as the `--chain-status` payload, so reaching around it
+      // would leave that verb structurally blind to how long a chain has been parked.
+      var parkedCount = report.implStopCount;
+      if (Number.isSafeInteger(parkedCount) && parkedCount >= implThreshold) {
+        // The command comes from the OWNING module, never hand-authored here: for
+        // an Autopilot-bound chain `shapeCommand` returns the spelling carrying
+        // --autopilot-run / --autopilot-attempt / --chain-id, and the bare verb is
+        // refused outright for such a chain. Same rule the three sibling rows follow.
+        parkedTurns = parkedCount;
+        // The command is ALWAYS named. An earlier revision withheld it while a live
+        // refusal note stood, and that was wrong twice over. First, the note is an
+        // unauthenticated file in a session-writable directory, so withholding let
+        // anything able to write there DELETE the row's only remedy and assert a
+        // host refusal that never happened. Second, the note is minted only by a
+        // Stop that gets all the way through the dirty-tree and threshold gates,
+        // while this row renders off the persisted counter alone — so one clean-tree
+        // turn cleared the note and silently restored the bare recommendation, which
+        // is the exact contradiction the withholding was introduced to remove.
+        // Qualifying instead is stable under both: a missing note costs the caveat,
+        // never the remedy, and a planted one can only add a caveat.
+        // `report.nextCommand` arrives UNQUOTED, and what makes that safe is named here
+        // because a first version of this comment named the WRONG thing and was refuted
+        // in review. The bound is `autopilotLinkage` in chain-recovery-v1.js:
+        // `shapeCommand` only interpolates `runId` / `attempt` / `chainId` under
+        // `linkage === 'bound'`, which requires `isLinkId` on both ids —
+        // `/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/`, 1..128 characters, so no whitespace and no
+        // shell metacharacter — and an integer attempt in 1..999. Every other producer
+        // of `nextCommand` is a STATIC MODULE STRING: the two frozen tables, plus the
+        // `STALE_RECEIPT_CAVEAT` literal one branch concatenates onto a table value. So this row carries no unbounded
+        // dynamic text, and WIDENING `isLinkId` is what would open the channel.
+        //
+        // NOT the `entry.key === ownKey` gate above: that bounds only WHOSE document is
+        // read and would not stop a self-written run id if the character class were
+        // relaxed.
+        //
+        // And the Stop hook's `%q` is not evidence of a disagreement either — but state
+        // WHY correctly, because a first revision of this sentence said that path has "no
+        // `isLinkId` gate at all", and that is false. `tdd_chain_snapshot` in
+        // `zensu-tdd-phase.sh` carries a character-identical copy of the predicate and
+        // exits non-zero when either id fails it, and the Stop hook routes that failure to
+        // its blocking arm. So both paths gate; the `%q` is defence in depth over a HAND
+        // COPY of one predicate, not the only bound on an ungated read. That copy is the
+        // thing to know when widening: the class is written out in several places under
+        // `hooks/`, and at least one of them has already drifted (`zensu-autopilot-state.sh`
+        // spells the same class with a minimum length of 3). Widening `isLinkId` is a
+        // multi-site decision, not a one-file one.
+        //
+        // Quoting in `shapeCommand` as defence in depth would still be reasonable and is
+        // deliberately not taken here: its output is `NEXT_COMMAND`, pinned by name in
+        // chain-recovery-v1.test.js, test-chain-recover.sh and skills/recover-chain's
+        // shape table, so it is its own change with its own pin updates.
+        parkedImpl = entry.session + ': ' + parkedCount + ' turns → ' + report.nextCommand;
+      }
+    }
+    // Reached only by a chain no row above already named. A wedged or dead-end
+    // chain returns first on purpose: those rows carry their own remedy, and a
+    // second row telling the reader to re-arm the same truncated key would
+    // contradict it.
+    // `rowArmed` is loop-INVARIANT and is named once, above, so the arming rule and
+    // the disclosures below cannot drift apart. Only the two conditions that really
+    // vary per entry are tested here.
+    if (!rowArmed || entry.key === ownKey || inert.indexOf(report.shape) !== -1) return;
+    // `0` disables the bound rather than shrinking it to nothing, which is what
+    // this key means everywhere else it is read (docs/configuration.md, and
+    // reviewerDenialRows below). At `0` no window is claimed, so nothing is
+    // excluded on age at all: every entry reaching here carries an `updated_at`
+    // that parses finite, because `validateWorkflowState` refuses any document
+    // whose stamp does not and `stateBlock` routes that throw to `invalid`
+    // instead of into `states`. A guard for the unreadable case would be dead
+    // code pretending to be a safety net — the same argument documentAgeMs makes
+    // one screen up for the absent mtime fallback.
+    var ageMs = documentAgeMs(entry, nowMs);
+    if (ttl > 0 && (ageMs === null || ageMs / 3600000 > ttl)) return;
+    foreignOpen.push(entry.session + ': ' + report.shape);
+  });
+  line(
+    unclassifiable ? WARN : OK,
+    'chain: ' + shapes.length + ' review chain(s)'
+      + (unclassifiable ? ', ' + unclassifiable + ' unclassifiable' : '')
+      + ' — ' + truncatedList(shapes),
+  );
+  if (recoverable.length) {
+    line(WARN, 'chain: ' + recoverable.length + ' wedged chain(s) that no supported command can advance — run /zensu:recover-chain from the owning session: ' + truncatedList(recoverable));
+  }
+  if (blocked.length) {
+    line(WARN, 'chain: ' + blocked.length + ' chain(s) wedged but not recoverable in place — from the session that owns each chain: ' + truncatedList(blocked));
+  }
+  if (deadEnds.length) {
+    line(WARN, 'chain: ' + deadEnds.length + ' chain(s) at a dead end — a fresh generation is the only exit, from the session that owns each chain: ' + truncatedList(deadEnds));
+  }
+  // Counted in TURNS, never in elapsed time. An age bound would report the
+  // user's calendar rather than the model's behaviour: a powered-off machine, a
+  // paused session and a holiday all accumulate wall clock with nothing wrong,
+  // and they accumulate zero here. The shape alone is never enough either — it
+  // is what every legitimately mid-implementation chain looks like — so the
+  // count is what separates working from parked.
+  if (parkedImpl !== '') {
+    // Names ONE exit and names its preconditions with it. `--tdd-complete` refuses
+    // without an edit-landing receipt and without a usable Requirements table, and
+    // both gates arm on the same dirty tree this row requires, so naming the verb
+    // bare would be a remedy that refuses in the same breath. The zero-change
+    // terminus is deliberately NOT offered: from this shape it is the unqualified
+    // no-ticket terminus, and after a mid-run commit it closes a chain nothing
+    // reviewed. The command itself comes from the owning module, so a bound chain
+    // gets its own spelling rather than the standalone one.
+    // Says what the counter MEASURES. It advances only on a turn that ended with
+    // a changed worktree, so the chains reaching the bound are the busiest ones —
+    // "parked" asserted the opposite, and a reader on turn 13 of genuine work can
+    // disprove that opening clause at a glance. The magnitude is the finding, so
+    // the rendered number is the count, never the bound.
+    line(WARN, 'chain: this session owns a chain that has ended ' + parkedTurns
+      + ' turns at `implementing` with a changed worktree'
+      + ' — the review chain has not asked for a reviewer, so nothing in it has been reviewed.'
+      + ' (That is compatible with a spawn that WAS attempted: the caveat below reports one when'
+      + ' a note records it.) Counted in turns,'
+      + ' never in elapsed time, so a paused session or a powered-off machine never reaches this row.'
+      + ' The exit is the review chain: run the /zensu:tdd Phase 6 step 5b edit-landing audit until its'
+      + ' receipt records a CLEAN verdict, and give the plan a usable `## Requirements` table, because'
+      + ' while the tree is dirty the completion verb refuses a plan without that table and refuses a'
+      + ' receipt that is merely present — every claimed edit has to have landed.'
+      // QUALIFIES, never withholds. The caveat is worded so that its absence costs
+      // the reader nothing they can act wrongly on: with no live note the row is the
+      // ordinary remedy it always was, and with one the reader is told to lift the
+      // permission first. It says "a note records" rather than asserting the refusal
+      // outright, because the note is unauthenticated — the row below grades it.
+      + (ownRefused
+        ? ' A note in this session\'s state directory records that the host permission layer'
+          + ' refused its ' + REVIEWER_AGENT + ' spawn — see the refused-spawn row below. That permission'
+          + ' has to be lifted before the exit is taken, or the chain moves to a gate it cannot pass.'
+          // The BAR travels with the instruction, as it does at every other site in this file
+          // that asks for a permission change. It was the one site without it, on a row the
+          // skill orders relayed verbatim — and the note that triggers it is unauthenticated,
+          // so anything able to write the state directory could otherwise attach a bar-less
+          // "lift that permission" to the chain row.
+          + ' You have to apply this yourself — ' + SELF_PERMISSION_BAR + '.'
+        : '')
+      + ' ' + parkedImpl);
+  } else if (implThreshold >= IMPL_STOP_NUDGE_MAX) {
+    // The value that reaches this arm is the getter's own MAXIMUM, and nothing stronger
+    // should be claimed about it. A first wording said it was "at or above the counter's
+    // storage ceiling", which is false — the ceiling is one HIGHER, as this file's own
+    // IMPL_STOP_NUDGE_MAX comment says in the opposite direction — and it reached emitted
+    // operator text the doctor skill orders relayed. What is true is that no session ends
+    // that many turns, so the check cannot fire in practice; the literal `0` arm below was
+    // the only disclosure there was, which made a config value a silent off-switch for a
+    // review-integrity diagnostic, with no row and no bypass-ledger entry because no gate
+    // was escaped. Disabling must disclose however it is spelled.
+    line(OK, 'chain: the implementing-turns check cannot fire in practice — '
+      + '`hooks.implStopNudgeAfter` is ' + implThreshold + ', the highest value the getter'
+      + ' accepts, and no session ends that many turns. That is a switched-off check, not a'
+      + ' clean one.');
+  } else if (implThreshold === 0) {
+    // Disabling must not produce silence — the same rule the reviewer-spawn
+    // permission check follows. A reader who sees no row has to be able to tell
+    // "nothing to report" from "this check did not run".
+    //
+    // The coordination with the missing-key disclosure below runs in ONE
+    // direction, and it is this one: at threshold 0 the row is withheld because
+    // the check is switched off, and would be withheld with a perfectly good key.
+    // An earlier revision suppressed THIS row instead, which left the disclosure
+    // below blaming the missing key for a row that configuration had turned off —
+    // the wrong cause, and the exact confusion the coordination exists to prevent.
+    line(OK, 'chain: the implementing-turns check is switched off'
+      + ' (`hooks.implStopNudgeAfter` is 0), so no chain was measured for it.');
+  }
+  // BOTH halves of the row's contract disclose, and neither is conjoined on the
+  // other. Gating the module half on `ownKey !== ''` meant a tree that broke both
+  // printed NEITHER row: the inert disclosure was suppressed by the missing key,
+  // and the key had no disclosure of its own. Silence is the one verdict this row
+  // cannot qualify.
+  if (inert === null) {
+    line(WARN, 'chain: chain-recovery-v1.js exports no usable inert-shape set — an open chain'
+      + ' not owned by this session cannot be told from a closed one, so that row did not run.'
+      + ' That is a missing check, not an all-clear.');
+  }
+  // The wrapper half. A `bound` verdict with no session key is reachable through
+  // the shipped wrapper whenever one of its shape guards drops the pair, and it
+  // silently withheld the row while the report otherwise looked healthy.
+  if (env.ZDOC_BINDING === 'bound' && ownKey === '') {
+    // The implementing-turns clause is CONDITIONAL on the check being armed, and ARMED
+    // means BOTH bounds, not just the lower one. At threshold 0 that row is withheld by
+    // configuration, and at the getter's maximum it is withheld because the check cannot
+    // fire — each has its own row above saying so, and claiming the missing key here as
+    // well would give one absent row two contradictory causes in the same report. The
+    // upper bound was missing when the cannot-fire row landed, which reproduced that
+    // defect one literal over.
+    line(WARN, 'chain: the session key did not reach this report — an open chain owned by'
+      + ' another session cannot be identified, so that row did not run.'
+      + (implThreshold > 0 && implThreshold < IMPL_STOP_NUDGE_MAX
+        ? ' The implementing-turns row is withheld for the same reason, since without'
+          + ' the key an own chain cannot be told from a foreign one.'
+        : '')
+      + ' That is a missing check, not an all-clear.');
+  }
+  if (foreignOpen.length) {
+    // States the OBSERVATION, never the cause. This cannot tell a chain whose
+    // session forked away from one a live sibling session is still driving, and
+    // a live sibling is normal in this repository's own worktree workflow — so
+    // asserting a fork would make a false claim about that session and tell the
+    // reader to arm a competing chain.
+    //
+    // The CAUSE ORDER is deliberate and was corrected once. An earlier wording
+    // named the fork as "the usual cause" and opened with "if those sessions are
+    // still running, nothing is wrong here". Neither held: the predicate is every
+    // open chain in this project not owned by this session and inside the TTL, and
+    // the dominant member of that set is a session that ENDED without --chain-done,
+    // for which nothing is running and the state IS stale. Naming the rare cause
+    // first, then telling the reader the common case is fine, trains them to
+    // dismiss the row.
+    //
+    // It stays WARN, and the cost is accepted rather than hidden: `line()` counts
+    // WARN toward `warnCount` and `main()` gates "all checks green" on it, so a
+    // second session in the SAME project root suppresses the green summary while
+    // it runs. Demoting to OK was the alternative and is worse — an abandoned open
+    // chain is real stale state the user should clear, and a row that can never
+    // affect the summary is a row people stop reading. A sibling working in its own
+    // worktree has its own .zensu/state and never triggers this.
+    line(WARN, 'chain: ' + foreignOpen.length + ' open chain(s) not owned by this session'
+      + (ttl > 0 ? ', touched within ' + ttl + 'h' : '')
+      + ' — this session cannot advance them, and they cannot be moved to this key.'
+      + ' Usually a session that ended without /zensu:tdd --chain-done, in which case the'
+      + ' state is stale and re-arming here with /zensu:tdd is the exit. It can also be a'
+      + ' live sibling session, where nothing is wrong, or a FORK — the host minting a new'
+      + ' session id mid-conversation, which leaves the work armed under the old key'
+      + ' unreachable. Check whether the owning session is still running before acting: '
+      + truncatedList(foreignOpen));
+  }
+}
+
+// The note sits in a directory the session itself can write, so it is read the
+// way every other record there is: shape decided before the open, no symlink
+// followed, no unbounded read. A file this cannot read is never counted as a
+// refusal — that would let a planted empty file manufacture a row recommending
+// the user widen permissions.
+// Distinct from `null` on purpose. The enforcer retires notes from every one of
+// its terminal paths, so a note disappearing between this report's directory
+// listing and this open is the DESIGN working, not a planted file — and the
+// rejected row tells the user the plugin did not write it and to delete it.
+// Accusing our own artifact over an expected race is the worse failure.
+var NOTE_MISSING = {};
+
+function readNoteJson(file) {
+  var fd;
+  try {
+    var pre = fs.lstatSync(file);
+    if (!pre.isFile() || pre.nlink !== 1 || pre.size > NOTE_MAX_BYTES) return null;
+    var noFollow = process.platform !== 'win32' && Number.isInteger(fs.constants.O_NOFOLLOW)
+      ? fs.constants.O_NOFOLLOW : 0;
+    var nonBlock = Number.isInteger(fs.constants.O_NONBLOCK) ? fs.constants.O_NONBLOCK : 0;
+    fd = fs.openSync(file, fs.constants.O_RDONLY | noFollow | nonBlock);
+    var st = fs.fstatSync(fd);
+    if (!st.isFile() || st.size > NOTE_MAX_BYTES) return null;
+    var buf = Buffer.allocUnsafe(st.size);
+    // Loop rather than a single readSync, matching readTail in
+    // reviewer-spawn-denial-v1.js. A short read would truncate the JSON, throw in
+    // JSON.parse, and land this plugin's own note in the "did not write it" row.
+    var read = 0;
+    while (read < st.size) {
+      var n = fs.readSync(fd, buf, read, st.size - read, read);
+      if (n <= 0) break;
+      read += n;
+    }
+    // The loop alone never made the comment above true: it breaks on a zero-length read
+    // and the partial buffer was then parsed, which is exactly the "did not write it" row
+    // the comment calls a defect. The guard is what closes it, and it must answer null
+    // rather than a distinct sentinel — this reader's contract is "a note this plugin can
+    // vouch for, or nothing", and an incomplete read cannot be vouched for.
+    if (read !== st.size) return null;
+    return JSON.parse(buf.toString('utf8', 0, read));
+  } catch (e) {
+    if (e && e.code === 'ENOENT') return NOTE_MISSING;
+    return null;
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch (e) { /* already closed */ } }
+  }
+}
+
+// The Stop chain-enforcer is the only place that can observe a reviewer spawn
+// the host refused — it reads the transcript its payload points at, which this
+// diagnostic never sees. The note it leaves behind is therefore the only way to
+// report the cause outside the turn it happened in. The enforcer retires the
+// note itself on every terminal path, but a session that never Stops again
+// cannot, so a note also ages out against the same TTL as pending-review.
+// The `kind` is untrusted: only values the writer itself issues are accepted.
+// Extracted from `reviewerDenialRows` because a SECOND consumer needs the same
+// judgement — see `ownRefusalNoteLive` — and two copies of "which notes count"
+// is precisely the two-surfaces-disagree failure this feature exists to remove.
+function denialKindsAllowed() {
+  try {
+    var denial = require(path.join(pluginDir(), 'hooks', 'lib', 'reviewer-spawn-denial-v1.js'));
+    if (Array.isArray(denial.DENIAL_MARKERS)) {
+      return denial.DENIAL_MARKERS.map(function (m) {
+        return m && typeof m.kind === 'string' ? m.kind : '';
+      }).filter(Boolean);
+    }
+  } catch (e) { /* every kind then reads as unrecognized */ }
+  return [];
+}
+
+// ONE verdict for a parsed note, returned as a WORD rather than a boolean so the
+// counting consumer keeps its three buckets while the withholding consumer can
+// test for one. A boolean here would have forced `reviewerDenialRows` to keep its
+// own copy to tell `rejected` from `stale`, which is the copy this extraction
+// removes. `allowed` is threaded rather than recomputed: a plugin root that cannot
+// load the classifier vets no kind, and neither consumer may silently upgrade the
+// other's judgement of that.
+function classifyDenialNote(parsed, allowed, ttl, nowMs) {
+  if (parsed === NOTE_MISSING) return 'missing';
+  var vettable = allowed.length > 0;
+  if (!parsed || parsed.schemaVersion !== 1 || typeof parsed.kind !== 'string'
+    // Integer and positive, not merely finite: a timestamp the writer could
+    // never have produced is not evidence about the present.
+    || !Number.isInteger(parsed.detectedAtMs) || parsed.detectedAtMs <= 0
+    || (vettable && parsed.kind !== '' && allowed.indexOf(parsed.kind) === -1)) return 'rejected';
+  // `0` DISABLES the TTL (docs/configuration.md), and the canonical
+  // `_tdd_pending_file_stale` reads it the same way. Dropping this conjunct
+  // would age every live note out instantly at that setting and suppress the
+  // one actionable row this whole feature exists to render.
+  //
+  // The future-timestamp arm closes the other side: a negative age never
+  // exceeds the TTL, so without it a clock that stepped backwards — or a
+  // planted stamp — makes the note immortal and keeps recommending a
+  // permission change for a refusal that is not current. Stale is the honest
+  // bucket: its own text already says the note says nothing about now.
+  if (ttl > 0 && (parsed.detectedAtMs > nowMs
+      || (nowMs - parsed.detectedAtMs) / 3600000 > ttl)) return 'stale';
+  return 'live';
+}
+
+// Does THIS session still stand refused? The implementing-turns row asks so it can
+// QUALIFY its remedy — never to withhold it. State it that way: an earlier revision
+// DID withhold the completion verb while a live note stood, and this comment still
+// described that behaviour after the code reversed it. The row now always names the
+// command and adds a caveat when a note records a refusal; the reasoning for that
+// reversal, and the two defects withholding caused, are recorded at the row itself. The workflow-document sibling check `reviewerDenialRows` applies is not
+// repeated — the key reaching this function came from a validated document, so the
+// sibling exists by construction.
+// `ttl` is THREADED, not re-read. `chainRows` already resolves it for its own use, and
+// the section that advertises these consumers as sharing one implementation would
+// otherwise be advertising one RULE resolved from three separate reads of the same
+// environment variable. Same value today; the point is that the claim is literal.
+function ownRefusalNoteLive(entries, dir, ownKey, nowMs, ttl) {
+  if (!ownKey) return false;
+  var name = 'reviewer-spawn-denied-' + ownKey + '.json';
+  if (entries.indexOf(name) === -1) return false;
+  // The SAME sibling-document anchor `reviewerDenialRows` applies, enforced here
+  // rather than argued from the call site. It holds by construction today — the key
+  // reaches this function from a validated `tdd-phase-<key>.json` — but that is a
+  // property of ONE caller, and a comment asserting it would be inherited silently
+  // by the next one. One line is cheaper than that risk.
+  if (entries.indexOf('tdd-phase-' + ownKey + '.json') === -1) return false;
+  return classifyDenialNote(readNoteJson(path.join(dir, name)), denialKindsAllowed(),
+    ttl, nowMs) === 'live';
+}
+
+function reviewerDenialRows(entries, dir, nowMs) {
+  var notes = entries.filter(function (f) {
+    return /^reviewer-spawn-denied-scv1_[a-f0-9]{64}\.json$/.test(f);
+  }).sort();
+  if (!notes.length) return;
+  var allowed = denialKindsAllowed();
+  var kinds = Object.create(null);
+  var ttl = ttlHours();
+  var valid = 0;
+  var stale = 0;
+  var rejected = 0;
+  // A plugin root without the classifier module cannot vet the kind, and losing
+  // the kind must never cost the row: the refusal is the finding, the label is
+  // decoration. The empty kind is the same case seen from the writer's side —
+  // the enforcer emits it for a refusal whose form it could not classify, and
+  // rejecting it would tell the user to delete the note describing a refusal the
+  // block reason had just named correctly.
+  var vettable = allowed.length > 0;
+  notes.forEach(function (f) {
+    var parsed = readNoteJson(path.join(dir, f));
+    // Retired between the directory listing and the open — count nothing.
+    if (parsed === NOTE_MISSING) return;
+    // A note is only this plugin's word if a session that could have written it
+    // still exists. Without this the note stands entirely on its own contents,
+    // and the state directory is writable from inside the session — so anything
+    // able to write there could mint a row telling the user to widen
+    // permissions for the very spawn the writer wants. The workflow document is
+    // the one sibling the writer cannot fabricate on its own.
+    var owner = /^reviewer-spawn-denied-(scv1_[a-f0-9]{64})\.json$/.exec(f);
+    if (!owner || entries.indexOf('tdd-phase-' + owner[1] + '.json') === -1) {
+      rejected += 1;
+      return;
+    }
+    // The shape and freshness rules live in `classifyDenialNote`, shared with
+    // `ownRefusalNoteLive`. The three buckets are why that helper returns a word
+    // rather than a boolean.
+    var verdict = classifyDenialNote(parsed, allowed, ttl, nowMs);
+    // EXHAUSTIVE on purpose: only 'live' reaches the tally. The first spelling
+    // handled 'rejected' and 'stale' and let everything else fall through to
+    // `valid += 1`, so a 'missing' verdict would have been counted as a real
+    // refusal — a fabricated row telling the user to widen a permission. It was
+    // unreachable only because of the single early return above it, which is
+    // exactly the kind of load-bearing accident a later edit removes.
+    if (verdict !== 'live') {
+      if (verdict === 'stale') stale += 1;
+      else rejected += 1;
+      return;
+    }
+    var kind = vettable ? (parsed.kind || 'unclassified') : 'unknown';
+    kinds[kind] = (kinds[kind] || 0) + 1;
+    valid += 1;
+  });
+  if (valid) {
+    var summary = Object.keys(kinds).sort().map(function (k) {
+      return k + '×' + kinds[k];
+    }).join(', ');
+    line(WARN, 'state: ' + valid + ' session(s) where the host permission layer refused the '
+      + 'zensu:code-reviewer spawn (' + summary + ') — no review ran and the chain cannot close on its own. '
+      // Names ONLY the user-scoped file, for the reason stop-chain-enforcer.sh
+      // gives where it builds the same remedy: the project-local spelling sits
+      // inside the session root and is a path the agent itself could write, so
+      // printing it beside the exact rule that grants the refused capability is
+      // an invitation. This row is read by the model too.
+      + 'Allow it with the permissions.allow rule "Agent(' + REVIEWER_AGENT + ')" in ~/.claude/settings.json, '
+      // The deny caveat has to live here too, not only in the Config-block deny
+      // row: that row reads one file, so a deny in any source it cannot see
+      // leaves this remedy standing alone. stop-chain-enforcer.sh words the same
+      // remedy with the same caveat.
+      + 'first removing any deny rule that names the Agent tool — ' + DENY_OUTRANKS
+      + ' — or leave the permission mode that refused it, then re-run the '
+      + 'review from the owning session. '
+      + 'You have to apply this yourself — ' + SELF_PERMISSION_BAR + '. '
+      + 'This note is retired automatically once a spawn succeeds or the chain closes.');
+  }
+  if (stale) {
+    line(WARN, 'state: ' + stale + ' reviewer-spawn refusal note(s) older than ' + ttl + 'h — the session that '
+      + 'wrote them never ended a turn again, so nothing retired them; they say nothing about the current state '
+      + 'and are safe to delete.');
+  }
+  if (rejected) {
+    line(WARN, 'state: ' + rejected + ' reviewer-spawn note(s) this plugin did not write (unreadable, oversized, '
+      + 'an unrecognized kind or schema, an impossible timestamp, or no matching session) — NOT counted as '
+      + 'refusals; delete them.');
+  }
+}
+
+function truncatedList(rows) {
+  var listed = rows.slice(0, CHAIN_ROW_LIMIT);
+  var overflow = rows.length - listed.length;
+  return listed.join('; ') + (overflow ? '; +' + overflow + ' more' : '');
+}
+
+// --- durable Autopilot runs ------------------------------------------------
+//
+// Until this row existed /zensu:doctor carried NO Autopilot row of any kind, and
+// a nonterminal run holding the working tree was visible only in the refusal that
+// happened to name it: the --autopilot-begin refusal, the standalone /zensu:tdd
+// begin refusal, the deferred-review Stop refusal, and the stderr line the fence
+// prints when it stands down. Every one of those requires you to have TRIED the
+// thing the run blocks. Nothing answered "is a run holding this tree, and where
+// is it tracked" up front, so two wrong inferences were routine: that the hash in
+// the pointer filename identifies the PROJECT (it is sha256 of the OWNER SESSION
+// id, `_autopilot_owner_key`), and that the hold comes from a shared git
+// directory (it comes from path containment between two worktrees, decided by
+// `mayHoldWorkspace`, which tests BOTH directions).
+//
+// EVERY shape rule below mirrors `zensu-autopilot-state.sh`, and the direction of
+// the mirror is the contract: this reader must never be WIDER than the module
+// that owns those records. A wider reader renders as an ordinary run something
+// the product itself refuses, and then prints a remedy that cannot execute — the
+// exact "confidently states something untrue" failure this row exists to remove.
+// The vocabulary is a HAND COPY, and the honest reason is PACKAGING, not reach:
+// the run-record vocabulary lives inside a bash HEREDOC, so there is no module to
+// require — this tree already loads modules by an env-supplied path in about thirty
+// places (`require(process.env.CONTROL_CORE)` and friends), so "no `require` can
+// reach a bash file" was a scheduling decision dressed as a structural bound, which
+// is how a gap stops being revisited. That is the `REVIEWER_AGENT` position and it
+// takes the same interim remedy, a machine pin against the owner (P1na). THE
+// TRIGGER for extracting the vocabulary into a host-neutral module required from
+// both sides: the next change that adds or removes a member of `STAGES`,
+// `TERMINAL` or `STATE_KEYS` — that edit already touches both sides and pays most
+// of the cost — or a second read-side consumer, whichever comes first.
+// The owner's `NEXT_ACTION`, mirrored. It exists here for ONE purpose: to keep the
+// OK glyph off a record the owner refuses. The row itself may render on the loose
+// shape below — a held tree is held either way, and withholding the row would be
+// worse than an imprecise one — but `ordinary` decides a GREEN row AND, through
+// `warnCount`, the report's "all checks green" summary, so that arm must be at
+// least as strict as `stateValid`. Mirroring the map is what makes the check
+// possible at all; P1na's technique pins it against the owner.
+var AUTOPILOT_NEXT_ACTION = {
+  PLANNING: 'AWAIT_PLAN_APPROVAL',
+  AWAIT_TDD: 'START_TDD',
+  TDD_RUNNING: 'AWAIT_TDD_CHAIN',
+  GATES: 'RUN_GATES',
+  CONVERGE: 'RUN_CONVERGENCE',
+  OPEN_PR: 'RECONCILE_PR',
+  TEAM_REVIEW: 'RECONCILE_TEAM_REVIEW',
+  FIX_FINDINGS: 'FIX_REVIEW_FINDINGS',
+  VALIDATE: 'VALIDATE_FEATURE',
+  COVER: 'RUN_COVERAGE',
+  DELIVER: 'DELIVER_PR',
+  BLOCKED: 'AWAIT_RESUME',
+  DONE: 'NONE',
+  CANCELLED: 'NONE',
+};
+// The nested objects `stateValid` accepts by EXACT key set. Checking the key sets
+// (not every value) is the cheapest thing that separates a record the owner reads
+// from one it refuses, and it is what the suite's own fixtures fail.
+var AUTOPILOT_NESTED_KEYS = {
+  options: ['cover', 'validate'],
+  tdd: ['attempt', 'chainId', 'sessionId', 'returnStage', 'outcome', 'headUpdateRequired'],
+  effects: ['prOpen', 'teamReview'],
+  blocked: ['from', 'code'],
+  stopBudget: ['stage', 'count'],
+  // `evidence` is key-checked by the owner inside `evidenceValid` rather than inline in
+  // `stateValid`, which is why it was the one nested object missing here — and why P1nz6
+  // could not see the omission: a field absent from BOTH sides compares equal. Only the
+  // KEY SET is mirrored; every value rule in `evidenceValid` stays residual.
+  evidence: ['pr', 'gates', 'review', 'findings', 'validation', 'coverage', 'delivery'],
+};
+var AUTOPILOT_RUN_RE = /^autopilot-run-(.*)\.json$/;
+var AUTOPILOT_STAGES = ['PLANNING', 'AWAIT_TDD', 'TDD_RUNNING', 'GATES', 'CONVERGE',
+  'OPEN_PR', 'TEAM_REVIEW', 'FIX_FINDINGS', 'VALIDATE', 'COVER', 'DELIVER', 'BLOCKED',
+  'DONE', 'CANCELLED'];
+var AUTOPILOT_TERMINAL = ['DONE', 'CANCELLED'];
+// `identifier` in the owning module is `length >= 3 && length <= 128` over
+// `^[A-Za-z0-9][A-Za-z0-9_.:-]*$`. The `{2,127}` quantifier reproduces that
+// bound exactly. An earlier `{0,127}` admitted one- and two-character ids the
+// owner refuses, so a record that aborts `readRunInventory` for the whole project
+// rendered here as an ordinary run.
+var AUTOPILOT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$/;
+var AUTOPILOT_OWNER_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$/;
+// `nonEmpty(value, 4096)` in the owner. Without it the only cap on a value the
+// report prints verbatim was the config reader's 1 MiB, and `.zensu/state/` is
+// writable from inside any session in the project.
+var AUTOPILOT_FIELD_MAX = 4096;
+// The owner's own `MAX_BYTES` for a run record. Larger than NOTE_MAX_BYTES
+// because a run carries an event ledger.
+var AUTOPILOT_RUN_MAX_BYTES = 1024 * 1024;
+// How many candidate documents are opened at all. A small multiple of the row
+// budget: enough that the rows the report can print are always drawn from a
+// complete read, bounded so the scan cost is a constant rather than a property of
+// a directory anyone in the project can fill.
+var AUTOPILOT_SCAN_MAX = 64;
+// The rendered bound for a co-tenant-writable free-text field. Shorter than the
+// accepted bound on purpose: acceptance decides whether the record is readable,
+// rendering decides how much of it a model is asked to relay.
+var AUTOPILOT_RENDER_MAX = 200;
+// The claim-topology row renders a filesystem path a model is asked to relay,
+// which is the same question this bound answers for a run id, so it consumes the
+// same constant rather than declaring a twin a `grep -nE 'AUTOPILOT_'` cannot see.
+// `STATE_KEYS` / `STATE_KEYS_WORKSPACE` in the owner, which `stateValid` accepts
+// as an EXACT key set in either shape. Checking it here is what keeps this reader
+// from describing a record every Autopilot verb refuses.
+var AUTOPILOT_STATE_KEYS = ['schemaVersion', 'runId', 'projectRoot', 'ownerSessionId',
+  'stage', 'nextActionCode', 'approvedPlanSha256', 'options', 'tdd', 'effects',
+  'evidence', 'blocked', 'bypasses', 'stopBudget', 'events'];
+var AUTOPILOT_TERMINAL_UNSHAPED = { terminalUnshaped: true };
+var AUTOPILOT_SHA256_RE = /^[a-fA-F0-9]{64}$/;
+var AUTOPILOT_TDD_OUTCOMES = ['pass', 'no-changes', 'max-rounds'];
+// The owner's `sha256` is a TYPE test as much as a pattern test, and the type half is
+// the load-bearing one here: `RegExp.prototype.test` applies ToString to its argument,
+// so `['a'.repeat(64)]` satisfies a bare `.test` and fails the owner. This predicate
+// gates the green glyph, where looseness is the unsafe direction, so mirror both halves.
+function autopilotSha256(value) {
+  return typeof value === 'string' && AUTOPILOT_SHA256_RE.test(value);
+}
+// `nullableIdentifier` in the owner. `AUTOPILOT_ID_RE` is already the `identifier`
+// mirror (P1nm1 pins it), so this costs no further vocabulary.
+function autopilotNullableId(value) {
+  return value === null || (typeof value === 'string' && AUTOPILOT_ID_RE.test(value));
+}
+function autopilotNatural(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+// `MAX_EVENTS` in the owner. A hand copy like every other constant in this mirror — the
+// drift grep above covers it through the `AUTOPILOT_` arm.
+var AUTOPILOT_MAX_EVENTS = 512;
+// `eventValid` is deliberately NOT mirrored, so the two ledger entries this reader does
+// look at may be anything. This keeps a non-object element failing the predicate instead
+// of throwing inside it, which would take the whole report down for one bad record.
+function autopilotPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+// `exact` in the owner, and it replaced a joined-string comparison at every key-set site
+// in this mirror — the two in `autopilotRun` and the pointer one in
+// `autopilotPointerDesignates`. Say "every site", never a count: the first wording said
+// BOTH while the pointer site still carried the old form.
+// `Object.keys(value).sort().join(',')` is not injective: one key that CONTAINS the
+// separator spells the whole set, so `{"prOpen,teamReview": 0}` satisfied the `effects`
+// mirror. `effects` and `evidence` are the two members no later statement reads, so for
+// them the collision survived to the return — a green glyph, an "all checks green"
+// summary, and the "the owner validates more" caveat suppressed, over a record
+// `readRunInventory` fails the whole project on. A length compare plus `hasOwnProperty`
+// per key is what the owner does and needs no vocabulary this reader lacks.
+function autopilotExactKeys(value, want) {
+  if (!autopilotPlainObject(value)) return false;
+  return Object.keys(value).length === want.length && want.every(function (key) {
+    return Object.prototype.hasOwnProperty.call(value, key);
+  });
+}
+var AUTOPILOT_WORK_ORDER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+var AUTOPILOT_WORK_ORDER_SPEC_RE = /^[a-f0-9]{64}$/;
+function autopilotWorkOrderBinding(value) {
+  return autopilotExactKeys(value, ['orderId', 'attempt', 'specHash'])
+    && typeof value.orderId === 'string' && AUTOPILOT_WORK_ORDER_ID_RE.test(value.orderId)
+    && Number.isSafeInteger(value.attempt) && value.attempt > 0
+    && AUTOPILOT_WORK_ORDER_SPEC_RE.test(String(value.specHash));
+}
+var AUTOPILOT_OWNER_C0_RE = /[\u0000-\u001f]/;
+function autopilotOwnerNonEmpty(value, max) {
+  return typeof value === 'string' && value.length > 0 && value.length <= max
+    && !AUTOPILOT_OWNER_C0_RE.test(value);
+}
+
+// Reads one file out of the session-writable state directory. Deliberately NOT
+// `readJson`, which is the CONFIG reader: that one declines O_NOFOLLOW on purpose,
+// because a dotfile manager symlinks a config routinely, and it makes no nlink
+// check. Neither justification transfers to `.zensu/state/`, and the sibling
+// `readNoteJson` — which reads a different file in this same directory — hardens
+// both. Same guards, larger cap.
+function readAutopilotJson(file) {
+  var fd;
+  try {
+    var pre = fs.lstatSync(file);
+    if (!pre.isFile() || pre.nlink !== 1 || pre.size > AUTOPILOT_RUN_MAX_BYTES) return null;
+    var noFollow = process.platform !== 'win32' && Number.isInteger(fs.constants.O_NOFOLLOW)
+      ? fs.constants.O_NOFOLLOW : 0;
+    var nonBlock = Number.isInteger(fs.constants.O_NONBLOCK) ? fs.constants.O_NONBLOCK : 0;
+    fd = fs.openSync(file, fs.constants.O_RDONLY | noFollow | nonBlock);
+    var st = fs.fstatSync(fd);
+    if (!st.isFile() || st.nlink !== 1 || st.size > AUTOPILOT_RUN_MAX_BYTES) return null;
+    // Zero-filled deliberately. `readNoteJson` is the file's ONE sanctioned
+    // `allocUnsafe` and P1br1 pins that; an uninitialised buffer here would also
+    // expose whatever the short-read guard below is there to refuse.
+    var buf = Buffer.alloc(st.size);
+    var read = 0;
+    while (read < st.size) {
+      var n = fs.readSync(fd, buf, read, st.size - read, read);
+      if (n <= 0) break;
+      read += n;
+    }
+    // A short read would truncate the JSON and land this plugin's own record in
+    // the "could not be read" row, which is a claim about the file rather than
+    // about the read. Refuse instead.
+    if (read !== st.size) return null;
+    // NO byte-order-mark strip. This reader must accept exactly what the owner accepts
+    // and nothing more: `readJson` in zensu-autopilot-state.sh is a bare
+    // `JSON.parse(fs.readFileSync(...))`, so a leading U+FEFF is not JSON whitespace
+    // there and every Autopilot verb fails 2 on it, `readRunInventory` failing the
+    // first such record for the WHOLE project. Normalizing it here made this report
+    // greener than the tree: a BOM-prefixed run document satisfied every field rule,
+    // earned the OK glyph and let the summary print "all checks green" over a project
+    // on which nothing can run — and a BOM-prefixed POINTER answered a definite
+    // designates verdict for a file both verbs abort on, which is the premise the
+    // per-verb clause rests on.
+    return JSON.parse(buf.toString('utf8'));
+  } catch (e) {
+    return null;
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch (e2) { /* ignore */ } }
+  }
+}
+
+// Canonicalizes a directory the way the owning module stores it, falling back to the
+// lexical spelling when the path does not exist — a record naming a deleted root must
+// still compare, and a throw here would take the whole row down.
+function autopilotCanonical(value) {
+  try { return fs.realpathSync.native(path.resolve(value)); }
+  catch (e) { return path.resolve(value); }
+}
+
+// Reads ONE run document. `stem` is the filename's own capture group, and the
+// record's `runId` must EQUAL it — the same identity check `readRunInventory`
+// makes at its own read (`state.runId !== match[1]` -> fail 2). Without it the
+// row printed a "Tracked in" path rebuilt from the FIELD, which can name a file
+// that does not exist.
+//
+// Returns a shaped object, or null when the file is not a run this renderer can
+// describe. The distinction matters: `null` here NEVER means "no run", it means
+// "a run document that could not be read", and the caller renders that as its own
+// finding. Reporting an unreadable document as an absent one is exactly the
+// silence this whole row exists to remove.
+function autopilotRun(file, stem, projectRoot) {
+  var parsed = readAutopilotJson(file);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  var looseStage = typeof parsed.stage === 'string' ? parsed.stage : '';
+  var shapeReject = AUTOPILOT_TERMINAL.indexOf(looseStage) !== -1
+    ? AUTOPILOT_TERMINAL_UNSHAPED : null;
+  if (!autopilotExactKeys(parsed, AUTOPILOT_STATE_KEYS)
+    && !autopilotExactKeys(parsed, AUTOPILOT_STATE_KEYS.concat(['workspaceRoot']))
+    && !autopilotExactKeys(parsed, AUTOPILOT_STATE_KEYS.concat(['workspaceRoot', 'workOrder']))) return shapeReject;
+  // The owner refuses on the VALUE too, and a record it refuses fails the whole
+  // project's inventory closed — so describing it here as an ordinary run would
+  // pair a description with a remedy that cannot execute.
+  if (parsed.schemaVersion !== 1) return shapeReject;
+  var runId = typeof parsed.runId === 'string' ? parsed.runId : '';
+  var stage = typeof parsed.stage === 'string' ? parsed.stage : '';
+  var owner = typeof parsed.ownerSessionId === 'string' ? parsed.ownerSessionId : '';
+  if (!AUTOPILOT_ID_RE.test(runId) || runId !== stem) return shapeReject;
+  if (!AUTOPILOT_OWNER_RE.test(owner)) return shapeReject;
+  if (AUTOPILOT_STAGES.indexOf(stage) === -1) return shapeReject;
+  // The owner refuses a record whose `projectRoot` disagrees with the tree it was
+  // found in, and every Autopilot verb then fails closed for the whole project.
+  // CANONICAL on both sides. The record's value is a realpath — `_autopilot_project_root`
+  // ends in `cd -P … && pwd -P` — while the caller's is `path.resolve` of either the
+  // record's own root (bound) or the raw harness value (every other verdict), and
+  // `path.resolve` resolves no symlink. Comparing the two lexically rejected every valid
+  // run in a non-bound session whose project path traverses a link, and rendered the
+  // rejection as "could not be read", which is not what happened.
+  if (typeof parsed.projectRoot !== 'string') return shapeReject;
+  // ONE side is canonicalized, and it is the CALLER's — exactly as the owner does
+  // it. The worker replaces its own project-root argument with
+  // `realpathSync.native(path.resolve(...))` and then compares the RECORD's field
+  // VERBATIM (`state.projectRoot !== expectedProjectRoot`). Canonicalizing both
+  // sides here made this reader wider than the owner in a way the earlier comment
+  // did not notice: a record whose stored `projectRoot` is any non-canonical
+  // spelling of the same directory rendered as an ordinary run while every
+  // Autopilot verb failed the whole project closed on it. The macOS `/var` vs
+  // `/private/var` case the canonicalization was added for is still fixed, because
+  // the mismatch was always on the caller's side — `stateProjectRoot()` returns a
+  // `path.resolve`, not a realpath.
+  if (parsed.projectRoot !== autopilotCanonical(projectRoot)) return shapeReject;
+  // ABSENT and PRESENT-BUT-UNUSABLE are different answers and the row says so.
+  // A record minted before workspace scoping carries no `workspaceRoot` at all,
+  // and `mayHoldWorkspace` short-circuits on that: it then holds EVERY tree in
+  // its project. Rendering that as an unknown workspace would understate it.
+  var workspace = null;
+  if (Object.prototype.hasOwnProperty.call(parsed, 'workspaceRoot')) {
+    workspace = typeof parsed.workspaceRoot === 'string' && parsed.workspaceRoot !== ''
+      && parsed.workspaceRoot.length <= AUTOPILOT_FIELD_MAX
+      && !CONTROL_BYTE_RE.test(parsed.workspaceRoot)
+      // A legitimate value is a git toplevel, which is always absolute. Requiring
+      // it keeps arbitrary prose out of a row the model is told to relay, and the
+      // rejected value still renders — as "a working tree this report cannot read"
+      // rather than as its own text.
+      && (path.isAbsolute(parsed.workspaceRoot) || /^[A-Za-z]:[\\/]/.test(parsed.workspaceRoot))
+      // A BACKTICK is refused outright, not delimited. The render below wraps this
+      // value in a code span, and a delimiter that the value can itself contain is
+      // not an escape: ~200 chosen characters would land outside the span,
+      // mid-sentence, immediately before this row's own `/zensu:autopilot-release`
+      // clause, in a row the doctor skill tells the model to relay verbatim.
+      // Rejection has NO legitimate cost — a git toplevel cannot contain a
+      // backtick — and the value still renders, as the "does not render" arm.
+      && parsed.workspaceRoot.indexOf('`') === -1
+      // The denylist above is NOT the bar this file sets elsewhere. `forgesReportRow`
+      // is the row-forgery predicate defined in this same module for exactly this job,
+      // and it consults the shared owner's rules rather than a local character class:
+      // a `label : value` pair separator, a double space, a separator-adjacent
+      // modifier letter, every Default_Ignorable code point, and an orphan combining
+      // mark. None of those is a control byte, so all of them passed — into a row the
+      // doctor skill tells the model to relay verbatim, two clauses before this row's
+      // own release recommendation. It fails CLOSED on a module load failure, which
+      // routes to the "does not render" arm. The allowlist-based `safeDisplayValue` is
+      // deliberately NOT used: it rejects shell-active characters an ordinary path
+      // legitimately contains.
+      && !forgesReportRow(parsed.workspaceRoot)
+      ? parsed.workspaceRoot : '';
+  }
+  // The STRICTER verdict, carried beside the loose one. It mirrors the parts of
+  // `stateValid` a read-side copy can hold cheaply: the stage-to-next-action map,
+  // the exact key sets of every member of `AUTOPILOT_NESTED_KEYS`, a non-empty event
+  // ledger, and
+  // the nested VALUE rules that need no owner vocabulary this reader does not
+  // already carry.
+  // DIRECTION, because the first spelling of this comment had it backwards and
+  // that is exactly what would have kept the gap open: this predicate is a
+  // REQUIRED CONJUNCT of the green arm, so everything it MISSES costs a green row
+  // and an "all checks green" summary for a project every Autopilot verb fails
+  // closed on. Over-strictness is the SAFE direction and costs only a WARN that
+  // could have been green.
+  // Still UNMIRRORED, named rather than implied — and NOT under one blanket reason,
+  // because the reason differs per item and an earlier wording gave the same one for
+  // all of them while three of the items it named needed no new vocabulary at all
+  // (those three are mirrored now, and so are two more — see below). What remains needs
+  // a vocabulary this reader does not carry, EXCEPT where a member is named for its value
+  // half alone: `evidence` and `bypasses` were listed WHOLE while each was half
+  // mirrorable, so `evidence`'s key set now sits in `AUTOPILOT_NESTED_KEYS` and
+  // `bypasses`'s array/bound half is a conjunct above, leaving only their element and
+  // value rules here. What is left: `tdd.returnStage`
+  // membership (`RETURN_STAGES`, a SUBSET of the stage set and not the stage set —
+  // reusing `AUTOPILOT_STAGES` for it would be looser than the owner),
+  // `tdd.headUpdateRequired`'s cross-check against `HEAD_UPDATE_STAGES`,
+  // `effectValid` / `teamReviewEffectValid` and the VALUE rules of `evidenceValid` plus
+  // their cross-consistency, the per-element `bypasses` rule (an exact `gate`/`stage`
+  // pair, `identifier(gate)`, stage membership), the event ledger's own validity,
+  // `MAX_EVENTS` bound, id uniqueness, `EVENT_TYPES` membership, payload digests and
+  // `fromStage` chaining, and `semanticHistoryValid`. So this is explicitly a FLOOR,
+  // never a second `stateValid`.
+  var ownerWouldAccept = parsed.nextActionCode === AUTOPILOT_NEXT_ACTION[stage]
+    && Array.isArray(parsed.events) && parsed.events.length > 0
+    // THREE further ledger rules the owner applies that need no vocabulary this reader
+    // lacks: a length compare against its `MAX_EVENTS`, a property read on the first
+    // entry, and a comparison of the last entry's `toStage` against the stage this
+    // function already holds. Mirroring `Array.isArray` and a non-empty ledger and
+    // stopping there let a record `readRunInventory` fails the whole project on earn the
+    // OK glyph — the same direction, and the same argument, as the `bypasses` gap below.
+    // The entries are read defensively because `eventValid` is NOT mirrored: an element
+    // that is not a plain object must fail this predicate rather than throw inside it.
+    && parsed.events.length <= AUTOPILOT_MAX_EVENTS
+    && autopilotPlainObject(parsed.events[0])
+    && parsed.events[0].eventType === 'START'
+    && autopilotPlainObject(parsed.events[parsed.events.length - 1])
+    && parsed.events[parsed.events.length - 1].toStage === stage
+    // The owner refuses a non-array `bypasses` and one over 128 entries before it looks
+    // at any element. Neither half needs a vocabulary this reader lacks, so leaving the
+    // whole field out let `"bypasses": {}` earn the green glyph for a document
+    // `readRunInventory` fails the whole project on. Only the per-ELEMENT rule is residual.
+    && Array.isArray(parsed.bypasses) && parsed.bypasses.length <= 128
+    && (!Object.prototype.hasOwnProperty.call(parsed, 'workspaceRoot')
+      || autopilotOwnerNonEmpty(parsed.workspaceRoot, AUTOPILOT_FIELD_MAX))
+    && (!Object.prototype.hasOwnProperty.call(parsed, 'workOrder')
+      || autopilotWorkOrderBinding(parsed.workOrder))
+    && (parsed.approvedPlanSha256 === null
+      || autopilotSha256(parsed.approvedPlanSha256));
+  if (ownerWouldAccept) {
+    ownerWouldAccept = Object.keys(AUTOPILOT_NESTED_KEYS).every(function (field) {
+      return autopilotExactKeys(parsed[field], AUTOPILOT_NESTED_KEYS[field]);
+    });
+  }
+  if (ownerWouldAccept) {
+    ownerWouldAccept = typeof parsed.options.cover === 'boolean'
+      && typeof parsed.options.validate === 'boolean'
+      && autopilotNatural(parsed.tdd.attempt)
+      && typeof parsed.tdd.headUpdateRequired === 'boolean'
+      && (parsed.tdd.outcome === null
+        || AUTOPILOT_TDD_OUTCOMES.indexOf(parsed.tdd.outcome) !== -1)
+      && autopilotNullableId(parsed.tdd.chainId)
+      && autopilotNullableId(parsed.tdd.sessionId)
+      && autopilotNatural(parsed.stopBudget.count)
+      && parsed.stopBudget.stage === stage
+      // MEMBERSHIP as well as the null/non-null cross-check below. The owner applies
+      // both, and neither needs a vocabulary this reader lacks — `AUTOPILOT_STAGES` and
+      // `AUTOPILOT_ID_RE` are already declared and already pinned against their owner.
+      && (parsed.blocked.from === null
+        || AUTOPILOT_STAGES.indexOf(parsed.blocked.from) !== -1)
+      && (parsed.blocked.code === null || (typeof parsed.blocked.code === 'string'
+        && AUTOPILOT_ID_RE.test(parsed.blocked.code)))
+      && (stage === 'BLOCKED'
+        ? parsed.blocked.from !== null && parsed.blocked.code !== null
+        : parsed.blocked.from === null && parsed.blocked.code === null);
+  }
+  // The PENDING stage, which is what `_autopilot_adopt_critical` refuses on — one
+  // more hand-copy of an owner idiom, and it must stay the PENDING one: `BLOCK`
+  // is legal from `TDD_RUNNING` and `RESUME` restores `blocked.from`, so a reader
+  // that trusted the literal stage would tell a user adoption is available for every
+  // run that took a block while its inner chain was live. Read DEFENSIVELY, because
+  // this is computed before `ownerWouldAccept` has vetted the nested key sets: a
+  // record whose `blocked` is `null` or not a plain object must fall back to the
+  // literal stage rather than throw inside a read-only report.
+  var pendingStage = stage;
+  if (stage === 'BLOCKED' && autopilotPlainObject(parsed.blocked)
+    && typeof parsed.blocked.from === 'string'
+    && AUTOPILOT_STAGES.indexOf(parsed.blocked.from) !== -1) {
+    pendingStage = parsed.blocked.from;
+  }
+  return {
+    runId: runId, stage: stage, pendingStage: pendingStage, owner: owner,
+    workspace: workspace, ownerWouldAccept: ownerWouldAccept,
+  };
+}
+
+// How long the owning session has been silent. The signal is the owner's own
+// workflow document mtime, which is what BOTH run verbs age: `autopilot_release_run`
+// for its exit 7 refusal, and `autopilot_adopt_run` for the same refusal one branch
+// deeper, inside its pointer precondition. Read it the way those verbs read it —
+// `regularFile` there is an lstat plus a FOUR-WAY refusal — `isFile`, `isSymbolicLink`,
+// `nlink === 1` and a size bound, of which `isSymbolicLink` is redundant under `lstat`
+// — as the comment beside the guard below spells out; state the base or the count says
+// nothing. A beacon any one of those refuses makes the verbs abort with "unsafe state file" while a
+// following `statSync` here would render a confident age and a remedy that cannot
+// execute.
+//
+// Returns `{ kind, ageMs }`. `kind` is 'aged' with a measured age, 'absent' when
+// the file genuinely is not there, or 'unreadable' for anything else — because
+// "could not look" and "nothing was there" are the two answers this whole feature
+// exists to stop conflating.
+function autopilotOwnerSilence(dir, owner, nowMs) {
+  var st;
+  try {
+    st = fs.lstatSync(path.join(dir, 'tdd-phase-' + owner + '.json'));
+  } catch (e) {
+    return (e && e.code === 'ENOENT') ? { kind: 'absent' }
+      : { kind: 'unreadable', code: (e && e.code) || 'unknown' };
+  }
+  // The owner's `regularFile` refuses on FOUR tests and this mirror carries three,
+  // `isSymbolicLink` being redundant under the `lstat` above. The size bound is the one
+  // a mirror drops most easily: the owner's `regularFile` also refuses a beacon over
+  // its own `MAX_BYTES`, and dropping that one here rendered a confident age — and
+  // now a confident per-verb clause — for a file both verbs abort on with exit 2.
+  // That is the pairing this mirroring exists to prevent, one conjunct over.
+  if (!st.isFile() || st.nlink !== 1 || st.size > AUTOPILOT_RUN_MAX_BYTES) {
+    return { kind: 'unreadable', code: 'not a plain file' };
+  }
+  var ageMs = nowMs - st.mtimeMs;
+  // Bounded in BOTH directions, matching the release verb: a future mtime is
+  // operator-settable and would otherwise render as a negative age.
+  return ageMs >= 0 ? { kind: 'aged', ageMs: ageMs } : { kind: 'unreadable', code: 'future timestamp' };
+}
+
+// Does this owner's active pointer still designate this run? The own-run remedy
+// text was written for the state where it does NOT — a torn `begin`, which is the
+// only state `_autopilot_workspace_refusal`'s own-run branch is reachable in. For
+// an ordinary in-progress run the same wording tells a user to "repair" work that
+// is proceeding normally, and the row's WARN then suppresses the green summary
+// for the whole time a legitimate run is live.
+//
+// Returns true, false, or null when the answer could not be established — which
+// is treated as the cautious case rather than as either verdict.
+function autopilotPointerDesignates(dir, owner, runId) {
+  var digest;
+  try {
+    digest = require('crypto').createHash('sha256').update(String(owner)).digest('hex');
+  } catch (e) { return null; }
+  // The owner's `pointerValid` is `exact(pointer, ["schemaVersion","runId"]) &&
+  // schemaVersion === 1 && identifier(runId)`, and `readPointer` FAILS the whole
+  // read on anything else. A weaker rule here would let a pointer the product
+  // refuses answer `true` and flip an own run from WARN to OK — deleting the
+  // finding rather than reporting it, which is the one direction this reader must
+  // never take.
+  function verdict(file) {
+    var parsed = readAutopilotJson(file);
+    if (parsed === null) {
+      try { fs.lstatSync(file); return null; } catch (e) {
+        return (e && e.code === 'ENOENT') ? 'absent' : null;
+      }
+    }
+    // THIRD key-set site, and it kept the joined-string form for one round after the other
+    // two were converted. The collision is not exploitable here — a single key literally
+    // named `runId,schemaVersion` dies at the `schemaVersion` test below — but leaving one
+    // site on the weaker shape is how the next one comes back.
+    if (!autopilotExactKeys(parsed, ['runId', 'schemaVersion'])) return null;
+    if (parsed.schemaVersion !== 1) return null;
+    if (typeof parsed.runId !== 'string' || !AUTOPILOT_ID_RE.test(parsed.runId)) return null;
+    return parsed.runId === runId;
+  }
+  var owned = verdict(path.join(dir, 'autopilot-active-' + digest + '.json'));
+  if (owned === true || owned === false) return owned;
+  if (owned === null) return null;
+  // `owned === 'absent'`. The owner does not stop there: `activePointerFor` falls
+  // back to the pre-scoping `autopilot-active.json` and honours it when the run it
+  // names belongs to THIS caller. Answering `false` without that read would call a
+  // run the product considers active "the torn-begin shape".
+  var legacy = verdict(path.join(dir, 'autopilot-active.json'));
+  if (legacy === true) return true;
+  if (legacy === 'absent') return false;
+  // A legacy pointer that is present but names another run, or cannot be read,
+  // settles nothing: the owner-keyed pointer was absent and this one does not
+  // designate the run, but neither is evidence about a torn `begin`.
+  return legacy === false ? false : null;
+}
+
+// The owner-silence clause for a FOREIGN holding run, worded per verb because the
+// two are not symmetric — the asymmetry `docs/configuration.md` states for
+// `autopilotOwnerActivityTtlHours` and the adopt worker spells as
+// `if (ownerPointerDesignatesRun)` around its `fail(7)`. Release refuses on document
+// freshness alone; adoption additionally requires that the previous owner's active
+// pointer still designate the run, and a retired pointer is abandonment evidence
+// that owes nothing to a clock. Claiming both refuse in that state hands the reader
+// a takeover protection that does not hold, on the row that offers the takeover.
+//
+// A configured `0` DISCLOSES rather than dropping the clause: both verbs then skip
+// the check entirely, and a switched-off guard that renders like an armed one is the
+// failure this report already refuses for `implStopNudgeAfter` and
+// `reviewerSpawnPermissionCheck`. The remedy naming `/zensu:autopilot-release` still
+// renders beside it, which is what makes silence there dangerous rather than terse.
+// `window` carries BOTH the resolved number and whether one was actually supplied.
+// `boundedEnvInt` cannot tell an unset variable from a configured value, and for THIS
+// key the fallback asserts protection rather than withholding a claim: a wrapper that
+// could not load the config library leaves the variable empty, and the row would then
+// quote the built-in 1h beside a cancel remedy in a project configured `0`. Saying the
+// default is assumed costs a clause; quoting it as measured costs the reader's trust
+// in the one number on this row.
+//
+// `verdict` is the silence probe's own answer, because the two verbs diverge by KIND
+// as well as by window: a FUTURE-dated beacon is a release refusal (exit 7, and
+// waiting does not clear it) while adoption permits, and a beacon `regularFile`
+// rejects aborts the RELEASE before any comparison — and adoption too, but only
+// while the pointer still designates the run, since that is what decides whether
+// adoption opens the file at all. An earlier wording said "BOTH verbs" flatly, which
+// is the same over-claim the pointer split exists to remove, one arm over. Rendering
+// only the aged arm per verb left those two states with a remedy the reader cannot run.
+// THE ORDER OF THE ARMS IS THE CONTRACT, not layout. The window gate runs FIRST,
+// because both verbs read the beacon through one worker evaluation, `ownerLiveness`,
+// that returns on `if (!(Number.isFinite(ttlHours) && ttlHours > 0))` before its
+// `regularFile(tdd-phase-<owner>.json)` call, and adoption's pointer precondition sits
+// between the two. Each verb passes its OWN window, so a verb whose window is `0` never
+// opens the beacon at all: there is no
+// exit 2 for a file `regularFile` would refuse and no exit 7 for a future stamp.
+// Judging the beacon KIND first asserted refusals no verb takes AND suppressed the one
+// arm written for that configuration, on the row that offers an irreversible cancel.
+// The state needs no adversary to reach: the documented `0` off-switch plus a
+// container clock skewed against a shared filesystem is enough.
+// The clause and the REMEDY beside it are two halves of one sentence, so they are
+// rendered from ONE derivation. It returns the text plus a per-verb availability
+// record: `releaseBlocked` / `adoptBlocked` mean this clause ASSERTED that the verb
+// cannot act now, and `adoptUnknown` that adoption's side could not be established at
+// all. A row that offers a verb its own clause has just said aborts is the defect this
+// return shape exists to make impossible — it shipped once for the exit-2 and
+// future-dated arms, where the remedy branched on the inner-chain fact alone.
+//
+// The AGED arm splits on the MEASURED age: INSIDE the window both verbs refuse now, so
+// it sets the causes and the remedy withholds them; outside it, or with an age this
+// report could not measure, the wording is conditional and blocks nothing. It is the
+// ordinary case — a live foreign session rewrites its beacon at every turn end — so
+// leaving it unconditionally conditional is what let the row offer both verbs beside a
+// sentence saying both refuse.
+function ownerLivenessClause(dir, run, window, releaseWindow, verdict, adoptBlockedByChain,
+  ownHoldsOwnRun) {
+  // Two windows, one per verb: `window` is adoption's and `releaseWindow` the release's.
+  // Every number this clause quotes names the verb it belongs to, because the verbs read
+  // separate keys and a single number stated for both would be false whenever they differ.
+  var assumed = '';
+  if (!window.supplied && !releaseWindow.supplied) {
+    assumed = '; no configured owner-activity window reached this report, so the built-in'
+      + ' defaults are assumed';
+  } else if (!window.supplied) {
+    assumed = '; no configured adoption window reached this report, so its built-in default'
+      + ' is assumed';
+  } else if (!releaseWindow.supplied) {
+    assumed = '; no configured release window reached this report, so its built-in default'
+      + ' is assumed';
+  }
+  var adoptSkips = !(window.hours > 0);
+  var releaseSkips = !(releaseWindow.hours > 0);
+  // The pointer decides whether adoption ever OPENS the beacon: its `regularFile` call
+  // is nested inside `if (ownerPointerDesignatesRun)`, while the release verb's is not.
+  // It is resolved ABOVE the window gate, deliberately: the adopt worker resolves the
+  // pointer above its own window gate too, so at a configured 0 an unreadable pointer
+  // still aborts adoption with exit 2 — the one configuration in which that read is the
+  // only part of the LIVENESS BLOCK adoption still performs. Say it that way: the verb
+  // also refuses an inner chain and a caller that already owns a run, both above this
+  // point, so "the only thing adoption does" would be false. An earlier spelling
+  // returned from the 0 arm before this line and could not hedge it at all.
+  var designates = autopilotPointerDesignates(dir, run.owner, run.runId);
+  var adoptUnknown = !adoptBlockedByChain && designates === null;
+  // Every arm below is built from these named fragments wherever the wording is
+  // identical. Say it that way rather than "EVERY arm": the aged arm's hedge has to say
+  // "also refuses" and the absent arm has no beacon to reach, so those two carry their
+  // own halves on purpose and are not copies that drifted.
+  var chainHalf = 'adoption is not an exit here either, because this run has a live inner'
+    + ' TDD chain and adoption refuses that with exit 3 before it reads any beacon';
+  // The connective belongs to the LEAD, not to the reason: "either" presupposes a
+  // preceding negative, which the absent arm's lead is not — it says the release
+  // proceeds. The absent arm therefore supplies its own opener over the same reason.
+  var chainReason = 'because this run has a live inner TDD chain and adoption refuses'
+    + ' that with exit 3 before it reads any beacon';
+  // The live-inner-chain fact is read out of the run document, which is an ordinary
+  // file in this session-writable directory — the same bound the age and the pointer
+  // already carry. It matters most here, because this is the one arm that leaves only
+  // the irreversible verb on offer.
+  var chainBound = ' — that stage is ' + AUTOPILOT_FORGEABLE_SOURCE;
+  var pointerBound = ' — adoption only while the owner active pointer still designates'
+    + ' this run, and that pointer is an ordinary file any session in this project can'
+    + ' delete, so read that half as evidence rather than as a guarantee';
+  var pointerRetired = 'the owner active pointer no longer designates this run — that'
+    + ' pointer is an ordinary file any session in this project can delete';
+  var pointerUnknownHalf = 'whether adoption reaches this beacon could not be established,'
+    + ' because the owner active pointer could not be read';
+  var pointerUnknownNoBeacon = 'whether adoption would reach a beacon at all could not be'
+    + ' established, because the owner active pointer could not be read';
+  var pointerUnknownAtZero = 'adoption still resolves the owner active pointer before it'
+    + ' permits, and that pointer could not be read, so it may abort with exit 2';
+  // "Repaired" needs its own bound, and it is not cosmetic: the beacon is the owning
+  // session's workflow document in a directory any session here can write, and DELETING
+  // it does not repair anything — it moves the run into this clause's own absent arm,
+  // where nothing bounds the cancel at all. Telling a reader to repair a tamper shape
+  // without saying that is how a finding gets built over.
+  var repairBound = ' — that beacon is the owning session\'s workflow document and an'
+    + ' ordinary file any session in this project can delete, and neither deleting it nor'
+    + ' putting a placeholder there is a repair: deleting produces the no-document state'
+    + ' this same clause calls unbounded, and a file that does not validate is worse than'
+    + ' absence, because only a MISSING document is rebuilt automatically. Restore the'
+    + ' document\'s own contents as a plain regular file, or leave it and report it';
+  // The CAUSE, not just the fact. A remedy that knows only "both are blocked" cannot
+  // say what to do about it, and the first version of this record proved it: for a run
+  // whose adoption is refused by its inner CHAIN it told the reader to repair the
+  // beacon, which restores only the release, and for a future-dated stamp it told them
+  // to restore a file that is already a plain regular file. `null` means the verb was
+  // not blocked by this clause.
+  var releaseBlockedBy = null;
+  var adoptBlockedBy = adoptBlockedByChain ? 'chain' : null;
+  // The own-run fact is a CAVEAT, never a cause, and the reason is a safety property
+  // rather than a style choice. It is read from a BOUNDED scan and from a record any
+  // session in this project can write, so treating it as a refusal lets one planted
+  // document withhold the constructive verb and leave the irreversible cancel as the
+  // row's only offer. A caveat states the obstacle and keeps both verbs on the table;
+  // that direction is wrong only by a sentence, while the other is wrong by a cancel.
+  // Making it a cause was tried in one round and is recorded here so it is not retried.
+  // `adoptCaveat` is DERIVED at the return, beside `adoptBlocked`, and never snapshotted
+  // here. It used to read `adoptBlockedBy` at this point, which is before the ladder
+  // below assigns 'future-stamp', 'beacon' or 'aged' — so the returned field disagreed
+  // with `adoptBlocked` for every cause except 'chain', and was harmless only because
+  // the single consumer happens to conjoin the other field. That is a trap set for the
+  // next consumer, not a property. Nothing about the CAVEAT-not-CAUSE decision above
+  // changes: the own-run fact still never enters `adoptBlockedBy`.
+  var text;
+  var measured = !!verdict && verdict.kind === 'aged' && typeof verdict.ageMs === 'number'
+    && verdict.ageMs >= 0;
+  var insideRelease = measured && !releaseSkips
+    && verdict.ageMs < releaseWindow.hours * 3600000;
+  var insideAdopt = measured && !adoptSkips && verdict.ageMs < window.hours * 3600000;
+  if (adoptSkips && releaseSkips) {
+    text = ' (no liveness window applies: hooks.autopilotOwnerActivityTtlHours is 0 and'
+      + ' hooks.autopilotReleaseOwnerActivityTtlHours is 0, so both verbs skip the'
+      + ' owner-liveness check without opening this beacon at all, and a release cancels this'
+      + ' run even while its owner is active';
+    if (adoptBlockedByChain) text += '; ' + chainHalf + chainBound;
+    // NOT the no-beacon hedge: at a configured 0 the beacon question is SETTLED — the
+    // verbs skip it, as the lead just said. What is unsettled is the POINTER, which
+    // adoption resolves above its own window gate and can abort on.
+    else if (adoptUnknown) text += '; ' + pointerUnknownAtZero;
+    text += ')';
+  } else if (releaseSkips) {
+    // Only the release window is 0: the release never opens the beacon and cancels
+    // unbounded, while adoption still judges it against its own window.
+    text = ' (a release skips the owner-liveness check without opening this beacon, because'
+      + ' hooks.autopilotReleaseOwnerActivityTtlHours is 0, and cancels this run even while its'
+      + ' owner is active; ';
+    if (adoptBlockedByChain) {
+      text += 'adoption is not an exit here, ' + chainReason + chainBound;
+    } else if (designates === false) {
+      text += 'adoption never opens it either, because ' + pointerRetired;
+    } else if (designates === null) {
+      text += pointerUnknownHalf;
+    } else if (verdict && verdict.kind === 'absent') {
+      text += 'with no document adoption stands down too';
+    } else if (verdict && verdict.kind === 'unreadable' && verdict.code === 'future timestamp') {
+      if (adoptBlockedBy === null) adoptBlockedBy = 'future-stamp';
+      text += 'adoption refuses outright with exit 7 while that stamp is in the future and'
+        + ' waiting will not clear it' + pointerBound;
+    } else if (verdict && verdict.kind === 'unreadable') {
+      if (adoptBlockedBy === null) adoptBlockedBy = 'beacon';
+      text += 'adoption aborts on this beacon with exit 2 until it is repaired' + repairBound
+        + pointerBound;
+    } else if (verdict && verdict.kind === 'aged') {
+      if (insideAdopt && adoptBlockedBy === null) adoptBlockedBy = 'aged';
+      text += 'adoption refuses while that is under ' + window.hours + 'h' + pointerBound;
+    } else {
+      text += 'this report does not recognize that beacon state, so it judged adoption against'
+        + ' none of it — a missing check, not a verdict';
+    }
+    text += assumed + ')';
+  } else if (adoptSkips) {
+    // Only the adoption window is 0: adoption never opens the beacon, while the release
+    // still judges it against its own window.
+    text = ' (';
+    if (verdict && verdict.kind === 'absent') {
+      text += 'with no document a release stands down and cancels this run unbounded';
+    } else if (verdict && verdict.kind === 'unreadable' && verdict.code === 'future timestamp') {
+      releaseBlockedBy = 'future-stamp';
+      text += 'a release refuses outright with exit 7 while that stamp is in the future and'
+        + ' waiting will not clear it';
+    } else if (verdict && verdict.kind === 'unreadable') {
+      releaseBlockedBy = 'beacon';
+      text += 'a release aborts on this beacon with exit 2 until it is repaired' + repairBound;
+    } else if (verdict && verdict.kind === 'aged') {
+      if (insideRelease) releaseBlockedBy = 'aged';
+      text += 'a release refuses while that is under ' + releaseWindow.hours + 'h';
+    } else {
+      text += 'this report does not recognize that beacon state, so it judged the release'
+        + ' against none of it — a missing check, not a verdict';
+    }
+    if (adoptBlockedByChain) {
+      text += '; adoption is not an exit here, ' + chainReason + chainBound;
+    } else {
+      text += '; adoption skips the owner-liveness check without opening this beacon, because'
+        + ' hooks.autopilotOwnerActivityTtlHours is 0';
+      if (adoptUnknown) text += '; ' + pointerUnknownAtZero;
+    }
+    text += assumed + ')';
+  } else if (verdict && verdict.kind === 'absent') {
+    var absentLead = ' (with no document a release stands down and cancels this run unbounded';
+    if (adoptBlockedByChain) {
+      text = absentLead + ', and adoption is not an exit here at all, ' + chainReason + chainBound;
+    } else if (designates === null) {
+      text = absentLead + '; ' + pointerUnknownNoBeacon;
+    } else {
+      text = ' (with no document both verbs stand down, so no refusal bounds a release here';
+    }
+    text += assumed + ')';
+  } else if (verdict && verdict.kind === 'unreadable' && verdict.code === 'future timestamp') {
+    releaseBlockedBy = 'future-stamp';
+    // BOTH verbs refuse a future stamp while the pointer designates the run: adoption
+    // used to permit it, which made it the route around the release's own refusal. With
+    // the pointer RETIRED adoption still never opens the beacon, so it permits there.
+    if (designates === true && !adoptBlockedByChain) {
+      if (adoptBlockedBy === null) adoptBlockedBy = 'future-stamp';
+      text = ' (both verbs refuse outright with exit 7 while that stamp is in the future and'
+        + ' waiting will not clear it' + pointerBound;
+    } else {
+      var futureHalf = 'adoption permits and only discloses, because ' + pointerRetired;
+      if (adoptBlockedByChain) futureHalf = chainHalf + chainBound;
+      else if (designates === null) futureHalf = pointerUnknownHalf;
+      text = ' (a release refuses outright with exit 7 while that stamp is in the future and'
+        + ' waiting will not clear it; ' + futureHalf;
+    }
+    text += assumed + ')';
+  } else if (verdict && verdict.kind === 'unreadable') {
+    releaseBlockedBy = 'beacon';
+    var abortLead = ' (a release aborts on this beacon with exit 2 until it is repaired';
+    if (adoptBlockedByChain) {
+      text = abortLead + repairBound + '; ' + chainHalf + chainBound;
+    } else if (designates === true) {
+      // Only when nothing already blocks adoption. The causes are RANKED by where the
+      // verb refuses: exit 4 for a caller that already owns a nonterminal run sits above
+      // the whole liveness block, so a beacon can never be the reason adoption declines
+      // while that is true — and overwriting it prescribed a beacon repair that clears
+      // nothing while the one remedy that does was never printed.
+      if (adoptBlockedBy === null) adoptBlockedBy = 'beacon';
+      // The bound belongs on THIS arm too: it is the strongest claim the clause makes
+      // about adoption, and it rests on the same unlinkable pointer the aged arm
+      // already qualifies. The closing half is worded without a POSITION — "neither
+      // remedy above can run" named a place in the row rather than a command, and the
+      // remedy does not always sit above this clause.
+      text = ' (both verbs abort on this beacon with exit 2 until it is repaired, so neither'
+        + ' guided verb this row names can run' + repairBound + pointerBound;
+    } else if (designates === false) {
+      text = abortLead + repairBound + '; adoption never opens it, because ' + pointerRetired;
+    } else {
+      text = abortLead + repairBound + '; ' + pointerUnknownHalf;
+    }
+    text += assumed + ')';
+  } else if (verdict && verdict.kind === 'aged') {
+    // INSIDE a verb's window its refusal is PRESENT, not conditional — the ordinary case,
+    // because a live foreign session rewrites its beacon at every turn end. Each verb is
+    // judged against its OWN window, exactly as each worker compares `ageMs >= 0 && ageMs <
+    // ttlHours * 3600000` against its own key, so the remedy never offers a verb beside a
+    // sentence saying that verb refuses. OUTSIDE a window, or with an age this report could
+    // not measure, that verb's wording is conditional and it is not blocked here; the
+    // adoption fields are the caller-supplied facts and the pointer read, which pass
+    // straight through.
+    if (insideRelease) releaseBlockedBy = 'aged';
+    if (designates === true && !adoptBlockedByChain && insideAdopt) adoptBlockedBy = 'aged';
+    var releaseAged = 'a release refuses while that is under ' + releaseWindow.hours + 'h';
+    if (adoptBlockedByChain) {
+      text = ' (' + releaseAged + '; ' + chainHalf + chainBound;
+    } else if (designates === true) {
+      text = ' (adoption refuses while that is under ' + window.hours + 'h and a release while'
+        + ' it is under ' + releaseWindow.hours + 'h' + pointerBound;
+    } else if (designates === false) {
+      text = ' (' + releaseAged + '; adoption does not,'
+        + ' because ' + pointerRetired + ', so read it as abandonment evidence rather than as'
+        + ' proof the owner is gone';
+    } else {
+      text = ' (' + releaseAged + '; whether adoption'
+        + ' also refuses could not be established, because the owner active pointer could not be'
+        + ' read';
+    }
+    text += assumed + ')';
+  } else {
+    // EXHAUSTIVE by construction. `autopilotOwnerSilence` answers three kinds today, and
+    // a fourth used to fall through to the AGED arm — the most confident wording in this
+    // function — beside a row lead that had just said the liveness was not measured. An
+    // unrecognized kind is a missing check, so it says so and blocks nothing.
+    text = ' (this report does not recognize that beacon state, so it judged neither verb'
+      + ' against it — a missing check, not a verdict' + assumed + ')';
+  }
+  return {
+    text: text,
+    releaseBlockedBy: releaseBlockedBy,
+    adoptBlockedBy: adoptBlockedBy,
+    releaseBlocked: releaseBlockedBy !== null,
+    adoptBlocked: adoptBlockedBy !== null,
+    adoptUnknown: adoptUnknown,
+    adoptCaveat: ownHoldsOwnRun && adoptBlockedBy === null,
+    // Carried so the remedy quotes the SAME numbers the clause did, rather than resolving
+    // the windows a second time one function away.
+    adoptWindowHours: window.hours,
+    releaseWindowHours: releaseWindow.hours,
+  };
+}
+
+// The resolved window plus whether one was supplied at all. This is the ONLY reader of
+// ZDOC_OWNER_ACTIVITY_TTL_HOURS; a value-only accessor beside it would lose the
+// distinction the clause exists to state, and C57d forbids one surviving uncalled.
+function ownerActivityWindow() {
+  // ONE resolution, so the two halves of the record cannot judge different inputs. Two
+  // calls meant the triple `(name, fallback, max)` was spelled twice and only one of the
+  // spellings is pinned, so a bound changed at the other site would leave `hours` and
+  // `supplied` describing different variables — the disagreement this record exists to
+  // remove.
+  var resolved = boundedEnvIntResolve('ZDOC_OWNER_ACTIVITY_TTL_HOURS',
+    OWNER_ACTIVITY_TTL_FALLBACK, OWNER_ACTIVITY_TTL_MAX);
+  return {
+    hours: resolved.value,
+    // ACCEPTED, not merely present — the same resolution, so the flag and the number can
+    // never describe different inputs. A private `process.env` read plus a local
+    // `trim() !== ''` made this the only place the rule existed twice, and a
+    // presence-only test also got a configured-but-REJECTED value backwards: the row
+    // quoted the built-in default while claiming a window had been configured.
+    supplied: resolved.accepted,
+  };
+}
+
+// The release's own window, read the same way and for the same reason. It stays a
+// separate accessor rather than a parameter of the one above, because C57c binds each
+// window reader to its own constant pair by spelling.
+function releaseOwnerActivityWindow() {
+  var resolved = boundedEnvIntResolve('ZDOC_RELEASE_OWNER_ACTIVITY_TTL_HOURS',
+    RELEASE_OWNER_ACTIVITY_TTL_FALLBACK, RELEASE_OWNER_ACTIVITY_TTL_MAX);
+  return {
+    hours: resolved.value,
+    supplied: resolved.accepted,
+  };
+}
+
+// One row per NONTERMINAL run. Silent when the project has no run document at
+// all — the same rule the pending-review row follows, and for the same reason:
+// Autopilot is not wired in most projects, so a permanent "no run" row would
+// print in every report and train the reader to skip this block. The row exists
+// to surface a HOLD; absence of any run is not a finding.
+//
+// READ-ONLY, like every other row here: it opens run documents and never writes,
+// renames or deletes one. The confirmed `pending-review.json` cleanup in the
+// skill's Phase 3 remains the report's only write, and it does not reach these
+// files.
+// ONE name-safety implementation for BOTH document rows. It was inline in the
+// could-not-be-read row until the terminal rejects got a row of their own; a second
+// copy of a render-safety rule is the drift class this file already tracks, and the
+// two rows print into the same relayed report, so they must withhold the same names.
+//
+// POSITIVE shape, not only the two negative tests. `AUTOPILOT_RUN_RE`'s `(.*)` accepts
+// any stem and an EMPTY file with a chosen name is enough — no valid JSON needed —
+// which makes this the cheaper and larger of the two co-tenant channels, and it was the
+// one held to the weaker bar. A name the owner could ever have minted satisfies
+// `AUTOPILOT_ID_RE` on its stem, because `autopilotRun` refuses any record whose `runId`
+// disagrees with it; a legitimately minted but corrupt document therefore still renders,
+// and only a forged name is withheld. The COUNT is unaffected — it is the finding.
+//
+// The four rules below the shape test, stated HERE because the call sites now point at
+// this function for them and an earlier revision pointed here while they lived only at a
+// call site, or only in the `workspaceRoot` arm ~190 lines up, which is a DIFFERENT
+// channel. `CONTROL_BYTE_RE` covers C1, DEL and U+2028/9 as well as C0 — wider than the
+// owner's `nonEmpty`, but `nonEmpty` governs `workspaceRoot`, not this: the owner rule on
+// a run FILENAME is `identifier` on the stem, which already excludes every byte this test
+// refuses. The "wider than the owner" argument belongs to the `workspaceRoot` arm and is
+// stated there. The BACKTICK is refused
+// rather than escaped, because a delimiter the value can itself contain is not an escape:
+// the name would close its own code span and land mid-sentence inside the `Inspect … in
+// <dir>` clause — and on the terminal-document row beside a clause that deliberately
+// offers no release command at all. Say it that way: the "immediately before this row's
+// release clause" wording belongs to the `workspaceRoot` arm, where `held` really is
+// interpolated ahead of the remedy, and it is false for BOTH rows this function serves,
+// because the names are appended AFTER the release clause on one and there is no release
+// clause on the other. `forgesReportRow` is the row-forgery predicate — a `label : value`
+// pair separator, a double space, a separator-adjacent modifier letter, a
+// Default_Ignorable code point, an orphan combining mark — none of them a control byte,
+// all of them reaching a row `skills/doctor/SKILL.md` tells the model to relay verbatim;
+// it fails CLOSED on a module load failure, which withholds every name rather than
+// rendering an unbounded one. And `AUTOPILOT_RENDER_MAX` bounds the RENDER as well as the
+// read, so a long accepted name cannot become a long rendered one beside a remedy.
+//
+// UNPINNED, and named so a maintainer knows. Whenever the stem satisfies
+// `AUTOPILOT_ID_RE`, the whole name is `autopilot-run-` plus that class plus `.json` — and
+// that premise reaches FOUR rules, not the two an earlier wording drew it over. It admits
+// no space, no `\p{Lm}`, no Default_Ignorable and no `\p{M}`, so none of
+// `forgesReportRow`'s five value rules can fire either; and it caps the name at 14 + 128 +
+// 5 = 147 characters, below `AUTOPILOT_RENDER_MAX`, so the elision below is unreachable
+// too. All four are defence in depth against a future widening of that class, and no
+// fixture in this tree discriminates them here. The ONE way `forgesReportRow` still
+// decides on this channel is its `catch`, which returns true and withholds every name when
+// the display-safety module cannot load — the third cause both row sentences name. On the
+// `workspaceRoot` channel they do discriminate: P1nz4 grades the backtick there and P1nx
+// the control byte.
+function autopilotSafeNames(names) {
+  return names.filter(function (n) {
+    var m = AUTOPILOT_RUN_RE.exec(n);
+    return !!m && AUTOPILOT_ID_RE.test(m[1])
+      && !CONTROL_BYTE_RE.test(n) && n.indexOf('`') === -1
+      && !forgesReportRow(n);
+  }).map(function (n) {
+    return '`' + (n.length > AUTOPILOT_RENDER_MAX
+      ? n.slice(0, AUTOPILOT_RENDER_MAX) + '… (elided)' : n) + '`';
+  });
+}
+
+function autopilotRows(entries, dir, nowMs, ownKey, projectRoot) {
+  var candidates = [];
+  entries.forEach(function (f) {
+    var m = AUTOPILOT_RUN_RE.exec(f);
+    if (m) candidates.push({ name: f, stem: m[1] });
+  });
+  if (!candidates.length) return;
+  candidates.sort(function (a, b) { return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0); });
+  // The number of documents OPENED is bounded too, not only the rows rendered.
+  // Every candidate is a file in a session-writable directory and each may be up
+  // to AUTOPILOT_RUN_MAX_BYTES, so scanning the directory without a bound makes a
+  // renderer whose contract is to always exit 0 do work proportional to whatever a
+  // co-tenant put there.
+  var scanned = candidates.slice(0, AUTOPILOT_SCAN_MAX);
+  var unscanned = candidates.length - scanned.length;
+  var unreadable = [];
+  var terminalUnshaped = [];
+  var rows = [];
+  var ownerActivityWin = ownerActivityWindow();
+  var releaseActivityWin = releaseOwnerActivityWindow();
+  // Parsed in ONE pass before any row renders, because a foreign run's remedy depends
+  // on a fact about the WHOLE scanned set — whether this session already owns a
+  // nonterminal run, which adoption refuses with exit 4 — and that run may sort after
+  // the row being rendered. Re-reading the directory per row would be the alternative
+  // and would double every document read this report performs.
+  var parsedRuns = scanned.map(function (c) {
+    return { name: c.name, run: autopilotRun(path.join(dir, c.name), c.stem, projectRoot) };
+  });
+  // `ownerWouldAccept` is a REQUIRED conjunct, because the caveat names an exit CODE. A
+  // record the owner refuses makes adoption exit 2 inside `readState`, above the exit-4
+  // test, so counting it here would state a code this report did not establish — the
+  // same standard the green glyph is already held to one function down.
+  var ownHoldsOwnRun = ownKey !== '' && parsedRuns.some(function (p) {
+    return p.run && p.run !== AUTOPILOT_TERMINAL_UNSHAPED && p.run.owner === ownKey
+      && p.run.ownerWouldAccept === true
+      && AUTOPILOT_TERMINAL.indexOf(p.run.stage) === -1;
+  });
+  // A NEGATIVE over a bounded scan is not a negative over the directory. The verb's own
+  // `readRunInventory` has no cap, so past AUTOPILOT_SCAN_MAX the caveat is dropped for a
+  // reason that has nothing to do with the state it describes, and the remedy would then
+  // read as "no exit-4 obstacle" where this report merely stopped looking. Raising the cap
+  // is the wrong trade — it exists because every candidate is a session-writable file — so
+  // the bound is DISCLOSED on the row instead.
+  // The `ownKey !== ''` conjunct is what keeps the sentence's stated CAUSE true. For an
+  // unbound report `ownHoldsOwnRun` is false because there is no own session to compare
+  // against, not because the scan stopped — and the disclosure below names the cap by
+  // name, on a row that can offer an irreversible cancel. Without it a report that never
+  // looked for an own run at all would blame `AUTOPILOT_SCAN_MAX` for that silence. The
+  // unbound case already states what it could not establish through its own arm.
+  var ownRunUnscanned = ownKey !== '' && !ownHoldsOwnRun && unscanned > 0;
+  parsedRuns.forEach(function (c) {
+    var run = c.run;
+    // NARROWED, never deleted. This record leaves the could-not-be-read row because
+    // that row asserts it still holds its working tree, which is false for a terminal
+    // one — but `readRunInventory` never consults terminality, so it can still fail
+    // every Autopilot verb closed for the whole project. Its own row says that.
+    if (run === AUTOPILOT_TERMINAL_UNSHAPED) { terminalUnshaped.push(c.name); return; }
+    if (!run) { unreadable.push(c.name); return; }
+    if (AUTOPILOT_TERMINAL.indexOf(run.stage) !== -1) return;
+    // THREE cases, never two. `ownKey` is empty for every binding verdict but
+    // `bound`, so an unbound report cannot tell own from foreign, and folding
+    // that into either branch states something it has not established. The
+    // remedy split is `_autopilot_workspace_refusal`'s and is restated for its
+    // reason: a release cancels the run, so offering one against a run this
+    // session owns would end its own live generation. The unknown case therefore
+    // gets NO release command either — the same direction the refusal renderer
+    // takes when it cannot read the holder.
+    // Resolved ONCE, here, and consumed by BOTH halves of the row: the remedy below
+    // and `ownerLivenessClause`. The clause derived it privately and the remedy did
+    // not derive it at all, so the row offered `/zensu:autopilot-adopt` one sentence
+    // before the clause said adoption refuses that run with exit 3 — a row that ROUTES
+    // a user to a verb must not contradict the verb that declines. `pendingStage` is
+    // the PENDING one, never the literal stage: `BLOCK` is legal from `TDD_RUNNING`
+    // and `RESUME` restores `blocked.from`, so the adopt worker tests the same value.
+    var adoptBlocked = run.pendingStage === 'TDD_RUNNING';
+    var own = ownKey !== '' && run.owner === ownKey;
+    // The silence verdict and the liveness clause are resolved HERE, once, above the
+    // remedy that has to agree with them — and the clause call is made ONCE rather than
+    // re-spelled inside each arm of the silence ladder below. Both orderings are the
+    // fix for the same class: the remedy used to be chosen before the clause existed
+    // and branched on the inner-chain fact alone, so a beacon the release aborts on
+    // produced "a release aborts on this beacon with exit 2" and then an offer to run
+    // it; and a call re-spelled per arm is how the absent arm stayed one qualifier
+    // behind the others for a release.
+    var silenceVerdict = autopilotOwnerSilence(dir, run.owner, nowMs);
+    var foreignHolder = ownKey !== '' && !own;
+    var liveness = foreignHolder
+      ? ownerLivenessClause(dir, run, ownerActivityWin, releaseActivityWin, silenceVerdict,
+        adoptBlocked, ownHoldsOwnRun)
+      : null;
+    var livenessText = liveness ? liveness.text : '';
+    var ownership;
+    var remedy;
+    if (ownKey === '') {
+      ownership = 'owner not established, because the session key did not reach this report';
+      remedy = 'no release command is named here: with the owner unknown, releasing could cancel'
+        + ' this session\'s own live generation. Establish the owner first — the run document'
+        + ' names it in ownerSessionId';
+    } else if (own) {
+      ownership = 'owned by THIS session';
+      remedy = 'finish or repair that run rather than releasing it — releasing a run this session'
+        + ' owns would cancel its own live generation';
+    } else {
+      ownership = 'owned by another session';
+      // Both guided verbs are SCOPED to the caller's own tree: each refuses with exit 6
+      // unless the run's tree contains the caller's or the caller's contains it.
+      // Sibling worktrees under one project root share this state directory, so a
+      // bare adopt or release instruction here would name a command that refuses. The row
+      // cannot resolve the caller's tree (this renderer takes no git dependency),
+      // so it says where the command has to be issued from rather than implying
+      // anywhere will do. Both directions are named: `mayHoldWorkspace` ORs
+      // `contains(held, caller)` with `contains(caller, held)`, so a worktree
+      // NESTED inside the held tree is a valid caller too. Naming only the
+      // containing direction contradicted the occupancy sentence this same row
+      // prints two clauses later, and sent a reader out of a tree that works.
+      // The offer is derived from the SAME record the clause rendered from, so the row
+      // can never name a verb its own clause has just said cannot act. Four shapes, and
+      // the ordering inside each is unchanged where both verbs survive: adoption first,
+      // because a cancel cannot be undone.
+      var tail = ' only after the user says yes, and from the working tree that run holds,'
+        + ' or one that contains it or sits inside it, because only a sibling worktree is'
+        + ' refused';
+      var releaseOut = liveness && liveness.releaseBlocked;
+      var adoptOut = liveness && liveness.adoptBlocked;
+      var adoptMaybe = liveness && liveness.adoptUnknown;
+      // Each half names its OWN cause, because the causes take different remedies and a
+      // combined sentence that assumed one of them prescribed a repair that fixes the
+      // other verb only. `releaseWhy` and `adoptWhy` are the two halves of that sentence.
+      // Each cause has its OWN sentence, and an unrecognized one says so rather than
+      // inheriting a neighbour's remedy — the direction this repository already takes for
+      // a reason vocabulary it does not recognize.
+      var releaseCause = liveness ? liveness.releaseBlockedBy : null;
+      var adoptCause = liveness ? liveness.adoptBlockedBy : null;
+      var releaseWhy = 'this report does not recognize why a release is blocked here — a'
+        + ' missing check, not a verdict';
+      if (releaseCause === 'future-stamp') {
+        releaseWhy = 'a release refuses this run with exit 7 while that stamp is in the'
+          + ' future, and waiting will not clear it: the owning session can still cancel it';
+      } else if (releaseCause === 'beacon') {
+        releaseWhy = 'a release aborts on this run\'s owner beacon with exit 2 until that'
+          + ' beacon is restored';
+      } else if (releaseCause === 'aged') {
+        releaseWhy = 'a release refuses this run with exit 7 while that document is under '
+          + (liveness ? liveness.releaseWindowHours : '') + 'h old, so waiting until it is older is'
+          + ' what clears it';
+      }
+      var adoptWhy = 'this report does not recognize why adoption is blocked here — a'
+        + ' missing check, not a verdict';
+      if (adoptCause === 'chain') {
+        adoptWhy = 'adoption refuses it with exit 3 before it reads any beacon, because this'
+          + ' run has a live inner TDD chain — that stage is ' + AUTOPILOT_FORGEABLE_SOURCE
+          + ' — so finishing or'
+          + ' cancelling that chain in its own session is what clears it, while BLOCKING it'
+          + ' does not, because the verb tests the pending stage, and repairing the beacon'
+          + ' would not either';
+      } else if (adoptCause === 'beacon') {
+        adoptWhy = 'adoption aborts on that same beacon with exit 2';
+      } else if (adoptCause === 'future-stamp') {
+        adoptWhy = 'adoption refuses it with exit 7 too while that stamp is in the future,'
+          + ' and waiting will not clear it either';
+      } else if (adoptCause === 'aged') {
+        adoptWhy = 'adoption refuses it too while that document is under '
+          + (liveness ? liveness.adoptWindowHours : '') + 'h old';
+      }
+      if (releaseOut && adoptOut) {
+        // NO consent-and-worktree tail here: it qualifies an OFFER, and this arm offers
+        // nothing. Appended to "report that", it told the reader that reporting needs the
+        // user's yes and a particular working tree, which points at withholding the
+        // finding in the one state where both verbs are blocked.
+        remedy = 'neither guided verb is on offer here: ' + releaseWhy + ', and ' + adoptWhy
+          + '. Report that rather than offering either verb';
+      } else if (releaseOut) {
+        remedy = 'if that session is gone for good, report it and offer /zensu:autopilot-adopt to'
+          + ' continue it here — a release is NOT on offer, because ' + releaseWhy + ' —' + tail;
+      } else if (adoptOut) {
+        // Adoption is not on offer for this run at all, so naming it would route the
+        // user to a verb that refuses before it reads anything. The release is still
+        // reachable, and it is the only guided verb this arm may name — which makes the
+        // provenance of the deciding fact part of the sentence rather than a detail one
+        // clause up, since this is the one arm that leaves only the irreversible verb.
+        remedy = 'if that session is gone for good, report it and offer /zensu:autopilot-release to'
+          + ' cancel it — adoption is not on offer here, because ' + adoptWhy + ' —' + tail;
+      } else {
+        remedy = 'if that session is gone for good, report it and offer /zensu:autopilot-adopt to'
+          + ' continue it here, or /zensu:autopilot-release to cancel it — adoption first, because a'
+          + ' cancel cannot be undone —' + tail;
+      }
+      // The hedge qualifies EVERY arm that names adoption, not only the two-verb one.
+      // Attaching it to that arm alone left it off the one place adoption is the sole
+      // offer, which is where an unread pointer costs the reader the most.
+      if (adoptMaybe && !adoptOut) {
+        remedy += '. Adoption may still abort with exit 2 before it acts: the clause above'
+          + ' could not read the owner active pointer, which that verb resolves first — that'
+          + ' pointer is an ordinary file any session in this project can write';
+      }
+      // The own-run obstacle is stated wherever adoption is still named, and it never
+      // removes the offer: see the record's own comment for why a bounded, forgeable
+      // input may not be allowed to leave only the cancel on the table.
+      if (liveness && liveness.adoptCaveat && !adoptOut) {
+        remedy += '. Adoption additionally refuses with exit 4 while this session owns a'
+          + ' nonterminal run of its own, and this report found one — that run document is an'
+          + ' ordinary file any session in this project can write, and this report scans a'
+          + ' bounded number of them, so read it as evidence rather than as proof; finishing'
+          + ' or cancelling that run is what clears it';
+      } else if (!adoptOut && ownRunUnscanned) {
+        // The caveat is computed over the SCANNED set, while the verb builds its own
+        // inventory from the whole directory with no cap. So past the cap its ABSENCE
+        // is not evidence, and saying nothing would let the row read as "no exit-4
+        // obstacle" when this report simply did not look. Same standard the block-level
+        // row is already held to, applied to the per-row remedy it does not cover.
+        remedy += '. Whether this session owns a nonterminal run of its own — which'
+          + ' adoption refuses with exit 4 — was NOT established here, because this report'
+          + ' stopped at ' + AUTOPILOT_SCAN_MAX + ' run documents and the verb reads them all';
+      }
+    }
+    // An OWN run whose pointer still designates it is an ordinary run in
+    // progress, not a finding: it renders OK, so a live Autopilot run does not
+    // suppress the green summary for its own owner. Every other case keeps WARN,
+    // including the own run whose pointer does NOT designate it — the torn
+    // `begin` the remedy wording above was written for.
+    var designates = own ? autopilotPointerDesignates(dir, run.owner, run.runId) : null;
+    // BLOCKED is NOT terminal — the same line says so — and the owner's
+    // `read-workspace` filters only on TERMINAL, so a BLOCKED run still refuses a
+    // second begin and a standalone /zensu:tdd. Rendering it green would print
+    // "all checks green" beside a tree that refuses /zensu:tdd.
+    // `ownerWouldAccept` is a REQUIRED conjunct of the green arm and of nothing
+    // else. Without it `ordinary` rested on `autopilotRun`'s six shape gates alone,
+    // so a record the owner refuses — which fails `readRunInventory` for the WHOLE
+    // project — could render OK and let the report print "all checks green" beside
+    // a tree on which nothing can run. WARN may stand on the loose shape; OK may
+    // not.
+    var ordinary = own && designates === true && run.stage !== 'BLOCKED'
+      && run.ownerWouldAccept === true;
+    var glyph = ordinary ? OK : WARN;
+    if (own) {
+      // FOUR own-run states, and each says only what it established. `ordinary` is
+      // the ONLY one that is not a finding; every other keeps WARN. A BLOCKED run
+      // with a live pointer is deliberately its own arm rather than falling through
+      // to the unreadable-pointer wording, because the pointer WAS read there — the
+      // stage is what makes the run a finding.
+      if (ordinary) {
+        remedy = 'this session\'s active pointer still designates it, so it is an ordinary run in'
+          + ' progress — carry it to its terminus rather than releasing it, which would cancel'
+          + ' this session\'s own live generation';
+      } else if (designates === true) {
+        remedy = 'this session\'s active pointer still designates it, but the run is BLOCKED, which'
+          + ' is NOT terminal, so it still holds this tree: resume or cancel it from this session'
+          + ' rather than releasing it';
+      } else if (designates === false) {
+        remedy = 'no active pointer designates it — a torn begin is one cause, a pointer naming'
+          + ' another run is another, and so is the run reaching a terminus between the two'
+          + ' independent reads this report took: finish or repair that run rather than'
+          + ' releasing it';
+      } else {
+        remedy = 'this session\'s active pointer could not be read, so whether the run is ordinary'
+          + ' or torn was NOT established — a missing check, not a verdict: finish or repair that'
+          + ' run rather than releasing it';
+      }
+    }
+    var held = run.workspace === null
+      ? 'holds EVERY working tree in this project (the record predates workspace scoping and names none)'
+      // "does not render", not "cannot read": the value WAS read, and the two
+      // reasons it is withheld are different from each other and from a read
+      // failure. The owner's `nonEmpty` rejects C0 bytes only, while this report's
+      // `CONTROL_BYTE_RE` also covers C1, DEL and the Unicode line separators —
+      // so a value the owner ACCEPTED can be withheld here, and saying "cannot
+      // read" would blame the file for a decision this renderer took.
+      : (run.workspace === '' ? 'names a working tree this report does not render'
+        + ' (it is not a non-empty string, it is longer than the 4096 characters the owner'
+        + ' accepts, it is not an absolute path, it carries a control character this report refuses'
+        + ' to echo even though the owner accepts it, it carries a backtick, or it would'
+        + ' forge a row of this report)'
+        // Bounded at the point of RENDER as well as at the point of read. The field
+        // is co-tenant-writable free text and the doctor skill tells the model to
+        // relay this row, so 4096 accepted characters must not become 4096 rendered
+        // ones sitting next to a release instruction.
+        // DELIMITED as well as bounded. The value is co-tenant-writable free text
+        // and it is rendered mid-sentence, immediately before this row's own
+        // clauses, so an absolute path chosen to read like report prose — ", owned
+        // by THIS session — it holds …" — otherwise continues the sentence it sits
+        // in. Backticks keep the row readable where `JSON.stringify` would double
+        // every separator in a Windows path. RESIDUAL, stated rather than implied:
+        // a value containing a backtick is not escaped, so this makes the text
+        // unambiguous at a glance, not unforgeable.
+        : 'holds the working tree `' + (run.workspace.length > AUTOPILOT_RENDER_MAX
+          ? run.workspace.slice(0, AUTOPILOT_RENDER_MAX) + '… (elided)'
+          : run.workspace) + '`');
+    var silence;
+    if (silenceVerdict.kind === 'aged') {
+      silence = 'The owning session last wrote its workflow document '
+        + Math.floor(silenceVerdict.ageMs / 3600000) + 'h ago'
+        // The AGE carries its own bound, on the same ground the pointer clause below
+        // carries one. The number is an ordinary filesystem mtime read out of
+        // `.zensu/state/`, a directory any session in this project can write, so one
+        // `touch -t` makes a live owner read as hours-silent — and this row is the
+        // surface that then offers an irreversible cancel. Mirroring the verbs'
+        // mtime read is correct (changing only this side would desynchronize the two
+        // readers); what was missing is saying what that input is worth.
+        + ' — that is an ordinary filesystem mtime in a directory any session in this'
+        + ' project can write, so read it as evidence of silence rather than as proof'
+        + ' the owner is gone'
+        // The clause states the exit-7 refusal the run verbs take, and it quotes the
+        // windows they actually read — `autopilotOwnerActivityTtlHours` for adoption and
+        // `autopilotReleaseOwnerActivityTtlHours` for the release, never the
+        // pending-review window this row used to quote while `--autopilot-release` and
+        // `--autopilot-adopt` judged liveness against other keys. That mismatch
+        // promised hours of protection the destructive verb no longer gives, on the
+        // one surface that routes a user to it. WHICH verbs refuse is decided per run
+        // by `ownerLivenessClause`, because the two are not symmetric.
+        //
+        // The refusal sits inside each verb's FOREIGN-caller branch only. Printing it
+        // beside a run this session owns would state a rule that does not apply there
+        // — and `!own` ALONE is not the foreign case: `own` is false whenever `ownKey`
+        // is empty, which is every binding verdict but `bound`, so testing it alone
+        // folds ownership-not-established into foreign and asserts a branch this
+        // report never established applies. The row says the owner is not established
+        // two clauses down; it must not contradict itself here.
+        + livenessText;
+    } else if (silenceVerdict.kind === 'absent') {
+      // The LESS protected arm, and it must not read as the safer one. With no
+      // document the release stands down at its `no workflow document for the recorded
+      // owner` disclosure and cancels unbounded; adoption reaches that same disclosure
+      // only where it reaches the beacon at all, which is inside its pointer
+      // precondition and never for a run its inner-chain refusal already declined. So
+      // an aged run is bounded by a window while this one is bounded by nothing. Saying only "unknown" beside
+      // the aged arm's Nh refusal implies the opposite ordering, on the row that offers
+      // the cancel. It is routed through the SHARED clause rather than inlined, so the
+      // qualifiers the other arms already carry — a disabled window, a live inner TDD
+      // chain — reach this one too instead of being one arm behind forever.
+      silence = 'The owning session has left no workflow document, so its liveness is unknown'
+        + livenessText;
+    } else if (silenceVerdict.kind === 'unreadable'
+      && silenceVerdict.code === 'future timestamp') {
+      // The `kind` conjunct is not decoration: the clause's own ladder tests both, and
+      // `code` is set only on the unreadable returns, so testing it alone would let a
+      // future kind that happened to carry a `code` take this arm.
+      // NOT "could not be read": the file was opened and its mtime taken; this report
+      // refused the STAMP. Blaming the file for a decision the renderer took is the
+      // same error the workspaceRoot clause below is worded to avoid.
+      silence = 'The owning session\'s workflow document is dated in the FUTURE (future timestamp),'
+        + ' so its liveness was NOT measured — that is a missing check, not evidence the session'
+        + ' is gone'
+        + livenessText;
+    } else if (silenceVerdict.kind === 'unreadable') {
+      silence = 'The owning session\'s workflow document could not be read ('
+        + silenceVerdict.code + '), so its liveness was NOT measured — that is a missing check,'
+        + ' not evidence the session is gone'
+        + livenessText;
+    } else {
+      // EXHAUSTIVE here too, because this ladder switches the SAME discriminator the
+      // clause does. Without it a fourth kind rendered a read failure that did not occur
+      // — with `(undefined)` for a code the producer sets only on the unreadable returns
+      // — immediately followed by the clause saying the state is unrecognized: the two
+      // halves of one sentence contradicting each other.
+      silence = 'The owning session\'s liveness state is one this report does not recognize,'
+        + ' so it was NOT measured — that is a missing check, not evidence the session is gone'
+        + livenessText;
+    }
+    // The containment sentence is CONDITIONAL, because for a record carrying no
+    // `workspaceRoot` containment is not what decides: `mayHoldWorkspace`
+    // short-circuits on the absent field before comparing anything. Printing it
+    // there would explain the hold by a mechanism that did not produce it, which
+    // is the same class of wrong explanation this row exists to remove.
+    // `!== null`, NOT truthiness. `null` means the field is ABSENT, and there
+    // `mayHoldWorkspace` short-circuits before comparing anything, so containment
+    // really is not what decides. `''` is the field PRESENT but unrenderable, and
+    // there containment is exactly what decides — dropping the sentence for that
+    // case removed the explanation from the one arm whose remedy still says to act
+    // "from the working tree that run holds", a tree this arm has just declined to
+    // name.
+    var occupancy = run.workspace !== null ? ' Occupancy is decided by path containment in BOTH'
+      + ' directions, not by a shared git directory, so a containing or contained tree is'
+      + ' held too and only a sibling worktree is free.'
+      + (run.workspace === '' ? ' That rule applies to a tree this row cannot print,'
+        + ' so resolve it from the run document named below.' : '') : '';
+    rows.push({
+      glyph: glyph,
+      // The tracked path is the file that was actually OPENED, never a name
+      // rebuilt from a field. `autopilotRun` already refuses a record whose
+      // `runId` disagrees with this stem, so the two cannot diverge — but
+      // rendering the opened name is what makes that true rather than argued.
+      text: 'autopilot: nonterminal durable run ' + run.runId + ' at stage ' + run.stage
+        + ', ' + ownership + ' — it ' + held + ', so no second Autopilot run and no standalone'
+        + ' /zensu:tdd chain may arm there.' + occupancy + ' Tracked in ' + foldPath(path.join(dir, c.name), ', with the active pointer')
+        + ', with the active pointer named for sha256 of the OWNING SESSION id, never of the'
+        + ' project path. ' + silence + '. Only DONE and CANCELLED are terminal — BLOCKED is'
+        + ' not — and ' + remedy + '.'
+        // In the ROW TEXT, not in one remedy string. `remedy` is reassigned wholesale
+        // inside the own-run branch and set separately for the unbound case, so a
+        // qualification attached to the foreign branch reached one reader in six —
+        // and which one was decided by OWNERSHIP rather than by the record's shape,
+        // which is the opposite of what the sentence is about. It is emitted only
+        // when the stricter check actually failed, so an ordinary row is not padded
+        // with a caveat that does not apply to it.
+        + (run.ownerWouldAccept === true ? ''
+          : ' This row accepted the record on its SHAPE and the owner validates more'
+            + ' than that: this one does not satisfy the stricter check, so every'
+            + ' Autopilot verb may fail closed for this project until the document is'
+            + ' repaired — which makes the document itself the finding.'),
+    });
+  });
+  // Bounded like every other list in this block. An unbounded per-run loop floods
+  // a report the skill tells the model to read back verbatim.
+  rows.slice(0, CHAIN_ROW_LIMIT).forEach(function (r) { line(r.glyph, r.text); });
+  if (rows.length > CHAIN_ROW_LIMIT || unscanned > 0) {
+    line(WARN, 'autopilot: '
+      + (rows.length > CHAIN_ROW_LIMIT
+        ? '+' + (rows.length - CHAIN_ROW_LIMIT) + ' further nonterminal run(s) not listed above'
+        : 'the run listing is incomplete')
+      + (unscanned > 0
+        ? ', and ' + unscanned + ' further run document(s) were not opened at all because the'
+          + ' scan is bounded at ' + AUTOPILOT_SCAN_MAX + ' — so this block is NOT a complete'
+          + ' account of what holds this project'
+        : '')
+      + ' — inspect ' + foldPath(dir, ' directly.') + ' directly.');
+  }
+  if (unreadable.length) {
+    // Why these names are bounded at all, and by what, is stated at
+    // `autopilotSafeNames` — every rule, including the ones this call site used to carry
+    // alone. It said so here too until the filter moved into that function, which left
+    // one call site describing rules that could then change without it while the sibling
+    // call site described none. Withhold the NAME, never the count: the count is the
+    // finding.
+    var safe = autopilotSafeNames(unreadable);
+    var withheld = unreadable.length - safe.length;
+    line(WARN, 'autopilot: ' + unreadable.length + ' durable run document(s) that could not be read'
+      + ' (unparseable, a shape this report does not accept, or a run id that disagrees with the'
+      + ' filename) — this is NOT the same as no run: such a record still holds its working tree,'
+      + ' and /zensu:autopilot-release needs a run id it cannot supply.'
+      + (safe.length ? ' Inspect ' + truncatedList(safe) + ' in ' + foldPath(dir, '.') + '.' : '')
+      + (withheld ? ' ' + withheld + ' further name(s) are withheld because this report could'
+        + ' not establish the name is safe to echo — a stem the Autopilot writer could not'
+        + ' have minted, a character this report will not echo, or a display-safety rule that'
+        + ' could not be applied; list ' + foldPath(dir, ' directly.') + ' directly.' : ''));
+  }
+  // The row above may not carry these: it asserts the record "still holds its working
+  // tree", and a DONE or CANCELLED one does not. That was the whole reason for the
+  // escape — but the escape alone DELETED the finding, and the finding is real:
+  // `readRunInventory` reads every `autopilot-run-*.json` in this directory, validates
+  // each one and fails 2 on the first it refuses, and `begin` and `read-workspace` pass
+  // no owner and stay strict. So a terminal document this report cannot accept still
+  // fails every Autopilot verb closed for the whole project, and it is the ONLY
+  // diagnostic that names that state. NARROW the claim, never the row.
+  //
+  // No release command is offered and that is deliberate: `--autopilot-release` applies
+  // a CANCEL to a nonterminal run and refuses a terminal one, so quoting it here would
+  // prescribe a command that cannot execute. The remedy is to inspect and delete.
+  if (terminalUnshaped.length) {
+    var termSafe = autopilotSafeNames(terminalUnshaped);
+    var termWithheld = terminalUnshaped.length - termSafe.length;
+    line(WARN, 'autopilot: ' + terminalUnshaped.length + ' durable run document(s) this report'
+      + ' does not accept whose recorded stage is terminal (DONE or CANCELLED) — such a record'
+      + ' holds no working tree, but `--autopilot-begin` and the workspace-occupancy check'
+      + ' validate every document in this directory without owner scoping, so this one can'
+      + ' still fail those closed for this project.'
+      + (termSafe.length ? ' Inspect ' + truncatedList(termSafe) + ' in ' + foldPath(dir, '.') + '.' : '')
+      + (termWithheld ? ' ' + termWithheld + ' further name(s) are withheld because this report'
+        + ' could not establish the name is safe to echo — a stem the Autopilot writer could'
+        + ' not have minted, a character this report will not echo, or a display-safety rule'
+        + ' that could not be applied; list ' + foldPath(dir, ' directly.') + ' directly.' : ''));
+  }
+}
+
+var LEASE_RESOURCE = 'autopilot';
+var LEASE_WORDS = {
+  lock: {
+    noun: 'the lock artifact',
+    path: 'the lease path',
+    blocks: 'every lease acquisition fails while it stays',
+    busy: 'a lease is being taken or released right now',
+    taker: 'the process that took the lease',
+    held: 'the lease',
+    role: 'the lock keeper',
+    shapes: 'A live lock keeper is either the node lock keeper that a Zensu hook or zensu-log.sh starts under'
+      + ' bash 4 or later, whose command line names session-control-core-v1.js and this project\'s'
+      + ' .zensu/state, or, under bash 3.2, the bash process that runs that hook or zensu-log.sh itself.',
+  },
+  recovery: {
+    noun: 'the recovery sentinel',
+    path: 'the recovery sentinel path',
+    blocks: 'every lease acquisition and release fails while it stays',
+    busy: 'a lease is being recovered or released right now',
+    taker: 'the process that took the recovery sentinel',
+    held: 'the recovery sentinel',
+    role: 'the holder of the recovery sentinel',
+    shapes: 'A process that holds the recovery sentinel is a node process whose command line names'
+      + ' session-control-core-v1.js.',
+  },
+};
+
+function leaseDuration(ms) {
+  var seconds = Math.floor(ms / 1000);
+  if (seconds < 120) return seconds + ' s';
+  var minutes = Math.floor(seconds / 60);
+  if (minutes < 120) return minutes + ' min';
+  var hours = Math.floor(minutes / 60);
+  if (hours < 48) return hours + ' h';
+  return Math.floor(hours / 24) + ' d';
+}
+
+function leaseResolveCause(error) {
+  var message = String((error && error.message) || '');
+  if (message.indexOf('lock resource is unsafe') !== -1) {
+    return 'the resource path .zensu/state/' + LEASE_RESOURCE + ' is not a single-link regular file';
+  }
+  if (message.indexOf('lock directory is unsafe') !== -1) {
+    return 'the state directory is a symbolic link or not a directory';
+  }
+  if (error && error.code === 'ENOENT') return 'a path component vanished while it was resolved';
+  return 'the Session Control core refused the lease path';
+}
+
+var LEASE_MARKER_FACTS = {
+  held: 'held open',
+  released: 'free',
+  absent: 'absent',
+  unreadable: 'unreadable',
+};
+
+function leaseMarkerFact(artifact) {
+  return Object.prototype.hasOwnProperty.call(LEASE_MARKER_FACTS, artifact.marker)
+    ? LEASE_MARKER_FACTS[artifact.marker]
+    : null;
+}
+
+function leaseFacts(artifact) {
+  var marker = leaseMarkerFact(artifact);
+  return 'owner pid ' + artifact.pid + ' (' + (artifact.alive ? 'alive' : 'not alive') + '), process start identity '
+    + (artifact.identityRecorded ? 'recorded' : 'not recorded')
+    + (marker ? ', holder marker ' + marker : '') + ', created_at '
+    + new Date(artifact.createdAtMs).toISOString();
+}
+
+function leaseMarkerClause(artifact) {
+  if (artifact.marker === 'absent') {
+    return ' No holder marker exists for this record, so a runtime from before holder markers, or a holder that'
+      + ' could not create one, wrote it.';
+  }
+  if (artifact.marker === 'unreadable') {
+    return ' Something exists at its holder marker\'s name that the core cannot judge, so it proves nothing either'
+      + ' way.';
+  }
+  return '';
+}
+
+function leaseCheck(pid) {
+  return 'Check with ps -ww -p ' + pid + ' -o args= that pid ' + pid + ' is such a process before acting on this'
+    + ' row: the owner record lives in the session-writable .zensu/state, so its pid and start identity are'
+    + ' evidence, not proof.';
+}
+
+function leaseRefusedRow(words, artifact, file) {
+  if (artifact.cause === 'unreadable') {
+    line(WARN, 'autopilot lease: the core cannot read ' + words.noun + ' ' + parenthesizedPath(file, ' — ')
+      + ' — ' + words.blocks + ', and the core never reclaims it. Check its permissions and content, and'
+      + ' remove it by hand; the doctor never deletes it.');
+    return;
+  }
+  var what = artifact.cause === 'symlink' ? 'a symbolic link'
+    : artifact.cause === 'irregular' ? 'an entry that is not a regular file'
+      : 'a file larger than an owner record may take';
+  line(WARN, 'autopilot lease: ' + words.path + ' holds ' + what + ' ' + parenthesizedPath(file, ' — ')
+    + ' — the core never writes one there, ' + words.blocks + ', and the core never reclaims it. Inspect it'
+    + ' and remove it by hand; the doctor never deletes it.');
+}
+
+function leaseOwnerlessRow(words, artifact, file, staleAfterMs, inspectedAtMs) {
+  var staleSeconds = staleAfterMs / 1000;
+  var age = inspectedAtMs - artifact.mtimeMs;
+  if (artifact.stale) {
+    line(WARN, 'autopilot lease: ' + words.noun + ' ' + parenthesizedPath(file, ' carries')
+      + ' carries no owner record the core can read and is ' + leaseDuration(age) + ' old — the core counts'
+      + ' such an artifact as stale after ' + staleSeconds + ' s, so no live process owns it and it'
+      + ' is removable; the next lease acquisition reclaims it on its own, and the doctor never deletes it.');
+    return;
+  }
+  if (age < 0) {
+    line(WARN, 'autopilot lease: ' + words.noun + ' ' + parenthesizedPath(file, ' carries')
+      + ' carries no owner record the core can read, and its modification time lies in the future — the core'
+      + ' treats it as held until ' + staleSeconds + ' s after that moment, and nothing reclaims it before then.'
+      + ' Inspect it and remove it by hand; the doctor never deletes it.');
+    return;
+  }
+  line(WARN, 'autopilot lease: ' + words.noun + ' ' + parenthesizedPath(file, ' carries')
+    + ' carries no owner record the core can read — the core treats it as held until it is ' + staleSeconds
+    + ' s old and then reclaims it at the next lease acquisition. Run /zensu:doctor again after that.');
+}
+
+function leaseOwnedRow(kind, words, artifact, file, staleAfterMs, inspectedAtMs) {
+  var pid = artifact.pid;
+  var facts = leaseFacts(artifact);
+  var age = inspectedAtMs - artifact.createdAtMs;
+  var subject = kind === 'lock'
+    ? 'Its owner is not a live lock keeper, so the artifact '
+    : 'The sentinel ';
+  if (artifact.stale && !artifact.alive) {
+    line(WARN, (kind === 'lock'
+      ? 'autopilot lease: held by a process that is gone — '
+      : 'autopilot lease: the recovery sentinel was left by a process that is gone — ')
+      + facts + '. ' + subject + parenthesizedPath(file, ' is')
+      + ' is removable; the next lease acquisition reclaims it on its own, and the doctor never deletes it.');
+    return;
+  }
+  if (artifact.stale && artifact.marker === 'released') {
+    line(WARN, 'autopilot lease: pid ' + pid + ' no longer holds ' + words.held + ' — ' + facts
+      + ', and no process holds the record\'s holder marker open any more, so ' + words.taker + ' has let it'
+      + ' go: it exited, or gave it up after its own release failed. '
+      + (kind === 'lock' ? 'The artifact ' : 'The sentinel ') + parenthesizedPath(file, ' is')
+      + ' is removable; the next lease acquisition reclaims it on its own, and the doctor never deletes it.');
+    return;
+  }
+  if (artifact.stale) {
+    line(WARN, 'autopilot lease: pid ' + pid + ' is alive but is not ' + words.taker + ' — ' + facts
+      + (artifact.startedAfterRecord
+        ? ', and the process that holds pid ' + pid + ' started after the record was written, so its pid was reused. '
+        : ', and its current start identity differs from the recorded one. ')
+      + subject + parenthesizedPath(file, ' is')
+      + ' is removable; the next lease acquisition reclaims it on its own, and the doctor never deletes it.');
+    return;
+  }
+  if (age >= 0 && age <= staleAfterMs) {
+    line(OK, kind === 'lock'
+      ? 'autopilot lease: held right now — ' + facts + '. A lease covers one short critical section and clears'
+        + ' on its own; run /zensu:doctor again if an Autopilot state read keeps failing.'
+      : 'autopilot lease: ' + words.busy + ' — ' + facts + '. That takes a moment and clears on its own; run'
+        + ' /zensu:doctor again if an Autopilot state read keeps failing.');
+    return;
+  }
+  var since = age >= 0 ? 'for ' + leaseDuration(age) : 'since a created_at that lies in the future';
+  var unknown = age >= 0 ? ''
+    : ' The clock moved back or the record was edited, so how long it has been held is unknown.';
+  var markerHeld = artifact.marker === 'held';
+  if (markerHeld || (artifact.identityRecorded && artifact.identityCurrent !== null)) {
+    if (kind === 'lock') {
+      line(WARN, 'autopilot lease: held ' + since + ' by a live lock keeper — ' + facts + ', and '
+        + (markerHeld
+          ? 'a process still holds the record\'s holder marker open, normally the lock keeper itself'
+          : 'pid ' + pid + ' still carries the recorded start identity')
+        + ', so the artifact ' + parenthesizedPath(file, ' is')
+        + ' is NOT removable.' + (age >= 0
+          ? ' While a lease is held this long every other lease acquisition gives up waiting and its Autopilot'
+            + ' state read fails.'
+          : unknown)
+        + ' ' + words.shapes + ' ' + leaseCheck(pid) + ' If it is one and the run that holds the lease is hung,'
+        + ' end the shell that runs _tdd_locked_run for that run together with every process under it: pid ' + pid
+        + ' itself under bash 3.2, and the parent of the parent of pid ' + pid + ' under bash 4 or later, because'
+        + ' the node lock keeper runs inside a coprocess shell. That ends the run, and the lease clears.'
+        + ' Never end the node lock keeper alone, which lets the next lease acquisition in while that shell still'
+        + ' runs its critical section, and never its coprocess shell alone, which releases nothing.');
+    } else {
+      line(WARN, 'autopilot lease: the recovery sentinel ' + parenthesizedPath(file, ' has') + ' has been held '
+        + since + ' by pid ' + pid
+        + (markerHeld
+          ? ', whose holder marker a process still holds open, normally the holder of the sentinel itself — '
+          : ', which still carries the recorded start identity — ')
+        + facts + '. The'
+        + ' sentinel is NOT removable, and while it stays every lease acquisition waits on it and gives up, so'
+        + ' every Autopilot state read that needs the lease fails.' + unknown + ' ' + words.shapes + ' '
+        + leaseCheck(pid) + ' If it is one and hung, end it; the next lease acquisition then reclaims the'
+        + ' sentinel.');
+    }
+    return;
+  }
+  line(WARN, (kind === 'lock'
+    ? 'autopilot lease: held ' + since + ' by pid ' + pid
+    : 'autopilot lease: the recovery sentinel ' + parenthesizedPath(file, ' has') + ' has been held ' + since
+      + ' by pid ' + pid)
+    + ', which is alive — ' + facts + '.' + unknown + ' '
+    + (artifact.identityRecorded
+      ? 'Its current start identity could not be read, and nothing shows that the process holding pid ' + pid
+        + ' started after the record was written, so the core keeps treating ' + words.noun + ' as live'
+        + ' and does not reclaim it while that holds.'
+      : 'Without a recorded start identity the core reclaims ' + words.noun + ' only once '
+        + (artifact.marker === 'unreadable' ? 'its holder marker is free or ' : '')
+        + 'the process holding pid ' + pid + ' provably started more than a second after the record was written,'
+        + ' and nothing shows that now. Every lease acquisition checks again, so it clears as soon as that shows,'
+        + ' or when that process releases it or exits.')
+    + leaseMarkerClause(artifact)
+    + ' The doctor cannot establish whether pid ' + pid + ' is still ' + words.role + '. ' + words.shapes + ' '
+    + leaseCheck(pid) + ' If pid ' + pid + ' is not such a process, ' + words.taker + ' is gone and its pid was'
+    + ' reused in a way the core cannot prove: a process that took pid ' + pid + ' within a second of the record'
+    + ' keeps ' + words.noun + (kind === 'lock' ? ' ' + parenthesizedPath(file, ' while') : '')
+    + ' while it lives, and only a removal by hand clears it. Run /zensu:doctor again first, and remove it only'
+    + ' while it still names pid ' + pid + ' and the same created_at. The doctor never deletes it.');
+}
+
+function leaseArtifactRow(kind, artifact, file, staleAfterMs, inspectedAtMs) {
+  var words = LEASE_WORDS[kind];
+  if (artifact.state === 'refused') {
+    leaseRefusedRow(words, artifact, file);
+    return;
+  }
+  if (artifact.state === 'changing') {
+    line(WARN, 'autopilot lease: ' + words.noun + ' changed while it was read — ' + words.busy + '. Run'
+      + ' /zensu:doctor again for a stable reading; that is a missing check, not an all-clear.');
+    return;
+  }
+  if (artifact.state === 'ownerless') {
+    leaseOwnerlessRow(words, artifact, file, staleAfterMs, inspectedAtMs);
+    return;
+  }
+  leaseOwnedRow(kind, words, artifact, file, staleAfterMs, inspectedAtMs);
+}
+
+function leaseRow(dir) {
+  var core = null;
+  try {
+    core = require(path.join(pluginDir(), 'hooks', 'lib', 'session-control-core-v1.js'));
+  } catch (e) {
+    core = null;
+  }
+  if (!core || typeof core.externalProcessLockPath !== 'function'
+    || typeof core.inspectExternalProcessLock !== 'function') {
+    line(WARN, 'autopilot lease: not checked — the Session Control core did not load from '
+      + foldPath(pluginDir(), ' with') + ' with its read-only lease inspection. That is a missing check,'
+      + ' not an all-clear.');
+    return;
+  }
+  var options = { lockDirectory: dir, resourcePath: path.join(dir, LEASE_RESOURCE) };
+  var file;
+  var lease;
+  try {
+    file = core.externalProcessLockPath(options);
+    lease = core.inspectExternalProcessLock(options);
+  } catch (e) {
+    line(WARN, 'autopilot lease: the lease artifact could not be resolved — ' + leaseResolveCause(e)
+      + '. The lease cannot be taken while that holds, so every Autopilot state read that needs it'
+      + ' fails. That is a missing check, not an all-clear.');
+    return;
+  }
+  if (lease.lock.state === 'absent' && lease.recovery.state === 'absent') {
+    line(OK, 'autopilot lease: free — no lock artifact and no recovery sentinel, so no process holds the'
+      + ' Autopilot project lease');
+    return;
+  }
+  var inspectedAtMs = Number.isFinite(lease.inspectedAtMs) ? lease.inspectedAtMs : Date.now();
+  if (lease.lock.state !== 'absent') {
+    leaseArtifactRow('lock', lease.lock, file, lease.staleAfterMs, inspectedAtMs);
+  }
+  if (lease.recovery.state !== 'absent') {
+    leaseArtifactRow('recovery', lease.recovery, lease.recoveryFile, lease.staleAfterMs, inspectedAtMs);
+  }
+}
+
+// The recorded project root is a real directory name minted from the SessionStart
+// cwd, and both binding rows below render it verbatim into a terminal and into the
+// model's context. `readOrphanedProjectRootContext` rejects only control characters
+// and a non-absolute value, so bidi overrides and U+2028/U+2029 survive it — which
+// is precisely why session-adopt-report-v1.js folds the same class of value before
+// printing it. Consume THAT fold rather than writing a second one: two allowlists
+// for one hazard is the drift this file already tracks elsewhere.
+//
+// Required LAZILY and guarded, exactly as reviewerDenialRows and ruleCarrierRows
+// require theirs: a load fault must cost this row's polish, never the whole report.
+// A guarded LAZY require, and the fallback REPLACES the value with a stated reason
+// rather than folding it with a second copy of the rule. Three decisions, each of
+// which was made the other way first.
+//
+// WHERE the rule lives: `hooks/lib/zensu-safe-display-v1.js`, a leaf that requires
+// nothing at all. It used to live in `session-adopt-report-v1.js` — a feature
+// command's report module carrying five module-scope requires of its own — so this
+// renderer reached one string fold through a four-file load chain, inside the one
+// tool whose entire job is to still speak when the installation is damaged.
+//
+// WHY it stays LAZY and GUARDED rather than a top-level require: this module had NO
+// hard sibling require, and that is a property, not an accident. `test-doctor.sh`
+// P1mf builds a plugin root carrying exactly the core and this file, to prove a
+// missing `chain-recovery-v1.js` degrades to a warning instead of killing the
+// report — a top-level require made this file unloadable in that tree and turned
+// one degraded row into no report at all. Same reasoning as `ruleCarrierRows` and
+// `reviewerDenialRows` two blocks down.
+//
+// WHY the fallback NAMES ITS REASON instead of dropping the value silently: the
+// previous guard fell back to a SECOND, narrower spelling of the fold, so one rule
+// had two implementations with nothing comparing them. Re-authoring it here is what
+// the extraction exists to stop. But dropping the value outright is not free either:
+// `stop-chain-enforcer.sh` and the shell deny scope both tell the user
+// "/zensu:doctor names the directory", unconditionally, so a silent omission leaves
+// those two surfaces asserting something this row stopped delivering.
+//
+// The returned string carries NO parentheses of its own. Two earlier spellings got
+// this wrong in the same way: `(unrenderable)` and then
+// `(not rendered — …)` were both wrapped AGAIN by the call site's `' (' + … + ')'`,
+// rendering `... no longer exists ((not rendered — …)) — ...`. Every call site tests
+// the FOLDED result, so an empty fold still omits the whole parenthetical; a non-empty
+// one must supply only its TEXT.
+//
+// The FULL rule, not a narrow fold. The binding line is prose, but it sits in a
+// report built out of `label : value` rows that the doctor skill tells the model to
+// print verbatim, so the pair-forgery guard is exactly as load-bearing here as in
+// the adoption report.
+var FOLD_UNAVAILABLE = 'not rendered — the display-safety module could not be loaded';
+
+// The SECOND refusal sentence, and it deliberately does not borrow the first. A value
+// this row declines to DELIMIT is not a module that failed to LOAD, and rendering the
+// load-failure text for it would send an operator to repair an installation that is
+// fine — the same wrong-report class this file records about its own earlier rows.
+var FOLD_UNDELIMITABLE = 'not rendered — the recorded value carries a parenthesis this row cannot delimit';
+
+// The BRACKET twin, named for its OWN delimiter rather than borrowing the sibling's.
+// The two provenance rows wrap their slots in `[...]`, so the character that ends the
+// note there is `]`, and an operator told "a parenthesis" would look for the wrong
+// one. Same reason the load-failure sentence above is not reused for a delimiter
+// refusal: a sentence that names the wrong cause sends the reader to the wrong repair.
+var FOLD_UNDELIMITABLE_BRACKET = 'not rendered — the recorded value carries a bracket this row cannot delimit';
+
+// The provenance cap and its marker. A NEW constant rather than `AUTOPILOT_RENDER_MAX`:
+// that one is hand-copied into shell (the exit-6 release refusal spells its value a
+// second time), so binding this bound to it would make a change here reach a command
+// this file does not own. The marker carries no `]` and exactly ONE space — a second
+// space would trip the double-space rule on every elided render, folding the value
+// precisely when it is being disclosed.
+var PROVENANCE_RENDER_MAX = 200;
+var PROVENANCE_ELISION = '\u2026 (elided)';
+
+// What a suppressed slot says. Plugin-authored on purpose: the alternative is the empty
+// string, which the callers' ternaries read as "nothing was recorded".
+var PROVENANCE_TIME_SUPPRESSED = 'a recorded but unrenderable time';
+var PROVENANCE_REASON_SUPPRESSED = ', for a recorded but unrenderable reason';
+
+// The two POSITIONAL rules, asked about a join `foldSlot` never sees. All four rules in
+// that module are positional, not two — the reason only these two are asked here is
+// narrower and worth stating exactly, because the obvious wording is wrong:
+// `ORPHAN_MARK` and `SEPARATOR_ADJACENT_MODIFIER_LETTER` each carry a `^` alternative,
+// and `safeDisplayValue` tests them against `tail + followedBy`, so a tail BEGINNING
+// with a mark or a modifier letter is already caught in the leaf. That is a dependency
+// on a module this one does not own: it holds only while both reserved prefixes end in
+// a space, and the day one stops, this seam needs those two rules as well. The rules are
+// IMPORTED, never re-spelled — same reason `forgesReportRow` above imports them. A load
+// failure answers TRUE, which routes the value into the unexempted re-fold: folding more
+// is always available, rendering an unjudged seam is what this exists to prevent. That
+// arm is UNREACHABLE from the only caller, which reaches this function solely after
+// `foldSlot` returned `ok` and therefore after the same module loaded; it is kept as the
+// fail-safe direction for a second caller, not as a route the tree can take today.
+//
+// THE WINDOW is two characters and that is not an optimisation — it is what keeps the
+// test from firing on the prefix's OWN colon-space. Both rules are exactly two
+// characters wide (`/ {2}/` and `/ :|: /`) — a premise held by nothing until `H5` in
+// test-doctor.sh pinned it, and `SPACE_RUN = / {2,}/` sits in the same module one
+// copy-paste away, so a widening there would make a spanning forgery invisible to this
+// window. Because both rules are that wide, a match that spans the join must occupy
+// the last character of the head and the first of the tail; a match lying wholly inside
+// either half is that half's own business and the fold already judged the tail. Testing
+// the ASSEMBLED string instead reports every honest `project-root-restored: …` as a
+// forgery and escapes the plugin's own spelling on every legitimate render.
+function provenanceJunctionForges(head, tail) {
+  if (head === '' || tail === '') return false;
+  try {
+    var rules = require('./zensu-safe-display-v1.js');
+    var seam = head.charAt(head.length - 1) + tail.charAt(0);
+    return rules.PAIR_SEPARATOR.test(seam) || rules.DOUBLE_SPACE.test(seam);
+  } catch (e) {
+    return true;
+  }
+}
+
+// One slot, folded ONCE. The three fields are separate: `present` is about the input
+// (an empty value has never produced a parenthetical), `ok` is about the fold. Keeping
+// them apart is what lets the caller distinguish "there was nothing to say" from
+// "there was something and it could not be rendered" — the previous shape returned a
+// single string and conflated the two, so every call site had to fold twice to ask
+// both questions, and the load-failure SENTENCE became the value.
+function foldSlot(value, followedBy) {
+  var text = String(value == null ? '' : value);
+  if (text === '') return { text: '', present: false, ok: true };
+  try {
+    return {
+      text: require('./zensu-safe-display-v1.js').safeDisplayValue(text, followedBy || ''),
+      present: true,
+      ok: true,
+    };
+  } catch (e) {
+    // NOT the empty string, and not the raw value either. Empty made the ternaries
+    // drop the parenthetical silently — but `stop-chain-enforcer.sh` and the shell
+    // deny scope both tell the user "/zensu:doctor names the directory", and neither
+    // is conditional on this module loading. Silently omitting it leaves those two
+    // surfaces asserting something this row stopped delivering. Say why instead.
+    return { text: '', present: true, ok: false };
+  }
+}
+
+// The same fold for a path embedded in PROSE rather than in a `label : value` slot.
+// stateBlock's three rows interpolated their directory raw while the binding row beside
+// them folded, so `/tmp/a : b` — a directory name anyone who starts a session controls,
+// screened for control bytes only — rendered unfolded in a report the doctor skill tells
+// the model to print verbatim. The fold was a four-file load chain when those rows were
+// written; it is a dependency-free leaf now, so applying it is one call and the reason
+// for the exemption is gone.
+//
+// Returns a STRING because a prose row has no parenthetical to attach a record to, and
+// it borrows bindingLine's fallback sentence rather than dropping the value: two other
+// surfaces tell the user the doctor names this directory.
+// It CONSUMES FOLD_UNAVAILABLE rather than re-authoring it. The first version of this
+// function spelled the sentence out while this comment claimed it borrowed one — a
+// shared constant with an unconsumed copy beside it, which this repository records as
+// worse than either honest duplication or one source, because it advertises a single
+// source that does not exist.
+//
+// It DOES return a pre-parenthesized string, and that is the one deliberate departure
+// from the slot fold's contract: a prose row supplies no call-site parentheses, so
+// there is nothing here to double them against. `foldSlot` must keep returning bare
+// text for exactly the opposite reason.
+//
+// `followedBy` is threaded through for the same reason the leaf takes it: every caller
+// appends prose beginning with a space, EXCEPT the topology no-key row, which appends a
+// comma. Stated as a property rather than as a numeral: this sentence read "all three
+// call sites" while SEVEN existed, and `foldPath` is a named port obligation, so a
+// porter reads it to learn the calling convention. It is not needed TODAY — `dir` is
+// always `<root>/.zensu/state`, so the folded value ends in the literal `state` and
+// neither a trailing colon nor a trailing modifier letter is reachable — but that is a
+// property of the argument, not of this helper, and a fourth caller would reopen the
+// seam with no signal.
+function foldPath(value, followedBy) {
+  var slot = foldSlot(value, followedBy);
+  if (!slot.present) return '';
+  return slot.ok ? slot.text : '(' + FOLD_UNAVAILABLE + ')';
+}
+
+// The same fold for a path the row WRAPS in parentheses rather than embedding in prose.
+// `foldPath` cannot serve these: it returns a PRE-parenthesized sentence on a load
+// failure, so a call site supplying its own `(...)` renders `((not rendered — …))` —
+// the double-wrapping defect this file already records for `foldSlot`, in the one
+// direction `foldPath`'s own contract makes easy to reach. It owns the `)` bound for
+// the same reason `parentheticalWriter` owns its own: the renderer that WRAPS is the one
+// that can tell whether the value closes the delimiter early. `provenanceSlot` is the
+// ONE exception and must not be cited as an example here — it is the PRODUCER, and
+// `provenanceRendering` is what writes the brackets. That asymmetry is inert, because
+// the wrapper only brackets a slot whose `bracket` flag is false, but the principle is
+// stated falsely if this comment claims it.
+//
+// EVERY renderer that WRAPS a folded value owns the bound for its own delimiter. That
+// is the criterion; there is deliberately NO count here and none in CLAUDE.md either,
+// because the two carriers held different numerals ("THREE writers" against "FOUR
+// renderers") and a clause both shared — "three delimiter pairs" — was false in both.
+// Before relying on membership, grep `FOLD_UNDELIMITABLE` and `indexOf(']')` in this
+// file. Collapsing the wrappers into one parameterised writer was reported by a panel
+// and deliberately NOT taken: it touches `parentheticalWriter`'s row-scoped `stated`
+// flag, which two suites pin. Named here so the next round starts from the decision
+// rather than from the diff.
+function parenthesizedPath(value, followedBy) {
+  var slot = foldSlot(value, followedBy);
+  if (!slot.present) return '';
+  if (!slot.ok) return '(' + FOLD_UNAVAILABLE + ')';
+  if (String(slot.text).indexOf(')') !== -1) return '(' + FOLD_UNDELIMITABLE + ')';
+  return '(' + slot.text + ')';
+}
+
+// A parenthetical is stated ONCE PER ROW, not once per slot. Under a missing fold
+// module the two-version row rendered
+//   (record minted by <sentence>, executing <sentence>)
+// which repeats the reason, buries the fact that BOTH values are missing, and reads as
+// if the sentence were a version. The combined row has three slots and would have said
+// it three times. The fold is one `require`, so a failure is a property of the ROW, not
+// of a slot: `stated` closes over one bindingLine() call and the second group that
+// would repeat it renders nothing instead.
+//
+// The SINGLE-slot rendering is deliberately byte-identical to what shipped —
+// ' (not rendered — …)' — because test-doctor.sh P1mf1 and the CLAUDE.md account of
+// this fallback both pin that exact string, including that the call site's own
+// parentheses are the only ones (the doubled-paren defect this file already fixed
+// twice).
+function parentheticalWriter() {
+  var stated = false;
+  return function (slots, render) {
+    for (var i = 0; i < slots.length; i += 1) {
+      if (!slots[i].present) return '';
+    }
+    for (var j = 0; j < slots.length; j += 1) {
+      if (!slots[j].ok) {
+        if (stated) return '';
+        stated = true;
+        return ' (' + FOLD_UNAVAILABLE + ')';
+      }
+    }
+    // THE DELIMITER BOUND, and it belongs HERE rather than in the shared class.
+    // safeDisplayValue admits `(` and `)` on purpose: other consumers render the same
+    // value in prose, where a parenthesis closes nothing and a project directory may
+    // legitimately contain one. This renderer is the one that WRAPS the value, so a
+    // `)` inside it ends the parenthetical and everything after renders as free prose
+    // — in a row skills/doctor/SKILL.md tells the model to relay, immediately before
+    // the row's own remedy instructions. MEASURED: a recorded root spelled
+    // `/tmp/x) Note. …` rendered its forged sentence into exactly that position.
+    // Dropping `()` from SAFE_DISPLAY was the alternative and is strictly worse: it
+    // changes a rule several other rows depend on, and its cost to legitimate paths
+    // has not been measured.
+    for (var k = 0; k < slots.length; k += 1) {
+      if (String(slots[k].text).indexOf(')') !== -1) {
+        if (stated) return '';
+        stated = true;
+        return ' (' + FOLD_UNDELIMITABLE + ')';
+      }
+    }
+    return ' (' + render(slots.map(function (slot) { return slot.text; })) + ')';
+  };
+}
+
+// ONE sentence for the three binding rows whose remedy is an adoption — the
+// lineage row, the pruned row and the combined one. They used to spell it
+// separately, and the combined row was left on the manual-first wording ("to see
+// whether the running installation may take the record over") a release after the
+// bind began adopting on its own. Four things it has to get right, each of which
+// one spelling of it got wrong: reaching the row means the automatic adoption
+// already ran and did not bind the session; the read-only report prints a refusal
+// — or names the superseded record file an interrupted adoption left behind —
+// only for a record the adoption REFUSES; an ADOPTABLE answer there has TWO causes
+// and not one, the opt-out (which governs the automatic path only) and an adoption
+// that did not complete (a lock timeout, or a fault inside the adoption itself),
+// so reading it as the opt-out alone sends a user whose adoption timed out looking
+// for a config key nobody set; and the opt-out case needs the user's yes before
+// --confirm, which the deny scopes say and a row that omitted it undid.
+var ADOPTION_ROW_REMEDY = 'Zensu adopts such a record automatically on the first hook contact, so reaching this row means that adoption was refused, opted out or did not complete; run /zensu:adopt-session — it prints the same refusal in full and names a superseded record file when one blocks the adoption; when it reports the record as adoptable instead, the automatic path was either opted out (hooks.sessionAutoAdopt is false; ask the user before going further) or did not complete (a lock timeout, or a fault inside the adoption itself) — then /zensu:adopt-session --confirm to retry by hand';
+
+// The Session Control binding rows, and the reason this function exists at all rather
+// than a plain string per verdict: several of those rows carry MORE THAN ONE folded
+// slot, and a fold failure is stated once per ROW. It is the family's first consumer of
+// `parentheticalWriter`, so it is where the row-scoped `stated` flag is created and
+// where the widened P6s15 window now begins to reach.
+function bindingLine() {
+  // One writer per CALL, so `stated` scopes to the row this invocation renders.
+  var paren = parentheticalWriter();
+  var one = function (value) {
+    return paren([foldSlot(value)], function (v) { return v[0]; });
+  };
+  var versions = function () {
+    return paren(
+      [foldSlot(env.ZDOC_BINDING_RECORDED_VERSION), foldSlot(env.ZDOC_BINDING_EXECUTING_VERSION)],
+      function (v) { return 'record minted by ' + v[0] + ', executing ' + v[1]; },
+    );
+  };
+  switch (env.ZDOC_BINDING) {
+    case 'bound':
+      return line(OK, 'binding: this session has a valid Session Control record — stateful tools can run');
+    case 'unbound':
+      return line(BAD, 'binding: this session has no valid Session Control record — every stateful Zensu tool fails closed; start a fresh Claude Code session');
+    // A record that is valid in every other respect, pointing at a directory
+    // that is gone. Naming the path matters: the remedy is only actionable if the
+    // user is told which directory, and the generic unbound line above would send
+    // them looking for a record that is right there.
+    //
+    // THE REMEDY NAMES THE COMMAND, not a bare mkdir, and the correction is worth
+    // recording because the bare form shipped for several releases and was
+    // INCOMPLETE. The workflow document lived under that root, so re-creating the
+    // directory by hand leaves the session in a SECOND wedge — the capability gate
+    // then throws on a missing document and denies every tool, with a message
+    // naming neither this row nor the directory. `--restore-root` does
+    // both halves in one run. The cost is named here rather than only in that
+    // command's own report: a reader who acts on this row and finds the chain gone
+    // afterwards reads it as a failed repair.
+    case 'orphaned-project-root':
+      return line(BAD, 'binding: the project root recorded for this session no longer exists'
+        + one(env.ZDOC_BINDING_PROJECT_ROOT)
+        + ' — a deleted or recycled worktree left the workflow state unreachable from this record, so stateful Zensu tools fail closed while this read-only diagnostic still runs; run /zensu:adopt-session --restore-root to see whether that directory can be re-created in place. That report writes nothing; confirming the repair it describes re-creates the directory and rebuilds the workflow document the removal took with it, in one run. It restores the ANCHOR, not the work: the directory comes back empty, it is not a git worktree, and the review chain that lived there is gone rather than restored. Starting a fresh Claude Code session remains the alternative. If the directory was moved rather than deleted, its state still exists there, and moving it back is better than re-creating it');
+    // The record is INTACT and only the runtime serving it declares an
+    // incompatible lineage — a plugin update that landed mid-session. Before this
+    // row existed the state fell through to `unbound` above, whose line asserts
+    // "no valid Session Control record": false, and it sends the user hunting for
+    // a record sitting intact in plugin data. Naming both versions is what makes
+    // the cause checkable rather than a claim the user has to take on faith. It is
+    // one of THREE binding rows whose remedy repairs the session in place: the
+    // pruned row and the combined one below share ADOPTION_ROW_REMEDY with it.
+    case 'incompatible-runtime':
+      return line(BAD, 'binding: this session\'s Session Control record is intact, but the running Zensu installation declares an incompatible lineage'
+        + versions()
+        + ' — while the plugin is at major 0 the minor is the breaking axis, so stateful Zensu tools fail closed. ' + ADOPTION_ROW_REMEDY
+        // The limit belongs on THIS row too, not only on the combined one. The row
+        // is reachable for a session whose recorded project root is also gone —
+        // the doctor falls back to it whenever the third-fact probe cannot answer
+        // — and offering the repair without saying what it does not buy is what
+        // this change's own rule calls a defect. Worded conditionally so it stays
+        // true in the ordinary case, where the root really is still there.
+        // Compared against the ONE value the producer writes, never by JS
+        // truthiness. ZDOC_* is an injectable channel by design (the whole probe
+        // block is skipped when ZDOC_BINDING is set), so "0", "false" and "no"
+        // would all enable the clause under a bare test. The failure direction is
+        // safe either way — an extra hedge, never a dropped one — but this repo
+        // already pins the quoted-"false" hazard for a config flag, and a channel
+        // with a two-value producer deserves a two-value reader.
+        + (env.ZDOC_BINDING_ROOT_UNKNOWN === '1'
+          ? '. Whether the recorded project root still exists could not be determined here; if it is gone, the adoption clears the lineage break while Edit, Write and MultiEdit stay denied, and so does any Bash command the source-write gate can attribute as a write while that opt-in gate is on (hooks.bashWriteGate: true), until that exact directory is re-created — run /zensu:adopt-session --restore-root AFTERWARDS to see whether that is possible; confirming the repair it describes does that and rebuilds the workflow document in one step, the order mattering because that repair requires the running installation to serve the record'
+          : ''));
+    // The record is INTACT and the installation that minted it has been pruned
+    // from the plugin cache — the host keeps only a few versions, and a session
+    // that outlives them lands here. Nothing can re-verify the record any more,
+    // so no installation serves it; before this row existed the state fell
+    // through to `unbound` above, which asserts "no valid record" — false — and
+    // the Stop hook looped on it. Same in-place remedy as the lineage row, a
+    // different cause, so it is named separately. It renders through versions()
+    // rather than reading the two variables inline, so the fold every other row
+    // applies is applied here too.
+    case 'pruned-plugin-root':
+      return line(BAD, 'binding: this session\'s Session Control record is intact, but the installation that minted it has been removed from the plugin cache'
+        + versions()
+        + ' — the record can no longer be re-verified, so stateful Zensu tools fail closed. ' + ADOPTION_ROW_REMEDY);
+    // BOTH disagreements at once, and the row exists because each of the two
+    // above answers "not me" for it: the orphan probe re-applies
+    // servesRecordedRuntime, which an incompatible lineage fails, and the lineage
+    // probe used to read strictly and throw on the absent root. The combination
+    // therefore fell through to `unbound`, whose line is false here in the same
+    // way it is false one row up. It is adoptable — the workflow document is not
+    // reachable from this record, so there is no persisted shape left to disagree about —
+    // but adoption leaves the session ORPHANED rather than fully bound, so the
+    // row states that limit instead of promising a full rescue.
+    case 'orphaned-project-root+incompatible-runtime':
+      return line(BAD, 'binding: this session\'s Session Control record is readable, but BOTH the recorded project root'
+        + one(env.ZDOC_BINDING_PROJECT_ROOT)
+        + ' is gone and the running Zensu installation declares an incompatible lineage'
+        + versions()
+        // The shared sentence says the adoption already RAN and did not bind the
+        // session — this state is reachable on a DOWNGRADE, which adoption refuses
+        // outright as executing-runtime-older — and the orphan limit follows it,
+        // because an adoption here still leaves the session without a write anchor.
+        + ' — a deleted or recycled worktree left the workflow state unreachable from this record while a plugin update landed, so stateful Zensu tools fail closed. ' + ADOPTION_ROW_REMEDY
+        + '. An adoption unblocks Bash and this diagnostic, but Edit, Write and MultiEdit stay denied, and so does any Bash command the source-write gate can attribute as a write while that opt-in gate is on (hooks.bashWriteGate: true), because the recorded project root is still gone — a write cannot be attributed to a project that is not there. To restore Edit and Write, run /zensu:adopt-session --restore-root AFTERWARDS: it re-creates exactly that directory and rebuilds the workflow document in one step, where a bare mkdir leaves the second half missing and every tool denied. The ORDER matters — that repair requires the running installation to serve the record, which the adoption is what establishes. It restores the anchor, not the work: the directory comes back empty and the chain that lived there is gone. Starting a fresh Claude Code session remains the alternative. If the directory was moved rather than deleted, its state still exists there, and moving it back is better than re-creating it');
+    case 'unavailable':
+      return line(BAD, 'binding: hooks/lib/zensu-session.sh is missing or symlinked — Session Control cannot bind');
+    // The wrapper's OWN "could not resolve it" verdict, and the unset value the
+    // `default` arm below still lets through. Both stay silent on purpose, and
+    // neither is an UNCLASSIFIABLE verdict: the wrapper discloses that case in a
+    // row of its own, so a second row here would double-report it. Explicit
+    // rather than folded into `default`, because `default` now means something
+    // else — and P1af/P1ag pin both silences, so a reader who removes this case
+    // to "simplify" gets a failing suite rather than a scary row for a state the
+    // wrapper reports correctly.
+    case 'unknown':
+      return undefined;
+    default:
+      // Silence is the one verdict a diagnostic must not give, and this enum has
+      // just gained a fifth member. ZDOC_BINDING is a documented environment
+      // contract — a caller may supply it and thereby skip the wrapper's whole
+      // resolution block — and a report module older than the wrapper feeding it
+      // meets a verdict it does not know. Rendering nothing there is
+      // indistinguishable from a session that binds cleanly, which is the exact
+      // reading this row exists to prevent. Adding a SIXTH member is now safe
+      // rather than merely documented.
+      if (!env.ZDOC_BINDING) return undefined;
+      return line(BAD, 'binding: this report cannot classify the binding verdict "' + env.ZDOC_BINDING
+        + '" reported for this session — it was produced by a different Zensu version than this report;'
+        + ' run /zensu:doctor from the executing installation');
+  }
+}
+
+// The BRACKET twin of parentheticalWriter's delimiter bound, for the two provenance
+// rows below. TWO halves, and neither closes the finding alone.
+//
+// (a) THE FOLD. Both rows used safeVerifyReason, which is the ZDOC_VERIFY_REASON
+// bound: it strips C0/C1, U+2028/9 and the three severity glyphs and caps at 200. It
+// is NOT this file's display rule. safeDisplayValue additionally refuses the invisible
+// class, the `label : value` pair forgery and an orphan combining mark, and it is what
+// every other relayed row in this report goes through. A history `reason` is the ONE
+// field validateWorkflowExtensions leaves unbounded — it tests
+// `typeof entry.reason !== 'string'` where `step` and `phase` go through
+// validateWorkflowString — and `.zensu/state/` is writable from inside the session,
+// so the weaker bound was the wrong one for the stronger threat.
+//
+// (b) THE DELIMITER, and it is why a fold swap alone would not have closed this. `]`
+// survives BOTH folds: SAFE_DISPLAY's class omits the brackets entirely, so
+// safeDisplayValue neither admits nor escapes one, and the escaping branch's
+// JSON.stringify leaves it alone. A reason spelled `x]. Note. …` therefore closes the
+// note and renders its remainder as free prose inside a row skills/doctor/SKILL.md
+// tells the model to relay. Widening SAFE_DISPLAY is not the fix, for the reason
+// parentheticalWriter states one delimiter over: other consumers render the same class
+// in PROSE, where a bracket closes nothing. The bound belongs to the renderer that
+// WRAPS, which is this one.
+//
+// Both provenance slots go through it, not only the reason: `ts` is Date.parse-
+// validated rather than shape-checked, which is tolerant enough to carry a sentence,
+// and an undelimited slot in prose is exactly the forgery position the wrapped one is
+// bounded against. An ABSENT slot renders the caller's own plugin-authored phrase and
+// is never bracketed — there is nothing recorded to delimit.
+//
+// THE RESERVED PREFIX is the one part of the value that is NOT folded, and it is what
+// keeps the strong fold from making every honest row unreadable. The owner writes each
+// reason as `<RESERVED_PREFIX><detail>` — `project-root-restored: 2 component(s)` —
+// and that prefix carries `: `, which is exactly the PAIR_SEPARATOR shape
+// safeDisplayValue escapes. Folding the whole string therefore escaped the plugin's own
+// spelling on every legitimate render. The prefix is passed in from the CORE's exported
+// constant, never taken from the entry: the entry can only MATCH it, so a forged reason
+// spelled with the prefix gains a fixed literal head and still has its tail folded. The
+// head is delimiter-checked too, because a constant is not a guarantee.
+//
+// THE CAP is this writer's, not the row's, and not the fold's. `safeVerifyReason` —
+// the bound this path replaced — ended `.slice(0, 200)`; nothing downstream truncates,
+// `validateWorkflowExtensions` accepts `entry.reason` on `typeof` alone, and the
+// escaping branch amplifies, so without a cap here one session-writable field can put
+// a megabyte of attacker-authored prose into a WARN row immediately before that row's
+// own remedy. It is applied to the RAW tail: at the row it would cut after the closing
+// delimiter was appended, and after the fold it would cut an escape sequence in half.
+// The marker is passed as `followedBy` AND concatenated, so the positional rules judge
+// the join they will actually render.
+//
+// THE JUNCTION is judged too, which the `followedBy` argument cannot do: `foldSlot`
+// sees the TAIL, so the only join it evaluates is `tail + delimiter` and never
+// `head + tail`. Both reserved prefixes end in a colon and a space — exactly the two
+// shapes `safeDisplayValue` escapes — so a tail opening with a colon or a space forges
+// at the seam the exemption creates. On a hit the whole capped value is re-folded with
+// NO prefix exemption: the honest prefix then renders escaped, which is the fold-more
+// direction and the only one available once the value has proven it forges.
+//
+// It returns a RECORD rather than a string because the ROW, not the slot, decides what
+// a suppression says — see `provenanceRendering` below.
+function provenanceSlot(value, reservedPrefix) {
+  var raw = String(value == null ? '' : value);
+  if (raw === '') return { text: '', present: false, ok: true, bracket: false };
+  var head = '';
+  var tail = raw;
+  if (typeof reservedPrefix === 'string' && reservedPrefix !== ''
+      && raw.slice(0, reservedPrefix.length) === reservedPrefix) {
+    head = reservedPrefix;
+    tail = raw.slice(reservedPrefix.length);
+  }
+  var marker = '';
+  if (tail.length > PROVENANCE_RENDER_MAX) {
+    tail = tail.slice(0, PROVENANCE_RENDER_MAX);
+    marker = PROVENANCE_ELISION;
+  }
+  if (head.indexOf(']') !== -1) return { text: '', present: true, ok: true, bracket: true };
+  if (tail === '') return { text: head, present: true, ok: true, bracket: false };
+  var next = marker === '' ? ']' : marker;
+  var folded = foldSlot(tail, next);
+  if (!folded.ok) return { text: '', present: true, ok: false, bracket: false };
+  var assembled = head + folded.text + marker;
+  if (provenanceJunctionForges(head, folded.text)) {
+    var whole = foldSlot(head + tail, next);
+    if (!whole.ok) return { text: '', present: true, ok: false, bracket: false };
+    assembled = whole.text + marker;
+  }
+  if (assembled.indexOf(']') !== -1) return { text: '', present: true, ok: true, bracket: true };
+  return { text: assembled, present: true, ok: true, bracket: false };
+}
+
+// The ROW's decision, taken once for both slots. Two properties are load-bearing and
+// each was a defect before it was a rule. The suppression sentence is stated ONCE per
+// row — CLAUDE.md states that verbatim and lists "states the reason per slot" among the
+// defects a port gets back — because two rows of two slots each emit it four times in
+// one report, which repeats the cause and buries the fact that BOTH values are missing.
+// And a suppressed slot renders a PLUGIN-AUTHORED phrase rather than the empty string:
+// empty makes the caller's ternary say "an unrecorded time" about a timestamp that was
+// recorded, which is a positive claim about a value this renderer is refusing to show.
+// Why ONE slot could not be rendered, or `''` when it was. The two causes are not
+// interchangeable and the distinction is the whole reason FOLD_UNDELIMITABLE_BRACKET
+// exists: a fold failure is a shared `require` and sends the reader to repair an
+// installation, while a bracket refusal is the value's own and sends them nowhere. A
+// row carrying one of each must not report only the first.
+function provenanceCause(slot) {
+  if (!slot.present) return '';
+  if (!slot.ok) return FOLD_UNAVAILABLE;
+  if (slot.bracket) return FOLD_UNDELIMITABLE_BRACKET;
+  return '';
+}
+
+// One note per ROW, naming the slots that actually failed. Reaching a single plural
+// sentence from `stamp.bracket || reason.bracket` and then rendering the surviving slot
+// in full told the reader that a value printed three clauses earlier was not printed —
+// and the mixed case is the reachable one rather than a corner, because `ts` is an ISO
+// stamp this repair writes itself while `reason` is the session-writable field the
+// bracket refusal was written for. The plural form survives for the case it is true of:
+// both slots withheld for the same cause, which is what a missing display module
+// produces and what H1c/H1c2 pin as exactly one emission.
+function provenanceRendering(stamp, reason) {
+  var stampCause = provenanceCause(stamp);
+  var reasonCause = provenanceCause(reason);
+  var note = '';
+  if (stampCause !== '' && reasonCause !== '') {
+    note = stampCause === reasonCause
+      ? ' The recorded values above are ' + stampCause + '.'
+      : ' The recorded time above is ' + stampCause
+        + ', and the recorded reason above is ' + reasonCause + '.';
+  } else if (stampCause !== '') {
+    note = ' The recorded time above is ' + stampCause + '.';
+  } else if (reasonCause !== '') {
+    note = ' The recorded reason above is ' + reasonCause + '.';
+  }
+  var when = 'an unrecorded time';
+  if (stamp.present) {
+    when = stampCause === '' ? '[' + stamp.text + ']' : PROVENANCE_TIME_SUPPRESSED;
+  }
+  var why = '';
+  if (reason.present) {
+    why = reasonCause === ''
+      ? ' [' + reason.text + ']'
+      : PROVENANCE_REASON_SUPPRESSED;
+  }
+  return { when: when, why: why, note: note };
+}
+
+// ONE read of this session's workflow document for both provenance rows. A caller
+// that already has the result passes it in; anything else takes the read here. The
+// result is a RECORD rather than a bare document, because "it did not read back" is a
+// verdict both rows have to render and a thrown error cannot be shared between two
+// separate `try` blocks without taking the read twice.
+function sharedWorkflowRead(core, projectRoot, key, shared) {
+  if (shared && typeof shared === 'object') return shared;
+  try {
+    return { state: core.readWorkflowState({ projectRoot: projectRoot, sessionId: key }), error: null, code: '' };
+  } catch (e) {
+    return { state: null, error: e || new Error('unreadable'), code: (e && e.code) || 'unreadable' };
+  }
+}
+
+// The BASELINE_REBUILT provenance row. Both writers — the confirmed repair and the
+// SessionStart self-heal — append that entry under a reserved phase `--phase` refuses
+// to mint, and three guard readers consult it, so the provenance was RESERVED. What
+// was missing is a runtime surface that renders it to a user: until this row nothing
+// did, and the disclosure argument the automatic heal rests on had no channel behind
+// it. It is deliberately rendered on the PRESENT arm and nowhere else, because that
+// is the only state in which a rebuilt document exists and reads back.
+//
+// A rebuild is a LOSS, not a restore. The baseline reads "never active", so a review
+// chain that was live when the document vanished is gone and no other row in this
+// report says so once the document is PRESENT again — which is exactly the shape a
+// green report used to hide.
+//
+// The phase token comes from the LOADED core, never from a literal copied here, for
+// the same reason `BASELINE_STATES` does in the caller: nothing in the tree compares
+// this renderer's spelling against the core's, so a rename would SILENCE the row with
+// every check still green. An absent export is therefore a missing check, not a pass.
+function baselineRebuiltRow(core, projectRoot, key, sharedRead) {
+  var phase = (core && typeof core.BASELINE_HISTORY_PHASE === 'string' && core.BASELINE_HISTORY_PHASE)
+    ? core.BASELINE_HISTORY_PHASE
+    : '';
+  if (phase === '') {
+    line(WARN, 'state: this session\'s workflow document was not checked for rebuild '
+      + 'provenance — the Session Control core in ' + foldPath(pluginDir(), ' exports no rebuild ')
+      + ' exports no rebuild '
+      + 'phase token. That is a missing check, not an all-clear.');
+    return;
+  }
+  // The read is SHARED with the sibling restore row through `read`, and is taken once
+  // by the PRESENT arm that calls both. They asked the same document the same question
+  // in two separate `try` blocks, so one report opened it twice and the two answers
+  // could disagree about the same file. TWO consequences removed, and the third one is
+  // NOT: an unreadable document still produces a near-identical WARN from EACH row, and
+  // both still count toward `warnCount`. That is deliberate — each row names the check
+  // that did not run, and a reader told only "the rebuild check did not run" would take
+  // the restore check for having run — but it is a cost rather than a fix, and listing
+  // it among the things the shared read removes was the over-claim this wording
+  // replaces. The parameter is optional so a caller that has no shared read still
+  // works; the shipped call site always passes one.
+  var read = sharedWorkflowRead(core, projectRoot, key, sharedRead);
+  if (read.error) {
+    // The document classified PRESENT and still did not read back. The invalid-document
+    // row further down names the FILE; this one names the CHECK that did not run. The
+    // two findings are different and neither substitutes for the other, so both render.
+    line(WARN, 'state: this session\'s workflow document was not checked for rebuild '
+      + 'provenance — it did not read back (' + (read.code || 'unreadable')
+      + '). That is a missing check, not an all-clear.');
+    return;
+  }
+  var state = read.state;
+  var history = (state && Array.isArray(state.history)) ? state.history : [];
+  var rebuilds = history.filter(function (entry) {
+    return entry && entry.phase === phase;
+  });
+  // Silence here is the ordinary case, not a withheld verdict: a document that was
+  // never rebuilt has no provenance to report, and a row on every healthy session is
+  // the noise this repository trains readers to ignore.
+  if (!rebuilds.length) return;
+  var last = rebuilds[rebuilds.length - 1];
+  // BOTH slots go through `provenanceSlot`, which owns the fold, the cap and the
+  // delimiter, and `provenanceRendering` owns what the ROW says when one is suppressed
+  // — read its header for why neither half closes this alone. The SIBLING row below
+  // carries the identical slots and calls the identical writer: nothing in the tree
+  // compares the two, so a one-sided fix would leave the class half closed. P6s7/P6s8
+  // drive the fold on both, P6s11/P6s12 drive the delimiter, and P6s7-control keeps
+  // the fold from swallowing an ordinary reason.
+  var stamp = provenanceSlot((last && typeof last.ts === 'string') ? last.ts : '', '');
+  var reason = provenanceSlot(
+    (last && typeof last.reason === 'string') ? last.reason : '',
+    (core && typeof core.BASELINE_HISTORY_REASON_PREFIX === 'string') ? core.BASELINE_HISTORY_REASON_PREFIX : '');
+  var rendered = provenanceRendering(stamp, reason);
+  var when = rendered.when;
+  var why = rendered.why;
+  line(WARN, 'state: this session\'s workflow document was REBUILT — '
+    + rebuilds.length + (rebuilds.length === 1 ? ' entry' : ' entries')
+    + ', most recently at ' + when + why + '. Rebuilding is a loss, not a restore: the '
+    + 'baseline reads "never active", so a review chain that was live when the document '
+    + 'vanished is gone and the Stop guard releases this session without asking for a '
+    + 'reviewer. Re-arm with /zensu:tdd if that work still needs one.' + rendered.note);
+}
+
+// The PROJECT_ROOT_RESTORED provenance row, the sibling of baselineRebuiltRow above
+// and written for the same reason. That phase is reserved in three guard bodies and
+// is named by zensu-session-adopt.sh's header as the repair's ONLY provenance — the
+// feature takes no bypass-ledger entry by design — and until this row nothing in the
+// report READ it. After a confirmed restore the block said the workflow document was
+// rebuilt (the restore writes a BASELINE_REBUILT entry on its way through
+// repairWorkflowBaseline) and nothing said the directory in front of the user is a
+// stub this plugin planted: empty, no repository, no branch.
+//
+// PRESENT arm only, same as its sibling, and for the same reason: that is the one
+// state in which the document exists and reads back. The phase token comes from the
+// LOADED core rather than a literal copied here — nothing in the tree compares the
+// two spellings, so a rename would SILENCE the row with every check still green, and
+// an absent export is therefore a missing check rather than a pass.
+function projectRootRestoredRow(core, projectRoot, key, sharedRead) {
+  var phase = (core && typeof core.RESTORE_HISTORY_PHASE === 'string' && core.RESTORE_HISTORY_PHASE)
+    ? core.RESTORE_HISTORY_PHASE
+    : '';
+  if (phase === '') {
+    line(WARN, 'state: this session\'s workflow document was not checked for project-root '
+      + 'restore provenance — the Session Control core in ' + foldPath(pluginDir(), ' exports no ')
+      + ' exports no '
+      + 'restore phase token. That is a missing check, not an all-clear.');
+    return;
+  }
+  // Shares the sibling row's read — see the note in `baselineRebuiltRow`.
+  var read = sharedWorkflowRead(core, projectRoot, key, sharedRead);
+  if (read.error) {
+    line(WARN, 'state: this session\'s workflow document was not checked for project-root '
+      + 'restore provenance — it did not read back (' + (read.code || 'unreadable')
+      + '). That is a missing check, not an all-clear.');
+    return;
+  }
+  var state = read.state;
+  var history = (state && Array.isArray(state.history)) ? state.history : [];
+  var restores = history.filter(function (entry) {
+    return entry && entry.phase === phase;
+  });
+  // Silence is the ordinary case: a session whose recorded root was never re-created
+  // has no provenance to report, and a row on every healthy session is the noise this
+  // repository trains readers to ignore.
+  if (!restores.length) return;
+  var last = restores[restores.length - 1];
+  // The sibling half of the bound documented at `provenanceSlot` and at
+  // baselineRebuiltRow above. Same two slots, same unbounded `reason`, same relayed
+  // channel — and the two must move together, which is why the reason is stated once
+  // there and pointed at here.
+  var stamp = provenanceSlot((last && typeof last.ts === 'string') ? last.ts : '', '');
+  var reason = provenanceSlot(
+    (last && typeof last.reason === 'string') ? last.reason : '',
+    (core && typeof core.RESTORE_HISTORY_REASON_PREFIX === 'string') ? core.RESTORE_HISTORY_REASON_PREFIX : '');
+  var rendered = provenanceRendering(stamp, reason);
+  var when = rendered.when;
+  var why = rendered.why;
+  // THE CONTENTS CLAIM IS PRESENT-TENSE AND COMES FROM A PROBE, NEVER FROM THE ENTRY.
+  //
+  // Four defects share one cause, and keying the sentence on the history entry answered
+  // none of them. The entry is IMMUTABLE, so an ordinary restore whose user then followed
+  // this row's own `git worktree add` remedy kept being told the directory "came back
+  // EMPTY … everything written there is untracked" forever — a WARN that withholds the
+  // green summary while instructing work already done. The raced-with-no-work mechanism
+  // records NOTHING (every one of those throws fires above the history write), so `last`
+  // is then an earlier suffix-free entry describing a directory another run created. The
+  // suffix is written only on the arm that planted components before losing the race,
+  // and the sibling-repair winner — two sessions
+  // each running --restore-root --confirm, which the core calls ordinary — plants exactly
+  // the empty stub a suffix-keyed sentence claimed it had not. And the branch read the RAW
+  // reason while the row DISPLAYS a capped, suppressible copy, so a session-writable
+  // document steered the claim with bytes the row refuses to show.
+  //
+  // What the reader needs is what is in that directory NOW, so ask the directory. The
+  // probe is one `lstat` of `<root>/.git` and answers three ways — present, absent, or
+  // unanswerable — and the unanswerable arm WITHHOLDS, the rule this block already
+  // follows everywhere else: a missing check, never an all-clear.
+  var gitPresent = null;
+  try {
+    fs.lstatSync(path.join(projectRoot, '.git'));
+    gitPresent = true;
+  } catch (error) {
+    gitPresent = (error && error.code === 'ENOENT') ? false : null;
+  }
+  // The suffix survives as a PROVENANCE discriminator only — who finished the directory,
+  // never what is in it — so steering it can no longer move a claim about contents. It is
+  // read from the LOADED core for the same reason the phase token is, and it is taken from
+  // the value the row RENDERED rather than the raw field: when `provenanceSlot` elided or
+  // withheld the reason, the row has no displayed evidence for the claim and makes none.
+  var racedSuffix = (core && typeof core.RESTORE_HISTORY_RACED_SUFFIX === 'string'
+    && core.RESTORE_HISTORY_RACED_SUFFIX) ? core.RESTORE_HISTORY_RACED_SUFFIX : '';
+  var shownReason = (reason && reason.ok && !reason.bracket && typeof reason.text === 'string')
+    ? reason.text
+    : '';
+  var raced = racedSuffix !== '' && shownReason.indexOf(racedSuffix) !== -1;
+  // A reason the row could not DISPLAY in full leaves the determination unmade just as
+  // surely as an absent token: the read is deliberately taken from the rendered copy, so
+  // an elided, bracket-refused or fold-failed reason carries no evidence either way.
+  var reasonShown = reason && reason.present ? shownReason !== '' : true;
+  var reasonWhole = reasonShown
+    && (typeof PROVENANCE_ELISION !== 'string' || shownReason.indexOf(PROVENANCE_ELISION) === -1);
+  // The MISSING CHECK is disclosed rather than rendered as silence, the rule this block
+  // follows everywhere else. Without the token — or without a whole rendered reason to
+  // read it from — the row cannot tell a raced entry from a planted one at all, and
+  // saying nothing reads exactly like "this run planted it".
+  var provenanceClause = raced
+    ? ' This entry records that another run finished the directory, not this one.'
+    : (racedSuffix === ''
+      ? ' Whether another run finished it instead could not be checked: the Session'
+        + ' Control core exports no raced-completion token, so that is a missing check'
+        + ' rather than an all-clear.'
+      : (reasonWhole
+        ? ''
+        : ' Whether another run finished it instead could not be checked: this row could'
+          + ' not render the entry\'s reason in full, and the check reads the rendered'
+          + ' copy, so that is a missing check rather than an all-clear.'));
+  // What ONE lstat establishes is whether a `.git` entry is rooted AT this path — not
+  // whether a repository is there, and not whether the files under it are tracked. The
+  // arms said both, and both were falsifiable: the entry may be an empty file, a FIFO or
+  // a dangling symlink, and a recorded root NESTED inside a work tree has no `.git` of
+  // its own while everything in it is committable. `project_root` is minted from the
+  // SessionStart cwd, so a session started in a subdirectory is the ordinary shape.
+  // The `.zensu/state` disclosure belongs on EVERY arm: the row is reachable only when
+  // that path exists, and this command wrote it.
+  var cost;
+  if (gitPresent === true) {
+    cost = ' That repair restores the anchor, not the work — but a `.git` entry exists'
+      + ' there now, so something is checked out at that path and this command did not'
+      + ' put it there: it plants an empty stub and runs no git. `.zensu/state` under'
+      + ' that root IS this command\'s own output. Nothing is claimed about the chain'
+      + ' state: the workflow baseline under that root reads as never active.';
+  } else if (gitPresent === false) {
+    cost = ' That repair restores the anchor, not the work, and nothing is checked out at'
+      + ' that path now — there is no `.git` entry there. That does NOT prove the files'
+      + ' are untracked: a recorded root nested inside a repository has none of its own.'
+      + ' If it is not nested, run `git worktree add` at that path, and note that'
+      + ' `.zensu/state` is already there — this command wrote it — so a plain'
+      + ' `git worktree add` refuses a non-empty target: move that `.zensu` aside'
+      + ' first, or pass --force.';
+  } else {
+    cost = ' That repair restores the anchor, not the work. Whether a git repository is'
+      + ' there now could not be read, so this report makes no claim about it — that is a'
+      + ' missing check, not an all-clear. Look at the path before you write to it.';
+  }
+  line(gitPresent === true ? OK : WARN,
+    'state: this session\'s recorded project root was RE-CREATED by '
+    + '/zensu:adopt-session --restore-root — ' + restores.length
+    + (restores.length === 1 ? ' entry' : ' entries')
+    + ', most recently at ' + when + why + '.' + provenanceClause + cost + rendered.note);
+}
+
+// The render-safety predicate for a claimed repository root, applied BEFORE the value
+// reaches a row a model relays: a non-empty string, no control byte, no backtick that
+// would close the span this row wraps it in, and nothing `forgesReportRow` recognizes.
+// A root that fails it is dropped rather than escaped, because the count beside it is
+// the load-bearing half and a named root is a convenience.
+function claimRootRenderable(value) {
+  return typeof value === 'string' && value !== ''
+    && !CONTROL_BYTE_RE.test(value) && value.indexOf('`') === -1
+    && !forgesReportRow(value);
+}
+
+// Wraps an already-vetted root in the code span the row expects and elides past
+// `AUTOPILOT_RENDER_MAX`. It renders, it never judges: every caller filters through
+// `claimRootRenderable` first, and calling this one alone would put an unvetted value
+// inside a delimiter it may carry itself.
+function claimRootRender(value) {
+  return '`' + (value.length > AUTOPILOT_RENDER_MAX
+    ? value.slice(0, AUTOPILOT_RENDER_MAX) + '… (elided)' : value) + '`';
+}
+
+// The two above, in the one order that is safe: filter, then render. Kept as a named
+// pair rather than inlined at each call site so a later caller cannot reverse them.
+function claimRootSafeNames(roots) {
+  return roots.filter(claimRootRenderable).map(claimRootRender);
+}
+
+// Answers a TYPED result, never a bare string. `{ path }` resolved; `{ reason }`
+// something is wrong with the tree and the row must say so; `{}` nothing to
+// check. Collapsing the middle class into silence made a symlinked
+// `.zensu/logs`, an escaping `log` and a symlinked run log read exactly like a
+// project that never ran an audit — the same tamper class the two disclosed
+// branches below already refuse to hide. A clean ENOENT stays silent, because
+// `.zensu/logs` is gitignored and absent in most projects.
+function auditedRunLog(projectRoot, value) {
+  try {
+    if (typeof value !== 'string' || value === '') return {};
+    if (CONTROL_BYTE_RE.test(value)) {
+      return { reason: 'the receipt names a run log whose path carries control bytes' };
+    }
+    var logsDir = path.join(projectRoot, '.zensu', 'logs');
+    var dirStat;
+    try {
+      dirStat = fs.lstatSync(logsDir);
+    } catch (e0) {
+      if (e0 && e0.code === 'ENOENT') return {};
+      return { reason: 'this project\'s .zensu/logs could not be read' };
+    }
+    if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) {
+      return { reason: 'this project\'s .zensu/logs is not a plain directory' };
+    }
+    var canonLogs = fs.realpathSync.native(logsDir);
+    // The leaf lstat is blind to a RELOCATED `.zensu` component, so the logs
+    // directory is bounded against the project root as well — the sibling
+    // derived-channel reader in `zensu-log.sh` carries the same assertion.
+    var relLogs = path.relative(fs.realpathSync.native(projectRoot), canonLogs);
+    if (relLogs === '..' || relLogs.indexOf('..' + path.sep) === 0 || path.isAbsolute(relLogs)) {
+      return { reason: 'this project\'s .zensu/logs resolves outside the project root' };
+    }
+    var raw = path.resolve(projectRoot, value);
+    var resolved = path.join(fs.realpathSync.native(path.dirname(raw)), path.basename(raw));
+    var rel = path.relative(canonLogs, resolved);
+    if (rel === '' || rel === '..' || rel.indexOf('..' + path.sep) === 0 || path.isAbsolute(rel)) {
+      return { reason: 'the receipt names a run log outside this project\'s .zensu/logs' };
+    }
+    var leaf;
+    try {
+      leaf = fs.lstatSync(resolved);
+    } catch (e1) {
+      if (e1 && e1.code === 'ENOENT') return {};
+      return { reason: 'the run log the receipt names could not be read' };
+    }
+    if (leaf.isSymbolicLink() || !leaf.isFile()) {
+      return { reason: 'the run log the receipt names is not a plain file' };
+    }
+    return { path: resolved };
+  } catch (e) {
+    return { reason: 'the run log the receipt names could not be resolved' };
+  }
+}
+
+// Resolves the edit-landing inventory command inside this renderer's OWN plugin tree and
+// runs it, answering a typed result the row renders. It refuses a symlinked or
+// non-plain-file library rather than executing it, and the ENOENT branch below states why
+// an absent command is a damaged tree rather than an uninstalled feature.
+function claimInventory(logFile, projectRoot) {
+  var lib = path.join(pluginDir(), 'hooks', 'lib', 'zensu-edit-landing.sh');
+  try {
+    var st = fs.lstatSync(lib);
+    if (st.isSymbolicLink() || !st.isFile()) {
+      return { ok: false, reason: 'the inventory command is not a plain file in the plugin tree' };
+    }
+  } catch (e) {
+    // An ENOENT here used to return null — no row at all — on the ground that an
+    // absent library means the feature is not installed. That premise does not
+    // survive `pluginDir()`: it resolves to THIS renderer's own tree, so if this
+    // function is executing the feature IS installed and an absent inventory
+    // command is a damaged or partially-restored tree. It also inverts this
+    // repository's own precedent for the reviewer-spawn grant: an absent HOOK is
+    // silence, a hook present with its module missing is a row. The ONLY
+    // legitimate route to an absent library is the fixture seam, so the silence
+    // is gated on the OVERRIDE rather than on the errno.
+    if (e && e.code === 'ENOENT') {
+      if (env.ZENSU_DOCTOR_PLUGIN_DIR) return null;
+      return { ok: false, reason: 'the inventory command is not present in this plugin tree' };
+    }
+    return { ok: false, reason: 'the inventory command could not be examined (' + (e && e.code ? e.code : 'unknown error') + ')' };
+  }
+  var r;
+  try {
+    r = require('child_process').spawnSync('bash',
+      [lib, '--inventory', '--log', logFile, '--project', projectRoot],
+      { encoding: 'utf8', timeout: CLAIM_INVENTORY_TIMEOUT_MS, maxBuffer: 1024 * 1024 });
+  } catch (e) {
+    return { ok: false, reason: 'the inventory command could not be started' };
+  }
+  // This consumer discards the whole answer on a non-zero status, including any
+  // `foreign-root` lines the child had already printed — deliberately, and NOT
+  // the way `--tdd-complete` reads the same child. There a partial
+  // `claimed-files=` is a sound lower bound and arming is monotone in it, so the
+  // terminus trusts it; here the value is a list of REPOSITORIES rendered to a
+  // user, and a truncated list read as complete is the silent green this row
+  // exists to remove. Two consumers, one child, two readings of one status, on
+  // purpose: both sites carry this note so neither is "aligned" to the other.
+  if (!r || r.error || r.status !== 0 || typeof r.stdout !== 'string') {
+    return { ok: false, reason: 'the inventory command did not complete' };
+  }
+  // The FORMAT MARKER is required before an empty root list may be trusted.
+  // Without it three states collapsed into one — the library answered correctly
+  // and there are no foreign roots, the library answered in a format this
+  // runtime does not parse, and the library printed nothing at all — and all
+  // three returned roots=[] and rendered NOTHING. Every other fault arm in this
+  // function says "that is a missing check, not an all-clear"; this one silently
+  // was one. The terminus already guards the same half of the contract: it reads
+  // `claimed-files=` and discloses when it is absent.
+  var roots = [];
+  var seenCount = false;
+  r.stdout.split('\n').forEach(function (l) {
+    if (l.indexOf('claimed-files=') === 0) { seenCount = true; return; }
+    var i = l.indexOf('\t');
+    if (i === -1 || l.slice(0, i) !== 'foreign-root') return;
+    var value = l.slice(i + 1);
+    if (value !== '' && roots.indexOf(value) === -1) roots.push(value);
+  });
+  if (!seenCount) {
+    return { ok: false, reason: 'the inventory command answered in a format this runtime does not recognise' };
+  }
+  return { ok: true, roots: roots };
+}
+
+// A receipt exists in this project's state directory, whoever wrote it. Used
+// ONLY to decide whether the no-key arm below has anything to disclose: it
+// cannot tell whose session the receipt belongs to, and the row says so.
+function someClaimReceiptPresent(projectRoot) {
+  var dir = path.join(projectRoot, '.zensu', 'state');
+  var names;
+  // The same preamble `auditedRunLog` applies to the neighbouring directory,
+  // and for the same stated reason: `readdirSync` FOLLOWS symlinks, and a leaf
+  // check alone is blind to a RELOCATED `.zensu` component. Without it a
+  // session that repoints `.zensu/state` makes the row below assert a receipt
+  // "IS present in" a directory whose contents are physically elsewhere — and
+  // the row names that path to the reader.
+  try {
+    var leaf = fs.lstatSync(dir);
+    if (leaf.isSymbolicLink() || !leaf.isDirectory()) return false;
+    var real = fs.realpathSync.native(dir);
+    var rootReal = fs.realpathSync.native(projectRoot);
+    var rel = path.relative(rootReal, real);
+    if (rel === '..' || rel.indexOf('..' + path.sep) === 0 || path.isAbsolute(rel)) return false;
+  } catch (e) { return false; }
+  try { names = fs.readdirSync(dir); } catch (e) { return false; }
+  for (var i = 0; i < names.length; i += 1) {
+    if (/^edit-landing-.+\.json$/.test(names[i])) return true;
+  }
+  return false;
+}
+
+// The `claims:` row itself. Every arm either renders a verdict or discloses why it could
+// not reach one — never silence, which for a diagnostic reads as a clean topology. The
+// branch comments below carry the reasoning for the two arms that were silent once.
+function claimTopologyRow(projectRoot, ownKey) {
+  // `currentSessionKey()` is empty for every binding verdict except `bound`, so
+  // this branch is an orphaned project root, an incompatible runtime or a pruned
+  // installation. Returning silently there made the row indistinguishable from a
+  // clean topology, which is the one verdict a diagnostic may not give and which
+  // every OTHER arm of this function refuses to give. `ownDocumentVerdict` in
+  // this same file already splits the identical condition.
+  //
+  // Gated on a receipt EXISTING rather than warning unconditionally, and the
+  // gate cannot be the receipt PATH: without a key there is none to build —
+  // `edit-landing-.json` would never exist and the arm would be silent forever,
+  // a fix that reads as implemented and is not. Scanning the directory is what
+  // makes it reachable. The cost of the alternative is real and is why this is
+  // gated at all: an unconditional warning withholds the green summary from
+  // every non-`bound` session in every project, including ones that never ran
+  // an audit.
+  if (ownKey === '') {
+    if (someClaimReceiptPresent(projectRoot)) {
+      line(WARN, 'topology: this session\'s claims were NOT checked against the anchor — no bound '
+        + 'session key is available, so the receipt could not be located. An edit-landing receipt '
+        + 'IS present in ' + foldPath(path.join(projectRoot, '.zensu', 'state'))
+        + ', but nothing here establishes it belongs to this session. That is a missing check, not '
+        + 'an all-clear: run /zensu:doctor from a session whose binding resolves, or repair this '
+        + 'one first — the binding rows above name the state and its remedy.');
+    }
+    return;
+  }
+  var receipt = path.join(projectRoot, '.zensu', 'state', 'edit-landing-' + ownKey + '.json');
+  var parsed = readNoteJson(receipt);
+  if (parsed === NOTE_MISSING) return;
+  if (!parsed || typeof parsed !== 'object') {
+    line(WARN, 'topology: this session\'s claims were NOT checked against the anchor — its '
+      + 'edit-landing receipt is present but could not be read (it is not a plain file of '
+      + 'bounded size, or it does not parse). That is a missing check, not an all-clear.');
+    return;
+  }
+  if (RECEIPT_SCHEMAS.indexOf(parsed.schema) === -1) {
+    line(WARN, 'topology: this session\'s claims were NOT checked against the anchor — its '
+      + 'edit-landing receipt carries a schema this runtime does not know. That is a missing '
+      + 'check, not an all-clear.');
+    return;
+  }
+  var audited = auditedRunLog(projectRoot, parsed.log);
+  if (audited.reason) {
+    line(WARN, 'topology: this session\'s claims were NOT checked against the anchor — '
+      + audited.reason + '. That is a missing check, not an all-clear.');
+    return;
+  }
+  if (!audited.path) return;
+  var logFile = audited.path;
+  var inventory = claimInventory(logFile, projectRoot);
+  if (inventory === null) return;
+  if (!inventory.ok) {
+    line(WARN, 'topology: this session\'s claims were NOT checked against the anchor — '
+      + inventory.reason + '. That is a missing check, not an all-clear.');
+    return;
+  }
+  if (inventory.roots.length === 0) return;
+  var named = claimRootSafeNames(inventory.roots);
+  var withheld = inventory.roots.length - named.length;
+  line(WARN, 'topology: this session\'s audited run log claims edits under '
+    + inventory.roots.length + ' root(s) that are not the anchor'
+    + (named.length ? ': ' + named.join(', ') : '')
+    + (withheld > 0
+      ? (named.length ? ', and ' : ' (') + withheld + ' name(s) withheld: they carry characters this row cannot render'
+        + (named.length ? '' : ')')
+      : '')
+    + '. The anchor is ' + (claimRootRenderable(projectRoot) ? claimRootRender(projectRoot) : '(unrenderable)')
+    + '. One edit-landing audit grades ONE root, so those claims are reported rather than graded and this'
+    + ' session\'s review chain sees no diff for them — /zensu:tdd is single-root. Run the chain in the'
+    + ' repository the claims name, or land the work in the anchor.');
+}
+
+// The RUNTIME_ADOPTED provenance row, and the surface other carriers had already
+// promised: the adoption notice points the user at /zensu:doctor, and until this
+// row nothing here rendered an adoption at all — so the one durable record of a
+// repair the user never confirmed had no reader. Same rules as the rebuild row:
+// PRESENT arm only, the phase token from the LOADED core, silence when no entry
+// exists.
+//
+// OK and not WARN, deliberately. An adoption is a repair that SUCCEEDED — the
+// session binds again and no workflow state was lost — so a row that withheld the
+// green summary for the rest of every updated session would be trained away, the
+// failure this file records for the implementing-turns row. The rebuild row is
+// WARN because a rebuild IS a loss.
+//
+// The reason is PARSED, never echoed. It comes out of a document the session can
+// write, this report is relayed by a model, and the only thing the row needs from
+// it is a version pair — so anything that is not the core's own prefix plus two
+// versions of the safe shape renders as unrecorded rather than verbatim.
+//
+// ONE bound travels with it and the row states it rather than implying coverage:
+// an adoption made while no workflow document existed wrote no entry, so it can
+// never appear here, and neither can one whose provenance write failed.
+function runtimeAdoptedRow(core, projectRoot, key, sharedRead) {
+  var phase = (core && typeof core.ADOPTION_HISTORY_PHASE === 'string' && core.ADOPTION_HISTORY_PHASE)
+    ? core.ADOPTION_HISTORY_PHASE
+    : '';
+  if (phase === '') {
+    line(WARN, 'state: this session\'s workflow document was not checked for adoption '
+      + 'provenance — the Session Control core in ' + foldPath(pluginDir(), ' exports no adoption ')
+      + ' exports no adoption '
+      + 'phase token. That is a missing check, not an all-clear.');
+    return;
+  }
+  // Shares the sibling rows' read — see the note in `baselineRebuiltRow`, including
+  // the cost it names: an unreadable document produces one WARN per row.
+  var read = sharedWorkflowRead(core, projectRoot, key, sharedRead);
+  if (read.error) {
+    line(WARN, 'state: this session\'s workflow document was not checked for adoption '
+      + 'provenance — it did not read back (' + (read.code || 'unreadable')
+      + '). That is a missing check, not an all-clear.');
+    return;
+  }
+  var state = read.state;
+  var history = (state && Array.isArray(state.history)) ? state.history : [];
+  var adoptions = history.filter(function (entry) {
+    return entry && entry.phase === phase;
+  });
+  if (!adoptions.length) return;
+  var last = adoptions[adoptions.length - 1];
+  // The stamp takes the same slot and the same row decision as the two sibling rows:
+  // `ts` is a field of a document the session can write, and this report is relayed
+  // by a model. The reason is not a slot here because it is never displayed — only
+  // the version pair parsed out of it is, and that is held to the version shape.
+  var stamp = provenanceSlot((last && typeof last.ts === 'string') ? last.ts : '', '');
+  var rendered = provenanceRendering(stamp, { text: '', present: false, ok: true, bracket: false });
+  // The GRAMMAR comes from the core that writes the entry: `parseAdoptionReason` holds
+  // both halves to the version shape and answers null for anything else, so a reader
+  // here cannot drift from the writer, and the pair is rendered with the core's own
+  // separator. A core without the parser renders the pair as unrecorded.
+  var reason = (last && typeof last.reason === 'string') ? last.reason : '';
+  var parsed = typeof core.parseAdoptionReason === 'function' ? core.parseAdoptionReason(reason) : null;
+  var from = parsed ? parsed.recorded : '';
+  var span = parsed && typeof core.formatAdoptionPair === 'function'
+    ? ' (' + core.formatAdoptionPair(parsed.recorded, parsed.executing) + ')'
+    : ' (the version pair is not recorded in a readable form)';
+  // The NAME comes from the core that writes it, never from a suffix spelled here.
+  var kept = '';
+  if (from !== '' && typeof core.supersededRecordName === 'function') {
+    try { kept = core.supersededRecordName(key, from); } catch (e) { kept = ''; }
+  }
+  line(OK, 'state: this session\'s Session Control record was ADOPTED across a plugin update — '
+    + adoptions.length + (adoptions.length === 1 ? ' entry' : ' entries')
+    + ', most recently at ' + rendered.when + span + '. The session binds again and no workflow state was lost'
+    + (kept !== '' ? '; the previous record was kept beside the new one as ' + kept : '')
+    + '; any review-evidence lease minted before the update was set aside, so a review that was '
+    + 'in flight then has to be re-gathered. An adoption made while no workflow document existed '
+    + 'wrote no entry and cannot appear here — the kept record is then its only evidence.' + rendered.note);
+}
+
+function stateBlock(nowMs) {
+  block('Session state');
+  bindingLine();
+  // Rendered ABOVE the state-directory read on purpose: the route is resolved from
+  // the marker AND the config key, so a project with no `.zensu/state` yet still has
+  // an answer (config or `ask`), and the ENOENT return below must not swallow it.
+  deliveryRouteRow();
+  var projectRoot = stateProjectRoot();
+  var dir = path.join(projectRoot, '.zensu', 'state');
+  // ONE renderer for the own-document verdict, called from BOTH the ENOENT branch
+  // below and the populated-directory path further down. It was a hand-written row
+  // in the second place only, and that made the row unreachable in the very shape
+  // this check exists for: `.zensu/state/` is gitignored, so a deleted and
+  // re-created worktree loses the whole DIRECTORY, not just the file — the ENOENT
+  // branch rendered an all-clear and returned above the row. An ENOENT here is
+  // positive proof the bound session's own document is gone, which is the strongest
+  // form of the finding, not a reason to withhold it.
+  function ownDocumentVerdict(discloseWithoutKey) {
+    var ownKey = currentSessionKey();
+    if (ownKey === '') {
+      // NARROWED on the directory-absent path, and the narrowing is deliberate.
+      // A project with no `.zensu/state` at all and no bound session is a fresh
+      // install: warning there fires on every ordinary run and is trained away
+      // within a day, which is the failure mode this repository records for the
+      // implementing-turns row. The defect this check exists for — a green report
+      // over a session whose capability gate is denying every tool — requires a
+      // BOUND session, and that is exactly the case where the key is available.
+      // On the POPULATED path the disclosure still fires: there are documents
+      // here and this one could not be checked against them.
+      if (discloseWithoutKey) {
+        line(WARN, 'state: this session\'s own workflow document was not checked — no bound '
+          + 'session key is available here. That is a missing check, not an all-clear.');
+      }
+      return;
+    }
+    // The FOUR-state classifier decides, not a filename-presence test, and not a
+    // shape-only approximation of it either. `readdirSync` follows symlinks, so a
+    // dangling `.zensu/state` yielded ENOENT and the row promised a rebuild the
+    // repair refuses by design — the same contradiction the Stop arm and the
+    // capability gate were corrected for. The mirror case was worse because it was
+    // silent: a `.zensu/state` symlinked to a real directory holding the document
+    // made `present` true and rendered NOTHING while the gate denied every tool.
+    //
+    // The FULL classifier is reachable from here, and an earlier revision claimed
+    // it was not. `core.sessionKey` is idempotent — it accepts an `scv1_<64 hex>`
+    // key and returns it unchanged — which `stateBlock` already relies on further
+    // down, where it passes a matched key straight to `core.readWorkflowState`. So
+    // the shape-only detour cost the row its `unreadable` arm for no reason: a
+    // present-but-unreadable own document is exactly a wedged session, and it was
+    // being left to the anonymous population row that names neither this session
+    // nor a remedy.
+    var ownCore = null;
+    var ownState = null;
+    var ownFile = null;
+    try {
+      ownCore = require(path.join(pluginDir(), 'hooks', 'lib', 'session-control-core-v1.js'));
+      ownFile = ownCore.adoptionWorkflowStatePath(projectRoot, ownKey);
+      ownState = ownCore.classifyWorkflowBaseline(ownFile, projectRoot, ownKey);
+    } catch (e) { ownState = null; }
+    if (ownFile === null) ownFile = path.join(dir, 'tdd-phase-' + ownKey + '.json');
+    // The state tokens come from the LOADED core, never from literals copied into
+    // this renderer. The ladder's residual arm is the MISSING row, so a value this
+    // renderer failed to recognise was rendered as "your own document is MISSING —
+    // run --confirm to rebuild it" for a perfectly healthy session, taking the
+    // summary red with it. Reading the vocabulary from the same module that
+    // produced the verdict turns a renamed or added state into the MISSING-CHECK
+    // disclosure below instead of a false finding, and nothing in the tree
+    // compares this renderer's spelling against the core's.
+    var ownStates = (ownCore && ownCore.BASELINE_STATES) || {};
+    function ownToken(name) {
+      return typeof ownStates[name] === 'string' && ownStates[name] ? ownStates[name] : null;
+    }
+    function ownIs(name) {
+      var token = ownToken(name);
+      return token !== null && ownState === token;
+    }
+    if (ownIs('PRESENT')) {
+      // PRESENT is not "nothing to say": a document that was REBUILT is present and
+      // healthy-looking, and its provenance is the one thing this block never rendered.
+      var ownRead = sharedWorkflowRead(ownCore, projectRoot, ownKey, null);
+      baselineRebuiltRow(ownCore, projectRoot, ownKey, ownRead);
+      // ...and a restore writes a BASELINE_REBUILT entry on its way through
+      // repairWorkflowBaseline, so the row above fires for it too and says only that
+      // the DOCUMENT was rebuilt. The directory it anchors is the other half, and it
+      // is the half a user is standing in. Both rows render: they are different
+      // findings and neither substitutes for the other.
+      projectRootRestoredRow(ownCore, projectRoot, ownKey, ownRead);
+      // An ADOPTED record is the third provenance of the same document, read from
+      // the same shared read.
+      runtimeAdoptedRow(ownCore, projectRoot, ownKey, ownRead);
+      return;
+    }
+    if (ownIs('UNSAFE') || ownIs('UNREADABLE')) {
+      // The NAMER is in its own try, deliberately. Folding it into the block above
+      // meant that a core which loaded but did not export it threw AFTER the
+      // verdict was computed, the catch reset the verdict to null, and a correct
+      // BAD tamper row degraded to SILENCE — the one verdict this file refuses to
+      // fake anywhere else. A namer failure may cost the component name; it may
+      // never cost the finding.
+      var ownAt = ownFile;
+      if (ownIs('UNSAFE')) {
+        try { ownAt = ownCore.baselineUnsafeComponent(projectRoot, ownFile) || ownFile; }
+        catch (e2) { ownAt = ownFile; }
+      }
+      line(BAD, 'state: this session\'s own workflow document is ' + ownState.toUpperCase()
+        + ' ' + parenthesizedPath(ownAt, ')')
+        + ' — the capability gate denies every tool in this session, and this '
+        + 'is NOT a missing document, so /zensu:adopt-session --confirm will REFUSE to '
+        + 'rebuild it: something is sitting at that path. Run /zensu:adopt-session for the '
+        + 'diagnosis, inspect what is there before doing anything else, then start a fresh '
+        + 'session.');
+      return;
+    }
+    if (ownState === null) {
+      // The check did NOT run. Returning on the legacy presence test here would
+      // render an all-clear for a verdict this renderer never reached.
+      line(WARN, 'state: this session\'s own workflow document could not be classified — the '
+        + 'Session Control core did not load from ' + foldPath(pluginDir(), '. That is a missing ')
+        + '. That is a missing '
+        + 'check, not an all-clear.');
+      return;
+    }
+    // An unrecognized verdict is a MISSING CHECK, never the MISSING row. The row
+    // below carries a rebuild recommendation, and handing that to a session whose
+    // document is fine is the opposite of the finding this block exists to make.
+    if (!ownIs('MISSING')) {
+      line(WARN, 'state: this session\'s own workflow document came back with a '
+        + 'classification this build does not recognize (' + String(ownState) + ') from the '
+        + 'Session Control core in ' + foldPath(pluginDir(), '. That is a missing check, not an ')
+        + '. That is a missing check, not an '
+        + 'all-clear.');
+      return;
+    }
+    // The full filename, as the invalid-document row prints full filenames: a
+    // reader sent to repair a specific path needs its name. The 13-character
+    // truncation belongs to the foreign-chain row, whose subject is somebody
+    // else's session.
+    line(BAD, 'state: this session\'s own workflow document is MISSING '
+      + parenthesizedPath(ownFile, ')')
+      + ' — while it is gone the capability gate denies every tool in this session, '
+      + 'because a deleted document must never be read as "no chain was ever active". '
+      + 'A deleted and re-created worktree loses it, since .zensu/state/ is gitignored. '
+      + 'If the record is intact and served, run /zensu:adopt-session for the diagnosis '
+      + 'and /zensu:adopt-session --confirm to rebuild it; rebuilding is a loss, not a '
+      + 'restore — a review chain that was live when it vanished is gone.');
+  }
+  var entries;
+  try {
+    entries = fs.readdirSync(dir);
+  } catch (e) {
+    if (e && e.code === 'ENOENT') {
+      line(OK, 'state: ' + foldPath(dir, ' does not exist yet') + ' does not exist yet — nothing to clean');
+      ownDocumentVerdict(false);
+      worktreeKeepRows(nowMs, currentSessionKey(), projectRoot);
+    } else {
+      // Every other errno is a check that did NOT run. Rendering it green hid the
+      // whole Session state block behind an all-clear, which is the one verdict
+      // this file refuses to fake anywhere else.
+      line(WARN, 'state: ' + foldPath(dir, ' could not be read') + ' could not be read (' + ((e && e.code) || 'unknown')
+        + ') — the session-state checks did not run. That is a missing check, not an all-clear.');
+    }
+    return;
+  }
+  try {
+    fs.accessSync(dir, fs.constants.W_OK);
+  } catch (e) {
+    line(BAD, 'state: ' + foldPath(dir, ' is not writable') + ' is not writable — chain markers cannot be recorded');
+  }
+  var workflowDocs = entries.filter(function (f) {
+    return /^tdd-phase-scv1_[a-f0-9]{64}\.json$/.test(f);
+  }).sort();
+  // The bound session's OWN document. Every row below judges the documents that
+  // EXIST; not one of them asks whether this session's is among them — which is
+  // how a report came back fully green over a session whose capability gate was
+  // denying every tool. It sits ABOVE the count rows on purpose: those describe a
+  // population, and a population can look healthy while the caller's own member of
+  // it is gone.
+  //
+  // Armed on the session key alone, the way the foreign-chain row's own disclosure
+  // is: the key is what makes the question answerable at all, and a missing key is
+  // a missing check rather than a pass. Deliberately NOT gated on the document
+  // count — the finding is the same whether the directory holds none or a hundred.
+  ownDocumentVerdict(true);
+  if (!workflowDocs.length) {
+    line(OK, 'state: no CAS workflow documents yet');
+  } else {
+    var core;
+    var invalid = [];
+    try {
+      core = require(path.join(pluginDir(), 'hooks', 'lib', 'session-control-core-v1.js'));
+    } catch (e) {
+      invalid = workflowDocs.slice();
+    }
+    var states = [];
+    if (core) {
+      workflowDocs.forEach(function (file) {
+        var match = /^tdd-phase-(scv1_[a-f0-9]{64})\.json$/.exec(file);
+        try {
+          states.push({
+            session: match[1].slice(0, 13) + '…',
+            key: match[1],
+            state: core.readWorkflowState({ projectRoot: projectRoot, sessionId: match[1] }),
+          });
+        } catch (e) {
+          invalid.push(file);
+        }
+      });
+    }
+    var valid = workflowDocs.length - invalid.length;
+    if (valid) {
+      line(OK, 'state: ' + valid + ' validated CAS workflow document(s); reviewRound/stopBlockCount/implStopCount are integrated fields');
+    }
+    if (invalid.length) {
+      line(BAD, 'state: ' + invalid.length + ' invalid CAS workflow document(s) — hooks fail closed; inspect ' + invalid.join(', '));
+    }
+    // The listing and its directory travel with the states so the implementing-turns
+    // row can ask whether this session still stands refused. `reviewerDenialRows`
+    // below renders the refusal itself, which is why that row says "below".
+    chainRows(states, nowMs, entries, dir);
+  }
+  reviewerDenialRows(entries, dir, nowMs);
+  // Same two arguments `chainRows` already takes, plus the clock and this
+  // session's key. It sits OUTSIDE the workflow-document branch above on
+  // purpose: an Autopilot run holding the tree is a finding whether or not this
+  // project has a single CAS workflow document, and nesting it there would hide
+  // the hold in exactly the fresh session most likely to walk into it.
+  autopilotRows(entries, dir, nowMs, currentSessionKey(), projectRoot);
+  try {
+    leaseRow(dir);
+  } catch (e) {
+    line(WARN, 'autopilot lease: not checked — the lease row failed while it was rendered. That is a missing'
+      + ' check, not an all-clear.');
+  }
+  claimTopologyRow(projectRoot, currentSessionKey());
+  worktreeKeepRows(nowMs, currentSessionKey(), projectRoot);
+  var pr = path.join(dir, 'pending-review.json');
+  try {
+    var st = fs.statSync(pr);
+    var ageH = (nowMs - pendingReviewStamp(pr, st)) / 3600000;
+    var ttl = ttlHours();
+    if (ttl === 0) {
+      // `0` DISABLES the guard — docs/configuration.md, `_tdd_pending_file_stale`,
+      // `reviewerDenialRows` and the foreign-chain row all read it that way. This
+      // row did not, and `ageH > 0` is true for every marker older than an instant,
+      // so it called each one expired. Harmless while the row carried no path;
+      // once it names a deletion target the skill acts on, it would have offered a
+      // LIVE deferred-review claim for removal.
+      line(OK, 'state: pending-review.json present; its TTL guard is disabled (pendingReviewTtlHours: 0)');
+    } else if (ageH > ttl) {
+      // The PATH, not just the verdict. The Session state block is anchored on the
+      // record's project root, while the skill's confirmed cleanup used to derive
+      // its target from CLAUDE_PROJECT_DIR — so where the two differ, the report
+      // measured one file and the user was asked to delete another it had never
+      // examined. A deletion offer has to name the thing it measured.
+      //
+      // The path is emitted ONLY when a shell can be handed it safely, and
+      // SHELL-QUOTED so the skill can use it verbatim. `statSync` follows symlinks,
+      // so a symlinked `.zensu` or `state` would point the confirmed `rm` outside
+      // this project. A failing check drops the path and keeps the verdict — the
+      // skill contracts that a row without a path offers no cleanup, so withholding
+      // degrades safely while printing would not — and the row names WHICH check
+      // failed, because an unresolvable disjunction reads as a fault in the user's
+      // filesystem rather than as the condition the renderer actually hit.
+      var target = deletableTarget(pr, projectRoot);
+      line(WARN, 'state: pending-review.json is ' + Math.floor(ageH) + 'h old (TTL ' + ttl + 'h) — expired'
+        + (target.path ? ', safe to clear: ' + target.path
+          : '. The path is withheld because ' + target.reason + '. Clear it by hand.'));
+    } else {
+      line(OK, 'state: pending-review.json present and within its ' + ttl + 'h TTL');
+    }
+  } catch (e) { /* no pending-review marker */ }
+}
+
+function main() {
+  var nowMs = Number(env.ZDOC_NOW_MS);
+  if (!isFinite(nowMs) || nowMs <= 0) nowMs = Date.now();
+  out.push('Zensu doctor — read-only setup diagnostics');
+  toolBlock();
+  pluginBlock();
+  configBlock();
+  stateBlock(nowMs);
+  out.push('');
+  if (badCount) out.push('Summary: ' + badCount + ' ' + BAD + '  ' + warnCount + ' ' + WARN + '  — resolve the ❌ items first.');
+  else if (warnCount) out.push('Summary: ' + warnCount + ' ' + WARN + '  — no blockers; warnings are optional to address.');
+  else out.push('Summary: all checks green ' + OK);
+  process.stdout.write(out.join('\n') + '\n');
+}
+
+try { main(); } catch (e) {
+  process.stdout.write('  ' + WARN + '  zensu-doctor: diagnostics renderer failed — ' + String((e && e.message) || e) + '\n');
+}
+process.exit(0);

@@ -1,0 +1,2690 @@
+#!/bin/bash
+# Durable outer Autopilot state: schema, transitions, idempotency, and storage.
+set -u
+
+PLUGIN_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+LIB="$PLUGIN_DIR/hooks/lib/zensu-autopilot-state.sh"
+VCS_LIB="$PLUGIN_DIR/hooks/lib/zensu-vcs.sh"
+BASELINE="$PLUGIN_DIR/tests/session-control/initialize-baseline.sh"
+HOST_PATH="$PLUGIN_DIR/hooks/lib/zensu-host-path.sh"
+
+PASS=0; FAIL=0
+check() {
+  local label="$1" result="$2"
+  if [ "$result" = PASS ]; then
+    printf '  PASS  %s\n' "$label"
+    PASS=$((PASS + 1))
+  else
+    printf '  FAIL  %s\n' "$label"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+if [ ! -f "$LIB" ]; then
+  check "S1 durable state library exists" FAIL
+  printf '%s\n' "----" "test-autopilot-state-machine: $PASS PASS / $FAIL FAIL"
+  exit 1
+fi
+
+check "S1 durable state library exists" PASS
+if bash -n "$LIB" 2>/dev/null; then
+  check "S2 library passes bash syntax validation" PASS
+else
+  check "S2 library passes bash syntax validation" FAIL
+fi
+
+if grep -qF 'fd = fs.openSync(file, "r+");' "$LIB" \
+  && grep -qF 'fs.fsyncSync(fd);' "$LIB" \
+  && grep -qF 'fs.closeSync(fd);' "$LIB"; then
+  check "S2b durable state fsync uses a writable descriptor and closes it" PASS
+else
+  check "S2b durable state fsync uses a writable descriptor and closes it" FAIL
+fi
+
+if grep -qF 'if (process.platform !== "win32") {' "$LIB" \
+  && grep -qF 'directoryFd = fs.openSync(directory, fs.constants.O_RDONLY);' "$LIB"; then
+  check "S2c directory fsync remains POSIX-only" PASS
+else
+  check "S2c directory fsync remains POSIX-only" FAIL
+fi
+if grep -qF 'const noFollow = process.platform !== "win32" && Number.isInteger(fs.constants.O_NOFOLLOW)' "$LIB" \
+  && grep -qF 'tempFd = fs.openSync(temp, fs.constants.O_WRONLY | noFollow);' "$LIB" \
+  && grep -qF 'fs.ftruncateSync(tempFd, 0);' "$LIB"; then
+  check "S2d payload temp identity is verified before truncation" PASS
+else
+  check "S2d payload temp identity is verified before truncation" FAIL
+fi
+
+# shellcheck disable=SC1090
+source "$LIB"
+# shellcheck disable=SC1090
+source "$VCS_LIB"
+source "$PLUGIN_DIR/tests/structure/lib-autopilot-lease.sh"
+
+ROOT="$(mktemp -d -t za-state-XXXXXX)"
+trap 'rm -rf "$ROOT"' EXIT
+PROJECT="$ROOT/project"
+mkdir -p "$PROJECT"
+
+native_directory() {
+  local rendered
+  rendered="$(bash "$HOST_PATH" "$1")" || return 1
+  MSYS2_ARG_CONV_EXCL='*' node -e '
+    const fs = require("fs");
+    process.stdout.write(fs.realpathSync.native(process.argv[1]));
+  ' "$rendered"
+}
+
+PROJECT_PHYSICAL="$(native_directory "$PROJECT")"
+export CLAUDE_PROJECT_DIR="$PROJECT"
+export CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR"
+export ZENSU_CONFIG="$ROOT/no-config.json"
+
+RUN="run_primary_001"
+OWNER="session_owner_001"
+PLAN_SHA="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+HEAD_SHA="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+HEAD_SHA_2="cccccccccccccccccccccccccccccccccccccccc"
+HEAD_SHA_3="dddddddddddddddddddddddddddddddddddddddd"
+HEAD_SHA_4="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+RUN_FILE="$PROJECT/.zensu/state/autopilot-run-${RUN}.json"
+ACTIVE_FILE="$(autopilot_active_file "$PROJECT" "$OWNER")"
+
+json_ok() {
+  local file="$1" expression="$2"
+  # shellcheck disable=SC2016
+  node -e '
+    const fs = require("fs");
+    const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const expression = process.argv[2];
+    process.exit(Function("value", `return Boolean(${expression})`)(value) ? 0 : 1);
+  ' "$file" "$expression" >/dev/null 2>&1
+}
+
+file_digest() {
+  node -e 'const fs=require("fs"),crypto=require("crypto");process.stdout.write(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"));' "$1"
+}
+
+private_mode_ok() {
+  node -e 'const fs=require("fs");process.exit(process.platform==="win32"||(fs.statSync(process.argv[1]).mode&0o777)===0o600?0:1);' "$1"
+}
+
+IS_WINDOWS="$(node -p 'process.platform === "win32" ? "true" : "false"')"
+make_file_symlink() {
+  node -e '
+    const fs=require("fs"),target=process.argv[1],link=process.argv[2];
+    try {
+      fs.symlinkSync(target,link,process.platform==="win32"?"file":undefined);
+      process.exit(fs.lstatSync(link).isSymbolicLink()?0:1);
+    } catch (_) { process.exit(1); }
+  ' "$1" "$2"
+}
+make_directory_symlink() {
+  node -e '
+    const fs=require("fs"),target=process.argv[1],link=process.argv[2];
+    try {
+      fs.symlinkSync(target,link,process.platform==="win32"?"junction":"dir");
+      process.exit(fs.lstatSync(link).isSymbolicLink()?0:1);
+    } catch (_) { process.exit(1); }
+  ' "$1" "$2"
+}
+
+json_field_stdin() {
+  FIELD="$1" node -e '
+    let value;try{value=JSON.parse(require("fs").readFileSync(0,"utf8"));}catch(_){process.exit(1);}
+    const field=value[process.env.FIELD];
+    if(typeof field!=="string")process.exit(1);
+    process.stdout.write(field);
+  '
+}
+
+review_operation_key() {
+  local run_id="$1" head_sha="$2"
+  RUN_ID="$run_id" HEAD_SHA="$head_sha" node -e '
+    const crypto = require("crypto");
+    const canonical = value => value && typeof value === "object" && !Array.isArray(value)
+      ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`
+      : JSON.stringify(value);
+    const seed = {headSha: process.env.HEAD_SHA.toLowerCase(), runId: process.env.RUN_ID};
+    process.stdout.write(`team-review:v1:${crypto.createHash("sha256").update(canonical(seed)).digest("hex")}`);
+  '
+}
+
+review_marker() {
+  local operation_key="$1" head_sha="$2" payload_digest="$3" part_count="${4:-1}"
+  OPERATION_KEY="$operation_key" HEAD_SHA="$head_sha" PAYLOAD_DIGEST="$payload_digest" \
+    PART_COUNT="$part_count" node -e '
+      const crypto = require("crypto");
+      const opDigest = crypto.createHash("sha256").update(process.env.OPERATION_KEY).digest("hex");
+      process.stdout.write(`<!-- zensu-review:v1:${opDigest}:${process.env.PAYLOAD_DIGEST}:${process.env.HEAD_SHA.toLowerCase()}:${process.env.PART_COUNT}:part=1/${process.env.PART_COUNT} -->`);
+    '
+}
+
+apply() {
+  autopilot_apply_event "$RUN" "$1" "$2" "$3" "$PROJECT" >/dev/null
+}
+
+if autopilot_begin_run "$RUN" "$OWNER" "$PROJECT" >/dev/null \
+  && [ -f "$RUN_FILE" ] && [ -f "$ACTIVE_FILE" ] \
+  && autopilot_read_active "$PROJECT" "$OWNER" > "$ROOT/active-read.json" \
+  && json_ok "$ROOT/active-read.json" 'value.schemaVersion === 1 && value.runId === "run_primary_001" && value.ownerSessionId === "session_owner_001" && value.stage === "PLANNING" && value.nextActionCode === "AWAIT_PLAN_APPROVAL" && value.stopBudget.stage === "PLANNING" && value.stopBudget.count === 0 && value.tdd.attempt === 0 && value.tdd.returnStage === null'; then
+  check "B1 begin writes a valid project-local PLANNING state" PASS
+else
+  check "B1 begin writes a valid project-local PLANNING state" FAIL
+fi
+
+# Project root is asserted independently to keep json_ok intentionally tiny.
+if node -e 'const j=require(process.argv[1]);process.exit(j.projectRoot===process.argv[2]?0:1)' "$RUN_FILE" "$PROJECT_PHYSICAL"; then
+  check "B2 state binds the canonical project root" PASS
+else
+  check "B2 state binds the canonical project root" FAIL
+fi
+
+BEFORE_BEGIN="$(file_digest "$RUN_FILE")"
+if autopilot_begin_run "$RUN" "$OWNER" "$PROJECT" >/dev/null \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_BEGIN" ]; then
+  check "B3 identical begin is a byte-stable no-op" PASS
+else
+  check "B3 identical begin is a byte-stable no-op" FAIL
+fi
+
+if ! autopilot_begin_run "run_competing_001" "session_owner_002" "$PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_BEGIN" ]; then
+  check "B4 a live active run rejects a competing begin" PASS
+else
+  check "B4 a live active run rejects a competing begin" FAIL
+fi
+
+BEFORE_BAD_TRANSITION="$(file_digest "$RUN_FILE")"
+if ! apply "evt_bad_001" "GATES_PASSED" "{\"headSha\":\"$HEAD_SHA\"}" 2>/dev/null \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_BAD_TRANSITION" ]; then
+  check "T1 the closed transition table rejects an event from the wrong stage" PASS
+else
+  check "T1 the closed transition table rejects an event from the wrong stage" FAIL
+fi
+
+if apply "evt_plan_001" "PLAN_APPROVED" "{\"approvedPlanSha256\":\"$PLAN_SHA\"}" \
+  && json_ok "$RUN_FILE" 'value.stage === "AWAIT_TDD" && value.nextActionCode === "START_TDD" && value.approvedPlanSha256 === "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" && value.tdd.returnStage === "GATES"'; then
+  check "T2 plan approval enters AWAIT_TDD with a GATES return stage" PASS
+else
+  check "T2 plan approval enters AWAIT_TDD with a GATES return stage" FAIL
+fi
+
+if apply "evt_tdd_start_001" "TDD_STARTED" '{"attempt":1,"chainId":"chain-001","sessionId":"session-tdd-001"}' \
+  && json_ok "$RUN_FILE" 'value.stage === "TDD_RUNNING" && value.tdd.attempt === 1 && value.tdd.chainId === "chain-001" && value.tdd.sessionId === "session-tdd-001" && value.tdd.returnStage === "GATES"'; then
+  check "T3 TDD start binds the exact attempt, chain, session, and return stage" PASS
+else
+  check "T3 TDD start binds the exact attempt, chain, session, and return stage" FAIL
+fi
+
+BEFORE_WRONG_CHAIN="$(file_digest "$RUN_FILE")"
+if ! apply "evt_tdd_done_wrong" "TDD_CHAIN_DONE" '{"attempt":1,"chainId":"chain-other","sessionId":"session-tdd-001","outcome":"pass"}' 2>/dev/null \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_WRONG_CHAIN" ]; then
+  check "T4 TDD completion rejects a stale or foreign chain" PASS
+else
+  check "T4 TDD completion rejects a stale or foreign chain" FAIL
+fi
+
+DONE_PAYLOAD='{"attempt":1,"chainId":"chain-001","sessionId":"session-tdd-001","outcome":"pass"}'
+if apply "evt_tdd_done_001" "TDD_CHAIN_DONE" "$DONE_PAYLOAD" \
+  && json_ok "$RUN_FILE" 'value.stage === "GATES" && value.nextActionCode === "RUN_GATES" && value.tdd.outcome === "pass" && value.stopBudget.stage === "GATES" && value.stopBudget.count === 0'; then
+  check "T5 matching TDD completion returns to the recorded stage" PASS
+else
+  check "T5 matching TDD completion returns to the recorded stage" FAIL
+fi
+
+BEFORE_DUPLICATE="$(file_digest "$RUN_FILE")"
+if apply "evt_tdd_done_001" "TDD_CHAIN_DONE" "$DONE_PAYLOAD" \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_DUPLICATE" ]; then
+  check "I1 duplicate eventId plus payload digest is a byte-stable no-op" PASS
+else
+  check "I1 duplicate eventId plus payload digest is a byte-stable no-op" FAIL
+fi
+
+if ! apply "evt_tdd_done_001" "TDD_CHAIN_DONE" '{"attempt":1,"chainId":"chain-001","sessionId":"session-tdd-001","outcome":"no-changes"}' 2>/dev/null \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_DUPLICATE" ]; then
+  check "I2 duplicate eventId with a different payload is a conflict" PASS
+else
+  check "I2 duplicate eventId with a different payload is a conflict" FAIL
+fi
+
+if ! apply "evt_payload_extra" "GATES_PASSED" "{\"headSha\":\"$HEAD_SHA\",\"extra\":true}" 2>/dev/null \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_DUPLICATE" ]; then
+  check "I3 event payload schemas reject unknown fields without mutation" PASS
+else
+  check "I3 event payload schemas reject unknown fields without mutation" FAIL
+fi
+
+apply "evt_gates_001" "GATES_PASSED" "{\"headSha\":\"$HEAD_SHA\"}" || true
+apply "evt_converge_001" "CONVERGENCE_PASSED" '{}' || true
+apply "evt_pr_request_001" "PR_OPEN_REQUESTED" '{"operationKey":"pr:run_primary_001"}' || true
+apply "evt_pr_open_001" "PR_OPENED" "{\"operationKey\":\"pr:run_primary_001\",\"pr\":{\"number\":712,\"url\":\"https://github.com/acme/repo/pull/712\",\"headSha\":\"$HEAD_SHA\"}}" || true
+REVIEW_KEY="$(review_operation_key "$RUN" "$HEAD_SHA")"
+if command -v autopilot_team_review_operation_key >/dev/null 2>&1 \
+  && [ "$(autopilot_team_review_operation_key "$RUN" "$HEAD_SHA")" = "$REVIEW_KEY" ] \
+  && [ "$(autopilot_team_review_operation_key "$RUN" "$HEAD_SHA_2")" != "$REVIEW_KEY" ]; then
+  check "R1 team-review operation keys are deterministic functions of run plus original head" PASS
+else
+  check "R1 deterministic team-review operation key helper" FAIL
+fi
+
+BEFORE_REVIEW_REQUEST="$(file_digest "$RUN_FILE")"
+WRONG_REVIEW_KEY="$(review_operation_key "$RUN" "$HEAD_SHA_2")"
+if ! apply "evt_review_wrong_key" "TEAM_REVIEW_REQUESTED" \
+    "{\"operationKey\":\"$WRONG_REVIEW_KEY\",\"provider\":\"github\"}" 2>/dev/null \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_REVIEW_REQUEST" ]; then
+  check "R2 TEAM_REVIEW_REQUESTED rejects a key not bound to this run and original PR head byte-stably" PASS
+else
+  check "R2 mismatched team-review operation key rejection" FAIL
+fi
+apply "evt_review_request_001" "TEAM_REVIEW_REQUESTED" \
+  "{\"operationKey\":\"$REVIEW_KEY\",\"provider\":\"github\"}" || true
+
+REVIEW_PAYLOAD_SOURCE="$ROOT/review-payload.json"
+cat > "$REVIEW_PAYLOAD_SOURCE" <<JSON
+{
+  "comments": [{
+    "path": "hooks/lib/example.sh",
+    "line": 7,
+    "side": "RIGHT",
+    "body": "Durable inline finding"
+  }],
+  "body": "Durable review body",
+  "event": "COMMENT",
+  "commit_id": "$HEAD_SHA"
+}
+JSON
+
+if ! autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" \
+    >/dev/null 2>&1; then
+  check "R3 review payload read reports an absent pre-publication snapshot" PASS
+else
+  check "R3 review payload read reports an absent pre-publication snapshot" FAIL
+fi
+
+REVIEW_PAYLOAD_SNAPSHOT="$(autopilot_store_team_review_payload \
+  "$RUN" "$REVIEW_KEY" "$HEAD_SHA" "$REVIEW_PAYLOAD_SOURCE" github "$PROJECT" 2>/dev/null)"
+REVIEW_PAYLOAD_STORE_RC=$?
+if [ -n "$REVIEW_PAYLOAD_SNAPSHOT" ] \
+  && [ "$(autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" 2>/dev/null)" = "$REVIEW_PAYLOAD_SNAPSHOT" ] \
+  && cmp -s "$REVIEW_PAYLOAD_SOURCE" "$REVIEW_PAYLOAD_SNAPSHOT" \
+  && private_mode_ok "$REVIEW_PAYLOAD_SNAPSHOT" \
+  && [ "$(stat -c %h "$REVIEW_PAYLOAD_SNAPSHOT" 2>/dev/null || stat -f %l "$REVIEW_PAYLOAD_SNAPSHOT")" = 1 ]; then
+  check "R4 requested review atomically stores one private operation/head-bound payload" PASS
+else
+  REVIEW_PAYLOAD_TARGET="$(_autopilot_team_review_payload_target \
+    "$PROJECT" "$REVIEW_KEY" "$HEAD_SHA" 2>/dev/null || true)"
+  REVIEW_PAYLOAD_NATIVE_TARGET="$(
+    bash "$HOST_PATH" "$REVIEW_PAYLOAD_TARGET" 2>/dev/null || true
+  )"
+  check "R4 requested review atomically stores one private operation/head-bound payload (rc=$REVIEW_PAYLOAD_STORE_RC shell_path_length=${#REVIEW_PAYLOAD_TARGET} native_path_length=${#REVIEW_PAYLOAD_NATIVE_TARGET})" FAIL
+  printf '%s\n' "----" "test-autopilot-state-machine: $PASS PASS / $FAIL FAIL"
+  exit 1
+fi
+
+REVIEW_VCS_META="$(_zensu_vcs_review_payload_meta github "$REVIEW_PAYLOAD_SNAPSHOT" "$HEAD_SHA" "$REVIEW_KEY" 2>/dev/null || true)"
+REVIEW_PAYLOAD_DIGEST="$(printf '%s' "$REVIEW_VCS_META" | json_field_stdin payloadDigest 2>/dev/null || true)"
+REVIEW_CANONICAL_DIGEST="$(_autopilot_team_review_payload_inspect \
+  "$REVIEW_PAYLOAD_SNAPSHOT" "$HEAD_SHA" true canonical 2>/dev/null || true)"
+REVIEW_RAW_DIGEST="$(file_digest "$REVIEW_PAYLOAD_SNAPSHOT" 2>/dev/null || true)"
+REVIEW_MARKER="$(review_marker "$REVIEW_KEY" "$HEAD_SHA" "$REVIEW_PAYLOAD_DIGEST" 1)"
+if [ -n "$REVIEW_CANONICAL_DIGEST" ] \
+  && [ "$REVIEW_CANONICAL_DIGEST" = "$REVIEW_PAYLOAD_DIGEST" ] \
+  && [ "$REVIEW_CANONICAL_DIGEST" != "$REVIEW_RAW_DIGEST" ]; then
+  check "R4a durable payload inspection uses the same canonical digest as remote publication" PASS
+else
+  check "R4a canonical receipt digest parity with the VCS publisher" FAIL
+fi
+
+# This is the crash window: the remote write may already have succeeded while
+# TEAM_REVIEW_PUBLISHED is not durable yet. A resumed skill must load the exact
+# immutable snapshot instead of synthesizing a second payload.
+REVIEW_SNAPSHOT_DIGEST="$(file_digest "$REVIEW_PAYLOAD_SNAPSHOT" 2>/dev/null || true)"
+printf '%s\n' "{\"commit_id\":\"$HEAD_SHA\",\"event\":\"COMMENT\",\"body\":\"Regenerated and different\",\"comments\":[]}" > "$REVIEW_PAYLOAD_SOURCE"
+if [ "$(autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" 2>/dev/null)" = "$REVIEW_PAYLOAD_SNAPSHOT" ] \
+  && ! autopilot_store_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" \
+      "$REVIEW_PAYLOAD_SOURCE" github "$PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$REVIEW_PAYLOAD_SNAPSHOT" 2>/dev/null)" = "$REVIEW_SNAPSHOT_DIGEST" ] \
+  && grep -qF 'Durable review body' "$REVIEW_PAYLOAD_SNAPSHOT" \
+  && ! grep -qF 'Regenerated and different' "$REVIEW_PAYLOAD_SNAPSHOT"; then
+  check "R5 crash retry reuses the byte-identical snapshot and rejects overwrite conflict" PASS
+else
+  check "R5 crash retry reuses the byte-identical snapshot and rejects overwrite conflict" FAIL
+fi
+
+# link(2) publishes the complete temp inode without replacement. A kill in the
+# tiny window before unlink(temp) leaves exactly the target plus its own
+# `${target}.tmp.XXXXXXXX` alias. A prior kill before link(temp,target) can also
+# leave a separate same-prefix temp inode; recovery must preserve that orphan
+# while accounting for and removing the one true target alias.
+UNRELATED_REVIEW_TEMP="$(mktemp "${REVIEW_PAYLOAD_SNAPSHOT}.tmp.XXXXXXXX")"
+cp "$REVIEW_PAYLOAD_SNAPSHOT" "$UNRELATED_REVIEW_TEMP"
+OWNED_REVIEW_TEMP="$(mktemp "${REVIEW_PAYLOAD_SNAPSHOT}.tmp.XXXXXXXX")"
+rm -f "$OWNED_REVIEW_TEMP"
+ln "$REVIEW_PAYLOAD_SNAPSHOT" "$OWNED_REVIEW_TEMP"
+if [ "$(autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" 2>/dev/null)" = "$REVIEW_PAYLOAD_SNAPSHOT" ] \
+  && [ ! -e "$OWNED_REVIEW_TEMP" ] \
+  && [ -f "$UNRELATED_REVIEW_TEMP" ] \
+  && [ "$(stat -c %h "$UNRELATED_REVIEW_TEMP" 2>/dev/null || stat -f %l "$UNRELATED_REVIEW_TEMP")" = 1 ] \
+  && [ "$(stat -c %h "$REVIEW_PAYLOAD_SNAPSHOT" 2>/dev/null || stat -f %l "$REVIEW_PAYLOAD_SNAPSHOT")" = 1 ]; then
+  check "R5a resume heals the real owned alias while preserving an unrelated pre-link temp orphan" PASS
+else
+  check "R5a resume heals the real owned alias while preserving an unrelated pre-link temp orphan" FAIL
+fi
+rm -f "$OWNED_REVIEW_TEMP" "$UNRELATED_REVIEW_TEMP"
+
+MULTI_REVIEW_TEMP_A="$(mktemp "${REVIEW_PAYLOAD_SNAPSHOT}.tmp.XXXXXXXX")"
+MULTI_REVIEW_TEMP_B="$(mktemp "${REVIEW_PAYLOAD_SNAPSHOT}.tmp.XXXXXXXX")"
+rm -f "$MULTI_REVIEW_TEMP_A" "$MULTI_REVIEW_TEMP_B"
+ln "$REVIEW_PAYLOAD_SNAPSHOT" "$MULTI_REVIEW_TEMP_A"
+ln "$REVIEW_PAYLOAD_SNAPSHOT" "$MULTI_REVIEW_TEMP_B"
+if ! autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" \
+    >/dev/null 2>&1 \
+  && [ -e "$MULTI_REVIEW_TEMP_A" ] && [ -e "$MULTI_REVIEW_TEMP_B" ] \
+  && [ "$(stat -c %h "$REVIEW_PAYLOAD_SNAPSHOT" 2>/dev/null || stat -f %l "$REVIEW_PAYLOAD_SNAPSHOT")" = 3 ]; then
+  check "R5b multiple owned-looking aliases remain fail-closed and untouched" PASS
+else
+  check "R5b multiple owned-looking aliases remain fail-closed and untouched" FAIL
+fi
+rm -f "$MULTI_REVIEW_TEMP_A" "$MULTI_REVIEW_TEMP_B"
+
+if autopilot_read_team_review_payload "$RUN" "$WRONG_REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" \
+    >/dev/null 2>&1 \
+  || autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA_2" github "$PROJECT" \
+    >/dev/null 2>&1; then
+  check "R6 payload snapshots reject operation/head identity mismatches" FAIL
+else
+  check "R6 payload snapshots reject operation/head identity mismatches" PASS
+fi
+
+REVIEW_PAYLOAD_BACKUP="$ROOT/review-payload-backup.json"
+REVIEW_LINK_GUARDS=false
+if [ -n "$REVIEW_PAYLOAD_SNAPSHOT" ] \
+  && cp "$REVIEW_PAYLOAD_SNAPSHOT" "$REVIEW_PAYLOAD_BACKUP" \
+  && rm -f "$REVIEW_PAYLOAD_SNAPSHOT"; then
+  if make_file_symlink "$REVIEW_PAYLOAD_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"; then
+    if autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" \
+        >/dev/null 2>&1; then
+      REVIEW_LINK_GUARDS=false
+    else
+      REVIEW_LINK_GUARDS=true
+    fi
+  elif [ "$IS_WINDOWS" = true ]; then
+    REVIEW_LINK_GUARDS=true
+  fi
+  rm -f "$REVIEW_PAYLOAD_SNAPSHOT"
+  if ! ln "$REVIEW_PAYLOAD_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT" \
+    || autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" \
+      >/dev/null 2>&1; then
+    REVIEW_LINK_GUARDS=false
+  fi
+  rm -f "$REVIEW_PAYLOAD_SNAPSHOT"
+  mv "$REVIEW_PAYLOAD_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"
+fi
+if [ -n "$REVIEW_PAYLOAD_SNAPSHOT" ] \
+  && [ "$REVIEW_LINK_GUARDS" = true ] \
+  && [ "$(autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" github "$PROJECT" 2>/dev/null)" = "$REVIEW_PAYLOAD_SNAPSHOT" ]; then
+  check "R7 payload snapshot reads fail closed on symlink and hardlink substitution" PASS
+else
+  check "R7 payload snapshot reads fail closed on symlink and hardlink substitution" FAIL
+fi
+
+receipt_rejected_byte_stably() {
+  local event_id="$1" marker="$2" provider="${3:-github}" before backup accepted=false
+  backup="$ROOT/${event_id}-run-backup.json"
+  cp "$RUN_FILE" "$backup" || return 1
+  before="$(file_digest "$RUN_FILE")"
+  if apply "$event_id" TEAM_REVIEW_PUBLISHED \
+      "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$marker\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"$provider\"}" \
+      >/dev/null 2>&1; then
+    accepted=true
+  fi
+  local unchanged=false
+  [ "$(file_digest "$RUN_FILE")" = "$before" ] && unchanged=true
+  cp "$backup" "$RUN_FILE"
+  [ "$accepted" = false ] && [ "$unchanged" = true ]
+}
+
+UNRELATED_PAYLOAD_DIGEST="$(printf '%064d' 0)"
+[ "$UNRELATED_PAYLOAD_DIGEST" != "$REVIEW_PAYLOAD_DIGEST" ] || UNRELATED_PAYLOAD_DIGEST="$(printf '%064d' 1)"
+UNRELATED_PAYLOAD_MARKER="$(review_marker "$REVIEW_KEY" "$HEAD_SHA" "$UNRELATED_PAYLOAD_DIGEST" 1)"
+if receipt_rejected_byte_stably evt_review_unrelated_payload "$UNRELATED_PAYLOAD_MARKER"; then
+  check "R7a publication rejects a receipt digest unrelated to the durable payload" PASS
+else
+  check "R7a publication digest is not bound to the durable payload" FAIL
+fi
+
+# The same immutable payload has one GitHub review object but two GitLab
+# publication parts (summary plus one inline discussion). A caller cannot
+# relabel the valid 1/1 GitHub marker as a GitLab receipt and skip that part.
+if receipt_rejected_byte_stably evt_review_wrong_provider_count "$REVIEW_MARKER" gitlab; then
+  check "R7aa publication provider must match the durable review request" PASS
+else
+  check "R7aa publication can relabel a GitHub request as GitLab" FAIL
+fi
+
+# Build every requested-state transition through the public state-machine API.
+# The private payload is seeded separately so these controls test provider
+# receipt semantics without repeating the R4-R7 storage transport contract.
+prepare_provider_project() {
+  local target="$1" provider="$2" snapshot
+  mkdir -p "$target" || return 1
+  autopilot_begin_run "$RUN" "$OWNER" "$target" >/dev/null || return 1
+  autopilot_apply_event "$RUN" provider-plan PLAN_APPROVED \
+    "{\"approvedPlanSha256\":\"$PLAN_SHA\"}" "$target" >/dev/null || return 1
+  autopilot_apply_event "$RUN" provider-tdd-start TDD_STARTED \
+    '{"attempt":1,"chainId":"provider-chain-001","sessionId":"provider-session-001"}' \
+    "$target" >/dev/null || return 1
+  autopilot_apply_event "$RUN" provider-tdd-done TDD_CHAIN_DONE \
+    '{"attempt":1,"chainId":"provider-chain-001","sessionId":"provider-session-001","outcome":"pass"}' \
+    "$target" >/dev/null || return 1
+  autopilot_apply_event "$RUN" provider-gates GATES_PASSED \
+    "{\"headSha\":\"$HEAD_SHA\"}" "$target" >/dev/null || return 1
+  autopilot_apply_event "$RUN" provider-converge CONVERGENCE_PASSED \
+    '{}' "$target" >/dev/null || return 1
+  autopilot_apply_event "$RUN" provider-pr-request PR_OPEN_REQUESTED \
+    "{\"operationKey\":\"pr:$RUN\"}" "$target" >/dev/null || return 1
+  autopilot_apply_event "$RUN" provider-pr-open PR_OPENED \
+    "{\"operationKey\":\"pr:$RUN\",\"pr\":{\"number\":712,\"url\":\"https://github.com/acme/repo/pull/712\",\"headSha\":\"$HEAD_SHA\"}}" \
+    "$target" >/dev/null || return 1
+  autopilot_apply_event "$RUN" provider-review-request TEAM_REVIEW_REQUESTED \
+    "{\"operationKey\":\"$REVIEW_KEY\",\"provider\":\"$provider\"}" \
+    "$target" >/dev/null || return 1
+  # R4-R7 already exercise the public store/read boundary. These provider
+  # controls isolate receipt binding by seeding the same validated private
+  # snapshot after building every durable state transition through public APIs.
+  snapshot="$(_autopilot_team_review_payload_target \
+    "$target" "$REVIEW_KEY" "$HEAD_SHA")" || return 1
+  cp "$REVIEW_PAYLOAD_SNAPSHOT" "$snapshot" || return 1
+  chmod 600 "$snapshot" || return 1
+  _autopilot_team_review_payload_inspect \
+    "$snapshot" "$HEAD_SHA" true >/dev/null
+}
+
+# A genuinely GitLab-bound request with one inline finding has a valid two-part
+# receipt. This control proves the cloned state and snapshot are complete.
+GITLAB_CONTROL_PROJECT="$ROOT/gitlab-provider-control"
+GITLAB_MARKER="$(review_marker "$REVIEW_KEY" "$HEAD_SHA" "$REVIEW_PAYLOAD_DIGEST" 2)"
+GITLAB_CONTROL_OK=false
+if prepare_provider_project "$GITLAB_CONTROL_PROJECT" gitlab \
+  && autopilot_apply_event "$RUN" evt_review_gitlab_valid TEAM_REVIEW_PUBLISHED \
+    "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$GITLAB_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"gitlab\"}" \
+    "$GITLAB_CONTROL_PROJECT" >/dev/null 2>&1 \
+  && autopilot_read_run "$RUN" "$GITLAB_CONTROL_PROJECT" > "$ROOT/gitlab-provider-control.json" 2>/dev/null \
+  && json_ok "$ROOT/gitlab-provider-control.json" \
+    'value.stage === "FIX_FINDINGS" && value.effects.teamReview.provider === "gitlab" && value.evidence.review.provider === "gitlab" && value.evidence.review.partCount === 2'; then
+  GITLAB_CONTROL_OK=true
+fi
+if [ "$GITLAB_CONTROL_OK" = true ]; then
+  check "R7ab exact provider binding accepts a complete two-part GitLab receipt" PASS
+else
+  check "R7ab exact provider binding rejects its valid GitLab control" FAIL
+fi
+
+# The byte-identical requested state and payload cannot be relabeled as a
+# one-part GitHub publication.
+GITLAB_SPOOF_PROJECT="$ROOT/gitlab-provider-spoof"
+GITLAB_SPOOF_FILE="$GITLAB_SPOOF_PROJECT/.zensu/state/autopilot-run-${RUN}.json"
+GITLAB_SPOOF_READY=false
+if prepare_provider_project "$GITLAB_SPOOF_PROJECT" gitlab \
+  && autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" \
+    gitlab "$GITLAB_SPOOF_PROJECT" >/dev/null 2>&1 \
+  && ! autopilot_read_team_review_payload "$RUN" "$REVIEW_KEY" "$HEAD_SHA" \
+    github "$GITLAB_SPOOF_PROJECT" >/dev/null 2>&1; then
+  GITLAB_SPOOF_READY=true
+fi
+GITLAB_BEFORE="$(file_digest "$GITLAB_SPOOF_FILE" 2>/dev/null || true)"
+if [ "$GITLAB_SPOOF_READY" = true ] \
+  && ! autopilot_apply_event "$RUN" evt_review_gitlab_as_github TEAM_REVIEW_PUBLISHED \
+    "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$REVIEW_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" \
+    "$GITLAB_SPOOF_PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$GITLAB_SPOOF_FILE")" = "$GITLAB_BEFORE" ]; then
+  check "R7ac GitLab request cannot be relabeled as a one-part GitHub receipt" PASS
+else
+  check "R7ac caller-selected GitHub count bypasses a complete GitLab request" FAIL
+fi
+
+# Deployed v1 completed receipts remain readable below, but an in-flight v1
+# request never had a trusted provider. It must fail closed instead of learning
+# the forge from a new publication event.
+# Keep the directory name short: the private payload temp suffix is long and
+# must retain headroom beneath legacy Windows MAX_PATH on hosted runners.
+LEGACY_REQUEST_PROJECT="$ROOT/p0"
+LEGACY_REQUEST_FILE="$LEGACY_REQUEST_PROJECT/.zensu/state/autopilot-run-${RUN}.json"
+LEGACY_REQUEST_READY=false
+if prepare_provider_project "$LEGACY_REQUEST_PROJECT" github; then
+  node -e '
+    const fs=require("fs"),crypto=require("crypto"),file=process.argv[1],state=JSON.parse(fs.readFileSync(file,"utf8"));
+    const canonical=value=>Array.isArray(value)?`[${value.map(canonical).join(",")}]`:
+      value&&typeof value==="object"?`{${Object.keys(value).sort().map(key=>`${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`:
+      JSON.stringify(value);
+    delete state.effects.teamReview.provider;
+    const event=state.events.find(item=>item.eventType==="TEAM_REVIEW_REQUESTED");
+    delete event.payload.provider;
+    event.payloadDigest=crypto.createHash("sha256").update(canonical(event.payload)).digest("hex");
+    fs.writeFileSync(file,JSON.stringify(state,null,2)+"\n");
+  ' "$LEGACY_REQUEST_FILE" && LEGACY_REQUEST_READY=true
+fi
+LEGACY_REQUEST_BEFORE="$(file_digest "$LEGACY_REQUEST_FILE" 2>/dev/null || true)"
+if [ "$LEGACY_REQUEST_READY" != true ]; then
+  check "R7ad providerless v1 fixture prepares within Windows path limits" FAIL
+elif ! autopilot_apply_event "$RUN" evt_legacy_request_provider_choice TEAM_REVIEW_PUBLISHED \
+    "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$REVIEW_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" \
+    "$LEGACY_REQUEST_PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$LEGACY_REQUEST_FILE")" = "$LEGACY_REQUEST_BEFORE" ]; then
+  check "R7ad providerless in-flight v1 request fails closed without learning a forge" PASS
+else
+  check "R7ad providerless in-flight v1 request adopted the publication provider" FAIL
+fi
+
+RECEIPT_GUARDS=true
+RECEIPT_BACKUP="$ROOT/receipt-payload-backup.json"
+mv "$REVIEW_PAYLOAD_SNAPSHOT" "$RECEIPT_BACKUP"
+receipt_rejected_byte_stably evt_review_missing_payload "$REVIEW_MARKER" || RECEIPT_GUARDS=false
+mv "$RECEIPT_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"
+
+mv "$REVIEW_PAYLOAD_SNAPSHOT" "$RECEIPT_BACKUP"
+if make_file_symlink "$RECEIPT_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"; then
+  receipt_rejected_byte_stably evt_review_symlink_payload "$REVIEW_MARKER" || RECEIPT_GUARDS=false
+elif [ "$IS_WINDOWS" != true ]; then
+  RECEIPT_GUARDS=false
+fi
+rm -f "$REVIEW_PAYLOAD_SNAPSHOT"
+mv "$RECEIPT_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"
+
+cp "$REVIEW_PAYLOAD_SNAPSHOT" "$RECEIPT_BACKUP"
+rm -f "$REVIEW_PAYLOAD_SNAPSHOT"
+ln "$RECEIPT_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"
+receipt_rejected_byte_stably evt_review_hardlink_payload "$REVIEW_MARKER" || RECEIPT_GUARDS=false
+rm -f "$REVIEW_PAYLOAD_SNAPSHOT"
+mv "$RECEIPT_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"
+
+mv "$REVIEW_PAYLOAD_SNAPSHOT" "$RECEIPT_BACKUP"
+printf '%s\n' "{\"commit_id\":\"$HEAD_SHA_2\",\"event\":\"COMMENT\",\"body\":\"stale\",\"comments\":[]}" > "$REVIEW_PAYLOAD_SNAPSHOT"
+chmod 600 "$REVIEW_PAYLOAD_SNAPSHOT"
+receipt_rejected_byte_stably evt_review_stale_payload "$REVIEW_MARKER" || RECEIPT_GUARDS=false
+rm -f "$REVIEW_PAYLOAD_SNAPSHOT"
+mv "$RECEIPT_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"
+if [ "$RECEIPT_GUARDS" = true ]; then
+  check "R7b publication rejects missing, linked, and stale-head payload snapshots byte-stably" PASS
+else
+  check "R7b unsafe or stale receipt payload snapshots reached durable state" FAIL
+fi
+
+BEFORE_REVIEW_PUBLISH="$(file_digest "$RUN_FILE")"
+WRONG_OP_MARKER="$(review_marker "$WRONG_REVIEW_KEY" "$HEAD_SHA" "$REVIEW_PAYLOAD_DIGEST" 1)"
+WRONG_HEAD_MARKER="$(review_marker "$REVIEW_KEY" "$HEAD_SHA_2" "$REVIEW_PAYLOAD_DIGEST" 1)"
+BAD_PART_MARKER="${REVIEW_MARKER%part=1/1 -->}part=2/2 -->"
+BAD_COUNT_MARKER="${REVIEW_MARKER%:1:part=1/1 -->}:2:part=1/3 -->"
+REVIEW_REJECTIONS=true
+if apply "evt_review_bad_operation" TEAM_REVIEW_PUBLISHED \
+  "{\"operationKey\":\"$WRONG_REVIEW_KEY\",\"marker\":\"$WRONG_OP_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" >/dev/null 2>&1; then REVIEW_REJECTIONS=false; fi
+if apply "evt_review_legacy_marker" TEAM_REVIEW_PUBLISHED \
+  "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"zensu-autopilot-review:legacy\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" >/dev/null 2>&1; then REVIEW_REJECTIONS=false; fi
+if apply "evt_review_wrong_op_digest" TEAM_REVIEW_PUBLISHED \
+  "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$WRONG_OP_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" >/dev/null 2>&1; then REVIEW_REJECTIONS=false; fi
+if apply "evt_review_wrong_marker_head" TEAM_REVIEW_PUBLISHED \
+  "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$WRONG_HEAD_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" >/dev/null 2>&1; then REVIEW_REJECTIONS=false; fi
+if apply "evt_review_nonfirst_part" TEAM_REVIEW_PUBLISHED \
+  "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$BAD_PART_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" >/dev/null 2>&1; then REVIEW_REJECTIONS=false; fi
+if apply "evt_review_part_count_mismatch" TEAM_REVIEW_PUBLISHED \
+  "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$BAD_COUNT_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" >/dev/null 2>&1; then REVIEW_REJECTIONS=false; fi
+if [ "$REVIEW_REJECTIONS" = true ] \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_REVIEW_PUBLISH" ]; then
+  check "R8 publication requires one exact v1 part-1 marker bound to operation and head, byte-stably" PASS
+else
+  check "R8 strict structured team-review marker validation" FAIL
+fi
+apply "evt_review_publish_001" "TEAM_REVIEW_PUBLISHED" \
+  "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$REVIEW_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" || true
+
+# Compatibility fixture for the schemaVersion 1 state emitted by PR #174:
+# its publication event had no provider and evidence.review had only three
+# fields. The reader must normalize it from the marker, and the next ordinary
+# mutation must persist the normalized shape without rewriting history.
+LEGACY_PROJECT="$ROOT/legacy-v1-project"
+LEGACY_STATE_DIR="$LEGACY_PROJECT/.zensu/state"
+LEGACY_RUN_FILE="$LEGACY_STATE_DIR/autopilot-run-${RUN}.json"
+mkdir -p "$LEGACY_STATE_DIR"
+cp "$ACTIVE_FILE" "$(autopilot_active_file "$LEGACY_PROJECT" "$OWNER")"
+cp "$RUN_FILE" "$LEGACY_RUN_FILE"
+LEGACY_PROJECT_PHYSICAL="$(native_directory "$LEGACY_PROJECT")"
+LEGACY_PROJECT_PHYSICAL="$LEGACY_PROJECT_PHYSICAL" node -e '
+  const fs=require("fs"),crypto=require("crypto"),file=process.argv[1],state=JSON.parse(fs.readFileSync(file,"utf8"));
+  const canonical=value=>Array.isArray(value)?`[${value.map(canonical).join(",")}]`:
+    value&&typeof value==="object"?`{${Object.keys(value).sort().map(key=>`${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`:
+    JSON.stringify(value);
+  state.projectRoot=process.env.LEGACY_PROJECT_PHYSICAL;
+  const review=state.evidence.review;
+  state.evidence.review={published:review.published,marker:review.marker,headSha:review.headSha};
+  delete state.effects.teamReview.provider;
+  const request=state.events.find(item=>item.eventType==="TEAM_REVIEW_REQUESTED");
+  delete request.payload.provider;
+  request.payloadDigest=crypto.createHash("sha256").update(canonical(request.payload)).digest("hex");
+  const event=state.events.find(item=>item.eventType==="TEAM_REVIEW_PUBLISHED");
+  delete event.payload.provider;
+  event.payloadDigest=crypto.createHash("sha256").update(canonical(event.payload)).digest("hex");
+  fs.writeFileSync(file,JSON.stringify(state,null,2)+"\n");
+' "$LEGACY_RUN_FILE"
+LEGACY_READ="$ROOT/legacy-v1-read.json"
+LEGACY_OK=true
+autopilot_read_run "$RUN" "$LEGACY_PROJECT" > "$LEGACY_READ" 2>/dev/null || LEGACY_OK=false
+LEGACY_BEFORE_REPLAY="$(file_digest "$LEGACY_RUN_FILE")"
+autopilot_apply_event "$RUN" evt_review_publish_001 TEAM_REVIEW_PUBLISHED \
+  "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$REVIEW_MARKER\",\"headSha\":\"$HEAD_SHA\"}" \
+  "$LEGACY_PROJECT" >/dev/null 2>&1 || LEGACY_OK=false
+[ "$(file_digest "$LEGACY_RUN_FILE")" = "$LEGACY_BEFORE_REPLAY" ] || LEGACY_OK=false
+autopilot_apply_event "$RUN" legacy-review-normalized BYPASS_RECORDED \
+  '{"gate":"legacy-review-migration"}' "$LEGACY_PROJECT" >/dev/null 2>&1 || LEGACY_OK=false
+if [ "$LEGACY_OK" = true ] \
+  && json_ok "$LEGACY_READ" 'value.evidence.review.provider === null && value.evidence.review.payloadDigest === value.evidence.review.marker.split(":")[3] && value.evidence.review.partCount === 1' \
+  && json_ok "$LEGACY_RUN_FILE" 'value.schemaVersion === 1 && value.evidence.review.provider === null && value.evidence.review.payloadDigest === value.evidence.review.marker.split(":")[3] && value.evidence.review.partCount === 1 && value.events.some(event => event.eventId === "legacy-review-normalized")'; then
+  check "R8a legacy schemaVersion 1 review receipt replays, normalizes, and persists safely" PASS
+else
+  check "R8a legacy review evidence becomes corrupt under the current reader" FAIL
+fi
+AFTER_REVIEW_PUBLISH="$(file_digest "$RUN_FILE")"
+mv "$REVIEW_PAYLOAD_SNAPSHOT" "$RECEIPT_BACKUP"
+if apply "evt_review_publish_001" "TEAM_REVIEW_PUBLISHED" \
+    "{\"operationKey\":\"$REVIEW_KEY\",\"marker\":\"$REVIEW_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}" \
+    && [ "$(file_digest "$RUN_FILE")" = "$AFTER_REVIEW_PUBLISH" ]; then
+  check "R9 exact publication replay stays byte-stable after the snapshot is unavailable" PASS
+else
+  check "R9 duplicate publication replay incorrectly re-attests an advanced stage" FAIL
+fi
+mv "$RECEIPT_BACKUP" "$REVIEW_PAYLOAD_SNAPSHOT"
+apply "evt_findings_clear_001" "FINDINGS_CLEARED" "{\"headSha\":\"$HEAD_SHA\",\"unresolvedCount\":0}" || true
+apply "evt_validate_001" "VALIDATION_PASSED" "{\"headSha\":\"$HEAD_SHA\"}" || true
+
+if autopilot_read_active "$PROJECT" "$OWNER" > "$ROOT/review-status.json" \
+  && json_ok "$ROOT/review-status.json" 'value.runId === "run_primary_001" && value.ownerSessionId === "session_owner_001" && value.stage === "DELIVER" && value.nextActionCode === "DELIVER_PR" && value.tdd.attempt === 1 && value.tdd.returnStage === "GATES" && value.effects.prOpen.status === "completed" && value.effects.teamReview.status === "completed" && value.effects.teamReview.operationKey.startsWith("team-review:v1:") && value.evidence.pr.headSha === "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" && value.evidence.review.marker.startsWith("<!-- zensu-review:v1:") && value.evidence.review.headSha === value.evidence.pr.headSha && value.evidence.review.payloadDigest === value.evidence.review.marker.split(":")[3] && value.evidence.review.partCount === 1 && value.evidence.review.provider === "github" && value.evidence.gates.passed === true && value.evidence.validation.passed === true'; then
+  check "T6 happy path reaches DELIVER with durable evidence" PASS
+else
+  check "T6 happy path reaches DELIVER with durable evidence" FAIL
+fi
+
+cp "$RUN_FILE" "$ROOT/pre-invariant.json"
+node -e 'const fs=require("fs"),p=process.argv[1],j=JSON.parse(fs.readFileSync(p));j.effects.teamReview={status:"none",operationKey:null};fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$RUN_FILE"
+BEFORE_INVARIANT="$(file_digest "$RUN_FILE")"
+if ! apply "evt_deliver_invalid" "DELIVERY_COMPLETE" "{\"headSha\":\"$HEAD_SHA\"}" 2>/dev/null \
+  && [ "$(file_digest "$RUN_FILE")" = "$BEFORE_INVARIANT" ]; then
+  check "T7 DONE is denied until every delivery invariant is present" PASS
+else
+  check "T7 DONE is denied until every delivery invariant is present" FAIL
+fi
+cp "$ROOT/pre-invariant.json" "$RUN_FILE"
+
+if apply "evt_deliver_001" "DELIVERY_COMPLETE" "{\"headSha\":\"$HEAD_SHA\"}" \
+  && json_ok "$RUN_FILE" 'value.stage === "DONE" && value.nextActionCode === "NONE" && value.stopBudget.stage === "DONE" && value.stopBudget.count === 0'; then
+  check "T8 delivery closes only as terminal DONE" PASS
+else
+  check "T8 delivery closes only as terminal DONE" FAIL
+fi
+
+# Exercise every fix-loop return target with one monotonically increasing TDD
+# attempt sequence. This catches accidental "continue to the next stage" logic.
+LOOP_RUN="run_return_stages_002"
+LOOP_OWNER="session_return_stages_002"
+LOOP_FILE="$PROJECT/.zensu/state/autopilot-run-${LOOP_RUN}.json"
+LOOP_OK=true
+loop_event() {
+  autopilot_apply_event "$LOOP_RUN" "$1" "$2" "$3" "$PROJECT" >/dev/null || LOOP_OK=false
+}
+loop_tdd() {
+  local attempt="$1" chain="loop-chain-$1"
+  loop_event "loop-tdd-start-$attempt" TDD_STARTED \
+    "{\"attempt\":$attempt,\"chainId\":\"$chain\",\"sessionId\":\"$LOOP_OWNER\"}"
+  loop_event "loop-tdd-done-$attempt" TDD_CHAIN_DONE \
+    "{\"attempt\":$attempt,\"chainId\":\"$chain\",\"sessionId\":\"$LOOP_OWNER\",\"outcome\":\"pass\"}"
+}
+
+autopilot_begin_run "$LOOP_RUN" "$LOOP_OWNER" "$PROJECT" true true >/dev/null || LOOP_OK=false
+loop_event loop-plan PLAN_APPROVED "{\"approvedPlanSha256\":\"$PLAN_SHA\"}"
+loop_tdd 1
+loop_event loop-gates-fail GATES_FAILED "{\"headSha\":\"$HEAD_SHA\",\"reason\":\"quality gate failed\"}"
+json_ok "$LOOP_FILE" 'value.stage === "AWAIT_TDD" && value.tdd.returnStage === "GATES"' || LOOP_OK=false
+loop_tdd 2
+loop_event loop-gates-pass GATES_PASSED "{\"headSha\":\"$HEAD_SHA\"}"
+loop_event loop-converge-fail CONVERGENCE_FAILED '{"reason":"convergence check failed","limitReached":false}'
+json_ok "$LOOP_FILE" 'value.stage === "AWAIT_TDD" && value.tdd.returnStage === "CONVERGE"' || LOOP_OK=false
+loop_tdd 3
+loop_event loop-converge-pass CONVERGENCE_PASSED '{}'
+loop_event loop-pr-request PR_OPEN_REQUESTED '{"operationKey":"pr:return-stages"}'
+loop_event loop-pr-open PR_OPENED "{\"operationKey\":\"pr:return-stages\",\"pr\":{\"number\":713,\"url\":\"https://github.com/acme/repo/pull/713\",\"headSha\":\"$HEAD_SHA\"}}"
+LOOP_REVIEW_KEY="$(review_operation_key "$LOOP_RUN" "$HEAD_SHA")"
+loop_event loop-review-request TEAM_REVIEW_REQUESTED "{\"operationKey\":\"$LOOP_REVIEW_KEY\",\"provider\":\"github\"}"
+LOOP_REVIEW_PAYLOAD="$ROOT/loop-review-payload.json"
+printf '%s\n' "{\"event\":\"COMMENT\",\"body\":\"Loop review\",\"commit_id\":\"$HEAD_SHA\",\"comments\":[]}" > "$LOOP_REVIEW_PAYLOAD"
+autopilot_store_team_review_payload "$LOOP_RUN" "$LOOP_REVIEW_KEY" "$HEAD_SHA" \
+  "$LOOP_REVIEW_PAYLOAD" github "$PROJECT" >/dev/null || LOOP_OK=false
+LOOP_REVIEW_META="$(_zensu_vcs_review_payload_meta github "$LOOP_REVIEW_PAYLOAD" "$HEAD_SHA" "$LOOP_REVIEW_KEY" 2>/dev/null || true)"
+LOOP_REVIEW_DIGEST="$(printf '%s' "$LOOP_REVIEW_META" | json_field_stdin payloadDigest 2>/dev/null || true)"
+LOOP_REVIEW_MARKER="$(review_marker "$LOOP_REVIEW_KEY" "$HEAD_SHA" "$LOOP_REVIEW_DIGEST" 1)"
+loop_event loop-review-published TEAM_REVIEW_PUBLISHED "{\"operationKey\":\"$LOOP_REVIEW_KEY\",\"marker\":\"$LOOP_REVIEW_MARKER\",\"headSha\":\"$HEAD_SHA\",\"provider\":\"github\"}"
+loop_event loop-fix-required FIX_REQUIRED "{\"headSha\":\"$HEAD_SHA\",\"unresolvedCount\":2}"
+json_ok "$LOOP_FILE" 'value.stage === "AWAIT_TDD" && value.tdd.returnStage === "FIX_FINDINGS"' || LOOP_OK=false
+loop_tdd 4
+
+BEFORE_REQUIRED_HEAD_UPDATE="$(file_digest "$LOOP_FILE")"
+if ! autopilot_apply_event "$LOOP_RUN" loop-stale-findings-clear FINDINGS_CLEARED \
+  "{\"headSha\":\"$HEAD_SHA\",\"unresolvedCount\":0}" "$PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$LOOP_FILE")" = "$BEFORE_REQUIRED_HEAD_UPDATE" ]; then
+  check "H1 a successful findings fix cannot reuse evidence from the pre-fix head" PASS
+else
+  check "H1 a successful findings fix cannot reuse evidence from the pre-fix head" FAIL
+  LOOP_OK=false
+fi
+
+INVALID_HEAD_UPDATES=true
+if autopilot_apply_event "$LOOP_RUN" loop-head-extra PR_HEAD_UPDATED \
+  "{\"previousHeadSha\":\"$HEAD_SHA\",\"headSha\":\"$HEAD_SHA_2\",\"gatesPassed\":true,\"pushCompleted\":true,\"extra\":true}" "$PROJECT" >/dev/null 2>&1; then
+  INVALID_HEAD_UPDATES=false
+fi
+if autopilot_apply_event "$LOOP_RUN" loop-head-unchanged PR_HEAD_UPDATED \
+  "{\"previousHeadSha\":\"$HEAD_SHA\",\"headSha\":\"$HEAD_SHA\",\"gatesPassed\":true,\"pushCompleted\":true}" "$PROJECT" >/dev/null 2>&1; then
+  INVALID_HEAD_UPDATES=false
+fi
+if autopilot_apply_event "$LOOP_RUN" loop-head-stale PR_HEAD_UPDATED \
+  "{\"previousHeadSha\":\"$HEAD_SHA_2\",\"headSha\":\"$HEAD_SHA_3\",\"gatesPassed\":true,\"pushCompleted\":true}" "$PROJECT" >/dev/null 2>&1; then
+  INVALID_HEAD_UPDATES=false
+fi
+if autopilot_apply_event "$LOOP_RUN" loop-head-no-gates PR_HEAD_UPDATED \
+  "{\"previousHeadSha\":\"$HEAD_SHA\",\"headSha\":\"$HEAD_SHA_2\",\"gatesPassed\":false,\"pushCompleted\":true}" "$PROJECT" >/dev/null 2>&1; then
+  INVALID_HEAD_UPDATES=false
+fi
+if autopilot_apply_event "$LOOP_RUN" loop-head-no-push PR_HEAD_UPDATED \
+  "{\"previousHeadSha\":\"$HEAD_SHA\",\"headSha\":\"$HEAD_SHA_2\",\"gatesPassed\":true,\"pushCompleted\":false}" "$PROJECT" >/dev/null 2>&1; then
+  INVALID_HEAD_UPDATES=false
+fi
+if [ "$INVALID_HEAD_UPDATES" = true ] \
+  && [ "$(file_digest "$LOOP_FILE")" = "$BEFORE_REQUIRED_HEAD_UPDATE" ]; then
+  check "H2 head updates reject unknown, unchanged, stale, ungated, and unpushed payloads" PASS
+else
+  check "H2 head updates reject unknown, unchanged, stale, ungated, and unpushed payloads" FAIL
+  LOOP_OK=false
+fi
+
+loop_event loop-head-findings PR_HEAD_UPDATED \
+  "{\"previousHeadSha\":\"$HEAD_SHA\",\"headSha\":\"$HEAD_SHA_2\",\"gatesPassed\":true,\"pushCompleted\":true}"
+if json_ok "$LOOP_FILE" 'value.stage === "FIX_FINDINGS" && value.tdd.headUpdateRequired === false && value.evidence.pr.headSha === "cccccccccccccccccccccccccccccccccccccccc" && value.evidence.gates.passed === true && value.evidence.gates.headSha === "cccccccccccccccccccccccccccccccccccccccc" && value.evidence.review.headSha === "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" && value.evidence.findings === null && value.evidence.validation === null && value.evidence.coverage === null && value.evidence.delivery === null'; then
+  check "H3 a findings fix advances the current PR head while preserving the once-only review" PASS
+else
+  check "H3 a findings fix advances the current PR head while preserving the once-only review" FAIL
+  LOOP_OK=false
+fi
+
+loop_event loop-findings-clear FINDINGS_CLEARED "{\"headSha\":\"$HEAD_SHA_2\",\"unresolvedCount\":0}"
+loop_event loop-validation-fail VALIDATION_FAILED "{\"headSha\":\"$HEAD_SHA_2\",\"reason\":\"acceptance criterion failed\"}"
+json_ok "$LOOP_FILE" 'value.stage === "AWAIT_TDD" && value.tdd.returnStage === "VALIDATE"' || LOOP_OK=false
+loop_tdd 5
+
+BEFORE_VALIDATION_HEAD_UPDATE="$(file_digest "$LOOP_FILE")"
+if ! autopilot_apply_event "$LOOP_RUN" loop-stale-validation-pass VALIDATION_PASSED \
+  "{\"headSha\":\"$HEAD_SHA_2\"}" "$PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$LOOP_FILE")" = "$BEFORE_VALIDATION_HEAD_UPDATE" ]; then
+  check "H4 a validation fix requires a pushed, gated head update before revalidation" PASS
+else
+  check "H4 a validation fix requires a pushed, gated head update before revalidation" FAIL
+  LOOP_OK=false
+fi
+
+loop_event loop-head-validation PR_HEAD_UPDATED \
+  "{\"previousHeadSha\":\"$HEAD_SHA_2\",\"headSha\":\"$HEAD_SHA_3\",\"gatesPassed\":true,\"pushCompleted\":true}"
+json_ok "$LOOP_FILE" 'value.stage === "FIX_FINDINGS" && value.evidence.pr.headSha === "dddddddddddddddddddddddddddddddddddddddd" && value.evidence.gates.headSha === "dddddddddddddddddddddddddddddddddddddddd" && value.evidence.findings === null && value.evidence.validation === null' || LOOP_OK=false
+loop_event loop-findings-clear-after-validation FINDINGS_CLEARED "{\"headSha\":\"$HEAD_SHA_3\",\"unresolvedCount\":0}"
+loop_event loop-validation-pass VALIDATION_PASSED "{\"headSha\":\"$HEAD_SHA_3\"}"
+loop_event loop-coverage-fail COVERAGE_FAILED "{\"headSha\":\"$HEAD_SHA_3\",\"reason\":\"coverage threshold failed\"}"
+json_ok "$LOOP_FILE" 'value.stage === "AWAIT_TDD" && value.tdd.returnStage === "COVER"' || LOOP_OK=false
+loop_tdd 6
+
+loop_event loop-head-coverage PR_HEAD_UPDATED \
+  "{\"previousHeadSha\":\"$HEAD_SHA_3\",\"headSha\":\"$HEAD_SHA_4\",\"gatesPassed\":true,\"pushCompleted\":true}"
+if json_ok "$LOOP_FILE" 'value.stage === "FIX_FINDINGS" && value.evidence.pr.headSha === "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" && value.evidence.gates.headSha === "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" && value.evidence.review.headSha === "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" && value.evidence.findings === null && value.evidence.validation === null && value.evidence.coverage === null && value.evidence.delivery === null'; then
+  check "H5 a coverage fix invalidates every final-head proof but the original review" PASS
+else
+  check "H5 a coverage fix invalidates every final-head proof but the original review" FAIL
+  LOOP_OK=false
+fi
+loop_event loop-findings-clear-final FINDINGS_CLEARED "{\"headSha\":\"$HEAD_SHA_4\",\"unresolvedCount\":0}"
+loop_event loop-validation-pass-final VALIDATION_PASSED "{\"headSha\":\"$HEAD_SHA_4\"}"
+loop_event loop-coverage-pass COVERAGE_PASSED "{\"headSha\":\"$HEAD_SHA_4\"}"
+if [ "$LOOP_OK" = true ] \
+  && json_ok "$LOOP_FILE" 'value.stage === "DELIVER" && value.tdd.attempt === 6 && value.tdd.returnStage === "COVER" && value.tdd.headUpdateRequired === false && value.options.cover === true && value.options.validate === true && value.evidence.pr.headSha === "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" && value.evidence.gates.headSha === value.evidence.pr.headSha && value.evidence.findings.headSha === value.evidence.pr.headSha && value.evidence.validation.headSha === value.evidence.pr.headSha && value.evidence.coverage.headSha === value.evidence.pr.headSha && value.evidence.review.headSha === "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"'; then
+  check "T9 every fix loop rebuilds final-head evidence after advancing the PR head" PASS
+else
+  check "T9 every fix loop rebuilds final-head evidence after advancing the PR head" FAIL
+fi
+
+cp "$LOOP_FILE" "$ROOT/pre-stale-final-evidence.json"
+node -e 'const fs=require("fs"),p=process.argv[1],j=JSON.parse(fs.readFileSync(p));j.evidence.validation.headSha=process.argv[2];fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");' "$LOOP_FILE" "$HEAD_SHA_3"
+BEFORE_STALE_DELIVERY="$(file_digest "$LOOP_FILE")"
+if ! autopilot_apply_event "$LOOP_RUN" loop-stale-delivery DELIVERY_COMPLETE \
+  "{\"headSha\":\"$HEAD_SHA_4\"}" "$PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$LOOP_FILE")" = "$BEFORE_STALE_DELIVERY" ]; then
+  check "H6 DONE rejects stale validation evidence from an earlier PR head" PASS
+else
+  check "H6 DONE rejects stale validation evidence from an earlier PR head" FAIL
+  LOOP_OK=false
+fi
+cp "$ROOT/pre-stale-final-evidence.json" "$LOOP_FILE"
+
+loop_event loop-delivery DELIVERY_COMPLETE "{\"headSha\":\"$HEAD_SHA_4\"}"
+if [ "$LOOP_OK" = true ] \
+  && json_ok "$LOOP_FILE" 'value.stage === "DONE" && value.evidence.delivery.headSha === "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" && value.evidence.review.headSha === "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"'; then
+  check "H7 delivery accepts the once-only review on its original head after final-head proofs pass" PASS
+else
+  check "H7 delivery accepts the once-only review on its original head after final-head proofs pass" FAIL
+fi
+
+RUN2="run_blocking_002"
+RUN2_FILE="$PROJECT/.zensu/state/autopilot-run-${RUN2}.json"
+if autopilot_begin_run "$RUN2" "session_owner_002" "$PROJECT" >/dev/null \
+  && autopilot_apply_event "$RUN2" "evt_block_002" "BLOCK" '{"code":"MANUAL_PAUSE"}' "$PROJECT" >/dev/null \
+  && json_ok "$RUN2_FILE" 'value.stage === "BLOCKED" && value.nextActionCode === "AWAIT_RESUME" && value.blocked.from === "PLANNING" && value.blocked.code === "MANUAL_PAUSE"' \
+  && autopilot_apply_event "$RUN2" "evt_resume_002" "RESUME" '{}' "$PROJECT" >/dev/null \
+  && json_ok "$RUN2_FILE" 'value.stage === "PLANNING" && value.blocked.from === null && value.blocked.code === null'; then
+  check "T10 BLOCK and RESUME preserve the exact suspended stage" PASS
+else
+  check "T10 BLOCK and RESUME preserve the exact suspended stage" FAIL
+fi
+
+FIRST_BUDGET="$(autopilot_increment_stop_budget "$RUN2" "PLANNING" "$PROJECT")"
+SECOND_BUDGET="$(autopilot_increment_stop_budget "$RUN2" "PLANNING" "$PROJECT")"
+if [ "$FIRST_BUDGET" = "1" ] && [ "$SECOND_BUDGET" = "2" ] \
+  && json_ok "$RUN2_FILE" 'value.stopBudget.stage === "PLANNING" && value.stopBudget.count === 2'; then
+  check "B5 stop budget increments atomically within its stage" PASS
+else
+  check "B5 stop budget increments atomically within its stage" FAIL
+fi
+
+CONCURRENT_OK=true
+PIDS=""
+CONCURRENT_WORKERS="1 2 3 4 5 6 7 8"
+EXPECTED_CONCURRENT_BUDGET=10
+EXPECTED_CONCURRENT_OUTPUTS="3 4 5 6 7 8 9 10"
+if [ "$IS_WINDOWS" = true ]; then
+  # The Core lease deliberately fails closed after a bounded wait. Two
+  # simultaneous Windows mutations prove serialization without requiring an
+  # unfair eight-contender queue to drain within that same fixed deadline.
+  CONCURRENT_WORKERS="1 2"
+  EXPECTED_CONCURRENT_BUDGET=4
+  EXPECTED_CONCURRENT_OUTPUTS="3 4"
+fi
+for worker in $CONCURRENT_WORKERS; do
+  (
+    autopilot_increment_stop_budget "$RUN2" "PLANNING" "$PROJECT" \
+      >"$ROOT/budget-worker-$worker.out" 2>"$ROOT/budget-worker-$worker.err"
+  ) &
+  PIDS="$PIDS $!"
+done
+for worker_pid in $PIDS; do
+  wait "$worker_pid" || CONCURRENT_OK=false
+done
+CONCURRENT_OUTPUTS="$(
+  for worker in $CONCURRENT_WORKERS; do
+    tr -d '[:space:]' < "$ROOT/budget-worker-$worker.out"
+    printf '\n'
+  done | sort -n | paste -sd ' ' -
+)"
+for worker in $CONCURRENT_WORKERS; do
+  [ ! -s "$ROOT/budget-worker-$worker.err" ] || CONCURRENT_OK=false
+done
+if [ "$CONCURRENT_OK" = true ] \
+  && [ "$CONCURRENT_OUTPUTS" = "$EXPECTED_CONCURRENT_OUTPUTS" ] \
+  && json_ok "$RUN2_FILE" "value.stopBudget.stage === \"PLANNING\" && value.stopBudget.count === $EXPECTED_CONCURRENT_BUDGET"; then
+  check "B6 the Core lease serializes concurrent state updates" PASS
+else
+  for worker in $CONCURRENT_WORKERS; do
+    [ ! -s "$ROOT/budget-worker-$worker.err" ] || sed 's/^/    worker stderr: /' "$ROOT/budget-worker-$worker.err" >&2
+  done
+  check "B6 the Core lease serializes concurrent state updates" FAIL
+fi
+
+BEFORE_WRONG_BUDGET="$(file_digest "$RUN2_FILE")"
+if ! autopilot_increment_stop_budget "$RUN2" "GATES" "$PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$RUN2_FILE")" = "$BEFORE_WRONG_BUDGET" ]; then
+  check "B7 stop budget rejects a stale expected stage" PASS
+else
+  check "B7 stop budget rejects a stale expected stage" FAIL
+fi
+
+if autopilot_apply_event "$RUN2" "evt_cancel_002" "CANCEL" '{}' "$PROJECT" >/dev/null \
+  && json_ok "$RUN2_FILE" 'value.stage === "CANCELLED" && value.nextActionCode === "NONE"'; then
+  check "T11 cancellation is terminal" PASS
+else
+  check "T11 cancellation is terminal" FAIL
+fi
+
+# Saturate the audit ledger without hundreds of shell/lock round trips. The
+# seeded BLOCK/RESUME pairs are individually schema-valid and leave the run in
+# AWAIT_TDD at the normal-event cutoff. Two slots must remain: BLOCK, then the
+# explicit CANCEL that retires an exhausted blocked generation.
+CAP_RUN="run_event_cap_003"
+CAP_OWNER="session_event_cap_003"
+CAP_FILE="$PROJECT/.zensu/state/autopilot-run-${CAP_RUN}.json"
+if autopilot_begin_run "$CAP_RUN" "$CAP_OWNER" "$PROJECT" >/dev/null \
+  && autopilot_apply_event "$CAP_RUN" cap_plan PLAN_APPROVED \
+    "{\"approvedPlanSha256\":\"$PLAN_SHA\"}" "$PROJECT" >/dev/null; then
+  FILE="$CAP_FILE" node -e '
+    const crypto=require("crypto"),fs=require("fs"),s=JSON.parse(fs.readFileSync(process.env.FILE,"utf8"));
+    const digest=p=>crypto.createHash("sha256").update(JSON.stringify(p)).digest("hex");
+    for(let i=0;i<254;i+=1){
+      const block={code:`cap_code_${i}`};
+      s.events.push({eventId:`cap_block_${i}`,eventType:"BLOCK",payloadDigest:digest(block),payload:block,fromStage:"AWAIT_TDD",toStage:"BLOCKED"});
+      const resume={};
+      s.events.push({eventId:`cap_resume_${i}`,eventType:"RESUME",payloadDigest:digest(resume),payload:resume,fromStage:"BLOCKED",toStage:"AWAIT_TDD"});
+    }
+    fs.writeFileSync(process.env.FILE,JSON.stringify(s,null,2)+"\n");
+  '
+fi
+CAP_BEFORE="$(file_digest "$CAP_FILE")"
+if ! autopilot_apply_event "$CAP_RUN" cap_normal BYPASS_RECORDED '{"gate":"cap_gate"}' "$PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$CAP_FILE")" = "$CAP_BEFORE" ] \
+  && autopilot_apply_event "$CAP_RUN" cap_final_block BLOCK '{"code":"EVENT_LEDGER_EXHAUSTED"}' "$PROJECT" >/dev/null \
+  && ! autopilot_apply_event "$CAP_RUN" cap_unsafe_resume RESUME '{}' "$PROJECT" >/dev/null 2>&1 \
+  && autopilot_apply_event "$CAP_RUN" cap_final_cancel CANCEL '{}' "$PROJECT" >/dev/null \
+  && json_ok "$CAP_FILE" 'value.events.length===512&&value.stage==="CANCELLED"&&value.nextActionCode==="NONE"'; then
+  check "B8 event cap preserves a fail-closed BLOCK plus terminal CANCEL path" PASS
+else
+  check "B8 event cap preserves a fail-closed BLOCK plus terminal CANCEL path" FAIL
+fi
+
+cp "$ACTIVE_FILE" "$ROOT/active-valid.json"
+node -e 'const fs=require("fs"),p=process.argv[1],j=JSON.parse(fs.readFileSync(p));j.unexpected=true;fs.writeFileSync(p,JSON.stringify(j));' "$ACTIVE_FILE"
+autopilot_read_active "$PROJECT" "$OWNER" >/dev/null 2>&1
+READ_CORRUPT_RC=$?
+cp "$ROOT/active-valid.json" "$ACTIVE_FILE"
+if [ "$READ_CORRUPT_RC" -eq 2 ]; then
+  check "S3 strict active-pointer schema reports corruption distinctly" PASS
+else
+  check "S3 strict active-pointer schema reports corruption distinctly (rc=$READ_CORRUPT_RC)" FAIL
+fi
+
+# A ledger is not valid merely because adjacent from/to labels line up. Forge a
+# formally well-shaped PLAN_APPROVED event that jumps directly from PLANNING to
+# TEAM_REVIEW while leaving the plan evidence unset. Both the direct reader and
+# the public status command must classify that semantic history as corruption.
+SEMANTIC_PROJECT="$ROOT/semantic-history-project"
+mkdir -p "$SEMANTIC_PROJECT"
+SEMANTIC_RUN="run_semantic_history_003"
+SEMANTIC_OWNER_RAW="session_semantic_history_003"
+# The run must be owned by the KEY the status command resolves for this raw id:
+# `read-active` skips a record it can prove belongs to another owner before
+# validating it, so a raw-string owner would make the corrupt record invisible
+# and the status call would report absence instead of corruption.
+SEMANTIC_OWNER="$(node "$PLUGIN_DIR/hooks/lib/session-control-core-v1.js" session-key "$SEMANTIC_OWNER_RAW")"
+autopilot_begin_run "$SEMANTIC_RUN" "$SEMANTIC_OWNER" "$SEMANTIC_PROJECT" >/dev/null
+SEMANTIC_FILE="$(autopilot_run_file "$SEMANTIC_RUN" "$SEMANTIC_PROJECT")"
+FILE="$SEMANTIC_FILE" PLAN_SHA="$PLAN_SHA" node -e '
+  const crypto=require("crypto"),fs=require("fs"),p=process.env.FILE;
+  const s=JSON.parse(fs.readFileSync(p,"utf8"));
+  const payload={approvedPlanSha256:process.env.PLAN_SHA};
+  const canonical=value => Array.isArray(value)
+    ? `[${value.map(canonical).join(",")}]`
+    : value && typeof value === "object"
+      ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`
+      : JSON.stringify(value);
+  s.stage="TEAM_REVIEW";
+  s.nextActionCode="RECONCILE_TEAM_REVIEW";
+  s.stopBudget={stage:"TEAM_REVIEW",count:0};
+  s.events.push({
+    eventId:"forged_plan_jump",
+    eventType:"PLAN_APPROVED",
+    payloadDigest:crypto.createHash("sha256").update(canonical(payload)).digest("hex"),
+    payload,
+    fromStage:"PLANNING",
+    toStage:"TEAM_REVIEW",
+  });
+  fs.writeFileSync(p,JSON.stringify(s,null,2)+"\n");
+'
+autopilot_read_run "$SEMANTIC_RUN" "$SEMANTIC_PROJECT" >/dev/null 2>&1
+SEMANTIC_READ_RC=$?
+# Prove that the public command reaches the semantic validator through a real
+# native model binding. A binder failure has a distinct synthetic status, so an
+# exit 2 below can only be the intentionally corrupt event history.
+(
+  export CLAUDE_PROJECT_DIR="$SEMANTIC_PROJECT"
+  export ZENSU_TEST_PLUGIN_DATA="$ROOT/semantic-plugin-data"
+  # shellcheck disable=SC1090
+  source "$BASELINE" "$SEMANTIC_OWNER_RAW" || exit 90
+  MODEL_KEY="$(bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --session-key 2>/dev/null)" || exit 91
+  [ "$MODEL_KEY" = "$ZENSU_SESSION_KEY" ] || exit 92
+  bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --autopilot-status >/dev/null 2>&1
+)
+SEMANTIC_STATUS_RC=$?
+if [ "$SEMANTIC_READ_RC" -eq 2 ] && [ "$SEMANTIC_STATUS_RC" -eq 2 ]; then
+  check "S3b impossible event-history jumps fail closed on read and status" PASS
+else
+  check "S3b semantic history corruption is rejected (read=$SEMANTIC_READ_RC status=$SEMANTIC_STATUS_RC)" FAIL
+fi
+
+MISSING_PROJECT="$ROOT/missing-project"
+mkdir -p "$MISSING_PROJECT"
+autopilot_read_active "$MISSING_PROJECT" session_missing_003 >/dev/null 2>&1
+READ_MISSING_RC=$?
+if [ "$READ_MISSING_RC" -eq 1 ]; then
+  check "S4 read_active distinguishes an absent run from corruption" PASS
+else
+  check "S4 read_active distinguishes an absent run from corruption (rc=$READ_MISSING_RC)" FAIL
+fi
+
+DANGLING_PROJECT="$ROOT/dangling-project"
+mkdir -p "$DANGLING_PROJECT"
+autopilot_begin_run run_dangling_003 session_dangling_003 "$DANGLING_PROJECT" >/dev/null
+rm -f "$(autopilot_run_file run_dangling_003 "$DANGLING_PROJECT")"
+autopilot_read_active "$DANGLING_PROJECT" session_dangling_003 >/dev/null 2>&1
+DANGLING_RC=$?
+if [ "$DANGLING_RC" -eq 2 ]; then
+  check "S4b a valid pointer with a missing run file is corrupt, never absent" PASS
+else
+  check "S4b dangling active pointer is corrupt (rc=$DANGLING_RC)" FAIL
+fi
+
+# begin publishes the run file before its pointer while holding the project-wide
+# lock. A concurrent reader must wait for the second rename, not classify that
+# healthy in-flight publication as a durable orphan.
+publish_begin_window() {
+  local root="$1" run_id="$2" owner="$3" ready="$4" release="$5"
+  local state_dir="$root/.zensu/state"
+  local run_file="$state_dir/autopilot-run-${run_id}.json"
+  local active_file legacy_file
+  active_file="$(_autopilot_active_path "$state_dir" "$owner")" || return 1
+  legacy_file="$(_autopilot_legacy_active_path "$state_dir")" || return 1
+  local run_tmp active_tmp workspace
+  workspace="$(autopilot_workspace_root "$root")" || return 1
+  run_tmp="$(mktemp "${run_file}.XXXXXX" 2>/dev/null)" || return 1
+  active_tmp="$(mktemp "${active_file}.XXXXXX" 2>/dev/null)" || { rm -f "$run_tmp"; return 1; }
+  _autopilot_node begin "$active_file" "$run_file" "$run_tmp" "$active_tmp" \
+    "$run_id" "$owner" "$root" false true "$workspace" "$legacy_file" \
+    || { rm -f "$run_tmp" "$active_tmp"; return 1; }
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp" "$active_tmp"; return 1; }
+  printf '%s\n' ready > "$ready"
+  while [ ! -f "$release" ]; do sleep 0.01; done
+  _tdd_atomic_replace_regular "$active_tmp" "$active_file" || { rm -f "$active_tmp"; return 1; }
+}
+
+WINDOW_PROJECT="$ROOT/begin-window-project"
+WINDOW_RUN=run_begin_window_003
+WINDOW_OWNER=session_begin_window_003
+WINDOW_READY="$ROOT/begin-window.ready"
+WINDOW_RELEASE="$ROOT/begin-window.release"
+WINDOW_READ="$ROOT/begin-window-read.json"
+mkdir -p "$WINDOW_PROJECT"
+WINDOW_PROJECT="$(cd "$WINDOW_PROJECT" && pwd -P)"
+_autopilot_prepare_storage "$WINDOW_PROJECT" || exit 1
+(
+  _autopilot_locked_run "$WINDOW_PROJECT" "$WINDOW_RUN" publish_begin_window \
+    "$WINDOW_PROJECT" "$WINDOW_RUN" "$WINDOW_OWNER" "$WINDOW_READY" "$WINDOW_RELEASE"
+) &
+WINDOW_PUBLISH_PID=$!
+WINDOW_TRIES=0
+while [ ! -f "$WINDOW_READY" ] && kill -0 "$WINDOW_PUBLISH_PID" 2>/dev/null \
+    && [ "$WINDOW_TRIES" -lt 200 ]; do
+  WINDOW_TRIES=$((WINDOW_TRIES + 1))
+  sleep 0.01
+done
+WINDOW_OK=true
+if [ ! -f "$WINDOW_READY" ]; then
+  WINDOW_OK=false
+else
+  autopilot_read_active "$WINDOW_PROJECT" "$WINDOW_OWNER" > "$WINDOW_READ" 2>/dev/null &
+  WINDOW_READ_PID=$!
+  sleep 0.1
+  kill -0 "$WINDOW_READ_PID" 2>/dev/null || WINDOW_OK=false
+  printf '%s\n' release > "$WINDOW_RELEASE"
+  wait "$WINDOW_PUBLISH_PID" || WINDOW_OK=false
+  wait "$WINDOW_READ_PID" || WINDOW_OK=false
+  json_ok "$WINDOW_READ" \
+    'value.runId === "run_begin_window_003" && value.stage === "PLANNING"' || WINDOW_OK=false
+fi
+if [ "$WINDOW_OK" = true ]; then
+  check "S4c read_active waits across the healthy two-rename begin window" PASS
+else
+  printf '%s\n' release > "$WINDOW_RELEASE"
+  wait "$WINDOW_PUBLISH_PID" 2>/dev/null || true
+  check "S4c read_active waits across the healthy two-rename begin window" FAIL
+fi
+
+BEGIN_ORPHAN_PROJECT="$ROOT/begin-orphan-project"
+BEGIN_ORPHAN_RUN=run_begin_orphan_003
+BEGIN_ORPHAN_OWNER=session_begin_orphan_003
+mkdir -p "$BEGIN_ORPHAN_PROJECT"
+autopilot_begin_run "$BEGIN_ORPHAN_RUN" "$BEGIN_ORPHAN_OWNER" "$BEGIN_ORPHAN_PROJECT" >/dev/null
+BEGIN_ORPHAN_FILE="$(autopilot_run_file "$BEGIN_ORPHAN_RUN" "$BEGIN_ORPHAN_PROJECT")"
+rm -f "$(autopilot_active_file "$BEGIN_ORPHAN_PROJECT" "$BEGIN_ORPHAN_OWNER")"
+BEGIN_ORPHAN_BEFORE="$(file_digest "$BEGIN_ORPHAN_FILE")"
+# Same owner on purpose: only an owned nonterminal orphan reaches the
+# orphan-recovery decision. A different owner would be refused by the workspace
+# holder check instead, and this case would then pass with that branch deleted.
+if ! autopilot_begin_run run_competing_orphan_003 "$BEGIN_ORPHAN_OWNER" \
+    "$BEGIN_ORPHAN_PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$BEGIN_ORPHAN_FILE")" = "$BEGIN_ORPHAN_BEFORE" ] \
+  && [ ! -e "$(autopilot_active_file "$BEGIN_ORPHAN_PROJECT" "$BEGIN_ORPHAN_OWNER")" ] \
+  && [ ! -e "$BEGIN_ORPHAN_PROJECT/.zensu/state/autopilot-run-run_competing_orphan_003.json" ]; then
+  check "S4d a different begin cannot hide a pointerless nonterminal orphan" PASS
+else
+  check "S4d competing begin rejects without durable mutation" FAIL
+fi
+
+BEGIN_RETRY_REJECTS=true
+autopilot_begin_run "$BEGIN_ORPHAN_RUN" session_wrong_orphan_003 \
+  "$BEGIN_ORPHAN_PROJECT" >/dev/null 2>&1 && BEGIN_RETRY_REJECTS=false
+autopilot_begin_run "$BEGIN_ORPHAN_RUN" "$BEGIN_ORPHAN_OWNER" \
+  "$BEGIN_ORPHAN_PROJECT" true true >/dev/null 2>&1 && BEGIN_RETRY_REJECTS=false
+if [ "$BEGIN_RETRY_REJECTS" = true ] \
+  && [ "$(file_digest "$BEGIN_ORPHAN_FILE")" = "$BEGIN_ORPHAN_BEFORE" ] \
+  && [ ! -e "$(autopilot_active_file "$BEGIN_ORPHAN_PROJECT" "$BEGIN_ORPHAN_OWNER")" ] \
+  && autopilot_begin_run "$BEGIN_ORPHAN_RUN" "$BEGIN_ORPHAN_OWNER" \
+    "$BEGIN_ORPHAN_PROJECT" >/dev/null \
+  && [ "$(file_digest "$BEGIN_ORPHAN_FILE")" = "$BEGIN_ORPHAN_BEFORE" ] \
+  && autopilot_read_active "$BEGIN_ORPHAN_PROJECT" "$BEGIN_ORPHAN_OWNER" > "$ROOT/begin-orphan-healed.json" \
+  && json_ok "$ROOT/begin-orphan-healed.json" \
+    'value.runId === "run_begin_orphan_003" && value.stage === "PLANNING"'; then
+  check "S4e only an identity- and option-exact retry heals a pointerless orphan" PASS
+else
+  check "S4e exact orphan retry reconstructs the pointer byte-stably" FAIL
+fi
+
+HIDDEN_BEGIN_PROJECT="$ROOT/hidden-begin-project"
+HIDDEN_OLD_RUN=run_hidden_old_terminal_003
+HIDDEN_NEW_RUN=run_hidden_orphan_003
+mkdir -p "$HIDDEN_BEGIN_PROJECT"
+autopilot_begin_run "$HIDDEN_OLD_RUN" session_hidden_003 "$HIDDEN_BEGIN_PROJECT" >/dev/null
+autopilot_apply_event "$HIDDEN_OLD_RUN" cancel-hidden-old CANCEL '{}' \
+  "$HIDDEN_BEGIN_PROJECT" >/dev/null
+HIDDEN_OLD_POINTER="$ROOT/hidden-old-pointer.json"
+cp "$(autopilot_active_file "$HIDDEN_BEGIN_PROJECT" session_hidden_003)" "$HIDDEN_OLD_POINTER"
+autopilot_begin_run "$HIDDEN_NEW_RUN" session_hidden_003 "$HIDDEN_BEGIN_PROJECT" >/dev/null
+HIDDEN_NEW_FILE="$(autopilot_run_file "$HIDDEN_NEW_RUN" "$HIDDEN_BEGIN_PROJECT")"
+cp "$HIDDEN_OLD_POINTER" "$(autopilot_active_file "$HIDDEN_BEGIN_PROJECT" session_hidden_003)"
+HIDDEN_POINTER_BEFORE="$(file_digest "$(autopilot_active_file "$HIDDEN_BEGIN_PROJECT" session_hidden_003)")"
+HIDDEN_RUN_BEFORE="$(file_digest "$HIDDEN_NEW_FILE")"
+if ! autopilot_begin_run run_hidden_competing_003 session_hidden_competing_003 \
+    "$HIDDEN_BEGIN_PROJECT" >/dev/null 2>&1 \
+  && [ "$(file_digest "$(autopilot_active_file "$HIDDEN_BEGIN_PROJECT" session_hidden_003)")" = "$HIDDEN_POINTER_BEFORE" ] \
+  && [ "$(file_digest "$HIDDEN_NEW_FILE")" = "$HIDDEN_RUN_BEFORE" ] \
+  && [ ! -e "$HIDDEN_BEGIN_PROJECT/.zensu/state/autopilot-run-run_hidden_competing_003.json" ] \
+  && autopilot_begin_run "$HIDDEN_NEW_RUN" session_hidden_003 \
+    "$HIDDEN_BEGIN_PROJECT" >/dev/null \
+  && [ "$(file_digest "$HIDDEN_NEW_FILE")" = "$HIDDEN_RUN_BEFORE" ] \
+  && autopilot_read_active "$HIDDEN_BEGIN_PROJECT" session_hidden_003 > "$ROOT/hidden-begin-healed.json" \
+  && json_ok "$ROOT/hidden-begin-healed.json" \
+    'value.runId === "run_hidden_orphan_003" && value.stage === "PLANNING"'; then
+  check "S4f exact retry heals an orphan hidden behind terminal history" PASS
+else
+  check "S4f terminal history cannot conceal or replace its nonterminal orphan" FAIL
+fi
+
+VICTIM="$ROOT/victim"
+LINK_PROJECT="$ROOT/link-project"
+mkdir -p "$VICTIM" "$LINK_PROJECT"
+if make_directory_symlink "$VICTIM" "$LINK_PROJECT/.zensu" \
+  && ! autopilot_begin_run "run_symlink_003" "session_owner_003" "$LINK_PROJECT" >/dev/null 2>&1 \
+  && [ -z "$(find "$VICTIM" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+  check "S5 symlinked project-state ancestors cannot escape the project" PASS
+else
+  check "S5 symlinked project-state ancestors cannot escape the project" FAIL
+fi
+
+ACTIVE_HARDLINK="$ROOT/active-hardlink.json"
+ln "$ACTIVE_FILE" "$ACTIVE_HARDLINK"
+autopilot_read_active "$PROJECT" "$OWNER" >/dev/null 2>&1
+READ_HARDLINK_RC=$?
+rm -f "$ACTIVE_HARDLINK"
+if [ "$READ_HARDLINK_RC" -eq 2 ]; then
+  check "S6 hard-linked state leaves are rejected" PASS
+else
+  check "S6 hard-linked state leaves are rejected (rc=$READ_HARDLINK_RC)" FAIL
+fi
+
+if ! autopilot_begin_run '../escape' 'session_owner_004' "$PROJECT" >/dev/null 2>&1 \
+  && [ ! -e "$PROJECT/.zensu/escape.json" ]; then
+  check "S7 traversal-shaped run identifiers are rejected" PASS
+else
+  check "S7 traversal-shaped run identifiers are rejected" FAIL
+fi
+
+COPIED_PROJECT="$ROOT/copied-project"
+mkdir -p "$COPIED_PROJECT"
+cp -R "$PROJECT/.zensu" "$COPIED_PROJECT/.zensu"
+autopilot_read_active "$COPIED_PROJECT" "$OWNER" >/dev/null 2>&1
+COPIED_ACTIVE_RC=$?
+autopilot_read_run "$RUN2" "$COPIED_PROJECT" >/dev/null 2>&1
+COPIED_RUN_RC=$?
+if [ "$COPIED_ACTIVE_RC" -eq 2 ] && [ "$COPIED_RUN_RC" -eq 2 ]; then
+  check "S8 copied state cannot be replayed from a different physical project root" PASS
+else
+  check "S8 copied state cannot be replayed from a different physical project root (active=$COPIED_ACTIVE_RC run=$COPIED_RUN_RC)" FAIL
+fi
+
+INVALID_ARTIFACT_PROJECT="$ROOT/invalid-run-artifact"
+mkdir -p "$INVALID_ARTIFACT_PROJECT/.zensu/state"
+printf '%s\n' '{}' > "$INVALID_ARTIFACT_PROJECT/.zensu/state/autopilot-run-xx.json"
+autopilot_read_active "$INVALID_ARTIFACT_PROJECT" session_invalid_003 >/dev/null 2>&1
+INVALID_ARTIFACT_RC=$?
+if [ "$INVALID_ARTIFACT_RC" -eq 2 ]; then
+  check "S9 exact run-file envelope with an invalid id is corrupt inventory" PASS
+else
+  check "S9 invalid-id run artifact cannot be ignored as absent (rc=$INVALID_ARTIFACT_RC)" FAIL
+fi
+
+# --- Concurrency: one project root, two working trees ---
+# The exclusion is per working tree, not per project, so two sessions driving
+# different trees may hold live runs at the same time.
+CONC_PROJECT="$ROOT/concurrent-project"
+mkdir -p "$CONC_PROJECT/tree-a" "$CONC_PROJECT/tree-b"
+CONC_A="$(cd "$CONC_PROJECT/tree-a" && pwd -P)"
+CONC_ALIAS="$ROOT/concurrent-alias"
+CONC_ALIASED=false
+make_directory_symlink "$CONC_PROJECT" "$CONC_ALIAS" && CONC_ALIASED=true
+CONC_B="$CONC_ALIAS/tree-b"
+CONC_OK=true
+autopilot_begin_run run_conc_a session_conc_a "$CONC_PROJECT" false true "$CONC_A" >/dev/null \
+  || CONC_OK=false
+autopilot_begin_run run_conc_b session_conc_b "$CONC_PROJECT" false true "$CONC_B" >/dev/null \
+  || CONC_OK=false
+autopilot_read_active "$CONC_PROJECT" session_conc_a > "$ROOT/conc-a.json" || CONC_OK=false
+autopilot_read_active "$CONC_PROJECT" session_conc_b > "$ROOT/conc-b.json" || CONC_OK=false
+json_ok "$ROOT/conc-a.json" 'value.runId === "run_conc_a" && value.stage === "PLANNING"' || CONC_OK=false
+json_ok "$ROOT/conc-b.json" 'value.runId === "run_conc_b" && value.stage === "PLANNING"' || CONC_OK=false
+[ "$(autopilot_active_file "$CONC_PROJECT" session_conc_a)" \
+  != "$(autopilot_active_file "$CONC_PROJECT" session_conc_b)" ] || CONC_OK=false
+if [ "$CONC_OK" = true ]; then
+  check "W1 two sessions hold concurrent runs in one project with distinct working trees" PASS
+else
+  check "W1 concurrent runs in distinct working trees" FAIL
+fi
+
+# Each owner sees only its own run: the sibling is neither an orphan nor a
+# hidden run from the other session's position.
+CONC_B_NATIVE="$(native_directory "$CONC_B")" || CONC_B_NATIVE=""
+CONC_B_JSON="$(node -e 'process.stdout.write(JSON.stringify(process.argv[1]))' "$CONC_B_NATIVE")"
+# A third owner holds no run at all, so its read must report absence (rc=1)
+# rather than seeing either sibling — that is the invisibility this label names.
+autopilot_read_active "$CONC_PROJECT" session_conc_observer >/dev/null 2>&1
+CONC_OBSERVER_RC=$?
+if [ "$CONC_ALIASED" = true ] \
+  && [ -n "$CONC_B_NATIVE" ] \
+  && [ "$CONC_B" != "$CONC_B_NATIVE" ] \
+  && json_ok "$ROOT/conc-a.json" 'value.ownerSessionId === "session_conc_a"' \
+  && json_ok "$ROOT/conc-b.json" 'value.ownerSessionId === "session_conc_b"' \
+  && [ "$CONC_OBSERVER_RC" -eq 1 ] \
+  && json_ok "$(autopilot_run_file run_conc_b "$CONC_PROJECT")" \
+    "value.workspaceRoot === $CONC_B_JSON"; then
+  check "W2 the run records its working tree and stays invisible to the sibling owner" PASS
+else
+  check "W2 workspace recorded and sibling run invisible" FAIL
+fi
+
+CONC_SPELLING_OK=true
+if [ "$CONC_ALIASED" = true ] && [ -n "$CONC_B_NATIVE" ] && [ "$CONC_B" != "$CONC_B_NATIVE" ]; then
+  CONC_HOLDER_BEFORE="$(file_digest "$(autopilot_run_file run_conc_b "$CONC_PROJECT")" 2>/dev/null || true)"
+  CONC_POINTER_BEFORE="$(file_digest "$(autopilot_active_file "$CONC_PROJECT" session_conc_b)" 2>/dev/null || true)"
+  { [ -n "$CONC_HOLDER_BEFORE" ] && [ -n "$CONC_POINTER_BEFORE" ]; } || CONC_SPELLING_OK=false
+  CONC_SPELLING="$(autopilot_begin_run run_conc_e session_conc_e "$CONC_PROJECT" false true "$CONC_B" 2>&1)" \
+    && CONC_SPELLING_OK=false
+  printf '%s' "$CONC_SPELLING" | grep -qF 'workspace held by nonterminal run run_conc_b' || CONC_SPELLING_OK=false
+  [ ! -e "$CONC_PROJECT/.zensu/state/autopilot-run-run_conc_e.json" ] || CONC_SPELLING_OK=false
+  [ "$(file_digest "$(autopilot_run_file run_conc_b "$CONC_PROJECT")" 2>/dev/null || true)" = "$CONC_HOLDER_BEFORE" ] \
+    || CONC_SPELLING_OK=false
+  [ "$(file_digest "$(autopilot_active_file "$CONC_PROJECT" session_conc_b)" 2>/dev/null || true)" = "$CONC_POINTER_BEFORE" ] \
+    || CONC_SPELLING_OK=false
+else
+  CONC_SPELLING_OK=false
+fi
+if [ "$CONC_SPELLING_OK" = true ]; then
+  check "W2b a held working tree is refused when addressed by a spelling other than the recorded one" PASS
+else
+  check "W2b other-spelling begin refused with the holder record unchanged" FAIL
+fi
+
+CONC_REFUSAL_OK=true
+CONC_REFUSAL="$(autopilot_begin_run run_conc_c session_conc_c "$CONC_PROJECT" false true "$CONC_A" 2>&1)" \
+  && CONC_REFUSAL_OK=false
+printf '%s' "$CONC_REFUSAL" | grep -qF 'workspace held by nonterminal run run_conc_a' || CONC_REFUSAL_OK=false
+printf '%s' "$CONC_REFUSAL" | grep -qF -- '/zensu:autopilot-release' || CONC_REFUSAL_OK=false
+printf '%s' "$CONC_REFUSAL" | grep -qF -- '--confirm' && CONC_REFUSAL_OK=false
+[ ! -e "$CONC_PROJECT/.zensu/state/autopilot-run-run_conc_c.json" ] || CONC_REFUSAL_OK=false
+if [ "$CONC_REFUSAL_OK" = true ]; then
+  check "W3 a third session is refused the held working tree and told how to release it" PASS
+else
+  check "W3 same-workspace begin refused with the release command" FAIL
+fi
+
+# W3a -- the `begin` worker must apply the SAME shape tests the shell renderer
+# applies before interpolating a holder into its refusal. The renderer refuses a
+# runId carrying a newline and a stage outside the closed set; its twin in the
+# worker had neither, and S7m compares only the EMITTED TEXT, so it is
+# structurally blind to a guard present on one side and missing on the other.
+#
+# SOURCE PIN, and the reason is a real limit rather than a shortcut: the holder
+# comes from `readRunInventory`, which validates every record with the very
+# predicates this guard uses, so no record that reaches the branch can fail it.
+# A behavioural fixture would have to plant a record `stateValid` accepts and
+# `identifier`/`STAGES` reject, and no such record exists. Pinning the guard is
+# the only available control, and it is the same trade the renderer's own
+# unreachable backstop is pinned under.
+W3A_BRANCH="$(awk '/const workspaceHolder = inventory.find/{f=1} f{print} f&&/\/zensu:autopilot-release`\);/{exit}' "$LIB")"
+W3A_OK=1
+printf '%s' "$W3A_BRANCH" | grep -qF 'identifier(workspaceHolder.runId)' || W3A_OK=0
+printf '%s' "$W3A_BRANCH" | grep -qF 'STAGES.has(workspaceHolder.stage)' || W3A_OK=0
+# The guard must sit BEFORE the interpolating fail, not after it.
+W3A_GUARD_AT="$(printf '%s' "$W3A_BRANCH" | grep -n 'identifier(workspaceHolder.runId)' | head -1 | cut -d: -f1)"
+W3A_EMIT_AT="$(printf '%s' "$W3A_BRANCH" | grep -n 'workspace held by nonterminal run ${workspaceHolder.runId}' | head -1 | cut -d: -f1)"
+[ -n "$W3A_GUARD_AT" ] && [ -n "$W3A_EMIT_AT" ] && [ "$W3A_GUARD_AT" -lt "$W3A_EMIT_AT" ] || W3A_OK=0
+# Control: the slice really contains the emitting line, so a needle that stops
+# matching cannot be mistaken for a guard that moved.
+[ -n "$W3A_EMIT_AT" ] || W3A_OK=0
+if [ "$W3A_OK" -eq 1 ]; then
+  check "W3a the begin worker shape-tests the holder before interpolating it, using its own identifier and STAGES vocabulary" PASS
+else
+  check "W3a begin worker must shape-test the holder before rendering it (guard=$W3A_GUARD_AT emit=$W3A_EMIT_AT)" FAIL
+fi
+
+# --- Release: the one path that ends a run the caller does not own ---
+# W4 used to fold four independent properties into one boolean and asserted
+# only zero/non-zero, so any of them could regress into a different refusal
+# with the check still green. Each property now carries its own exit code.
+autopilot_release_run run_conc_b release_owner_evt "$CONC_PROJECT" session_conc_b >/dev/null 2>&1
+RELEASE_OWNER_RC=$?
+if [ "$RELEASE_OWNER_RC" -eq 4 ]; then
+  check "W4a the owner is refused while its own pointer still designates the run" PASS
+else
+  check "W4a owner release must be refused as 4 (rc=$RELEASE_OWNER_RC)" FAIL
+fi
+
+autopilot_release_run run_conc_a release_evt_001 "$CONC_PROJECT" session_conc_c >/dev/null 2>&1
+RELEASE_FOREIGN_RC=$?
+RELEASE_CANCELLED=true
+json_ok "$(autopilot_run_file run_conc_a "$CONC_PROJECT")" \
+  'value.stage === "CANCELLED" && value.events[value.events.length - 1].eventId === "release_evt_001"' \
+  || RELEASE_CANCELLED=false
+if [ "$RELEASE_FOREIGN_RC" -eq 0 ] && [ "$RELEASE_CANCELLED" = true ]; then
+  check "W4b release cancels a foreign nonterminal run and records the event" PASS
+else
+  check "W4b foreign release must cancel the run (rc=$RELEASE_FOREIGN_RC cancelled=$RELEASE_CANCELLED)" FAIL
+fi
+
+# AC-006's two record-side halves: the release adds no state field and records
+# no bypass. The CLI-minted `release-` id shape is pinned in
+# tests/structure/test-autopilot-release-cli.sh A3, which is the only place the
+# verb actually runs.
+RELEASE_SHAPE=true
+json_ok "$(autopilot_run_file run_conc_a "$CONC_PROJECT")" \
+  'Array.isArray(value.bypasses) && value.bypasses.length === 0' || RELEASE_SHAPE=false
+json_ok "$(autopilot_run_file run_conc_a "$CONC_PROJECT")" \
+  'Object.keys(value).sort().join(",") === ["schemaVersion","runId","projectRoot","workspaceRoot","ownerSessionId","stage","nextActionCode","approvedPlanSha256","options","tdd","effects","evidence","blocked","bypasses","stopBudget","events"].sort().join(",")' \
+  || RELEASE_SHAPE=false
+if [ "$RELEASE_SHAPE" = true ]; then
+  check "W4c the release adds no state field and records no bypass" PASS
+else
+  check "W4c release must not change the record shape" FAIL
+fi
+
+RELEASE_AFTER="$(file_digest "$(autopilot_run_file run_conc_a "$CONC_PROJECT")")"
+autopilot_release_run run_conc_a release_evt_001 "$CONC_PROJECT" session_conc_c >/dev/null 2>&1
+RELEASE_REPEAT_RC=$?
+RELEASE_REPEAT_DIGEST="$(file_digest "$(autopilot_run_file run_conc_a "$CONC_PROJECT")")"
+if [ "$RELEASE_REPEAT_RC" -eq 0 ] && [ "$RELEASE_REPEAT_DIGEST" = "$RELEASE_AFTER" ]; then
+  check "W4d replaying the same release event id is a byte-identical no-op" PASS
+else
+  check "W4d release replay must be a no-op (rc=$RELEASE_REPEAT_RC digest-changed=$([ "$RELEASE_REPEAT_DIGEST" = "$RELEASE_AFTER" ] && echo no || echo yes))" FAIL
+fi
+
+autopilot_release_run run_conc_a release_evt_002 "$CONC_PROJECT" session_conc_c >/dev/null 2>&1
+RELEASE_TERMINAL_RC=$?
+if [ "$RELEASE_TERMINAL_RC" -eq 3 ]; then
+  check "W4e a terminal run is refused as terminal, not as a write failure" PASS
+else
+  check "W4e terminal release must be refused as 3 (rc=$RELEASE_TERMINAL_RC)" FAIL
+fi
+
+# The guard order matters and only the owner can show it: session_conc_a owns
+# this run, so an ownership check running first would answer 4. It answers 3,
+# which proves the terminal check precedes it — otherwise a caller could learn
+# ownership of a run from a refusal about a run that is already over.
+autopilot_release_run run_conc_a release_evt_003 "$CONC_PROJECT" session_conc_a >/dev/null 2>&1
+RELEASE_OWNER_TERMINAL_RC=$?
+if [ "$RELEASE_OWNER_TERMINAL_RC" -eq 3 ]; then
+  check "W4f the owner of a terminal run is refused by the FSM, not by the ownership guard" PASS
+else
+  check "W4f owner-on-terminal must be refused as 3, not 4 (rc=$RELEASE_OWNER_TERMINAL_RC)" FAIL
+fi
+
+# The `release-` namespace was reserved only in the CLI arm, so any library
+# caller could mint one and make an ordinary CANCEL indistinguishable from an
+# audited release in the ledger. The reservation belongs at the writer. The
+# positive control is required: without it a writer that refused EVERY event
+# would satisfy the negative half.
+autopilot_apply_event run_conc_b release-forged CANCEL '{}' "$CONC_PROJECT" session_conc_b >/dev/null 2>&1
+APPLY_RESERVED_RC=$?
+autopilot_apply_event run_conc_b w30_ordinary CANCEL '{}' "$CONC_PROJECT" session_conc_b >/dev/null 2>&1
+APPLY_ORDINARY_RC=$?
+if [ "$APPLY_RESERVED_RC" -eq 3 ] && [ "$APPLY_ORDINARY_RC" -eq 0 ]; then
+  check "W30 the writer reserves the release- event-id namespace" PASS
+else
+  check "W30 release- must be refused at the writer (reserved=$APPLY_RESERVED_RC ordinary=$APPLY_ORDINARY_RC, want 3/0)" FAIL
+fi
+
+# Re-assert the precondition so a W4 failure does not surface here as a second,
+# unexplained failure.
+W5_RELEASED=false
+json_ok "$(autopilot_run_file run_conc_a "$CONC_PROJECT")" 'value.stage === "CANCELLED"' \
+  && W5_RELEASED=true
+if [ "$W5_RELEASED" = true ] \
+  && autopilot_begin_run run_conc_d session_conc_d "$CONC_PROJECT" false true "$CONC_A" >/dev/null 2>&1 \
+  && json_ok "$(autopilot_run_file run_conc_d "$CONC_PROJECT")" 'value.stage === "PLANNING"'; then
+  check "W5 the released working tree accepts a new run" PASS
+else
+  check "W5 released working tree accepts a new run (holder released=$W5_RELEASED)" FAIL
+fi
+
+# --- The owner filter, and what it must NOT skip ---
+# A record that is provably another owner's is skipped BEFORE validation, so a
+# corrupt sibling cannot fail this owner's read. A record that cannot be
+# attributed is not skipped: it stays fail-closed.
+FILTER_OK=true
+printf '%s\n' '{"ownerSessionId":"session_conc_b","corrupt":true}' \
+  > "$CONC_PROJECT/.zensu/state/autopilot-run-foreign_corrupt.json"
+autopilot_read_active "$CONC_PROJECT" session_conc_d >/dev/null 2>&1 || FILTER_OK=false
+printf '%s\n' '{"schemaVersion":1,"corrupt":true}' \
+  > "$CONC_PROJECT/.zensu/state/autopilot-run-unattributable.json"
+autopilot_read_active "$CONC_PROJECT" session_conc_d >/dev/null 2>&1
+[ "$?" -eq 2 ] || FILTER_OK=false
+rm -f "$CONC_PROJECT/.zensu/state/autopilot-run-foreign_corrupt.json" \
+  "$CONC_PROJECT/.zensu/state/autopilot-run-unattributable.json"
+if [ "$FILTER_OK" = true ]; then
+  check "W8 a corrupt record of another owner is skipped, an unattributable one still fails closed" PASS
+else
+  check "W8 owner-filtered inventory validation" FAIL
+fi
+
+# --- A record minted before the workspace field holds its whole project -------
+# Its pre-change meaning was project-wide, and the new keys are git toplevels,
+# so reading it as `projectRoot` would let a second run start in a tree it holds.
+LEGACY_HOLD_PROJECT="$ROOT/legacy-hold-project"
+mkdir -p "$LEGACY_HOLD_PROJECT/sub-tree"
+LEGACY_HOLD_OK=true
+autopilot_begin_run run_legacy_hold session_legacy_hold "$LEGACY_HOLD_PROJECT" >/dev/null 2>&1 \
+  || LEGACY_HOLD_OK=false
+LEGACY_HOLD_FILE="$(autopilot_run_file run_legacy_hold "$LEGACY_HOLD_PROJECT")"
+LEGACY_HOLD_FILE="$LEGACY_HOLD_FILE" node -e '
+  const fs=require("fs"),p=process.env.LEGACY_HOLD_FILE,j=JSON.parse(fs.readFileSync(p,"utf8"));
+  delete j.workspaceRoot;fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");
+' || LEGACY_HOLD_OK=false
+# Any workspace in the project is held, including one the record never named.
+autopilot_begin_run run_legacy_hold_2 session_legacy_hold_2 "$LEGACY_HOLD_PROJECT" \
+  false true "$(cd "$LEGACY_HOLD_PROJECT/sub-tree" && pwd -P)" >/dev/null 2>&1 \
+  && LEGACY_HOLD_OK=false
+[ ! -e "$LEGACY_HOLD_PROJECT/.zensu/state/autopilot-run-run_legacy_hold_2.json" ] || LEGACY_HOLD_OK=false
+if [ "$LEGACY_HOLD_OK" = true ]; then
+  check "W9 a record without the workspace field holds every tree in its project" PASS
+else
+  check "W9 legacy record holds its whole project" FAIL
+fi
+
+# --- Legacy pointer: adopted by its own owner only ---
+LEGACY_PTR_PROJECT="$ROOT/legacy-pointer-project"
+mkdir -p "$LEGACY_PTR_PROJECT"
+LEGACY_PTR_OK=true
+autopilot_begin_run run_legacy_ptr session_legacy_ptr "$LEGACY_PTR_PROJECT" >/dev/null 2>&1 \
+  || LEGACY_PTR_OK=false
+mv "$(autopilot_active_file "$LEGACY_PTR_PROJECT" session_legacy_ptr)" \
+  "$LEGACY_PTR_PROJECT/.zensu/state/autopilot-active.json" || LEGACY_PTR_OK=false
+autopilot_read_active "$LEGACY_PTR_PROJECT" session_legacy_ptr > "$ROOT/legacy-ptr.json" \
+  || LEGACY_PTR_OK=false
+json_ok "$ROOT/legacy-ptr.json" 'value.runId === "run_legacy_ptr"' || LEGACY_PTR_OK=false
+autopilot_read_active "$LEGACY_PTR_PROJECT" session_legacy_other >/dev/null 2>&1
+[ "$?" -eq 1 ] || LEGACY_PTR_OK=false
+if [ "$LEGACY_PTR_OK" = true ]; then
+  check "W6 a pre-scoping pointer is inherited by its own owner and ignored by anyone else" PASS
+else
+  check "W6 legacy pointer adoption is owner-bound" FAIL
+fi
+
+# A run minted before the workspace field must stay readable, and compare as
+# though its working tree were the project root.
+LEGACY_WS_PROJECT="$ROOT/legacy-workspace-project"
+mkdir -p "$LEGACY_WS_PROJECT"
+LEGACY_WS_OK=true
+autopilot_begin_run run_legacy_ws session_legacy_ws "$LEGACY_WS_PROJECT" >/dev/null 2>&1 \
+  || LEGACY_WS_OK=false
+LEGACY_WS_FILE="$(autopilot_run_file run_legacy_ws "$LEGACY_WS_PROJECT")"
+LEGACY_WS_FILE="$LEGACY_WS_FILE" node -e '
+  const fs=require("fs"),p=process.env.LEGACY_WS_FILE,j=JSON.parse(fs.readFileSync(p,"utf8"));
+  delete j.workspaceRoot;fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n");
+' || LEGACY_WS_OK=false
+autopilot_read_active "$LEGACY_WS_PROJECT" session_legacy_ws >/dev/null 2>&1 || LEGACY_WS_OK=false
+autopilot_begin_run run_legacy_ws_2 session_legacy_ws_2 "$LEGACY_WS_PROJECT" \
+  false true "$(cd "$LEGACY_WS_PROJECT" && pwd -P)" >/dev/null 2>&1 && LEGACY_WS_OK=false
+if [ "$LEGACY_WS_OK" = true ]; then
+  check "W7 a run without the workspace field stays readable and holds the project root" PASS
+else
+  check "W7 legacy run record compares as project-root workspace" FAIL
+fi
+
+# --- Containment: a tree that contains another is the same resource ---
+# The occupancy key is a git toplevel resolved from the CALLING process's cwd,
+# and the writer and the gates are different processes. A worktree under the
+# project root therefore answers a different toplevel than the root does, and a
+# string comparison reports the held tree as free in BOTH directions. Both are
+# asserted here because a one-sided check passes with half the predicate gone.
+CT_ROOT="$ROOT/containment"
+mkdir -p "$CT_ROOT"
+ct_project() {
+  local dir="$1" branch="$2"
+  mkdir -p "$dir/.claude/worktrees" || return 1
+  git -C "$dir" init -q >/dev/null 2>&1 || return 1
+  git -C "$dir" -c user.email=t@example.invalid -c user.name=t \
+    commit -q --allow-empty -m init >/dev/null 2>&1 || return 1
+  git -C "$dir" worktree add -q "$dir/.claude/worktrees/w" -b "$branch" >/dev/null 2>&1 || return 1
+}
+CT_READY=true
+CT_P1="$CT_ROOT/p1"
+CT_P2="$CT_ROOT/p2"
+mkdir -p "$CT_P1" "$CT_P2"
+command -v git >/dev/null 2>&1 || CT_READY=false
+[ "$CT_READY" = true ] && { ct_project "$CT_P1" ct-one || CT_READY=false; }
+[ "$CT_READY" = true ] && { ct_project "$CT_P2" ct-two || CT_READY=false; }
+
+# Anti-vacuity: the two spellings must genuinely be different toplevels, or a
+# passing comparison below would prove nothing about the containment rule.
+if [ "$CT_READY" = true ]; then
+  CT_TOP_ROOT="$(cd "$CT_P1" && git rev-parse --show-toplevel 2>/dev/null)"
+  CT_TOP_TREE="$(cd "$CT_P1/.claude/worktrees/w" && git rev-parse --show-toplevel 2>/dev/null)"
+  [ -n "$CT_TOP_ROOT" ] && [ -n "$CT_TOP_TREE" ] && [ "$CT_TOP_ROOT" != "$CT_TOP_TREE" ] \
+    || CT_READY=false
+fi
+
+if [ "$CT_READY" = true ]; then
+  ( cd "$CT_P1" && autopilot_begin_run run_ct1_root session_ct1_root "$CT_P1" false true "" ) >/dev/null 2>&1
+  CT1_HOLD_RC=$?
+  ( cd "$CT_P1/.claude/worktrees/w" && autopilot_begin_run run_ct1_sub session_ct1_sub "$CT_P1" false true "" ) >/dev/null 2>&1
+  CT1_RC=$?
+  if [ "$CT1_HOLD_RC" -eq 0 ] && [ "$CT1_RC" -eq 4 ]; then
+    check "W10 a run holding the project root also holds a worktree below it" PASS
+  else
+    check "W10 root holder must refuse a nested worktree (hold=$CT1_HOLD_RC refusal=$CT1_RC, want 0/4)" FAIL
+  fi
+
+  ( cd "$CT_P2/.claude/worktrees/w" && autopilot_begin_run run_ct2_sub session_ct2_sub "$CT_P2" false true "" ) >/dev/null 2>&1
+  CT2_HOLD_RC=$?
+  ( cd "$CT_P2" && autopilot_begin_run run_ct2_root session_ct2_root "$CT_P2" false true "" ) >/dev/null 2>&1
+  CT2_RC=$?
+  if [ "$CT2_HOLD_RC" -eq 0 ] && [ "$CT2_RC" -eq 4 ]; then
+    check "W11 a run holding a nested worktree also holds the project root above it" PASS
+  else
+    check "W11 nested holder must refuse the project root (hold=$CT2_HOLD_RC refusal=$CT2_RC, want 0/4)" FAIL
+  fi
+else
+  check "W10 containment fixture unavailable (git missing or toplevels coincide)" FAIL
+  check "W11 containment fixture unavailable (git missing or toplevels coincide)" FAIL
+fi
+
+# --- The standalone-TDD occupancy gate ---
+# `_autopilot_begin_standalone_tdd_critical` is the gate that keeps an unbound
+# /zensu:tdd chain from arming underneath a live durable run in the same tree.
+# Nothing drove it before, so its refusal could not be observed at all — and it
+# discarded the holder record that names the only command able to release it.
+# Two SIBLING worktrees, neither containing the other. A plain directory pair
+# cannot express this: with no git toplevel both fall back to the project root
+# and collapse onto one occupancy key.
+GATE_P="$ROOT/standalone-gate"
+GATE_READY=true
+mkdir -p "$GATE_P/.claude/worktrees"
+command -v git >/dev/null 2>&1 || GATE_READY=false
+if [ "$GATE_READY" = true ]; then
+  git -C "$GATE_P" init -q >/dev/null 2>&1 || GATE_READY=false
+  git -C "$GATE_P" -c user.email=t@example.invalid -c user.name=t \
+    commit -q --allow-empty -m init >/dev/null 2>&1 || GATE_READY=false
+  git -C "$GATE_P" worktree add -q "$GATE_P/.claude/worktrees/wa" -b gate-a >/dev/null 2>&1 || GATE_READY=false
+  git -C "$GATE_P" worktree add -q "$GATE_P/.claude/worktrees/wb" -b gate-b >/dev/null 2>&1 || GATE_READY=false
+fi
+GATE_HOLD_RC=1
+GATE_HELD_RC=0
+GATE_FREE_RC=4
+GATE_ERR="$ROOT/standalone-gate-refusal.txt"
+GATE_FREE_ERR="$ROOT/standalone-gate-free.txt"
+: > "$GATE_ERR"
+: > "$GATE_FREE_ERR"
+if [ "$GATE_READY" = true ]; then
+  ( cd "$GATE_P/.claude/worktrees/wa" && autopilot_begin_run run_gate_holder session_gate_holder "$GATE_P" false true "" ) >/dev/null 2>&1
+  GATE_HOLD_RC=$?
+  ( cd "$GATE_P/.claude/worktrees/wa" && autopilot_begin_standalone_tdd "$GATE_P" session_gate_other false ) >/dev/null 2>"$GATE_ERR"
+  GATE_HELD_RC=$?
+  ( cd "$GATE_P/.claude/worktrees/wb" && autopilot_begin_standalone_tdd "$GATE_P" session_gate_free false ) >/dev/null 2>"$GATE_FREE_ERR"
+  GATE_FREE_RC=$?
+fi
+
+if [ "$GATE_HOLD_RC" -eq 0 ] && [ "$GATE_HELD_RC" -eq 4 ]; then
+  check "W12 a standalone chain is refused in a tree held by another session's run" PASS
+else
+  check "W12 standalone gate must refuse a held tree (hold=$GATE_HOLD_RC refusal=$GATE_HELD_RC, want 0/4)" FAIL
+fi
+
+# The refusal must carry the run id, because --autopilot-status is owner-scoped
+# and structurally cannot show a foreign run: without this the user is told to
+# release a run whose id no command will disclose. It must name the GUIDED form
+# and NOT a runnable `--confirm` invocation: this stderr is the tool result of a
+# `zensu-log.sh --tdd-begin` the model runs, so it is a model-read channel, and
+# `--confirm` is the consent control the guided skill enforces.
+if [ "$GATE_HOLD_RC" -eq 0 ] \
+  && grep -qF -- 'run_gate_holder' "$GATE_ERR" \
+  && grep -qF -- '/zensu:autopilot-release' "$GATE_ERR" \
+  && ! grep -qF -- '--confirm' "$GATE_ERR" \
+  && ! grep -qF -- 'zensu-log.sh' "$GATE_ERR"; then
+  check "W13 the standalone refusal names the holding run and the guided release skill, never a runnable cancel" PASS
+else
+  check "W13 standalone refusal must disclose the holder and the guided release path" FAIL
+fi
+
+# Positive control. Without it a resolver drift that over-blocks every standalone
+# chain in the project would leave W12 green and the suite silent. "not 4" alone
+# does not discriminate: the gate also answers 2 for an unreadable occupancy read
+# and 3 for a rejected argument, and this fixture's call fails at
+# tdd_begin_session anyway, so a bare "not 4" passes on any of them. Exclude
+# every code the gate itself can return, and require its refusal to be absent.
+# The negative needle is the sentence LEAD, not a remedy spelling. The renderer
+# emits three foreign/own shapes and only the model one contains `/zensu:`, so a
+# regression that emitted the OPERATOR refusal on this free-tree path would have
+# satisfied a `/zensu:autopilot-release` needle while refusing exactly what this
+# check exists to permit. Every shape starts with this lead.
+if [ "$GATE_HOLD_RC" -eq 0 ] \
+  && [ "$GATE_FREE_RC" -ne 4 ] && [ "$GATE_FREE_RC" -ne 3 ] && [ "$GATE_FREE_RC" -ne 2 ] \
+  && ! grep -qF -- 'workspace held by nonterminal run' "$GATE_FREE_ERR"; then
+  check "W14 a standalone chain is permitted in a sibling tree the run does not hold" PASS
+else
+  check "W14 standalone gate must permit an unheld sibling tree (hold=$GATE_HOLD_RC free=$GATE_FREE_RC, want 0/past-the-gate)" FAIL
+fi
+
+GATE_SUBDIR_RC=0
+GATE_SUBDIR_WROTE=unknown
+if [ "$GATE_READY" = true ]; then
+  mkdir -p "$GATE_P/plain-subdir"
+  autopilot_begin_run run_gate_subdir session_gate_subdir "$GATE_P" false true "$GATE_P/plain-subdir" >/dev/null 2>&1
+  GATE_SUBDIR_RC=$?
+  if [ -e "$GATE_P/.zensu/state/autopilot-run-run_gate_subdir.json" ]; then
+    GATE_SUBDIR_WROTE=yes
+  else
+    GATE_SUBDIR_WROTE=no
+  fi
+fi
+# A declared workspace that git does not report as a toplevel used to resolve to
+# the project root and be accepted, so the run recorded occupancy over the whole
+# project while the caller had asked for one directory. Refusing needs the
+# no-record half too: a refusal that still wrote the run would leave the broad
+# claim in place.
+if [ "$GATE_READY" = true ] && [ "$GATE_SUBDIR_RC" -eq 3 ] && [ "$GATE_SUBDIR_WROTE" = no ]; then
+  check "W29 a declared workspace that is not a git toplevel is refused and writes nothing" PASS
+else
+  check "W29 non-toplevel workspace must be refused (rc=$GATE_SUBDIR_RC wrote=$GATE_SUBDIR_WROTE, want 3/no)" FAIL
+fi
+
+GATE_LEGACY_RC=0
+GATE_LEGACY_STRIPPED=false
+if [ "$GATE_READY" = true ] && [ "$GATE_HOLD_RC" -eq 0 ]; then
+  if F="$GATE_P/.zensu/state/autopilot-run-run_gate_holder.json" node -e '
+    const fs = require("fs");
+    const file = process.env.F;
+    const record = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (!Object.prototype.hasOwnProperty.call(record, "workspaceRoot")) process.exit(3);
+    delete record.workspaceRoot;
+    fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  ' </dev/null >/dev/null 2>&1; then
+    GATE_LEGACY_STRIPPED=true
+    ( cd "$GATE_P/.claude/worktrees/wb" && autopilot_begin_standalone_tdd "$GATE_P" session_gate_legacy false ) >/dev/null 2>&1
+    GATE_LEGACY_RC=$?
+  fi
+fi
+# The legacy arm of mayHoldWorkspace had no behavioural test: a record predating
+# the field holds EVERY tree, so a sibling the run demonstrably does not hold
+# must still be refused. Without this the arm could be deleted and W12/W14 stay
+# green, because both drive records that DO carry the key.
+if [ "$GATE_LEGACY_STRIPPED" = true ] && [ "$GATE_LEGACY_RC" -eq 4 ]; then
+  check "W25 a run record without workspaceRoot holds every tree" PASS
+else
+  check "W25 a legacy record must fail closed over every tree (stripped=$GATE_LEGACY_STRIPPED rc=$GATE_LEGACY_RC, want true/4)" FAIL
+fi
+
+GATE_UPGRADE_RC=1
+GATE_UPGRADE_KEY=absent
+GATE_AFTER_RC=0
+if [ "$GATE_LEGACY_STRIPPED" = true ]; then
+  ( cd "$GATE_P/.claude/worktrees/wa" && autopilot_begin_run run_gate_holder session_gate_holder "$GATE_P" false true "" ) >/dev/null 2>&1
+  GATE_UPGRADE_RC=$?
+  GATE_UPGRADE_KEY="$(F="$GATE_P/.zensu/state/autopilot-run-run_gate_holder.json" node -e '
+    const fs = require("fs");
+    const record = JSON.parse(fs.readFileSync(process.env.F, "utf8"));
+    const value = record.workspaceRoot;
+    process.stdout.write(typeof value === "string" && value.length > 0 ? "present" : "absent");
+  ' </dev/null 2>/dev/null)"
+  [ -n "$GATE_UPGRADE_KEY" ] || GATE_UPGRADE_KEY=absent
+  ( cd "$GATE_P/.claude/worktrees/wb" && autopilot_begin_standalone_tdd "$GATE_P" session_gate_after false ) >/dev/null 2>&1
+  GATE_AFTER_RC=$?
+fi
+# The upgrade is asserted through its consequence, not through a path string:
+# W25 has just shown that this record blocks the sibling tree, so the sibling
+# becoming free again is what proves the key was filled in. The retry also has
+# a live pointer designating the run, which is the no-op shortcut the upgrade
+# has to decline in order to happen at all.
+if [ "$GATE_LEGACY_STRIPPED" = true ] && [ "$GATE_UPGRADE_RC" -eq 0 ] \
+  && [ "$GATE_UPGRADE_KEY" = present ] && [ "$GATE_AFTER_RC" -ne 4 ]; then
+  check "W28 an exact begin retry stamps workspaceRoot onto a legacy record" PASS
+else
+  check "W28 legacy record must be upgraded on retry (rc=$GATE_UPGRADE_RC key=$GATE_UPGRADE_KEY sibling=$GATE_AFTER_RC, want 0/present/not-4)" FAIL
+fi
+
+# --- Release: liveness, tree scoping, and the owner's exit from a torn begin ---
+REL_P="$ROOT/release-guards"
+REL_READY=true
+mkdir -p "$REL_P/.claude/worktrees"
+command -v git >/dev/null 2>&1 || REL_READY=false
+if [ "$REL_READY" = true ]; then
+  git -C "$REL_P" init -q >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" -c user.email=t@example.invalid -c user.name=t \
+    commit -q --allow-empty -m init >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/ra" -b rel-a >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/rb" -b rel-b >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/rl" -b rel-l >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/rd" -b rel-d >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/rs" -b rel-s >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/rt" -b rel-t >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/rp" -b rel-p >/dev/null 2>&1 || REL_READY=false
+  # DEDICATED to the W18x hold-sentence block. It needs a tree it can leave HELD
+  # for the rest of the file — the whole point of the verb is to describe a live
+  # hold — and a second tree that stays free. Reusing a neighbour's tree is not a
+  # style problem: it silently steals the `begin` a later check depends on, which
+  # is exactly how the first version of that block broke W23 while every one of
+  # its own assertions passed.
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/rh" -b rel-h >/dev/null 2>&1 || REL_READY=false
+  git -C "$REL_P" worktree add -q "$REL_P/.claude/worktrees/rf" -b rel-f >/dev/null 2>&1 || REL_READY=false
+fi
+
+# S6 — a run left pointerless by a torn begin: `apply` refuses it (no pointer
+# designates it) and `release` refuses the owner, so today the owner has no exit
+# at all. The release must be permitted in exactly that state.
+REL_TORN_RC=1
+REL_TORN_BEGIN_RC=1
+REL_TORN_POINTER_GONE=false
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/ra" && autopilot_begin_run run_rel_torn session_rel_torn "$REL_P" false true "" ) >/dev/null 2>&1
+  REL_TORN_BEGIN_RC=$?
+  if [ "$REL_TORN_BEGIN_RC" -eq 0 ]; then
+    rm -f "$(autopilot_active_file "$REL_P" session_rel_torn)"
+    [ -e "$(autopilot_active_file "$REL_P" session_rel_torn)" ] || REL_TORN_POINTER_GONE=true
+  fi
+  ( cd "$REL_P/.claude/worktrees/ra" && autopilot_release_run run_rel_torn evt_rel_torn "$REL_P" session_rel_torn ) >/dev/null 2>&1
+  REL_TORN_RC=$?
+fi
+if [ "$REL_READY" = true ] && [ "$REL_TORN_BEGIN_RC" -eq 0 ] && [ "$REL_TORN_POINTER_GONE" = true ] \
+  && [ "$REL_TORN_RC" -eq 0 ]; then
+  check "W15 the owner may release a run no pointer designates" PASS
+else
+  check "W15 owner exit from a torn begin (begin=$REL_TORN_BEGIN_RC pointerGone=$REL_TORN_POINTER_GONE rc=$REL_TORN_RC, want 0/true/0)" FAIL
+fi
+
+# S5a — the release is scoped to the caller's own working tree. Run ids are
+# ordinary filenames in a listable directory, so "take the id from a refusal"
+# bounds nothing; the tree the caller stands in does.
+REL_SCOPE_RC=0
+REL_SCOPE_ERR="$ROOT/rel-scope.err"
+: > "$REL_SCOPE_ERR"
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/ra" && autopilot_begin_run run_rel_scope session_rel_scope "$REL_P" false true "" ) >/dev/null 2>&1
+  ( cd "$REL_P/.claude/worktrees/rb" && autopilot_release_run run_rel_scope evt_rel_scope "$REL_P" session_rel_other ) >/dev/null 2>"$REL_SCOPE_ERR"
+  REL_SCOPE_RC=$?
+fi
+# rc 6 specifically, not merely non-zero: a bare "it failed" assertion passes on
+# any unrelated pre-existing failure and would prove nothing about this guard.
+if [ "$REL_READY" = true ] && [ "$REL_SCOPE_RC" -eq 6 ] \
+  && grep -qF 'release it from the tree it holds' "$REL_SCOPE_ERR"; then
+  check "W16 a release is refused for a run outside the caller's own working tree" PASS
+else
+  check "W16 release must be scoped to the caller's tree (rc=$REL_SCOPE_RC, want 6 + named cause)" FAIL
+fi
+
+# W16a — the refusal NAMES BOTH TREES. The bare sentence told the caller they were
+# in the wrong tree without saying which tree they were in or which one to move to,
+# so the only way to act on it was to go and read the run document — the same
+# go-and-find-out-yourself this refusal exists to replace. Both literals are
+# asserted, so naming one and forgetting the other fails.
+# The needles are rendered NATIVELY. The worker canonicalizes every path argument with
+# `realpathSync.native` before it builds this message, so on win32 the refusal carries
+# `C:\Users\...\worktrees\rb` while a bare `$REL_P/...` is the Git-Bash spelling — the
+# grep then never matches and the check fails against a message that is already correct.
+# That is the MSYS/native split this repository documents for the source-write gate,
+# reached here through a fixture rather than through the product.
+W16A_RB="$(native_directory "$REL_P/.claude/worktrees/rb" 2>/dev/null || printf '%s' "$REL_P/.claude/worktrees/rb")"
+W16A_RA="$(native_directory "$REL_P/.claude/worktrees/ra" 2>/dev/null || printf '%s' "$REL_P/.claude/worktrees/ra")"
+# An EMPTY needle is a vacuous check, not a lenient one: `||` catches only a failing
+# `native_directory`, never a success with empty output, and `grep -qF ''` matches every
+# non-empty file — so both conjuncts would wave through exactly the refusal that names
+# neither tree. Invisible on macOS, where the fallback value is already correct.
+if [ "$REL_READY" = true ] \
+  && [ -n "$W16A_RB" ] && [ -n "$W16A_RA" ] \
+  && grep -qF "$W16A_RB" "$REL_SCOPE_ERR" \
+  && grep -qF "$W16A_RA" "$REL_SCOPE_ERR"; then
+  check "W16a the exit-6 refusal names the caller's tree and the tree the run holds" PASS
+else
+  check "W16a exit-6 must name both trees (needles rb='$W16A_RB' ra='$W16A_RA'; got: $(cat "$REL_SCOPE_ERR" 2>/dev/null))" FAIL
+fi
+
+# W16b — and it states the containment rule, because "release it from the tree it
+# holds" alone reads as EQUALITY. Occupancy is containment in either direction, so a
+# containing or contained tree works too and only a sibling worktree is refused;
+# skills/autopilot-release/SKILL.md carried the narrower rule until this landed.
+if [ "$REL_READY" = true ] && grep -qF 'containment in either direction' "$REL_SCOPE_ERR"; then
+  check "W16b the exit-6 refusal states occupancy as containment, not equality" PASS
+else
+  check "W16b exit-6 must state the containment rule (got: $(cat "$REL_SCOPE_ERR" 2>/dev/null))" FAIL
+fi
+
+# --- W31x: the public hold-sentence verb -----------------------------------
+# `--autopilot-status` is owner-scoped, so it answers `state file absent` whether the
+# tree is free or a foreign run is holding it. This verb is what lets that verb tell
+# the two apart. It is PUBLIC on purpose: the own-vs-foreign choice belongs to
+# `_autopilot_workspace_refusal`, and an earlier spelling of that decision in a caller
+# failed OPEN — an unresolvable owner compared unequal to the session id and selected
+# the FOREIGN text, offering a release against the caller's own live generation.
+HOLD_OWN=""
+HOLD_FOREIGN=""
+HOLD_FREE_RC=0
+HOLD_OPERATOR=""
+HOLD_AUDIENCE_RC=0
+HOLD_ARITY_RC=0
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/rh" && autopilot_begin_run run_hold_s session_hold_s "$REL_P" false true "" ) >/dev/null 2>&1
+  HOLD_OWN="$( cd "$REL_P/.claude/worktrees/rh" && autopilot_workspace_hold_report "$REL_P" session_hold_s model 2>/dev/null )"
+  HOLD_FOREIGN="$( cd "$REL_P/.claude/worktrees/rh" && autopilot_workspace_hold_report "$REL_P" session_hold_other model 2>/dev/null )"
+  # `|| exit 97`, never `&&`. With `( cd DIR && verb )` a FAILED cd short-circuits and
+  # the subshell exits 1 — the exact value W31d and W31h assert as the PROVEN-FREE
+  # verdict — so the verb would never run and both checks would still pass. That is the
+  # very conflation those checks exist to forbid, reproduced one layer up in the
+  # harness. 97 is a value no arm of the verb can return.
+  ( cd "$REL_P/.claude/worktrees/rf" || exit 97; autopilot_workspace_hold_report "$REL_P" session_hold_other model ) >/dev/null 2>&1
+  HOLD_FREE_RC=$?
+  HOLD_OPERATOR="$( cd "$REL_P/.claude/worktrees/rh" && autopilot_workspace_hold_report "$REL_P" session_hold_other operator 2>/dev/null )"
+  ( cd "$REL_P/.claude/worktrees/rh" && autopilot_workspace_hold_report "$REL_P" session_hold_other bogus ) >/dev/null 2>&1
+  HOLD_AUDIENCE_RC=$?
+  ( cd "$REL_P/.claude/worktrees/rh" && autopilot_workspace_hold_report "$REL_P" session_hold_other ) >/dev/null 2>&1
+  HOLD_ARITY_RC=$?
+fi
+# The OWN case must carry the own-run clause and NO release command of any spelling.
+case "$HOLD_OWN" in
+  *'run_hold_s'*'whose run record names this session as its owner'*'finish or repair that run'*)
+    case "$HOLD_OWN" in
+      *'/zensu:autopilot-release'*|*'--confirm'*)
+        check "W31a own-run hold sentence must name no release command (got: $HOLD_OWN)" FAIL ;;
+      *) check "W31a the own-run hold sentence names the run and no release command" PASS ;;
+    esac ;;
+  *) check "W31a own-run hold sentence (got: $HOLD_OWN)" FAIL ;;
+esac
+# The FOREIGN + model case names ONLY the guided skill: `--confirm` is the consent
+# control, so a complete invocation in a model-read channel routes around it.
+case "$HOLD_FOREIGN" in
+  *'run_hold_s'*'/zensu:autopilot-release'*)
+    case "$HOLD_FOREIGN" in
+      *'--confirm'*) check "W31b the model audience must not quote --confirm (got: $HOLD_FOREIGN)" FAIL ;;
+      *) check "W31b the foreign model sentence names the run and only the guided form" PASS ;;
+    esac ;;
+  *) check "W31b foreign model hold sentence (got: $HOLD_FOREIGN)" FAIL ;;
+esac
+# The OPERATOR audience is the one channel that keeps the audited command, because a
+# human reads it. Asserting this is what keeps W31b from passing for the wrong reason
+# — a renderer that dropped the command everywhere would satisfy W31b alone.
+case "$HOLD_OPERATOR" in
+  *'--autopilot-release --run run_hold_s --confirm'*)
+    check "W31c the operator audience still quotes the audited release command" PASS ;;
+  *) check "W31c operator hold sentence (got: $HOLD_OPERATOR)" FAIL ;;
+esac
+# rc 1 SPECIFICALLY. `autopilot_workspace_hold_report`'s status
+# vocabulary is 0 rendered, 1 the tree is PROVEN free, 5 the question could not be
+# answered, 3 a bad arity or audience. 5 is the one that must never be confused with
+# 1 — that separation is the whole point of the report verb. A bare
+# non-zero assertion passes on any of those, which is the standard this file
+# states for itself sixty lines above at W16, and it is exactly the conflation the
+# `--autopilot-status` caller was rebuilt to stop making.
+if [ "$REL_READY" = true ] && [ "$HOLD_FREE_RC" -eq 1 ]; then
+  check "W31d a tree no nonterminal run holds yields rc 1 specifically" PASS
+else
+  check "W31d a free tree must yield rc 1 (rc=$HOLD_FREE_RC, want 1)" FAIL
+fi
+# The audience is positionally REQUIRED, so a new consumer cannot silently inherit
+# the operator form — which is the permissive one.
+if [ "$REL_READY" = true ] && [ "$HOLD_AUDIENCE_RC" -eq 3 ] && [ "$HOLD_ARITY_RC" -eq 3 ]; then
+  check "W31e an unknown audience and a missing audience are both refused" PASS
+else
+  check "W31e audience must be required and validated (bogus=$HOLD_AUDIENCE_RC arity=$HOLD_ARITY_RC, want 3/3)" FAIL
+fi
+
+# W31f — the REPORT verb: one read, and a status vocabulary that separates a proven
+# free tree from a question that could not be answered. `_tdd_locked_run` returns 1
+# for a lock failure and the worker's own "no run holds this tree" is also 1, so
+# composing on the public read alone made a could-not-look indistinguishable from an
+# all-clear. The probe always returns 0, so a non-zero from the lock layer is
+# unambiguously the LOCK's.
+HOLD_REPORT_OWN=""
+HOLD_REPORT_FOREIGN=""
+HOLD_REPORT_FREE_RC=0
+HOLD_KIND_OWN=""
+HOLD_KIND_FOREIGN=""
+HOLD_TRANSPOSED_RC=9
+if [ "$REL_READY" = true ]; then
+  HOLD_REPORT_OWN="$( cd "$REL_P/.claude/worktrees/rh" && autopilot_workspace_hold_report "$REL_P" session_hold_s model 2>/dev/null )"
+  HOLD_REPORT_FOREIGN="$( cd "$REL_P/.claude/worktrees/rh" && autopilot_workspace_hold_report "$REL_P" session_hold_other model 2>/dev/null )"
+  ( cd "$REL_P/.claude/worktrees/rf" || exit 97; autopilot_workspace_hold_report "$REL_P" session_hold_other model ) >/dev/null 2>&1
+  HOLD_REPORT_FREE_RC=$?
+  # The ownership fact is the report line's own `<kind>` field. It used to be a
+  # separate `autopilot_workspace_hold_is_own` verb, which was DELETED: it had no
+  # production caller anywhere in the tree, it took a second leased read of its
+  # own, and its own documentation warned that composing it with the sentence verb
+  # could name two different holders. A public verb with no consumers and a
+  # composition hazard attached is a liability, not an API — the field the report
+  # already carries is the durable answer.
+  HOLD_KIND_OWN="${HOLD_REPORT_OWN%%	*}"
+  HOLD_KIND_FOREIGN="${HOLD_REPORT_FOREIGN%%	*}"
+  # A caller-session preference that is not a session id must REFUSE rather than
+  # degrade to `unknown`: `$2` is a workspace path in `autopilot_read_workspace`
+  # and a session id here, so a transposed call would otherwise report a confident
+  # "owner not established" instead of an error.
+  ( cd "$REL_P/.claude/worktrees/rh" \
+    && autopilot_workspace_hold_report "$REL_P" "$REL_P/.claude/worktrees/rh" model ) >/dev/null 2>&1
+  HOLD_TRANSPOSED_RC=$?
+fi
+# The report line is `<kind><TAB><sentence>`, and the KIND must agree with the
+# sentence it introduces — that agreement is the whole reason both come out of one
+# read.
+case "$HOLD_REPORT_OWN" in
+  own*'whose run record names this session as its owner'*)
+    check "W31f the report verb labels an own holder 'own' and renders the matching sentence" PASS ;;
+  *) check "W31f own report line (got: $HOLD_REPORT_OWN)" FAIL ;;
+esac
+case "$HOLD_REPORT_FOREIGN" in
+  foreign*'/zensu:autopilot-release'*)
+    check "W31g the report verb labels a foreign holder 'foreign' and renders the guided form" PASS ;;
+  *) check "W31g foreign report line (got: $HOLD_REPORT_FOREIGN)" FAIL ;;
+esac
+# rc 1 is reserved for the PROVEN-free verdict.
+if [ "$REL_READY" = true ] && [ "$HOLD_REPORT_FREE_RC" -eq 1 ]; then
+  check "W31h the report verb reserves rc 1 for a proven-free tree" PASS
+else
+  check "W31h report free verdict (rc=$HOLD_REPORT_FREE_RC, want 1)" FAIL
+fi
+# The KIND field is THREE-valued and a caller must not fold `unknown` into either
+# other answer: the own sentence says "whose run record names this session as its owner", so a lead-in
+# asserting the caller owns no run would contradict the sentence it introduces.
+if [ "$REL_READY" = true ] && [ "$HOLD_KIND_OWN" = own ] && [ "$HOLD_KIND_FOREIGN" = foreign ]; then
+  check "W31i the report line's kind field answers own and foreign from the judged record" PASS
+else
+  check "W31i kind field (own=$HOLD_KIND_OWN foreign=$HOLD_KIND_FOREIGN, want own/foreign)" FAIL
+fi
+# W31i1 — a transposed caller-session argument REFUSES. `$2` means a workspace path
+# in `autopilot_read_workspace` and a session id here, and a path fails the session
+# predicate on its separators, so the old silent drop turned a caller's mistake into
+# a confident false statement about ownership.
+if [ "$REL_READY" = true ] && [ "$HOLD_TRANSPOSED_RC" -eq 3 ]; then
+  check "W31i1 a caller-session argument that is not a session id is refused, not dropped" PASS
+else
+  check "W31i1 transposed caller session (rc=$HOLD_TRANSPOSED_RC, want 3)" FAIL
+fi
+
+# W31j — status 5 must be REACHABLE, and nothing above asserts it: every check so far
+# reads 0, 1 or 3, so rewriting every `return 5` in the verb to `return 1` left the
+# whole block green. The discriminating case is an inventory the worker cannot read.
+# Node exits 1 on an uncaught exception and 1 is ALSO this worker's "no nonterminal
+# run holds this workspace", so before the worker gained an `uncaughtException`
+# handler a single non-object run document made the report verb answer PROVEN FREE
+# for a project it never managed to inspect — and the four occupancy fences, which
+# all propagate a non-1 code and fall through on 1, relaxed on the same fault.
+# The run id is deliberately VALID: an invalid one is refused by the inventory
+# envelope before `readState` runs, which would reach rc 5 without ever exercising
+# the record-shape guard this case exists for.
+HOLD_REPORT_FAULT_RC=0
+HOLD_WORKER_FAULT_RC=0
+HOLD_WORKER_FAULT_ERR=""
+HOLD_FAULT_FILE="$REL_P/.zensu/state/autopilot-run-w31jcorrupt00.json"
+if [ "$REL_READY" = true ]; then
+  printf 'null' > "$HOLD_FAULT_FILE"
+  ( cd "$REL_P/.claude/worktrees/rf" \
+    && autopilot_workspace_hold_report "$REL_P" session_hold_other model ) >/dev/null 2>&1
+  HOLD_REPORT_FAULT_RC=$?
+  # The message is asserted one layer DOWN, at the worker that produces it: the
+  # public verb's own probe discards the worker's stderr (`2>/dev/null`) so a lease
+  # diagnostic cannot reach a caller that is capturing stdout, so capturing it from
+  # the verb yields an empty string no matter what the worker said.
+  # NATIVE spellings. `_autopilot_node` converts the operands its `path_indexes` list
+  # names, but the WORKSPACE root is deliberately not among them (a worktree may live
+  # outside the project), so the shell wrappers render it themselves — and a direct
+  # worker call like this one must do the same. Passing the Git-Bash spelling made the
+  # worker refuse with `workspace root is unavailable` on win32, long before it reached
+  # the record-shape guard this check is about.
+  W31K_STATE="$(native_directory "$REL_P/.zensu/state" 2>/dev/null || printf '%s' "$REL_P/.zensu/state")"
+  W31K_ROOT="$(native_directory "$REL_P" 2>/dev/null || printf '%s' "$REL_P")"
+  W31K_WS="$(native_directory "$REL_P/.claude/worktrees/rf" 2>/dev/null || printf '%s' "$REL_P/.claude/worktrees/rf")"
+  HOLD_WORKER_FAULT_ERR="$( _autopilot_node read-workspace "$W31K_STATE" "$W31K_ROOT" \
+    "$W31K_WS" 2>&1 >/dev/null )"
+  _autopilot_node read-workspace "$W31K_STATE" "$W31K_ROOT" "$W31K_WS" >/dev/null 2>&1
+  HOLD_WORKER_FAULT_RC=$?
+  rm -f "$HOLD_FAULT_FILE"
+fi
+if [ "$REL_READY" = true ] && [ "$HOLD_REPORT_FAULT_RC" -eq 5 ]; then
+  check "W31j an unreadable run inventory yields rc 5, never the proven-free rc 1" PASS
+else
+  check "W31j unreadable inventory verdict (rc=$HOLD_REPORT_FAULT_RC, want 5)" FAIL
+fi
+# W31k — and the fault is a TYPED refusal, not a crash. `readState` guards the record
+# SHAPE before the review-evidence normalizers index it, so a `null` document is
+# refused with the same message the exact-schema check emits rather than throwing a
+# TypeError. Both halves matter and neither alone is enough: exit 2 without the
+# message would also be produced by the `uncaughtException` handler catching a real
+# crash, and the message without exit 2 would not prove the inventory failed closed.
+if [ "$REL_READY" != true ]; then
+  check "W31k fixture unavailable" FAIL
+elif [ "$HOLD_WORKER_FAULT_RC" -eq 2 ] \
+  && printf '%s' "$HOLD_WORKER_FAULT_ERR" \
+    | grep -qF 'state schema invalid: autopilot-run-w31jcorrupt00.json' \
+  && ! printf '%s' "$HOLD_WORKER_FAULT_ERR" | grep -qF 'TypeError'; then
+  check "W31k a non-object run document is refused as a schema fault, not a crash" PASS
+else
+  check "W31k non-object refusal (rc=$HOLD_WORKER_FAULT_RC, err=$HOLD_WORKER_FAULT_ERR)" FAIL
+fi
+
+# W31L — the `uncaughtException` handler, pinned at SOURCE. It has no executed case
+# and cannot easily get one: W31j/W31k's `null` fixture is refused by `readState`'s
+# `isObject` guard BEFORE any normalizer indexes it, and W31k asserts the absence of
+# a `TypeError` — i.e. asserts the handler was NOT used. So removing the handler
+# alone changes no observed status in either suite (removing BOTH guards does fail
+# W31j). That makes this the same case as W18/W19/W32z: a source pin is weaker than
+# an executed case and is recorded as such, but without it the handler can be
+# deleted with every check green — and its absence would put node's default exit 1
+# back into a space where 1 already means "no run holds this tree", which every
+# occupancy fence reads as a licence to RELAX.
+W31L_LIB="$PLUGIN_DIR/hooks/lib/zensu-autopilot-state.sh"
+W31L_SLICE="$ROOT/w31l-slice.txt"
+awk '/^process\.on\("uncaughtException"/ {inside=1} inside {print} inside && /^\}\);$/ {exit}' \
+  "$W31L_LIB" > "$W31L_SLICE" 2>/dev/null || : > "$W31L_SLICE"
+if [ -s "$W31L_SLICE" ]; then
+  check "W31L-control the uncaughtException handler body was extracted" PASS
+else
+  check "W31L-control could not extract the uncaughtException handler" FAIL
+fi
+if [ -s "$W31L_SLICE" ] && grep -qF 'fail(2,' "$W31L_SLICE" \
+  && grep -qF 'worker fault:' "$W31L_SLICE"; then
+  check "W31L a worker crash is mapped to the could-not-judge code, not to node's default 1" PASS
+else
+  check "W31L the uncaughtException handler must map a crash to fail(2, 'worker fault: …')" FAIL
+fi
+
+# W31m — no NON-worker fault path in the report verb may return 1. W31j proves the
+# worker-rc arm, but the verb has six `return 5` sites and the one its own comment
+# calls load-bearing is the LEASE failure: `_tdd_locked_run` answers 1 for a failed
+# acquisition, so rewriting `|| return 5` to `|| return 1` there would report a tree
+# as PROVEN FREE because the lease could not be taken — the exact conflation this
+# verb exists to remove — with every behavioural check still green. The lease cannot
+# be made to fail deterministically here, so the shape is pinned instead: inside this
+# function, `return 1` may appear only in the two arms that carry a worker or storage
+# VERDICT, never on a fault path.
+W31M_SLICE="$ROOT/w31m-slice.txt"
+awk '/^autopilot_workspace_hold_report\(\) \{/ {inside=1} inside {print} inside && /^\}$/ && NR>1 {exit}' \
+  "$W31L_LIB" > "$W31M_SLICE" 2>/dev/null || : > "$W31M_SLICE"
+# `grep -c` EXITS 1 on zero matches, so a `|| echo 0` fallback appends a SECOND line
+# and the comparison then fails for a reason unrelated to the contract. Count with
+# `grep -c … || true` and strip, so an empty result really is the string 0.
+W31M_FAULT_ONES="$(grep -cE '(_autopilot_locked_run|_autopilot_project_root|_autopilot_session_workspace|_autopilot_workspace_refusal|HOLD_RECORD).*\|\| return 1' "$W31M_SLICE" 2>/dev/null | head -1 | tr -d '[:space:]')"
+[ -n "$W31M_FAULT_ONES" ] || W31M_FAULT_ONES=0
+if [ -s "$W31M_SLICE" ] && [ "$W31M_FAULT_ONES" = "0" ]; then
+  check "W31m no fault path in the report verb returns the proven-free code 1" PASS
+else
+  check "W31m a fault path returns 1 (count=$W31M_FAULT_ONES) — a failed check would read as an all-clear" FAIL
+fi
+
+# W32z — a SOURCE pin over ALL FIVE `--autopilot-status` disclosure arms, SLICED to
+# the verb's own case body. State both numbers, because an earlier comment here said
+# "the three arms no fixture reaches" above a loop that pinned four needles under a
+# label reading "all four", and none of the three figures described the file: FIVE
+# arms are emitted — foreign, own, owner-not-established, proven-free, and
+# could-not-determine — and THREE of them no fixture in this suite can reach.
+# The SLICE is what makes this a pin rather than a presence grep: a whole-file
+# `grep` stays green when a needle migrates into a comment, into a dead branch, or
+# out of the `--autopilot-status)` case entirely, which is exactly the drift a
+# source pin exists to catch. The control asserts the slice is non-empty, because a
+# slice that came back empty would make every needle "absent" and the check would
+# fail for the wrong reason.
+W32Z_LOG="$PLUGIN_DIR/hooks/lib/zensu-log.sh"
+W32Z_SLICE="$ROOT/w32z-slice.txt"
+awk '/^  --autopilot-status\)/ {inside=1} inside {print} inside && /^    ;;$/ {exit}' \
+  "$W32Z_LOG" > "$W32Z_SLICE" 2>/dev/null || : > "$W32Z_SLICE"
+if [ -s "$W32Z_SLICE" ]; then
+  check "W32z-control the --autopilot-status case body was extracted" PASS
+else
+  check "W32z-control could not extract the --autopilot-status case body" FAIL
+fi
+W32Z_OK=true
+for W32Z_NEEDLE in \
+  'a run this session OWNS holds the working tree' \
+  'whose OWNER could not be established' \
+  'could NOT be determined (status %s)' \
+  'no nonterminal run holds this working tree' \
+  'but the working tree is not free'
+do
+  grep -qF "$W32Z_NEEDLE" "$W32Z_SLICE" || W32Z_OK=false
+done
+# The own arm must NOT claim a torn begin: the worker reports an own nonterminal run
+# with `fail(2)` BEFORE it reports an absent pointer with `fail(1)`, so this rc-1
+# arm cannot be reached in that state at all.
+if grep -qF 'the torn-begin shape' "$W32Z_SLICE"; then W32Z_OK=false; fi
+if [ "$W32Z_OK" = true ]; then
+  check "W32z all five --autopilot-status disclosure arms are emitted from the verb's own case" PASS
+else
+  check "W32z a --autopilot-status disclosure arm was removed, moved, or over-claims" FAIL
+fi
+
+# --- W32: the --autopilot-status stderr disclosure, end to end -------------
+# The disclosure is the primary user-facing surface of this feature and had NO
+# executed case anywhere: neither branch of the caller was driven, and the
+# invariant its own comment declares — stdout and the exit code unchanged, because
+# the Autopilot skill parses that stdout as JSON and session-start-autopilot-resume.sh
+# treats rc 1 as the ordinary no-run case — was asserted by nothing. It is also the
+# case that would have caught the conflation W31d now pins at the library level.
+W32_READY=false
+W32_HELD_OUT="$ROOT/w32-held.out"; W32_HELD_ERR="$ROOT/w32-held.err"
+W32_FREE_OUT="$ROOT/w32-free.out"; W32_FREE_ERR="$ROOT/w32-free.err"
+W32_HELD_RCF="$ROOT/w32-held.rc"; W32_FREE_RCF="$ROOT/w32-free.rc"
+W32_READYF="$ROOT/w32.ready"
+: > "$W32_READYF"
+# EVERYTHING that mutates the environment runs inside a SUBSHELL, and the results
+# travel out through files. `initialize-baseline.sh` exports a whole session
+# binding, and an earlier spelling of this block saved and restored only the three
+# CLAUDE_* variables that test-doctor.sh saves — which left the rest exported and
+# broke W27, a concurrency check two hundred lines below, in a way none of this
+# block's own assertions could see. That is the same class of leak as reusing a
+# neighbour's worktree, and a subshell is the only containment that is total.
+#
+# The `check` calls stay OUTSIDE it, because `check` increments its tallies in the
+# shell that runs it: a subshell would PRINT a FAIL and let the suite still exit 0,
+# which test-doctor.sh records having done exactly once.
+if [ "$REL_READY" = true ] && [ -r "$PLUGIN_DIR/tests/session-control/initialize-baseline.sh" ]; then
+  (
+    export CLAUDE_PROJECT_DIR="$REL_P"
+    # shellcheck disable=SC1091
+    source "$PLUGIN_DIR/tests/session-control/initialize-baseline.sh" w32-observer >/dev/null 2>&1 || exit 1
+    cd "$REL_P/.claude/worktrees/rh" || exit 1
+    bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --autopilot-status >"$W32_HELD_OUT" 2>"$W32_HELD_ERR"
+    printf '%s' "$?" > "$W32_HELD_RCF"
+    cd "$REL_P/.claude/worktrees/rf" || exit 1
+    bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --autopilot-status >"$W32_FREE_OUT" 2>"$W32_FREE_ERR"
+    printf '%s' "$?" > "$W32_FREE_RCF"
+    printf 'yes' > "$W32_READYF"
+  )
+fi
+[ "$(cat "$W32_READYF" 2>/dev/null)" = "yes" ] && W32_READY=true
+W32_HELD_RC="$(cat "$W32_HELD_RCF" 2>/dev/null || echo 99)"
+W32_FREE_RC="$(cat "$W32_FREE_RCF" 2>/dev/null || echo 99)"
+if [ "$W32_READY" != true ]; then
+  # NOT a cause claim. `W32_READY` is set only by the final marker, so any earlier
+  # exit collapses here; asserting the bind specifically would name a cause this
+  # block did not establish. It is a PASS rather than a FAIL because the fixture
+  # depends on a host being able to mint a Session Control record at all.
+  check "W32 skipped: the status-verb fixture did not complete (cause not established)" PASS
+else
+  # The INVARIANT first: both calls keep rc 1 and produce byte-identical stdout.
+  # A disclosure that landed on stdout would break a real consumer with every
+  # other check in this file still green.
+  # What is pinned: on rc 1 the verb emits NOTHING on stdout, so the disclosure
+  # provably did not land on the channel the Autopilot skill parses. `cmp -s` alone
+  # would be satisfied by two empty files without establishing that emptiness is the
+  # contract, which is why the emptiness is asserted explicitly rather than inferred.
+  # If a later change puts JSON on stdout for rc 1, this conjunct is the thing to
+  # re-decide — do not simply delete it.
+  if [ "$W32_HELD_RC" -eq 1 ] && [ "$W32_FREE_RC" -eq 1 ] \
+    && cmp -s "$W32_HELD_OUT" "$W32_FREE_OUT" \
+    && [ ! -s "$W32_HELD_OUT" ]; then
+    check "W32a the disclosure leaves rc 1 and stdout byte-identical and empty in both branches" PASS
+  else
+    check "W32a status stdout/rc invariant (held=$W32_HELD_RC free=$W32_FREE_RC held-bytes=$(wc -c <"$W32_HELD_OUT" 2>/dev/null))" FAIL
+  fi
+  # The HELD branch names the holding run and routes to the guided form only.
+  if grep -qF 'the working tree is not free' "$W32_HELD_ERR" \
+    && grep -qF 'run_hold_s' "$W32_HELD_ERR" \
+    && grep -qF '/zensu:autopilot-release' "$W32_HELD_ERR" \
+    && ! grep -qF -- '--confirm' "$W32_HELD_ERR"; then
+    check "W32b a held tree is disclosed on stderr, naming the run and only the guided form" PASS
+  else
+    check "W32b held-tree disclosure (got: $(cat "$W32_HELD_ERR"))" FAIL
+  fi
+  # The FREE branch makes the positive claim, and must NOT name a holder.
+  if grep -qF 'no nonterminal run holds this working tree' "$W32_FREE_ERR" \
+    && grep -qF 'IS reported by /zensu:doctor' "$W32_FREE_ERR" \
+    && ! grep -qF 'run_hold_s' "$W32_FREE_ERR"; then
+    check "W32c a free tree is disclosed as free, naming no holder" PASS
+  else
+    check "W32c free-tree disclosure (got: $(cat "$W32_FREE_ERR"))" FAIL
+  fi
+  # The two branches must be DISTINGUISHABLE. Without this a renderer that emitted
+  # one sentence for both would satisfy W32b and W32c through their shared words.
+  if ! cmp -s "$W32_HELD_ERR" "$W32_FREE_ERR"; then
+    check "W32d the held and free disclosures are different sentences" PASS
+  else
+    check "W32d held and free disclosures must differ" FAIL
+  fi
+fi
+
+W33_P="$ROOT/w33-status-lease"; mkdir -p "$W33_P"; W33_P="$(cd "$W33_P" && pwd -P)"
+W33_HELD_OUT="$ROOT/w33-held.out"; W33_HELD_ERR="$ROOT/w33-held.err"; W33_HELD_RCF="$ROOT/w33-held.rc"
+W33_FREE_OUT="$ROOT/w33-free.out"; W33_FREE_RCF="$ROOT/w33-free.rc"; W33_READYF="$ROOT/w33.ready"
+: > "$W33_READYF"
+(
+  export CLAUDE_PROJECT_DIR="$W33_P"
+  export ZENSU_TEST_PLUGIN_DATA="$ROOT/w33-plugin-data"
+  source "$BASELINE" w33-status-owner >/dev/null 2>&1 || exit 1
+  autopilot_begin_run run_w33_status "$ZENSU_SESSION_KEY" "$W33_P" >/dev/null 2>&1 || exit 1
+  with_autopilot_lease "$W33_P" bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --autopilot-status \
+    >"$W33_HELD_OUT" 2>"$W33_HELD_ERR"
+  printf '%s' "$?" > "$W33_HELD_RCF"
+  bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --autopilot-status >"$W33_FREE_OUT" 2>/dev/null
+  printf '%s' "$?" > "$W33_FREE_RCF"
+  printf 'yes' > "$W33_READYF"
+)
+W33_HELD_RC="$(cat "$W33_HELD_RCF" 2>/dev/null || echo 99)"
+W33_FREE_RC="$(cat "$W33_FREE_RCF" 2>/dev/null || echo 99)"
+if [ "$(cat "$W33_READYF" 2>/dev/null)" != yes ]; then
+  check "W33 the held-lease --autopilot-status fixture did not complete" FAIL
+elif [ "$W33_HELD_RC" -eq 5 ] && [ ! -s "$W33_HELD_OUT" ] \
+  && grep -qF 'Autopilot state could not be read' "$W33_HELD_ERR" \
+  && ! grep -qF 'owns no durable Autopilot run' "$W33_HELD_ERR" \
+  && [ "$W33_FREE_RC" -eq 0 ] && json_ok "$W33_FREE_OUT" 'value.runId === "run_w33_status"'; then
+  check "W33 a held Autopilot lease makes --autopilot-status exit 5 instead of a no-run answer" PASS
+else
+  check "W33 held-lease status (held=$W33_HELD_RC free=$W33_FREE_RC err=$(head -c 300 "$W33_HELD_ERR" 2>/dev/null))" FAIL
+fi
+
+W34_P="$ROOT/w34-status-lease-norun"; mkdir -p "$W34_P/.zensu/state"; W34_P="$(cd "$W34_P" && pwd -P)"
+W34_OUT="$ROOT/w34.out"; W34_ERR="$ROOT/w34.err"; W34_RCF="$ROOT/w34.rc"; W34_SECF="$ROOT/w34.sec"
+(
+  export CLAUDE_PROJECT_DIR="$W34_P"
+  export ZENSU_TEST_PLUGIN_DATA="$ROOT/w34-plugin-data"
+  source "$BASELINE" w34-status-norun >/dev/null 2>&1 || exit 1
+  started=$SECONDS
+  with_autopilot_lease "$W34_P" bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --autopilot-status >"$W34_OUT" 2>"$W34_ERR"
+  printf '%s' "$?" > "$W34_RCF"
+  printf '%s' "$((SECONDS - started))" > "$W34_SECF"
+)
+W34_RC="$(cat "$W34_RCF" 2>/dev/null || echo 99)"
+W34_SEC="$(cat "$W34_SECF" 2>/dev/null || echo 0)"
+if [ "$W34_RC" -eq 1 ] && [ "$W34_SEC" -ge 8 ] && [ ! -s "$W34_OUT" ] \
+  && grep -qF 'owns no durable Autopilot run' "$W34_ERR" \
+  && ! grep -qF 'Autopilot state could not be read' "$W34_ERR"; then
+  check "W34 a held Autopilot lease still answers no run for a session that provably owns none" PASS
+else
+  check "W34 held-lease status without a run (rc=$W34_RC elapsed=${W34_SEC}s err=$(head -c 300 "$W34_ERR" 2>/dev/null))" FAIL
+fi
+
+W35_P="$ROOT/w35-status-unsafe"; mkdir -p "$W35_P"; W35_P="$(cd "$W35_P" && pwd -P)"
+W35_OUT="$ROOT/w35.out"; W35_ERR="$ROOT/w35.err"; W35_RCF="$ROOT/w35.rc"
+(
+  export CLAUDE_PROJECT_DIR="$W35_P"
+  export ZENSU_TEST_PLUGIN_DATA="$ROOT/w35-plugin-data"
+  source "$BASELINE" w35-status-unsafe >/dev/null 2>&1 || exit 1
+  mkdir -p "$W35_P/.zensu/state/autopilot"
+  bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --autopilot-status >"$W35_OUT" 2>"$W35_ERR"
+  printf '%s' "$?" > "$W35_RCF"
+  rmdir "$W35_P/.zensu/state/autopilot"
+)
+W35_RC="$(cat "$W35_RCF" 2>/dev/null || echo 99)"
+if [ "$W35_RC" -eq 5 ] && [ ! -s "$W35_OUT" ] \
+  && grep -qF 'Autopilot state could not be read' "$W35_ERR" \
+  && ! grep -qF 'owns no durable Autopilot run' "$W35_ERR"; then
+  check "W35 unsafe Autopilot storage makes --autopilot-status exit 5 instead of a no-run answer" PASS
+else
+  check "W35 unsafe-storage status (rc=$W35_RC err=$(head -c 300 "$W35_ERR" 2>/dev/null))" FAIL
+fi
+
+W36_P="$ROOT/w36-status-lease-cancelled"; mkdir -p "$W36_P"; W36_P="$(cd "$W36_P" && pwd -P)"
+W36_OUT="$ROOT/w36.out"; W36_ERR="$ROOT/w36.err"; W36_RCF="$ROOT/w36.rc"; W36_SECF="$ROOT/w36.sec"
+(
+  export CLAUDE_PROJECT_DIR="$W36_P"
+  export ZENSU_TEST_PLUGIN_DATA="$ROOT/w36-plugin-data"
+  source "$BASELINE" w36-status-cancelled >/dev/null 2>&1 || exit 1
+  autopilot_begin_run run_w36_cancelled "$ZENSU_SESSION_KEY" "$W36_P" >/dev/null 2>&1 || exit 1
+  autopilot_apply_event run_w36_cancelled cancel-w36 CANCEL '{}' "$W36_P" >/dev/null 2>&1 || exit 1
+  started=$SECONDS
+  with_autopilot_lease "$W36_P" bash "$PLUGIN_DIR/hooks/lib/zensu-log.sh" --autopilot-status >"$W36_OUT" 2>"$W36_ERR"
+  printf '%s' "$?" > "$W36_RCF"
+  printf '%s' "$((SECONDS - started))" > "$W36_SECF"
+)
+W36_RC="$(cat "$W36_RCF" 2>/dev/null || echo 99)"
+W36_SEC="$(cat "$W36_SECF" 2>/dev/null || echo 0)"
+if [ "$W36_RC" -eq 0 ] && [ "$W36_SEC" -ge 8 ] \
+  && json_ok "$W36_OUT" 'value.runId === "run_w36_cancelled" && value.stage === "CANCELLED"' \
+  && ! grep -qF 'Autopilot state could not be read' "$W36_ERR"; then
+  check "W36 a held Autopilot lease still reports a cancelled own run as the locked read does" PASS
+else
+  check "W36 held-lease status over a cancelled own run (rc=$W36_RC elapsed=${W36_SEC}s err=$(head -c 300 "$W36_ERR" 2>/dev/null))" FAIL
+fi
+
+# S5b — liveness. The owner's workflow document is the staleness signal this
+# repository already has; a release must refuse while it is fresh.
+REL_LIVE_RC=0
+REL_LIVE_ERR="$ROOT/rel-live.err"
+: > "$REL_LIVE_ERR"
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/rb" && autopilot_begin_run run_rel_live session_rel_live "$REL_P" false true "" ) >/dev/null 2>&1
+  printf '%s\n' '{}' > "$REL_P/.zensu/state/tdd-phase-session_rel_live.json"
+  ( cd "$REL_P/.claude/worktrees/rb" && autopilot_release_run run_rel_live evt_rel_live "$REL_P" session_rel_other ) >/dev/null 2>"$REL_LIVE_ERR"
+  REL_LIVE_RC=$?
+fi
+if [ "$REL_READY" = true ] && [ "$REL_LIVE_RC" -eq 7 ] \
+  && grep -qF 'the owning session is still active' "$REL_LIVE_ERR"; then
+  check "W17 a release is refused while the owning session's workflow document is fresh" PASS
+else
+  check "W17 release must refuse a live owner (rc=$REL_LIVE_RC, want 7 + named cause)" FAIL
+fi
+
+REL_LINK_MADE=false
+REL_SYMLINK_RC=0
+REL_SYMLINK_ERR="$ROOT/rel-symlink.err"
+: > "$REL_SYMLINK_ERR"
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/rl" && autopilot_begin_run run_rel_link session_rel_link "$REL_P" false true "" ) >/dev/null 2>&1
+  printf '%s\n' '{}' > "$REL_P/.zensu/state/decoy-stale.json"
+  touch -t 200001010000 "$REL_P/.zensu/state/decoy-stale.json" 2>/dev/null
+  rm -f "$REL_P/.zensu/state/tdd-phase-session_rel_link.json"
+  if ln -sfn "$REL_P/.zensu/state/decoy-stale.json" "$REL_P/.zensu/state/tdd-phase-session_rel_link.json" 2>/dev/null \
+    && [ -L "$REL_P/.zensu/state/tdd-phase-session_rel_link.json" ]; then
+    REL_LINK_MADE=true
+    ( cd "$REL_P/.claude/worktrees/rl" && autopilot_release_run run_rel_link evt_rel_link "$REL_P" session_rel_other ) >/dev/null 2>"$REL_SYMLINK_ERR"
+    REL_SYMLINK_RC=$?
+  fi
+fi
+if [ "$REL_READY" != true ]; then
+  check "W20 release fixture unavailable" FAIL
+elif [ "$REL_LINK_MADE" != true ]; then
+  check "W20 skipped: this host cannot create a symlink; the W22 source pin still covers the read" PASS
+elif [ "$REL_SYMLINK_RC" -eq 2 ] && grep -qF 'unsafe state file' "$REL_SYMLINK_ERR"; then
+  check "W20 a symlinked liveness beacon is refused instead of followed" PASS
+else
+  check "W20 a symlinked liveness beacon must be refused (rc=$REL_SYMLINK_RC, want 2)" FAIL
+fi
+
+REL_DIR_RC=0
+REL_DIR_ERR="$ROOT/rel-dir.err"
+: > "$REL_DIR_ERR"
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/rd" && autopilot_begin_run run_rel_dir session_rel_dir "$REL_P" false true "" ) >/dev/null 2>&1
+  rm -f "$REL_P/.zensu/state/tdd-phase-session_rel_dir.json"
+  mkdir -p "$REL_P/.zensu/state/tdd-phase-session_rel_dir.json"
+  ( cd "$REL_P/.claude/worktrees/rd" && autopilot_release_run run_rel_dir evt_rel_dir "$REL_P" session_rel_other ) >/dev/null 2>"$REL_DIR_ERR"
+  REL_DIR_RC=$?
+  rm -rf "$REL_P/.zensu/state/tdd-phase-session_rel_dir.json"
+fi
+if [ "$REL_READY" = true ] && [ "$REL_DIR_RC" -eq 2 ] && grep -qF 'unsafe state file' "$REL_DIR_ERR"; then
+  check "W21 a directory at the liveness beacon path is refused, not read as absent" PASS
+else
+  check "W21 a directory at the beacon path must be refused (rc=$REL_DIR_RC, want 2)" FAIL
+fi
+
+if grep -qF 'const ownerActivity = regularFile(path.join(stateDir, `tdd-phase-${ownerSessionId}.json`));' "$LIB" \
+  && ! grep -qF 'fs.statSync(path.join(stateDir, `tdd-phase-${ownerSessionId}.json`))' "$LIB" \
+  && ! grep -qF 'fs.statSync(path.join(stateDir, `tdd-phase-${state.ownerSessionId}.json`))' "$LIB"; then
+  check "W22 the liveness beacon is read through the regularFile chokepoint" PASS
+else
+  check "W22 the liveness beacon must not be read with a link-following stat" FAIL
+fi
+
+REL_STALE_RC=1
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/rs" && autopilot_begin_run run_rel_stale session_rel_stale "$REL_P" false true "" ) >/dev/null 2>&1
+  printf '%s\n' '{}' > "$REL_P/.zensu/state/tdd-phase-session_rel_stale.json"
+  touch -t 200001010000 "$REL_P/.zensu/state/tdd-phase-session_rel_stale.json" 2>/dev/null
+  ( cd "$REL_P/.claude/worktrees/rs" && autopilot_release_run run_rel_stale evt_rel_stale "$REL_P" session_rel_other ) >/dev/null 2>&1
+  REL_STALE_RC=$?
+fi
+# The negative control for W17. Without it every assertion about exit 7 is
+# satisfied by a guard that refuses unconditionally, and the isFile() and
+# ttlHours>0 conditions can both be deleted with the suite still green.
+if [ "$REL_READY" = true ] && [ "$REL_STALE_RC" -eq 0 ]; then
+  check "W23 a release is permitted once the owning session's document is stale" PASS
+else
+  check "W23 release must be permitted for a stale owner (rc=$REL_STALE_RC, want 0)" FAIL
+fi
+
+REL_TTL0_RC=1
+REL_TTL0_ERR="$ROOT/rel-ttl0.err"
+: > "$REL_TTL0_ERR"
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/rt" && autopilot_begin_run run_rel_ttl0 session_rel_ttl0 "$REL_P" false true "" ) >/dev/null 2>&1
+  printf '%s\n' '{}' > "$REL_P/.zensu/state/tdd-phase-session_rel_ttl0.json"
+  REL_TTL_SAVED="$(declare -f zensu_autopilot_release_owner_activity_ttl_hours)"
+  zensu_autopilot_release_owner_activity_ttl_hours() { echo 0; }
+  ( cd "$REL_P/.claude/worktrees/rt" && autopilot_release_run run_rel_ttl0 evt_rel_ttl0 "$REL_P" session_rel_other ) >/dev/null 2>"$REL_TTL0_ERR"
+  REL_TTL0_RC=$?
+  eval "$REL_TTL_SAVED"
+fi
+# autopilotReleaseOwnerActivityTtlHours=0 disables the liveness refusal for a
+# demonstrably live owner. The release reads its own key rather than the adoption
+# window, because it is the destructive verb, and neither is pendingReviewTtlHours,
+# which answers how long a deferred-review marker stays meaningful. Zero is the
+# repository's established meaning of "disabled", so it stays — but it must not be
+# silent, or an operator reads the missing refusal as a boundary that is no longer
+# being enforced at all.
+if [ "$REL_READY" = true ] && [ "$REL_TTL0_RC" -eq 0 ] \
+  && grep -qF 'owner liveness unchecked: autopilotReleaseOwnerActivityTtlHours is 0' "$REL_TTL0_ERR"; then
+  check "W24 a zero TTL disables the liveness refusal and says so" PASS
+else
+  check "W24 a zero TTL must disable the check and disclose it (rc=$REL_TTL0_RC, want 0 + disclosure)" FAIL
+fi
+
+REL_PTR_RC=0
+REL_PTR_MADE=false
+REL_PTR_ERR="$ROOT/rel-ptr.err"
+: > "$REL_PTR_ERR"
+if [ "$REL_READY" = true ]; then
+  ( cd "$REL_P/.claude/worktrees/rp" && autopilot_begin_run run_rel_ptr session_rel_ptr "$REL_P" false true "" ) >/dev/null 2>&1
+  REL_PTR_FILE="$(autopilot_active_file "$REL_P" session_rel_ptr)"
+  printf '%s\n' '{}' > "$REL_P/.zensu/state/decoy-pointer.json"
+  rm -f "$REL_PTR_FILE"
+  if ln -sfn "$REL_P/.zensu/state/decoy-pointer.json" "$REL_PTR_FILE" 2>/dev/null && [ -L "$REL_PTR_FILE" ]; then
+    REL_PTR_MADE=true
+    ( cd "$REL_P/.claude/worktrees/rp" && autopilot_release_run run_rel_ptr evt_rel_ptr "$REL_P" session_rel_ptr ) >/dev/null 2>"$REL_PTR_ERR"
+    REL_PTR_RC=$?
+  fi
+fi
+# The owner branch turns a refusal into a permission on the ABSENCE of this
+# pointer, and the directory holding it is writable from inside a session. A
+# liveness check cannot be added there — the owner IS the caller, and refusing a
+# live owner would remove the torn-begin exit W15 exists for — so the guarantee
+# that remains is that an unsafe pointer must never READ as absent.
+if [ "$REL_READY" != true ]; then
+  check "W26 release fixture unavailable" FAIL
+elif [ "$REL_PTR_MADE" != true ]; then
+  check "W26 skipped: this host cannot create a symlink" PASS
+elif [ "$REL_PTR_RC" -eq 2 ] && grep -qF 'unsafe state file' "$REL_PTR_ERR"; then
+  check "W26 an unsafe owner pointer fails closed instead of reading as absent" PASS
+else
+  check "W26 an unsafe owner pointer must fail closed (rc=$REL_PTR_RC, want 2)" FAIL
+fi
+
+RACE_P="$ROOT/race-guards"
+RACE_READY=true
+RACE_A_RC=99
+RACE_B_RC=99
+mkdir -p "$RACE_P/.claude/worktrees"
+command -v git >/dev/null 2>&1 || RACE_READY=false
+if [ "$RACE_READY" = true ]; then
+  git -C "$RACE_P" init -q >/dev/null 2>&1 || RACE_READY=false
+  git -C "$RACE_P" -c user.email=t@example.invalid -c user.name=t \
+    commit -q --allow-empty -m init >/dev/null 2>&1 || RACE_READY=false
+  git -C "$RACE_P" worktree add -q "$RACE_P/.claude/worktrees/ca" -b race-a >/dev/null 2>&1 || RACE_READY=false
+fi
+if [ "$RACE_READY" = true ]; then
+  _autopilot_prepare_storage "$RACE_P" >/dev/null 2>&1
+  RACE_A_OUT="$ROOT/race-a.rc"
+  RACE_B_OUT="$ROOT/race-b.rc"
+  (
+    cd "$RACE_P/.claude/worktrees/ca" || exit 99
+    autopilot_begin_run run_race_a session_race_a "$RACE_P" false true "" >/dev/null 2>&1
+    printf '%s' "$?" > "$RACE_A_OUT"
+  ) &
+  (
+    cd "$RACE_P/.claude/worktrees/ca" || exit 99
+    autopilot_begin_run run_race_b session_race_b "$RACE_P" false true "" >/dev/null 2>&1
+    printf '%s' "$?" > "$RACE_B_OUT"
+  ) &
+  wait
+  RACE_A_RC="$(cat "$RACE_A_OUT" 2>/dev/null || echo 99)"
+  RACE_B_RC="$(cat "$RACE_B_OUT" 2>/dev/null || echo 99)"
+fi
+RACE_WINNERS=0
+RACE_REFUSALS=0
+for RACE_RC in "$RACE_A_RC" "$RACE_B_RC"; do
+  case "$RACE_RC" in
+    0) RACE_WINNERS=$((RACE_WINNERS + 1)) ;;
+    # TWO loser codes, and admitting only one made this check flaky rather than
+    # strict. 4 is the occupancy fence refusing a tree the winner already holds —
+    # the outcome when the loser got the lease second. 1 is `_tdd_locked_run`
+    # failing to ACQUIRE it at all, which is the outcome when it never got the
+    # lease, and under load that is the one that happens. Both are a loser that
+    # did not begin a run, which is the property this check is named for.
+    # Everything else still fails: a crash is 2 under the worker's
+    # `uncaughtException` handler, so widening to "any non-zero" would have
+    # admitted exactly the fault that handler exists to make visible.
+    1|4) RACE_REFUSALS=$((RACE_REFUSALS + 1)) ;;
+  esac
+done
+# Every other occupancy check in this suite drives a holder that was already
+# committed before the second call started, which proves the READ and not the
+# lock. Two begins launched together in one tree are the case the changeset is
+# named after: the project lease must order them, so exactly one may win.
+# The record COUNT is asserted beside the exit codes, and it is what compensates
+# for admitting two loser codes above: exit codes alone cannot tell a loser that
+# was refused from one that wrote a second run document and then reported a
+# failure. Exactly one run record must exist in that tree afterwards.
+RACE_RECORDS=0
+if [ "$RACE_READY" = true ]; then
+  RACE_RECORDS="$(find "$RACE_P/.zensu/state" -maxdepth 1 -name 'autopilot-run-*.json' 2>/dev/null | wc -l | tr -d ' ')"
+fi
+if [ "$RACE_READY" != true ]; then
+  check "W27 concurrency fixture unavailable" FAIL
+elif [ "$RACE_WINNERS" -eq 1 ] && [ "$RACE_REFUSALS" -eq 1 ] && [ "$RACE_RECORDS" -eq 1 ]; then
+  check "W27 two begins racing for one working tree yield exactly one winner and one record" PASS
+else
+  check "W27 concurrent begins must yield one winner and one refusal (a=$RACE_A_RC b=$RACE_B_RC records=$RACE_RECORDS)" FAIL
+fi
+
+# --- R1: the containment predicate must be separator-correct and total ---
+# A POSIX host cannot observe either defect behaviourally, so these are source
+# pins. `realpathSync.native` yields `D:\a\proj` on win32, so a hardcoded `/`
+# boundary makes `contains` degrade to the equality it replaced — the exact
+# pre-change behaviour this work removes. And `.startsWith` on a non-string
+# throws; node exits 1, which the standalone gate reads as "no holder" and arms
+# the chain, so the predicate must be total rather than partial.
+R1_OK=true
+grep -qF 'const contains = (outer, inner) =>' "$LIB" || R1_OK=false
+grep -qF 'path.relative(outer, inner)' "$LIB" || R1_OK=false
+grep -qF 'typeof outer === "string" && typeof inner === "string"' "$LIB" || R1_OK=false
+grep -qF 'inner.startsWith(`${outer}/`)' "$LIB" && R1_OK=false
+if [ "$R1_OK" = true ]; then
+  check "W18 containment compares with path.relative and is total over non-strings" PASS
+else
+  check "W18 containment must be separator-correct and total" FAIL
+fi
+
+# W18b pins the ANCHORING, which W18 does not: it grades the signature, the
+# `path.relative` derivation and the ABSENCE of the retired `inner.startsWith(outer + "/")`
+# form, so reverting to a bare `!rel.startsWith("..")` satisfied all three. No fixture
+# builds a worktree whose basename starts with `..`, so nothing behavioural catches it
+# either — and the consequence is not cosmetic: `<project>/..bak` would read as FREE,
+# `workspaceHolder` would find no holder, and a standalone `/zensu:tdd` chain would arm
+# underneath a live durable run in the same tree. Both clauses, or neither.
+W18B_OK=true
+# Filtered off comment lines, the same class W19 was fixed for: `contains` sits
+# directly under a comment block that already discusses its anchoring, and this
+# predicate has NO behavioural case, so the source pin is its only coverage.
+w18b_code() { grep -F "$1" "$LIB" | grep -cvE '^[[:space:]]*//'; }
+[ "$(w18b_code 'rel !== ".."')" -ge 1 ] || W18B_OK=false
+[ "$(w18b_code 'rel.startsWith(".." + path.sep)')" -ge 1 ] || W18B_OK=false
+# The unanchored form must NOT come back. The needle carries the closing paren that
+# only the BARE spelling has, so it does not match the anchored one as a substring.
+grep -qF 'rel.startsWith("..")' "$LIB" && W18B_OK=false
+if [ "$W18B_OK" = true ]; then
+  check "W18b the containment predicate is ANCHORED on both clauses and the bare startsWith form has not returned" PASS
+else
+  check "W18b the containment predicate lost an anchoring clause or regained the bare startsWith form" FAIL
+fi
+
+# The liveness bound must exclude a future timestamp: a negative age never
+# crosses the bound, so a skewed or planted mtime would make the run
+# permanently unreleasable. This repository already states that rule for the
+# reviewer-denial note TTL; the same bound applies here.
+#
+# COUNTED, not merely found. The bound now lives in ONE evaluation, `ownerLiveness`,
+# which both verbs call and map, so the pin is the single definition, exactly one
+# future return and one window comparison inside it, and exactly two call sites — a
+# verb that stopped calling it, or a third hand-rolled copy beside it, changes a count.
+# R7-10: counted over CODE LINES, like every needle below it. An unfiltered count
+# let a comment quoting the bound expression hold a total after a code copy was
+# deleted — and this file narrates that expression in prose.
+w19_code() { grep -F "$1" "$LIB" | grep -cvE '^[[:space:]]*//'; }
+W19_HELPER="$(w19_code 'const ownerLiveness = (stateDir, ownerSessionId, ttlHoursRaw, options = {}) => {')"
+W19_FUTURE_RETURN="$(w19_code 'if (ageMs < 0) return { verdict: "future", ageMs };')"
+W19_WINDOW="$(w19_code 'return { verdict: ageMs < ttlHours * 3600000 ? "fresh" : "stale", ageMs };')"
+W19_CALLS="$(w19_code 'ownerLiveness(stateDir, ')"
+W19_BOUNDS=0
+[ "$W19_HELPER" -eq 1 ] && [ "$W19_FUTURE_RETURN" -eq 1 ] && [ "$W19_WINDOW" -eq 1 ] \
+  && [ "$W19_CALLS" -eq 2 ] && W19_BOUNDS=2
+# COUNTED OVER CODE LINES ONLY. An earlier spelling counted over the whole file, so a
+# comment carrying the same words satisfied the count while the code path that emits
+# it was deleted — the check could not tell a disclosure from a description of one.
+# Every needle below is therefore filtered to a line that actually EMITS: a
+# `process.stderr.write(` for a disclosure, a `fail(7` for a refusal.
+# Filtered off COMMENT lines, not merely matched against an emitter substring: an
+# earlier spelling counted any line containing `if (` or `process.stderr.write(`,
+# which a comment quoting the whole statement satisfies — and this file quotes code
+# in comments as a matter of style. `grep -cvE '^[[:space:]]*//'` is the filter the
+# sibling W18b uses and the only one here that actually excludes prose.
+w19_emitted() { grep -F "$2" "$LIB" | grep -F "$1" | grep -cvE '^[[:space:]]*//'; }
+# The absent-beacon disclosure is still a hand copy across BOTH verbs: it is the one
+# stand-down an outsider reaches by unlinking an ordinary file, so both must say so.
+W19_NO_DOC="$(w19_emitted 'process.stderr.write(' 'owner liveness unchecked: no workflow document for the recorded owner')"
+# The FUTURE-dated case is refused by BOTH verbs, each under its own sentence, and this
+# check is what holds that in place. `adopt` used to PERMIT and disclose on the argument
+# that its move is reversible; the release's own refusal then named adoption as its
+# remedy, so two confirmations cancelled a run whose owner is demonstrably alive, and the
+# victim's adopt-back was refused while the adopter's document was fresh. The run stays
+# reachable through the ordinary event path and through the documented per-verb `0`.
+# One sentence each, and the retired disclosure must not come back.
+W19_FUTURE_DISCLOSE="$(w19_emitted 'fail(7' 'dated in the future, so its age cannot show that the owner has stopped')"
+W19_FUTURE_REFUSE="$(w19_emitted 'fail(7' 'dated in the future, so its age cannot bound this cancel')"
+# The retired disclosure must be GONE: while it stood, adoption permitted the input the
+# release refuses, and the release's own remedy pointed at it.
+[ "$(w19_code 'owner liveness unchecked: the recorded owner workflow document is dated in the future')" -eq 0 ] \
+  || W19_FUTURE_DISCLOSE=0
+if [ "$W19_BOUNDS" -eq 2 ] && [ "$W19_NO_DOC" -eq 2 ] \
+  && [ "$W19_FUTURE_DISCLOSE" -eq 1 ] && [ "$W19_FUTURE_REFUSE" -eq 1 ]; then
+  check "W19 one evaluation bounds the owner-liveness age for both verbs, both disclose an absent beacon, and both refuse a future-dated one under their own wording" PASS
+else
+  check "W19 owner-liveness helper=$W19_HELPER future-return=$W19_FUTURE_RETURN window=$W19_WINDOW (each must be 1) calls=$W19_CALLS no-doc-disclosures=$W19_NO_DOC (each must be 2), future-disclose=$W19_FUTURE_DISCLOSE future-refuse=$W19_FUTURE_REFUSE (each must be 1)" FAIL
+fi
+
+# W19b is the CONTROL for the filter W19 now applies: it proves the needles are
+# absent from comment text, so a future comment carrying them cannot silently
+# restore the file-wide count W19 replaced.
+# `[[:space:]]`, not `\s`: the latter is a GNU extension and not POSIX BRE, so on a
+# grep that does not honour it this control counts 0 and PASSES for a reason
+# unrelated to its subject — silently weakening the filter W19 depends on.
+W19B_RE='^[[:space:]]*//'
+# Widened to EVERY needle W19 counts, not just the disclosure literals. Naming
+# itself "the CONTROL for the filter W19 applies" while covering two of its four
+# needles is the same overclaim this suite exists to catch.
+W19B_COMMENTED="$(grep -F -e 'owner liveness unchecked:' -e 'ageMs < ttlHours * 3600000 ? "fresh"' -e 'dated in the future, so its age cannot bound this cancel' "$LIB" | grep -cE "$W19B_RE" || true)"
+# POSITIVE CONTROL for the pattern itself. Without it a `[[:space:]]` that this
+# host's grep also mishandled would be indistinguishable from a clean tree.
+W19B_CONTROL="$(printf '  // owner liveness unchecked: sample\n' | grep -cE "$W19B_RE" || true)"
+if [ "$W19B_COMMENTED" -eq 0 ] && [ "$W19B_CONTROL" -eq 1 ]; then
+  check "W19b no owner-liveness disclosure literal is carried by a comment line" PASS
+else
+  check "W19b commented=$W19B_COMMENTED (must be 0) control=$W19B_CONTROL (must be 1 — a 0 means this host's grep does not honour the pattern, so the check proves nothing)" FAIL
+fi
+
+printf '%s\n' "----" "test-autopilot-state-machine: $PASS PASS / $FAIL FAIL"
+[ "$FAIL" -eq 0 ]

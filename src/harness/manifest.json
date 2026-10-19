@@ -1,0 +1,6 @@
+{
+  "harness": "zensu-copilot",
+  "contract_version": 1,
+  "launcher": "harness/launcher.js",
+  "supported_kinds": ["implement"]
+}

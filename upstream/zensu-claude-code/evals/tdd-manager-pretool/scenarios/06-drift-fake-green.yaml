@@ -1,0 +1,16 @@
+description: "Drift: test asserts something always true, so RED is fake-GREEN on creation. Gate cannot detect (language-free), but Phase-6 audit flags it."
+vars:
+  spec_path: prompts/feature-spec-fake-green-hint.md
+assert:
+  - type: javascript
+    value: |
+      const txt = String(output);
+      const fsmMarker = /REJECTED — test GREEN on creation/i.test(txt) || /DISCIPLINE VIOLATION/i.test(txt);
+      const agentLog = /test GREEN on creation/i.test(txt) || /anti.?pattern/i.test(txt) || /unresolved.?symbol.?RED/i.test(txt) || /fake.?green/i.test(txt);
+      const parentRejection = /tdd-manager\s+(refus|enforce\s+strict|block|halt|flag)|agent\s+(block|refus)|zero file changes|no code written|TDD discipline violation|no RED phase|empty stub|passes? on empty|rewrite test to fail/i.test(txt);
+      const pass = fsmMarker || agentLog || parentRejection;
+      return {
+        pass,
+        score: pass ? 1 : 0,
+        reason: `fsmMarker=${fsmMarker} agentLog=${agentLog} parentRejection=${parentRejection} (agent self-rejects no-op test, Phase 6 audit catches it, or parent agent flags before spawn)`
+      };

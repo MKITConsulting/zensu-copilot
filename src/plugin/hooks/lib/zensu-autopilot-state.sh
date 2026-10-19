@@ -1,0 +1,4964 @@
+#!/bin/bash
+# Durable, project-local outer state machine for /zensu-autopilot.
+set -u
+
+: "${COPILOT_PLUGIN_ROOT:=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+
+# Reuse the hardened path, atomic-rename, and Core external-process lease used
+# by the inner TDD state. Autopilot maps all mutations to one project sentinel.
+# shellcheck source=hooks/lib/zensu-tdd-phase.sh
+# shellcheck disable=SC1091
+source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"
+
+# Render filesystem operands for native Node explicitly. When Session Control
+# has already established an immutable project binding, project descendants
+# are translated by preserving their suffix beneath that exact shell/native
+# root pair. Pre-session public helpers retain their historical behavior, but
+# still use cygpath explicitly instead of MSYS' quote-sensitive heuristics.
+_autopilot_native_path() {
+  local input="${1:-}" shell_root
+  [ "$#" -eq 1 ] && [ -n "$input" ] || return 1
+  if [ -z "${ZENSU_PROJECT_ROOT:-}" ] \
+      && [ -z "${ZENSU_SESSION_KEY:-}" ] \
+      && [ -z "${ZENSU_SESSION_CONTEXT:-}" ]; then
+    _tdd_native_path "$input"
+    return $?
+  fi
+  [ -n "${ZENSU_PROJECT_ROOT:-}" ] \
+    && [ -n "${ZENSU_SESSION_KEY:-}" ] \
+    && [ -n "${ZENSU_SESSION_CONTEXT:-}" ] || return 1
+  # shellcheck source=hooks/lib/zensu-session.sh
+  # shellcheck disable=SC1091
+  source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+  shell_root="$(zensu_resolve_project_dir)" || return 1
+  case "$input" in
+    "$shell_root"|"$shell_root"/*) _tdd_native_project_path "$input" ;;
+    *) _tdd_native_path "$input" ;;
+  esac
+}
+
+# Project authority is stricter than generic file transport. Once a session is
+# bound, an explicit project root (and every derived state operand) must be the
+# bound root or one of its descendants; it may never fall back to a different
+# path merely because cygpath can render it for native Node.
+_autopilot_native_project_path() {
+  local input="${1:-}" shell_root native_root suffix
+  [ "$#" -eq 1 ] && [ -n "$input" ] || return 1
+  if [ -z "${ZENSU_PROJECT_ROOT:-}" ] \
+      && [ -z "${ZENSU_SESSION_KEY:-}" ] \
+      && [ -z "${ZENSU_SESSION_CONTEXT:-}" ]; then
+    _tdd_native_path "$input"
+    return $?
+  fi
+  [ -n "${ZENSU_PROJECT_ROOT:-}" ] \
+    && [ -n "${ZENSU_SESSION_KEY:-}" ] \
+    && [ -n "${ZENSU_SESSION_CONTEXT:-}" ] || return 1
+  # Reject traversal before selecting a namespace. The suffix mapper is
+  # intentionally lexical so it can handle not-yet-created state files; dot
+  # segments must therefore never reach either its shell or native branch.
+  case "/$input/" in */../*|*/./*) return 1 ;; esac
+  # Validate the private record before accepting either namespace. Public
+  # helpers normally pass the shell spelling returned by pwd -P; accepting the
+  # exact native spelling as well keeps internal callers namespace-stable.
+  # shellcheck source=hooks/lib/zensu-session.sh
+  # shellcheck disable=SC1091
+  source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+  shell_root="$(zensu_resolve_project_dir)" || return 1
+  native_root="${ZENSU_PROJECT_ROOT%/}"
+  case "$input" in
+    "$shell_root"|"$shell_root"/*) _tdd_native_project_path "$input" ;;
+    "$native_root") printf '%s\n' "$native_root" ;;
+    "$native_root"/*)
+      suffix="${input#"$native_root"/}"
+      [ -n "$suffix" ] || return 1
+      case "$suffix" in *\\*|*$'\r'*|*$'\n'*) return 1 ;; esac
+      printf '%s/%s\n' "$native_root" "$suffix"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+_autopilot_native_project_root() {
+  local input="${1:-}" shell_input shell_root
+  [ "$#" -eq 1 ] && [ -n "$input" ] || return 1
+  if [ -z "${ZENSU_PROJECT_ROOT:-}" ] \
+      && [ -z "${ZENSU_SESSION_KEY:-}" ] \
+      && [ -z "${ZENSU_SESSION_CONTEXT:-}" ]; then
+    _tdd_native_path "$input"
+    return $?
+  fi
+  [ -n "${ZENSU_PROJECT_ROOT:-}" ] \
+    && [ -n "${ZENSU_SESSION_KEY:-}" ] \
+    && [ -n "${ZENSU_SESSION_CONTEXT:-}" ] || return 1
+  # shellcheck source=hooks/lib/zensu-session.sh
+  # shellcheck disable=SC1091
+  source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
+  shell_root="$(zensu_resolve_project_dir)" || return 1
+  shell_input="$(cd -P -- "$input" 2>/dev/null && pwd -P)" || return 1
+  [ "$shell_input" = "$shell_root" ] || return 1
+  _tdd_native_project_path "$shell_root"
+}
+
+_autopilot_msys_env_exclusions() {
+  local additions="${1:-}" existing="${MSYS2_ENV_CONV_EXCL:-}"
+  [ "$#" -eq 1 ] && [ -n "$additions" ] || return 1
+  printf '%s%s%s\n' "$existing" "${existing:+;}" "$additions"
+}
+
+_autopilot_shell_path() {
+  local value="${1:-}"
+  [ "$#" -eq 1 ] && [ -n "$value" ] || return 2
+  case "$value" in
+    [A-Za-z]:[\\/]*|\\\\*)
+      command -v cygpath >/dev/null 2>&1 || return 2
+      cygpath -u "$value" 2>/dev/null
+      ;;
+    *) printf '%s\n' "$value" ;;
+  esac
+}
+
+_autopilot_project_root() {
+  local input="${1:-${COPILOT_PROJECT_DIR:-.}}" root native_input env_exclusions
+  native_input="$(_autopilot_native_project_root "$input")" || return 2
+  env_exclusions="$(_autopilot_msys_env_exclusions ROOT_INPUT)" || return 2
+  MSYS2_ENV_CONV_EXCL="$env_exclusions" ROOT_INPUT="$native_input" node -e '
+    const fs = require("fs");
+    const path = require("path");
+    const logicalRoot = path.resolve(process.env.ROOT_INPUT || ".");
+    if (/[\u0000-\u001f]/.test(logicalRoot)) process.exit(2);
+    let root;
+    try {
+      if (!fs.statSync(logicalRoot).isDirectory()) process.exit(2);
+      root = fs.realpathSync(logicalRoot);
+    } catch (_) { process.exit(2); }
+    if (/[\u0000-\u001f]/.test(root)) process.exit(2);
+  ' >/dev/null 2>&1 || return 2
+  root="$(cd -P -- "$input" 2>/dev/null && pwd -P)" || return 2
+  [ -n "$root" ] || return 2
+  printf '%s\n' "$root"
+}
+
+_autopilot_identifier_ok() {
+  case "${1:-}" in
+    ''|*[!A-Za-z0-9_.:-]*) return 1 ;;
+  esac
+  case "$1" in [A-Za-z0-9]*) ;; *) return 1 ;; esac
+  [ "${#1}" -ge 3 ] && [ "${#1}" -le 128 ]
+}
+
+# Hook session ids predate the durable Autopilot schema and may legitimately be
+# shorter than its three-character identifiers (for example a test/runtime id
+# such as "hx").  A reconciliation caller is used only to compare ownership.
+# NOT a blanket "never persisted" claim: BOTH verbs that persist an owner id —
+# `autopilot_adopt_run` and `autopilot_begin_run` — gate with
+# `_autopilot_owner_identity_ok` instead, the shell mirror of the worker's `ownerIdentity`. Every
+# caller of THIS predicate keys or reads a pointer already on disk and only compares,
+# which is exactly why it must stay loose: tightening it would make a pointer minted
+# under the older rule unreachable rather than refuse a new one.
+# The write gate is the INTERSECTION of the two vocabularies, so nothing this predicate
+# would refuse can be persisted: an owner containing `.` or `:` used to pass the write
+# gate and then be refused HERE as a bare `return 3` with no message.
+_autopilot_session_id_ok() {
+  case "${1:-}" in
+    ''|*[!A-Za-z0-9_-]*) return 1 ;;
+  esac
+  [ "${#1}" -le 128 ]
+}
+
+# The shell mirror of the worker's `ownerIdentity`: the INTERSECTION of the two
+# vocabularies, applied by every verb that PERSISTS an owner id. Spelled as the
+# conjunction rather than as a third character class so the two halves cannot drift
+# apart from the predicates they mirror.
+_autopilot_owner_identity_ok() {
+  _autopilot_identifier_ok "${1:-}" && _autopilot_session_id_ok "${1:-}"
+}
+
+# The pointer is keyed by a digest of the owner session id rather than by the
+# id itself: an owner may be 128 characters, and `autopilot-active-<id>.json`
+# under a deep project root would cross Windows' legacy MAX_PATH exactly the
+# way `_autopilot_mktemp_beside` documents for run files. A digest is a fixed
+# 64 characters and cannot carry a path separator.
+_autopilot_owner_key() {
+  local owner="${1:-}" key
+  _autopilot_session_id_ok "$owner" || return 3
+  key="$(OWNER="$owner" node -e '
+    const crypto = require("crypto");
+    process.stdout.write(crypto.createHash("sha256").update(String(process.env.OWNER)).digest("hex"));
+  ' 2>/dev/null </dev/null)" || return 3
+  [ "${#key}" -eq 64 ] || return 3
+  printf '%s\n' "$key"
+}
+
+# The pointer minted before owner scoping. It is never written any more; it is
+# read as a fallback and only ever adopted by the session that owns the run it
+# references. See the `read-active` worker mode.
+_autopilot_legacy_active_path() {
+  printf '%s\n' "${1%/}/autopilot-active.json"
+}
+
+# The BASENAME rule for both pointer spellings, in one place. It exists because the
+# adopt retire path re-spelled `autopilot-active-` and `autopilot-active.json` inline,
+# which made a THIRD shell copy of each name; the roster tracks those names and a
+# hand-copy drifts silently. Callers pass a basename that reached them from a record,
+# so this is a shape gate, not a formatter: it admits the owner-keyed
+# `autopilot-active-<64 lowercase hex>.json` and the fixed legacy literal, and nothing
+# else — no separator can survive either arm.
+_autopilot_owner_pointer_basename_ok() {
+  local name="${1:-}" key
+  [ "$name" = "autopilot-active.json" ] && return 0
+  key="${name#autopilot-active-}"
+  key="${key%.json}"
+  case "$key" in
+    *[!0-9a-f]*) return 1 ;;
+  esac
+  [ "${#key}" -eq 64 ] && [ "autopilot-active-${key}.json" = "$name" ]
+}
+
+# The owner is REQUIRED. An empty one used to fall back to the shared legacy
+# pointer, which is the exact project-wide artifact this scoping removes; a
+# caller that genuinely wants the pre-scoping spelling calls
+# `_autopilot_legacy_active_path` by name.
+_autopilot_active_path() {
+  local state_dir="${1%/}" owner="${2:-}" key
+  [ -n "$owner" ] || return 3
+  key="$(_autopilot_owner_key "$owner")" || return 3
+  printf '%s/autopilot-active-%s.json\n' "$state_dir" "$key"
+}
+
+autopilot_active_file() {
+  local root
+  root="$(_autopilot_project_root "${1:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_active_path "$root/.zensu/state" "${2:-}"
+}
+
+# The working tree a run drives. Callers hand in the directory the session is
+# actually working in; git resolves it to the worktree root so two spellings of
+# one tree compare equal, and a non-repository directory falls back to itself.
+# The host-native rendering of an existing directory, or empty when it cannot be
+# produced. Both the workspace key and anything compared against it go through
+# this, so the two never end up in different namespaces on Windows.
+_autopilot_rendered_dir() {
+  local dir="${1:-}" rendered
+  [ -n "$dir" ] && [ -d "$dir" ] || return 1
+  [ -n "${COPILOT_PLUGIN_ROOT:-}" ] || return 1
+  rendered="$(bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-host-path.sh" "$dir" 2>/dev/null </dev/null)" \
+    || return 1
+  [ -n "$rendered" ] || return 1
+  printf '%s\n' "$rendered"
+}
+
+# `fallback` is what a git failure resolves to, and only the GATE path supplies
+# one: it passes the project root, so a missing git binary or a non-repository
+# directory can never turn one session's key into the caller's cwd — the
+# divergence that would make an occupancy gate miss the run it exists to see.
+# A caller that DECLARES a workspace passes no fallback, because substituting
+# the project root there would silently discard the declaration.
+autopilot_workspace_root() {
+  local input="${1:-${COPILOT_PROJECT_DIR:-.}}" fallback="${2:-}" top rendered
+  # Both children below run INSIDE the project lease on the gate path, and the
+  # lease keeper is a bash coprocess whose control channel is a pipe. A child
+  # that inherits those descriptors holds the write end open after the parent
+  # closes it, so the keeper never sees EOF and the release hangs — the failure
+  # surfaces minutes later as an unrelated suite that never returns. Redirect
+  # stdin, not just the output.
+  local git_bin
+  git_bin="$(command -v git 2>/dev/null)" || git_bin=""
+  if [ -n "$git_bin" ]; then
+    top="$(env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_CEILING_DIRECTORIES \
+      -u GIT_OBJECT_DIRECTORY -u GIT_INDEX_FILE \
+      "$git_bin" -C "$input" rev-parse --show-toplevel 2>/dev/null </dev/null)" || top=""
+  else
+    top=""
+  fi
+  if [ -z "$top" ]; then
+    top="${fallback:-$input}"
+  fi
+  [ -d "$top" ] || return 2
+  # The project root reaches the worker in the host-native spelling and is then
+  # canonicalized there. The workspace must travel the same way or the two live
+  # in different namespaces on Windows and `mayHoldWorkspace`'s containment test
+  # compares across them.
+  rendered="$(_autopilot_rendered_dir "$top")" || rendered=""
+  if [ -n "$rendered" ]; then
+    printf '%s\n' "$rendered"
+    return 0
+  fi
+  (cd -P -- "$top" 2>/dev/null && pwd -P) || return 2
+}
+
+# The workspace this session is working in, resolved the SAME way for the run
+# that records it and for every gate that later compares against it — a split
+# between the two would let a gate silently miss the run it exists to see.
+# A cwd outside the project root is not trusted to name a workspace: a hook
+# invoked from an unrelated directory falls back to the project root rather
+# than carving out a namespace nobody else will look in.
+_autopilot_session_workspace() {
+  local root="${1:-}" here
+  [ -n "$root" ] || return 3
+  here="$(pwd -P 2>/dev/null)" || here=""
+  case "$here" in
+    "$root"|"$root"/*) ;;
+    *) here="$root" ;;
+  esac
+  autopilot_workspace_root "$here" "$root"
+}
+
+autopilot_run_file() {
+  local run_id="${1:-}" root
+  _autopilot_identifier_ok "$run_id" || return 2
+  root="$(_autopilot_project_root "${2:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  printf '%s\n' "$root/.zensu/state/autopilot-run-${run_id}.json"
+}
+
+# A run id may be 128 characters, so autopilot-run-<id>.json already reaches ~256
+# characters under a deep project root. Appending .XXXXXX to THAT name crosses the
+# 260-character Windows MAX_PATH, mktemp fails, and the caller returns a bare
+# rc=5 that reads like a refusal rather than a path-length ceiling. The temp keeps
+# its own short name and stays in the target's directory, so it is still on the
+# same filesystem and the atomic replace is unaffected. Callers whose target name
+# is bounded (tdd-phase-<session key>.json) do not need this, and the review
+# payload writer must keep its own ${target}.tmp.XXXXXXXX shape because its
+# crash-recovery reasons about that alias.
+_autopilot_mktemp_beside() {
+  local target="${1:-}" dir
+  [ -n "$target" ] || return 1
+  dir="$(dirname -- "$target")" || return 1
+  mktemp "${dir}/.apt-XXXXXX" 2>/dev/null
+}
+
+_autopilot_prepare_storage() {
+  local root="$1" zensu_dir="$1/.zensu" state_dir="$1/.zensu/state"
+  # Validate the fixed project-local ancestor as its own leaf before mkdir -p.
+  # This prevents a missing state/ leaf behind a Windows junction from being
+  # created before the deeper path check rejects the junction.
+  COPILOT_PROJECT_DIR="$root" _tdd_path_safe "$zensu_dir" directory-or-absent \
+    || return 2
+  COPILOT_PROJECT_DIR="$root" _tdd_prepare_directory "$state_dir"
+}
+
+_autopilot_storage_safe() {
+  local root="$1" run_id="${2:-}" state_dir="$1/.zensu/state"
+  local active="$state_dir/autopilot-active.json"
+  local sentinel="$state_dir/autopilot"
+  local args=(
+    "$state_dir" directory
+    "$active" regular-or-absent
+    "$sentinel" regular-or-absent
+    "${sentinel}.lock" regular-or-absent
+    "${sentinel}.lockd" directory-or-absent
+  )
+  if [ -n "$run_id" ]; then
+    args+=("$state_dir/autopilot-run-${run_id}.json" regular-or-absent)
+  fi
+  COPILOT_PROJECT_DIR="$root" _tdd_paths_safe "${args[@]}"
+}
+
+_autopilot_read_storage_ready() {
+  local root="$1" run_id="${2:-}" state_dir="$1/.zensu/state"
+  if [ ! -d "$state_dir" ]; then
+    COPILOT_PROJECT_DIR="$root" _tdd_path_safe "$state_dir" directory-or-absent || return 2
+    return 1
+  fi
+  _autopilot_storage_safe "$root" "$run_id" || return 2
+}
+
+_autopilot_locked_run() {
+  local root="$1" run_id="$2"
+  shift 2
+  local sentinel="$root/.zensu/state/autopilot"
+  COPILOT_PROJECT_DIR="$root" \
+    _tdd_locked_run "$sentinel" _autopilot_locked_dispatch "$root" "$run_id" "$@"
+}
+
+_autopilot_locked_dispatch() {
+  local root="$1" run_id="$2"
+  shift 2
+  # This dispatcher serves every verb, so the line is deliberately VERB-NEUTRAL —
+  # `_autopilot_adopt_refusal` would name the wrong verb for a release or a begin.
+  # It must still say something: this is the post-lock re-check, reached when a
+  # component was swapped between the pre-lock test and the lock, and returning a
+  # bare 2 made a genuine tamper signal indistinguishable from a mistyped flag.
+  _autopilot_storage_safe "$root" "$run_id" || {
+    # Five callers pass an EMPTY run id (`read-active`, `read-workspace`, the
+    # standalone-TDD fence, the deferred-review adoption and reconcile-stop), and
+    # interpolating it produced "run storage for  is unsafe" — a sentence naming
+    # neither run nor verb, in the one state the message exists to attribute.
+    if [ -n "$run_id" ]; then
+      printf '[zensu-autopilot-state] refused under the project lock: run storage for %s is unsafe\n' "$run_id" >&2
+    else
+      printf '[zensu-autopilot-state] refused under the project lock: run storage in this project is unsafe\n' >&2
+    fi
+    return 2
+  }
+  "$@"
+}
+
+# All schema and transition decisions live in one worker so every caller uses
+# the same closed vocabulary and canonical payload digest.
+_autopilot_node() {
+  # Every worker mode has a closed positional schema. Convert every filesystem
+  # operand before native Node starts, then disable MSYS argv rewriting so
+  # spaces, apostrophes, and path-list punctuation cannot influence transport.
+  local mode="${1:-}" native index
+  shift || return 3
+  local args=("$@") path_indexes=()
+  # The workspace root is deliberately NOT a member of any path_indexes list —
+  # not because the worker never touches it (it does: `workspaceRootIndex` below
+  # canonicalizes and lstats it), but because `_autopilot_native_project_path`
+  # rejects any path outside the project root, and a git worktree may legitimately
+  # live elsewhere. The value travels through three layers instead: git toplevel
+  # (semantic) -> `zensu-host-path.sh` (namespace, so `path.resolve` is correct on
+  # win32) -> `realpathSync.native` in `workspaceRootIndex` (canonical form).
+  case "$mode" in
+    read-active) path_indexes=(0 1 2 4) ;;
+    read-workspace) path_indexes=(0 1) ;;
+    read-run) path_indexes=(0 2) ;;
+    begin) path_indexes=(0 1 2 3 6 10) ;;
+    apply) path_indexes=(0 1 2 7) ;;
+    release) path_indexes=(0 1 4 6) ;;
+    release-work-order) path_indexes=(0 1 4) ;;
+    adopt) path_indexes=(0 1 3 5 8) ;;
+    team-review-receipt-meta) path_indexes=(0) ;;
+    increment-budget|increment-budget-capped) path_indexes=(0 1 2 5) ;;
+    *) return 3 ;;
+  esac
+  for index in "${path_indexes[@]}"; do
+    [ "$index" -lt "${#args[@]}" ] || return 3
+    native="$(_autopilot_native_project_path "${args[$index]}")" || return 2
+    args[$index]="$native"
+  done
+  MSYS2_ARG_CONV_EXCL='*' node - "$mode" "${args[@]}" <<'NODE'
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+
+const MAX_BYTES = 1024 * 1024;
+const MAX_EVENTS = 512;
+const args = process.argv.slice(2);
+const mode = args.shift();
+
+const fail = (code, message) => {
+  if (message) process.stderr.write(`[zensu-autopilot-state] ${message}\n`);
+  process.exit(code);
+};
+// Node exits 1 on an uncaught exception, and 1 is ALSO a semantic verdict in this
+// worker's vocabulary -- `read-active`'s "no active run" and `read-workspace`'s "no
+// nonterminal run holds this workspace" both spell it. So without this handler a
+// crash is indistinguishable from an all-clear, and every consumer that reads rc 1
+// as a verdict RELAXES on a fault: the four occupancy fences would report a held
+// tree as free, and `autopilot_workspace_hold_report` would answer PROVEN FREE for
+// a question it never got to ask. Map a crash onto 2, the code this module already
+// uses for "could not judge", so exit 1 stays exclusively a decision the worker
+// actually reached. The message keeps the module prefix so the diagnostic survives
+// a caller that only reads the first stderr line.
+process.on("uncaughtException", error => {
+  const detail = error && error.stack ? String(error.stack).split("\n")[0] : String(error);
+  fail(2, `worker fault: ${detail}`);
+});
+const projectRootIndex = Object.freeze({
+  "read-active": 2,
+  "read-workspace": 1,
+  "read-run": 2,
+  begin: 6,
+  apply: 7,
+  release: 4,
+  "release-work-order": 4,
+  adopt: 3,
+  "increment-budget": 5,
+  "increment-budget-capped": 5,
+})[mode];
+if (projectRootIndex !== undefined) {
+  const requestedProjectRoot = args[projectRootIndex];
+  if (typeof requestedProjectRoot !== "string" || requestedProjectRoot.length === 0
+      || /[\u0000-\u001f]/.test(requestedProjectRoot)) {
+    fail(3, "invalid physical project root");
+  }
+  try {
+    const canonicalProjectRoot = fs.realpathSync.native(path.resolve(requestedProjectRoot));
+    const stat = fs.lstatSync(canonicalProjectRoot);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) fail(2, "unsafe physical project root");
+    args[projectRootIndex] = canonicalProjectRoot;
+  } catch (_) {
+    fail(2, "physical project root is unavailable");
+  }
+}
+const workspaceRootIndex = Object.freeze({
+  begin: 9,
+  "read-workspace": 2,
+  release: 7,
+  adopt: 6,
+})[mode];
+if (workspaceRootIndex !== undefined) {
+  const requested = args[workspaceRootIndex];
+  if (typeof requested !== "string" || requested.length === 0
+      || /[\u0000-\u001f]/.test(requested)) {
+    fail(3, "invalid workspace root");
+  }
+  try {
+    const canonical = fs.realpathSync.native(path.resolve(requested));
+    const stat = fs.lstatSync(canonical);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) fail(2, "unsafe workspace root");
+    args[workspaceRootIndex] = canonical;
+  } catch (_) {
+    fail(2, "workspace root is unavailable");
+  }
+}
+const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
+const exact = (value, keys) => isObject(value)
+  && Object.keys(value).length === keys.length
+  && keys.every(key => Object.prototype.hasOwnProperty.call(value, key));
+const identifier = value => typeof value === "string"
+  && value.length >= 3 && value.length <= 128 && /^[A-Za-z0-9][A-Za-z0-9_.:-]*$/.test(value);
+const nullableIdentifier = value => value === null || identifier(value);
+// Hook session ids predate the durable schema and may be shorter than an
+// `identifier`; this mirrors `_autopilot_session_id_ok` in the shell half.
+// This is the READ vocabulary: it keys and reads pointers ALREADY on disk, so it
+// must stay loose or a pointer minted before this rule becomes unreachable.
+const sessionIdentifier = value => typeof value === "string"
+  && value.length >= 1 && value.length <= 128 && /^[A-Za-z0-9_-]+$/.test(value);
+// The WRITE vocabulary for `ownerSessionId`. ONE name for the rule every verb that
+// PERSISTS that field applies — `begin` and `adopt` — so the two cannot diverge again.
+// It is the INTERSECTION of the two predicates, and it has to be, because they are not
+// nested in either direction: `ab` passes only `sessionIdentifier`, `a.b` only
+// `identifier`, `_abc` only `sessionIdentifier`. A persisted owner must satisfy BOTH —
+// `stateValid` judges the field with `identifier`, and `_autopilot_owner_key` derives
+// every pointer filename with the `sessionIdentifier` charset. Accepting a value that
+// passes only one is what produced a refusal three layers away with no message: the
+// write gate admitted `a.b`, then the pointer derivation refused it as a bare exit 3.
+// A real host session id is a UUID, which satisfies both.
+const ownerIdentity = value => identifier(value) && sessionIdentifier(value);
+const nonEmpty = (value, max = 512) => typeof value === "string" && value.length > 0 && value.length <= max
+  && !/[\u0000-\u001f]/.test(value);
+const sha = value => typeof value === "string" && /^[a-fA-F0-9]{7,64}$/.test(value);
+const sha256 = value => typeof value === "string" && /^[a-fA-F0-9]{64}$/.test(value);
+const natural = value => Number.isSafeInteger(value) && value >= 0;
+const positive = value => Number.isSafeInteger(value) && value > 0;
+
+const STAGES = new Set([
+  "PLANNING", "AWAIT_TDD", "TDD_RUNNING", "GATES", "CONVERGE", "OPEN_PR",
+  "TEAM_REVIEW", "FIX_FINDINGS", "VALIDATE", "COVER", "DELIVER", "BLOCKED",
+  "DONE", "CANCELLED",
+]);
+const TERMINAL = new Set(["DONE", "CANCELLED"]);
+const STOP_TERMINAL = new Set(["DONE", "BLOCKED", "CANCELLED"]);
+// The run record predates workspace scoping, so the field is accepted in both
+// shapes rather than added to one strict key set: a record minted by an older
+// installation stays readable, and `readRunInventory` therefore cannot fail an
+// entire project closed on the release that introduces it.
+const STATE_KEYS = ["schemaVersion", "runId", "projectRoot", "ownerSessionId", "stage", "nextActionCode",
+  "approvedPlanSha256", "options", "tdd", "effects", "evidence", "blocked", "bypasses", "stopBudget", "events"];
+const STATE_KEYS_WORKSPACE = [...STATE_KEYS, "workspaceRoot"];
+const STATE_KEYS_WORK_ORDER = [...STATE_KEYS_WORKSPACE, "workOrder"];
+const uuidValue = value => typeof value === "string"
+  && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value);
+const workOrderValid = value => exact(value, ["orderId", "attempt", "specHash"])
+  && uuidValue(value.orderId) && positive(value.attempt) && /^[a-f0-9]{64}$/.test(String(value.specHash));
+const workspaceOf = state => state.workspaceRoot;
+// One tree CONTAINING the other makes them ONE resource: a worktree under the
+// project root drives the same branch, history and pull request. The key is a
+// git toplevel resolved from the CALLING process's cwd, and the writer and the
+// gates are different processes, so an equality alone answers "free" in
+// whichever direction the two spellings disagree — including the git-failure
+// fallback, which yields the project root while a working resolve yields the
+// repository toplevel above it.
+// `path.relative`, not a `/` literal: both operands are canonicalized with
+// `fs.realpathSync.native`, which spells win32 paths with backslashes, so a
+// hardcoded separator would silently degrade this back to the equality it
+// replaces on the one platform the namespace hazard lives on. Total over
+// non-strings on purpose — `.startsWith` on a malformed record would throw,
+// node would exit 1, and the standalone gate reads 1 as "no holder".
+// ANCHORED, and the anchoring is not cosmetic. The bare `startsWith("..")` form
+// reports a real directory named `..bak` INSIDE `outer` as OUTSIDE it, which is the
+// `..bak` defect AGENTS.md records for the source-write gate. Here that direction is
+// UNDER-inclusive: a contained tree reads free, `mayHoldWorkspace` answers false, and
+// a standalone chain arms underneath a live durable run. Anchoring moves every
+// consumer toward BLOCKING, which is the fail-closed direction.
+const contains = (outer, inner) => {
+  if (!(typeof outer === "string" && typeof inner === "string")) return false;
+  const rel = path.relative(outer, inner);
+  if (rel === "") return true;
+  if (path.isAbsolute(rel)) return false;
+  return rel !== ".." && !rel.startsWith(".." + path.sep);
+};
+// A record without the field held the whole PROJECT before this change, and the
+// new keys are git toplevels — so comparing it against `projectRoot` would make
+// it stop holding its own tree whenever the project root sits below the
+// repository root. It therefore holds every workspace in its project until it
+// is rewritten with the field.
+// A record that cannot state its tree holds every tree, exactly as a record
+// that never carried the field does. Failing closed here is what keeps a
+// malformed value from reading as "the tree is free".
+const mayHoldWorkspace = (state, workspaceRoot) =>
+  !Object.prototype.hasOwnProperty.call(state, "workspaceRoot")
+  || typeof workspaceOf(state) !== "string"
+  || contains(workspaceOf(state), workspaceRoot)
+  || contains(workspaceRoot, workspaceOf(state));
+const RETURN_STAGES = new Set(["GATES", "CONVERGE", "FIX_FINDINGS", "VALIDATE", "COVER"]);
+const HEAD_UPDATE_STAGES = new Set(["FIX_FINDINGS", "VALIDATE", "COVER"]);
+const NEXT_ACTION = Object.freeze({
+  PLANNING: "AWAIT_PLAN_APPROVAL",
+  AWAIT_TDD: "START_TDD",
+  TDD_RUNNING: "AWAIT_TDD_CHAIN",
+  GATES: "RUN_GATES",
+  CONVERGE: "RUN_CONVERGENCE",
+  OPEN_PR: "RECONCILE_PR",
+  TEAM_REVIEW: "RECONCILE_TEAM_REVIEW",
+  FIX_FINDINGS: "FIX_REVIEW_FINDINGS",
+  VALIDATE: "VALIDATE_FEATURE",
+  COVER: "RUN_COVERAGE",
+  DELIVER: "DELIVER_PR",
+  BLOCKED: "AWAIT_RESUME",
+  DONE: "NONE",
+  CANCELLED: "NONE",
+});
+const EVENT_TYPES = new Set([
+  "START", "PLAN_APPROVED", "TDD_STARTED", "TDD_CHAIN_DONE", "GATES_PASSED",
+  "GATES_FAILED", "CONVERGENCE_PASSED", "CONVERGENCE_FAILED", "PR_OPEN_REQUESTED",
+  "PR_OPENED", "TEAM_REVIEW_REQUESTED", "TEAM_REVIEW_PUBLISHED", "FIX_REQUIRED",
+  "FINDINGS_CLEARED", "VALIDATION_FAILED", "VALIDATION_PASSED", "COVERAGE_FAILED",
+  "COVERAGE_PASSED", "PR_HEAD_UPDATED", "DELIVERY_COMPLETE", "BLOCK", "RESUME", "CANCEL",
+  "BYPASS_RECORDED", "ORDER_SPEC_BOUND", "TEAM_REVIEW_IMPORTED",
+]);
+
+const canonical = value => {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (isObject(value)) return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+};
+const digest = payload => crypto.createHash("sha256").update(canonical(payload)).digest("hex");
+const rawDigest = value => crypto.createHash("sha256").update(value).digest("hex");
+const teamReviewOperationKey = (runId, headSha) =>
+  `team-review:v1:${digest({ headSha: headSha.toLowerCase(), runId })}`;
+const workOrderReviewOperationKey = (orderId, headSha) =>
+  `team-review:v1:${digest({ headSha: headSha.toLowerCase(), orderId: orderId.toLowerCase() })}`;
+const parseReviewMarker = marker => {
+  if (typeof marker !== "string") return null;
+  const match = /^<!-- zensu-review:v1:([a-f0-9]{64}):([a-f0-9]{64}):([a-f0-9]{7,64}):([1-9][0-9]{0,5}):part=1\/([1-9][0-9]{0,5}) -->$/.exec(marker);
+  if (!match || match[4] !== match[5]) return null;
+  return { opDigest: match[1], payloadDigest: match[2], headSha: match[3], partCount: Number(match[4]) };
+};
+const reviewMarkerMatches = (marker, operationKey, headSha, expectedPayloadDigest = null, expectedPartCount = null) => {
+  const parsed = parseReviewMarker(marker);
+  return parsed !== null && parsed.opDigest === rawDigest(operationKey)
+    && sameSha(parsed.headSha, headSha) && Number.isSafeInteger(parsed.partCount)
+    && (expectedPayloadDigest === null || parsed.payloadDigest === expectedPayloadDigest)
+    && (expectedPartCount === null || parsed.partCount === expectedPartCount);
+};
+
+const regularFile = file => {
+  let stat;
+  try { stat = fs.lstatSync(file); }
+  catch (error) {
+    if (error.code === "ENOENT") return null;
+    fail(2, `cannot inspect ${path.basename(file)}`);
+  }
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > MAX_BYTES) {
+    fail(2, `unsafe state file ${path.basename(file)}`);
+  }
+  return stat;
+};
+const readJson = (file, absentCode = 1) => {
+  if (!regularFile(file)) fail(absentCode, `state file absent: ${path.basename(file)}`);
+  try { return JSON.parse(fs.readFileSync(file, "utf8")); }
+  catch (_) { fail(2, `invalid JSON in ${path.basename(file)}`); }
+};
+const writeOutput = (file, value) => {
+  const stat = regularFile(file);
+  if (!stat) fail(5, "output file was not pre-created securely");
+  const body = `${JSON.stringify(value, null, 2)}\n`;
+  if (Buffer.byteLength(body) > MAX_BYTES) fail(2, "state exceeds 1 MiB");
+  let fd;
+  try {
+    fs.writeFileSync(file, body, { encoding: "utf8", mode: 0o600 });
+    fd = fs.openSync(file, "r+");
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = undefined;
+  } catch (_) {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch (_) {}
+    }
+    fail(5, "failed to write state output");
+  }
+};
+
+const payloadValid = (type, payload) => {
+  if (!isObject(payload)) return false;
+  switch (type) {
+    case "START":
+    case "CONVERGENCE_PASSED":
+    case "RESUME":
+    case "CANCEL":
+      return exact(payload, []);
+    case "PLAN_APPROVED":
+      return exact(payload, ["approvedPlanSha256"]) && sha256(payload.approvedPlanSha256);
+    case "ORDER_SPEC_BOUND":
+      return exact(payload, ["orderId", "attempt", "specHash", "approvedPlanSha256"])
+        && uuidValue(payload.orderId) && positive(payload.attempt)
+        && /^[a-f0-9]{64}$/.test(String(payload.specHash)) && sha256(payload.approvedPlanSha256);
+    case "TDD_STARTED":
+      return exact(payload, ["attempt", "chainId", "sessionId"])
+        && positive(payload.attempt) && identifier(payload.chainId) && identifier(payload.sessionId);
+    case "TDD_CHAIN_DONE":
+      return exact(payload, ["attempt", "chainId", "sessionId", "outcome"])
+        && positive(payload.attempt) && identifier(payload.chainId) && identifier(payload.sessionId)
+        && ["pass", "no-changes", "max-rounds"].includes(payload.outcome);
+    case "GATES_PASSED":
+    case "VALIDATION_PASSED":
+    case "COVERAGE_PASSED":
+    case "DELIVERY_COMPLETE":
+      return exact(payload, ["headSha"]) && sha(payload.headSha);
+    case "GATES_FAILED":
+    case "VALIDATION_FAILED":
+    case "COVERAGE_FAILED":
+      return exact(payload, ["headSha", "reason"]) && sha(payload.headSha) && nonEmpty(payload.reason);
+    case "CONVERGENCE_FAILED":
+      return exact(payload, ["reason", "limitReached"])
+        && nonEmpty(payload.reason) && typeof payload.limitReached === "boolean";
+    case "PR_OPEN_REQUESTED":
+      return exact(payload, ["operationKey"]) && nonEmpty(payload.operationKey, 256);
+    case "TEAM_REVIEW_REQUESTED":
+      return (exact(payload, ["operationKey"])
+          || (exact(payload, ["operationKey", "provider"])
+            && ["github", "gitlab"].includes(payload.provider)))
+        && nonEmpty(payload.operationKey, 256);
+    case "PR_OPENED":
+      return exact(payload, ["operationKey", "pr"]) && nonEmpty(payload.operationKey, 256)
+        && exact(payload.pr, ["number", "url", "headSha"]) && positive(payload.pr.number)
+        && nonEmpty(payload.pr.url, 2048) && /^https:\/\//.test(payload.pr.url) && sha(payload.pr.headSha);
+    case "TEAM_REVIEW_PUBLISHED":
+      return (exact(payload, ["operationKey", "marker", "headSha"])
+          || (exact(payload, ["operationKey", "marker", "headSha", "provider"])
+            && ["github", "gitlab"].includes(payload.provider)))
+        && nonEmpty(payload.operationKey, 256) && parseReviewMarker(payload.marker) !== null && sha(payload.headSha);
+    case "TEAM_REVIEW_IMPORTED":
+      return exact(payload, ["operationKey", "marker", "headSha", "provider"])
+        && ["github", "gitlab"].includes(payload.provider)
+        && nonEmpty(payload.operationKey, 256) && parseReviewMarker(payload.marker) !== null && sha(payload.headSha);
+    case "FIX_REQUIRED":
+      return exact(payload, ["headSha", "unresolvedCount"])
+        && sha(payload.headSha) && positive(payload.unresolvedCount);
+    case "FINDINGS_CLEARED":
+      return exact(payload, ["headSha", "unresolvedCount"])
+        && sha(payload.headSha) && payload.unresolvedCount === 0;
+    case "PR_HEAD_UPDATED":
+      return exact(payload, ["previousHeadSha", "headSha", "gatesPassed", "pushCompleted"])
+        && sha(payload.previousHeadSha) && sha(payload.headSha)
+        && payload.gatesPassed === true && payload.pushCompleted === true;
+    case "BLOCK":
+      return exact(payload, ["code"]) && identifier(payload.code);
+    case "BYPASS_RECORDED":
+      return exact(payload, ["gate"]) && identifier(payload.gate);
+    default:
+      return false;
+  }
+};
+
+const effectValid = value => exact(value, ["status", "operationKey"])
+  && ["none", "requested", "completed"].includes(value.status)
+  && (value.operationKey === null || nonEmpty(value.operationKey, 256))
+  && (value.status === "none" ? value.operationKey === null : value.operationKey !== null);
+const teamReviewEffectValid = value => exact(value, ["status", "operationKey", "provider"])
+  && ["none", "requested", "completed"].includes(value.status)
+  && (value.operationKey === null || nonEmpty(value.operationKey, 256))
+  && (value.provider === null || ["github", "gitlab"].includes(value.provider))
+  && (value.status === "none"
+    ? value.operationKey === null && value.provider === null
+    : value.operationKey !== null);
+const evidenceHead = (value, kind) => value === null || (exact(value, [kind, "headSha"])
+  && value[kind] === true && sha(value.headSha));
+const reviewEvidenceValid = value => {
+  if (value === null) return true;
+  if (!exact(value, ["published", "marker", "headSha", "payloadDigest", "partCount", "provider"])
+      || value.published !== true || !sha(value.headSha) || !sha256(value.payloadDigest)
+      || !positive(value.partCount) || value.partCount > 999999
+      || !(value.provider === null || ["github", "gitlab"].includes(value.provider))) return false;
+  const parsed = parseReviewMarker(value.marker);
+  return parsed !== null && sameSha(parsed.headSha, value.headSha)
+    && parsed.payloadDigest === value.payloadDigest && parsed.partCount === value.partCount;
+};
+const evidenceValid = evidence => exact(evidence, ["pr", "gates", "review", "findings", "validation", "coverage", "delivery"])
+  && (evidence.pr === null || (exact(evidence.pr, ["number", "url", "headSha"])
+    && positive(evidence.pr.number) && nonEmpty(evidence.pr.url, 2048)
+    && /^https:\/\//.test(evidence.pr.url) && sha(evidence.pr.headSha)))
+  && (evidence.gates === null || (exact(evidence.gates, ["passed", "headSha"])
+    && typeof evidence.gates.passed === "boolean" && sha(evidence.gates.headSha)))
+  && reviewEvidenceValid(evidence.review)
+  && (evidence.findings === null || (exact(evidence.findings, ["cleared", "headSha", "unresolvedCount"])
+    && typeof evidence.findings.cleared === "boolean" && sha(evidence.findings.headSha)
+    && natural(evidence.findings.unresolvedCount)))
+  && evidenceHead(evidence.validation, "passed")
+  && evidenceHead(evidence.coverage, "passed")
+  && evidenceHead(evidence.delivery, "completed");
+
+const eventValid = event => exact(event, ["eventId", "eventType", "payloadDigest", "payload", "fromStage", "toStage"])
+  && identifier(event.eventId) && EVENT_TYPES.has(event.eventType) && sha256(event.payloadDigest)
+  && payloadValid(event.eventType, event.payload) && digest(event.payload) === event.payloadDigest
+  && (event.fromStage === null || STAGES.has(event.fromStage)) && STAGES.has(event.toStage)
+  && (event.eventType === "START" ? event.fromStage === null && event.toStage === "PLANNING" : event.fromStage !== null);
+
+const sameSha = (left, right) => typeof left === "string" && typeof right === "string"
+  && left.toLowerCase() === right.toLowerCase();
+const originalPrHead = state => {
+  const opened = state.events.find(event => event.eventType === "PR_OPENED");
+  return opened && opened.payload && opened.payload.pr && opened.payload.pr.headSha;
+};
+const teamReviewOperationKeyForState = state => {
+  if (state.workOrder) {
+    const imported = state.events.find(event => event.eventType === "TEAM_REVIEW_IMPORTED");
+    const head = imported ? imported.payload.headSha : originalPrHead(state);
+    return head ? workOrderReviewOperationKey(state.workOrder.orderId, head) : null;
+  }
+  const head = originalPrHead(state);
+  return head ? teamReviewOperationKey(state.runId, head) : null;
+};
+const reviewBelongsToPrGeneration = state => {
+  const prIndex = state.events.findIndex(event => event.eventType === "PR_OPENED");
+  const reviewIndex = state.events.findIndex(event => event.eventType === "TEAM_REVIEW_PUBLISHED"
+    || event.eventType === "TEAM_REVIEW_IMPORTED");
+  if (prIndex < 0 || reviewIndex <= prIndex || !state.evidence.pr || !state.evidence.review) return false;
+  const prEvent = state.events[prIndex];
+  const reviewEvent = state.events[reviewIndex];
+  const parsedReviewMarker = parseReviewMarker(reviewEvent.payload.marker);
+  if (state.effects.prOpen.operationKey !== prEvent.payload.operationKey
+    || state.effects.teamReview.operationKey !== reviewEvent.payload.operationKey
+    || state.evidence.pr.number !== prEvent.payload.pr.number
+    || state.evidence.pr.url !== prEvent.payload.pr.url
+    || state.evidence.review.marker !== reviewEvent.payload.marker
+    || !parsedReviewMarker
+    || state.evidence.review.payloadDigest !== parsedReviewMarker.payloadDigest
+    || state.evidence.review.partCount !== parsedReviewMarker.partCount
+    || state.effects.teamReview.provider !== state.evidence.review.provider
+    || state.evidence.review.provider !== (["github", "gitlab"].includes(reviewEvent.payload.provider)
+      ? reviewEvent.payload.provider : null)
+    || !sameSha(state.evidence.review.headSha, reviewEvent.payload.headSha)
+    || (reviewEvent.eventType === "TEAM_REVIEW_PUBLISHED"
+      && !sameSha(reviewEvent.payload.headSha, prEvent.payload.pr.headSha))) return false;
+
+  let currentHead = prEvent.payload.pr.headSha;
+  for (const event of state.events.slice(prIndex + 1)) {
+    if (event.eventType !== "PR_HEAD_UPDATED") continue;
+    if (!sameSha(event.payload.previousHeadSha, currentHead)
+      || sameSha(event.payload.headSha, currentHead)
+      || event.payload.gatesPassed !== true || event.payload.pushCompleted !== true) return false;
+    currentHead = event.payload.headSha;
+  }
+  return sameSha(state.evidence.pr.headSha, currentHead);
+};
+
+const deliveryInvariants = state => {
+  const head = state.evidence.pr && state.evidence.pr.headSha;
+  return Boolean(
+    state.effects.prOpen.status === "completed"
+    && state.effects.teamReview.status === "completed"
+    && state.evidence.pr && state.evidence.gates && state.evidence.gates.passed
+    && state.evidence.review && state.evidence.review.published
+    && state.evidence.findings && state.evidence.findings.cleared
+    && state.evidence.findings.unresolvedCount === 0
+    && reviewBelongsToPrGeneration(state)
+    && sameSha(state.evidence.gates.headSha, head)
+    && sameSha(state.evidence.findings.headSha, head)
+    && (!state.options.validate || (state.evidence.validation && state.evidence.validation.passed
+      && sameSha(state.evidence.validation.headSha, head)))
+    && (!state.options.cover || (state.evidence.coverage && state.evidence.coverage.passed
+      && sameSha(state.evidence.coverage.headSha, head)))
+    && ["pass", "no-changes"].includes(state.tdd.outcome)
+  );
+};
+
+let semanticHistoryValid;
+const stateValid = state => {
+  if (!exact(state, STATE_KEYS) && !exact(state, STATE_KEYS_WORKSPACE) && !exact(state, STATE_KEYS_WORK_ORDER)) return false;
+  if (Object.prototype.hasOwnProperty.call(state, "workOrder") && !workOrderValid(state.workOrder)) return false;
+  if (state.schemaVersion !== 1 || !identifier(state.runId) || !nonEmpty(state.projectRoot, 4096)
+    || !identifier(state.ownerSessionId) || !STAGES.has(state.stage) || state.nextActionCode !== NEXT_ACTION[state.stage]) return false;
+  if (Object.prototype.hasOwnProperty.call(state, "workspaceRoot") && !nonEmpty(state.workspaceRoot, 4096)) return false;
+  if (!(state.approvedPlanSha256 === null || sha256(state.approvedPlanSha256))) return false;
+  if (!exact(state.options, ["cover", "validate"]) || typeof state.options.cover !== "boolean"
+    || typeof state.options.validate !== "boolean") return false;
+  if (!exact(state.tdd, ["attempt", "chainId", "sessionId", "returnStage", "outcome", "headUpdateRequired"])
+    || !natural(state.tdd.attempt) || !nullableIdentifier(state.tdd.chainId) || !nullableIdentifier(state.tdd.sessionId)
+    || !(state.tdd.returnStage === null || RETURN_STAGES.has(state.tdd.returnStage))
+    || !(state.tdd.outcome === null || ["pass", "no-changes", "max-rounds"].includes(state.tdd.outcome))
+    || typeof state.tdd.headUpdateRequired !== "boolean") return false;
+  if (!exact(state.effects, ["prOpen", "teamReview"]) || !effectValid(state.effects.prOpen)
+    || !teamReviewEffectValid(state.effects.teamReview) || !evidenceValid(state.evidence)) return false;
+  if (state.effects.teamReview.status !== "none") {
+    if (!state.evidence.pr || state.effects.teamReview.operationKey !== teamReviewOperationKeyForState(state)) return false;
+    if (state.effects.teamReview.status === "requested" && state.evidence.review !== null) return false;
+    if (state.effects.teamReview.status === "completed"
+      && (!state.evidence.review || !reviewMarkerMatches(state.evidence.review.marker,
+        state.effects.teamReview.operationKey, state.evidence.review.headSha,
+        state.evidence.review.payloadDigest, state.evidence.review.partCount)
+        || state.evidence.review.provider !== state.effects.teamReview.provider)) return false;
+  } else if (state.evidence.review !== null) return false;
+  if (!exact(state.blocked, ["from", "code"])
+    || !(state.blocked.from === null || STAGES.has(state.blocked.from))
+    || !(state.blocked.code === null || identifier(state.blocked.code))) return false;
+  if (state.stage === "BLOCKED" ? state.blocked.from === null || state.blocked.code === null
+    : state.blocked.from !== null || state.blocked.code !== null) return false;
+  if (state.tdd.headUpdateRequired) {
+    const pendingStage = state.stage === "BLOCKED" ? state.blocked.from : state.stage;
+    if (!HEAD_UPDATE_STAGES.has(pendingStage) || state.tdd.returnStage !== pendingStage
+      || !["pass", "no-changes"].includes(state.tdd.outcome)) return false;
+  }
+  if (!Array.isArray(state.bypasses) || state.bypasses.length > 128
+    || !state.bypasses.every(item => exact(item, ["gate", "stage"]) && identifier(item.gate) && STAGES.has(item.stage))) return false;
+  if (!exact(state.stopBudget, ["stage", "count"]) || state.stopBudget.stage !== state.stage
+    || !natural(state.stopBudget.count)) return false;
+  if (!Array.isArray(state.events) || state.events.length < 1 || state.events.length > MAX_EVENTS
+    || !state.events.every(eventValid)) return false;
+  const ids = new Set();
+  for (let index = 0; index < state.events.length; index += 1) {
+    const event = state.events[index];
+    if (ids.has(event.eventId)) return false;
+    ids.add(event.eventId);
+    if (index > 0 && event.fromStage !== state.events[index - 1].toStage) return false;
+  }
+  if (state.events[0].eventType !== "START" || state.events[state.events.length - 1].toStage !== state.stage) return false;
+  if (!semanticHistoryValid(state)) return false;
+  if (state.stage === "DONE" && (!state.evidence.delivery || !deliveryInvariants(state))) return false;
+  return true;
+};
+
+const pointerValid = pointer => exact(pointer, ["schemaVersion", "runId"])
+  && pointer.schemaVersion === 1 && identifier(pointer.runId);
+const readState = (file, absentCode = 2) => {
+  // A run referenced by an already-valid active pointer is not "no active
+  // run" when its file disappears; it is a corrupt torn state. Direct
+  // read-run lookups may opt back into rc=1 for a genuinely unknown id.
+  const state = readJson(file, absentCode);
+  // `JSON.parse` accepts `null`, a bare string and a number, none of which the
+  // normalizers below can index — `state.effects` on `null` throws a TypeError,
+  // which is an UNCAUGHT exception rather than a `fail()`, so it aborts the
+  // whole `readRunInventory` walk with a stack trace instead of the typed
+  // schema refusal every other invalid document gets. Refuse the shape here,
+  // with the identical message the exact-schema check below emits, so the
+  // vocabulary stays closed.
+  if (!isObject(state)) fail(2, `state schema invalid: ${path.basename(file)}`);
+  // PR #174 wrote schemaVersion 1 review evidence with only
+  // published/marker/headSha. Normalize that deployed shape (and the brief
+  // five-field development shape) from its already-validated marker before
+  // running the current exact-schema and semantic-history checks. Historical
+  // events intentionally remain byte-identical, so their payload digests stay
+  // valid and replay supplies provider=null for the legacy receipt.
+  if (isObject(state.effects) && isObject(state.effects.teamReview)
+      && exact(state.effects.teamReview, ["status", "operationKey"])) {
+    const requestEvent = Array.isArray(state.events)
+      ? state.events.find(event => event && event.eventType === "TEAM_REVIEW_REQUESTED") : null;
+    const publishEvent = Array.isArray(state.events)
+      ? state.events.find(event => event && event.eventType === "TEAM_REVIEW_PUBLISHED") : null;
+    const provider = requestEvent && isObject(requestEvent.payload)
+      && ["github", "gitlab"].includes(requestEvent.payload.provider)
+      ? requestEvent.payload.provider
+      : (publishEvent && isObject(publishEvent.payload)
+        && ["github", "gitlab"].includes(publishEvent.payload.provider)
+        ? publishEvent.payload.provider : null);
+    state.effects.teamReview = { ...state.effects.teamReview, provider };
+  }
+  if (isObject(state.evidence) && isObject(state.evidence.review)) {
+    const review = state.evidence.review;
+    const legacyThree = exact(review, ["published", "marker", "headSha"]);
+    const legacyFive = exact(review, ["published", "marker", "headSha", "payloadDigest", "partCount"]);
+    if (legacyThree || legacyFive) {
+      const parsed = parseReviewMarker(review.marker);
+      if (parsed) {
+        const receiptEvent = Array.isArray(state.events)
+          ? [...state.events].reverse().find(event => event && event.eventType === "TEAM_REVIEW_PUBLISHED")
+          : null;
+        const provider = receiptEvent && isObject(receiptEvent.payload)
+          && ["github", "gitlab"].includes(receiptEvent.payload.provider)
+          ? receiptEvent.payload.provider : null;
+        state.evidence.review = {
+          published: review.published,
+          marker: review.marker,
+          headSha: review.headSha,
+          payloadDigest: legacyFive ? review.payloadDigest : parsed.payloadDigest,
+          partCount: legacyFive ? review.partCount : parsed.partCount,
+          provider,
+        };
+      }
+    }
+  }
+  if (!stateValid(state)) fail(2, `state schema invalid: ${path.basename(file)}`);
+  return state;
+};
+// The owner-keyed pointer name, and the pre-scoping one. Both spellings live
+// here so the worker can resolve a run's pointer from the run record alone.
+const OWNER_POINTER_PREFIX = "autopilot-active-";
+const LEGACY_POINTER_NAME = "autopilot-active.json";
+// ONE resolution ladder with TWO views of it FOR CALLERS THAT RESOLVE A RUN'S
+// POINTER FROM THE RUN RECORD — say it that way, never "the one ladder in this
+// worker", which is false and which AGENTS.md explicitly retracts. `read-active`
+// builds its OWN ladder inline and calls neither accessor, and its legacy
+// predicate is deliberately STRICTER: it accepts the pre-scoping pointer only
+// when the referenced run is in the owner-scoped inventory AND carries the
+// caller's owner id, where this one accepts on `legacy.runId === runId` alone.
+// Change when the legacy pointer may be honoured and you must change BOTH, or
+// the verb that REPORTS a run and the verb that RETIRES its pointer disagree
+// about which pointer designates it. `adopt` has to retire the pointer it
+// actually judged, and deriving that name from the owner digest was wrong whenever
+// the LEGACY fallback below won: the unlink then named a file that does not exist
+// while `autopilot-active.json` survived, still naming the run. Callers that only
+// need the value keep the thin wrapper; the one that needs the FILE takes the pair,
+// so the two can never disagree about which pointer was read.
+const activePointerFileFor = (stateDir, ownerSessionId, runId) => {
+  const ownerFile = path.join(stateDir, `${OWNER_POINTER_PREFIX}${rawDigest(ownerSessionId)}.json`);
+  if (regularFile(ownerFile)) return { file: ownerFile, pointer: readPointer(ownerFile) };
+  const legacyFile = path.join(stateDir, LEGACY_POINTER_NAME);
+  if (!regularFile(legacyFile)) return null;
+  const legacy = readPointer(legacyFile);
+  return legacy.runId === runId ? { file: legacyFile, pointer: legacy } : null;
+};
+const activePointerFor = (stateDir, ownerSessionId, runId) => {
+  const resolved = activePointerFileFor(stateDir, ownerSessionId, runId);
+  return resolved ? resolved.pointer : null;
+};
+// Every OWNER-KEYED pointer under a key other than the caller's that still names this
+// run. A run has one owner, so such a pointer is stale by construction — typically a
+// takeover that stopped before its retire — and it makes that key's own `read-active`
+// refuse with exit 2 until it is removed. Tolerant on purpose: this is cleanup on a
+// path that has already succeeded, so an entry that is not a readable regular pointer
+// is skipped rather than turned into a refusal of the verb.
+// ONE owner-liveness evaluation for both run verbs. The owner IS the Session Control
+// key, so its workflow document names the owning session and its mtime says when that
+// session last acted; no state field is added. It answers a VERDICT and each verb maps
+// it, because the two verbs answer some verdicts differently on purpose:
+//   disabled — the window is not a positive number, so the beacon is never opened
+//   retired  — the caller requires a designating owner pointer and there is none, so
+//              the beacon is never opened either
+//   absent   — the recorded owner has no workflow document
+//   future   — the document is dated in the future, so its age bounds nothing
+//   fresh    — the document is younger than the window
+//   stale    — the document is older than the window
+// The ORDER is the contract the doctor row mirrors: the window gate first, then the
+// pointer precondition, then the beacon read. An unsafe document still aborts with
+// exit 2 inside `regularFile`, for both verbs alike.
+const ownerLiveness = (stateDir, ownerSessionId, ttlHoursRaw, options = {}) => {
+  const ttlHours = Number(ttlHoursRaw);
+  if (!(Number.isFinite(ttlHours) && ttlHours > 0)) return { verdict: "disabled" };
+  if (options.requirePointer && !options.pointerDesignates) return { verdict: "retired" };
+  const ownerActivity = regularFile(path.join(stateDir, `tdd-phase-${ownerSessionId}.json`));
+  if (!ownerActivity) return { verdict: "absent" };
+  const ageMs = Date.now() - ownerActivity.mtimeMs;
+  if (ageMs < 0) return { verdict: "future", ageMs };
+  return { verdict: ageMs < ttlHours * 3600000 ? "fresh" : "stale", ageMs };
+};
+const staleOwnerPointersFor = (stateDir, runId, callerSessionId) => {
+  const own = `${OWNER_POINTER_PREFIX}${rawDigest(callerSessionId)}.json`;
+  let names;
+  try { names = fs.readdirSync(stateDir); } catch (_) { return []; }
+  return names.filter(name => /^autopilot-active-[0-9a-f]{64}\.json$/.test(name) && name !== own)
+    .filter(name => {
+      const file = path.join(stateDir, name);
+      try {
+        const stat = fs.lstatSync(file);
+        if (!stat.isFile() || stat.nlink !== 1 || stat.size > MAX_BYTES) return false;
+        const pointer = JSON.parse(fs.readFileSync(file, "utf8"));
+        return pointerValid(pointer) && pointer.runId === runId;
+      } catch (_) { return false; }
+    })
+    .sort();
+};
+const readPointer = file => {
+  const pointer = readJson(file);
+  if (!pointerValid(pointer)) fail(2, "active pointer schema invalid");
+  return pointer;
+};
+// The skip decision is taken on an attacker-writable file, so it routes through
+// the SAME chokepoint every other read uses. Without this an oversized file is
+// read whole, a symlink is followed off-tree, and a FIFO blocks the read while
+// the project lease is held. `regularFile` fails closed on an unsafe file and
+// returns null on a genuine ENOENT; either way the record stays unattributable
+// and reaches the ordinary fail-closed path instead of being skipped.
+const rawOwnerOf = file => {
+  if (!regularFile(file)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    return isObject(parsed) && typeof parsed.ownerSessionId === "string"
+      ? parsed.ownerSessionId : null;
+  } catch (_) { return null; }
+};
+const readRunInventory = (stateDir, expectedProjectRoot, ownerSessionId = "") => {
+  let names;
+  try { names = fs.readdirSync(stateDir, { encoding: "utf8" }); }
+  catch (_) { fail(2, "cannot inspect Autopilot run inventory"); }
+
+  const envelope = /^autopilot-run-(.*)\.json$/;
+  return names.sort().flatMap(name => {
+    const match = envelope.exec(name);
+    if (!match) return [];
+    if (!identifier(match[1])) fail(2, `invalid run inventory artifact: ${name}`);
+    // A record this caller provably does not own is skipped before validation.
+    // Anything unattributable still fails closed: we cannot prove it is not
+    // ours, so it is judged as before.
+    if (ownerSessionId) {
+      const owner = rawOwnerOf(path.join(stateDir, name));
+      if (owner !== null && owner !== ownerSessionId) return [];
+    }
+    const state = readState(path.join(stateDir, name));
+    if (state.runId !== match[1] || state.projectRoot !== expectedProjectRoot) {
+      fail(2, `run inventory identity mismatch: ${name}`);
+    }
+    return [state];
+  });
+};
+
+const move = (state, stage) => {
+  state.stage = stage;
+  state.nextActionCode = NEXT_ACTION[stage];
+  state.stopBudget = { stage, count: 0 };
+};
+const headMatchesPr = (state, headSha) => !state.evidence.pr || sameSha(state.evidence.pr.headSha, headSha);
+const toAwaitTdd = (state, returnStage) => {
+  state.tdd.returnStage = returnStage;
+  state.tdd.chainId = null;
+  state.tdd.sessionId = null;
+  state.tdd.outcome = null;
+  state.tdd.headUpdateRequired = false;
+  move(state, "AWAIT_TDD");
+};
+
+const transition = (state, type, payload, reject = fail) => {
+  const from = state.stage;
+  if (type === "CANCEL") {
+    if (TERMINAL.has(from)) reject(3, "terminal run cannot be cancelled again");
+    state.tdd.headUpdateRequired = false;
+    state.blocked = { from: null, code: null };
+    move(state, "CANCELLED");
+    return;
+  }
+  if (type === "BLOCK") {
+    if (STOP_TERMINAL.has(from)) reject(3, "run cannot be blocked from this stage");
+    state.blocked = { from, code: payload.code };
+    move(state, "BLOCKED");
+    return;
+  }
+  if (type === "RESUME") {
+    if (from !== "BLOCKED") reject(3, "RESUME requires BLOCKED");
+    const target = state.blocked.from;
+    state.blocked = { from: null, code: null };
+    move(state, target);
+    return;
+  }
+  if (type === "BYPASS_RECORDED") {
+    if (TERMINAL.has(from)) reject(3, "terminal run cannot record a bypass");
+    state.bypasses.push({ gate: payload.gate, stage: from });
+    return;
+  }
+  if (state.tdd.headUpdateRequired && type !== "PR_HEAD_UPDATED") {
+    reject(4, "a successful fix must record the pushed, gated PR head before reusing phase evidence");
+  }
+
+  switch (`${from}:${type}`) {
+    case "PLANNING:PLAN_APPROVED":
+      if (state.workOrder) reject(3, "a work-order run binds its spec through ORDER_SPEC_BOUND, never through PLAN_APPROVED");
+      state.approvedPlanSha256 = payload.approvedPlanSha256.toLowerCase();
+      state.tdd.returnStage = "GATES";
+      move(state, "AWAIT_TDD");
+      return;
+    case "PLANNING:ORDER_SPEC_BOUND":
+      if (!state.workOrder) reject(3, "ORDER_SPEC_BOUND applies to a work-order run only");
+      if (payload.orderId !== state.workOrder.orderId || payload.attempt !== state.workOrder.attempt
+        || payload.specHash !== state.workOrder.specHash) reject(4, "ORDER_SPEC_BOUND does not match the run's work-order binding");
+      state.approvedPlanSha256 = payload.approvedPlanSha256.toLowerCase();
+      state.tdd.returnStage = "GATES";
+      move(state, "AWAIT_TDD");
+      return;
+    case "AWAIT_TDD:TDD_STARTED":
+      if (payload.attempt !== state.tdd.attempt + 1) reject(4, "TDD attempt is stale or skipped");
+      if (!RETURN_STAGES.has(state.tdd.returnStage)) reject(2, "TDD return stage is missing");
+      state.tdd.attempt = payload.attempt;
+      state.tdd.chainId = payload.chainId;
+      state.tdd.sessionId = payload.sessionId;
+      state.tdd.outcome = null;
+      state.tdd.headUpdateRequired = false;
+      move(state, "TDD_RUNNING");
+      return;
+    case "TDD_RUNNING:TDD_CHAIN_DONE":
+      if (payload.attempt !== state.tdd.attempt || payload.chainId !== state.tdd.chainId
+        || payload.sessionId !== state.tdd.sessionId) reject(4, "TDD completion does not own the active attempt");
+      state.tdd.outcome = payload.outcome;
+      state.tdd.headUpdateRequired = false;
+      if (payload.outcome === "max-rounds") {
+        state.blocked = { from: "AWAIT_TDD", code: "TDD_MAX_ROUNDS" };
+        move(state, "BLOCKED");
+      } else {
+        state.tdd.headUpdateRequired = HEAD_UPDATE_STAGES.has(state.tdd.returnStage);
+        move(state, state.tdd.returnStage);
+      }
+      return;
+    case "GATES:GATES_PASSED":
+      state.evidence.gates = { passed: true, headSha: payload.headSha.toLowerCase() };
+      move(state, "CONVERGE");
+      return;
+    case "GATES:GATES_FAILED":
+      state.evidence.gates = { passed: false, headSha: payload.headSha.toLowerCase() };
+      toAwaitTdd(state, "GATES");
+      return;
+    case "CONVERGE:CONVERGENCE_PASSED":
+      move(state, "OPEN_PR");
+      return;
+    case "CONVERGE:CONVERGENCE_FAILED":
+      if (payload.limitReached) {
+        state.blocked = { from: "CONVERGE", code: "CONVERGENCE_LIMIT" };
+        move(state, "BLOCKED");
+      } else {
+        toAwaitTdd(state, "CONVERGE");
+      }
+      return;
+    case "OPEN_PR:PR_OPEN_REQUESTED":
+      if (state.effects.prOpen.status !== "none") reject(4, "PR open operation already requested");
+      state.effects.prOpen = { status: "requested", operationKey: payload.operationKey };
+      return;
+    case "OPEN_PR:PR_OPENED":
+      if (state.effects.prOpen.status !== "requested"
+        || state.effects.prOpen.operationKey !== payload.operationKey) reject(4, "PR open operation key mismatch");
+      if (state.evidence.gates && state.evidence.gates.headSha !== payload.pr.headSha) reject(4, "PR head differs from gate evidence");
+      state.effects.prOpen = { status: "completed", operationKey: payload.operationKey };
+      state.evidence.pr = { number: payload.pr.number, url: payload.pr.url, headSha: payload.pr.headSha.toLowerCase() };
+      move(state, "TEAM_REVIEW");
+      return;
+    case "TEAM_REVIEW:TEAM_REVIEW_REQUESTED":
+      if (state.effects.teamReview.status !== "none") reject(4, "team review already requested");
+      if (!state.evidence.pr
+        || payload.operationKey !== teamReviewOperationKeyForState(state)) {
+        reject(4, "team-review operation key is not bound to this run and PR head");
+      }
+      state.effects.teamReview = {
+        status: "requested",
+        operationKey: payload.operationKey,
+        provider: ["github", "gitlab"].includes(payload.provider) ? payload.provider : null,
+      };
+      return;
+    case "TEAM_REVIEW:TEAM_REVIEW_PUBLISHED":
+      if (state.effects.teamReview.status !== "requested"
+        || state.effects.teamReview.operationKey !== payload.operationKey) reject(4, "team-review operation key mismatch");
+      const receiptProvider = ["github", "gitlab"].includes(payload.provider) ? payload.provider : null;
+      // Completed legacy v1 history replays with null on both sides. An
+      // in-flight legacy request cannot safely learn its forge from the
+      // publication receipt: that would let the caller choose the count and
+      // remote semantics after the durable capability was created.
+      if (state.effects.teamReview.provider !== receiptProvider) {
+        reject(4, "team-review provider does not match its durable request");
+      }
+      if (!headMatchesPr(state, payload.headSha)) reject(4, "team review targets a stale PR head");
+      const parsedReviewMarker = parseReviewMarker(payload.marker);
+      if (!parsedReviewMarker || !reviewMarkerMatches(payload.marker, payload.operationKey, payload.headSha,
+          parsedReviewMarker.payloadDigest, parsedReviewMarker.partCount)) {
+        reject(4, "team-review marker does not prove the operation, head, and first publication part");
+      }
+      state.effects.teamReview = {
+        status: "completed",
+        operationKey: payload.operationKey,
+        provider: state.effects.teamReview.provider,
+      };
+      state.evidence.review = {
+        published: true,
+        marker: payload.marker,
+        headSha: payload.headSha.toLowerCase(),
+        payloadDigest: parsedReviewMarker.payloadDigest,
+        partCount: parsedReviewMarker.partCount,
+        provider: state.effects.teamReview.provider,
+      };
+      move(state, "FIX_FINDINGS");
+      return;
+    case "TEAM_REVIEW:TEAM_REVIEW_IMPORTED": {
+      if (!state.workOrder) reject(3, "TEAM_REVIEW_IMPORTED applies to a work-order run only");
+      if (state.effects.teamReview.status !== "none") reject(4, "team review already requested");
+      if (!state.evidence.pr || state.effects.prOpen.status !== "completed") reject(4, "an imported team review needs the opened pull request");
+      if (payload.operationKey !== workOrderReviewOperationKey(state.workOrder.orderId, payload.headSha)) {
+        reject(4, "imported team-review operation key is not bound to this work order and its review head");
+      }
+      const importedMarker = parseReviewMarker(payload.marker);
+      if (!importedMarker || !reviewMarkerMatches(payload.marker, payload.operationKey, payload.headSha,
+          importedMarker.payloadDigest, importedMarker.partCount)) {
+        reject(4, "imported team-review marker does not prove the operation, head, and first publication part");
+      }
+      state.effects.teamReview = { status: "completed", operationKey: payload.operationKey, provider: payload.provider };
+      state.evidence.review = {
+        published: true,
+        marker: payload.marker,
+        headSha: payload.headSha.toLowerCase(),
+        payloadDigest: importedMarker.payloadDigest,
+        partCount: importedMarker.partCount,
+        provider: payload.provider,
+      };
+      move(state, "FIX_FINDINGS");
+      return;
+    }
+    case "FIX_FINDINGS:FIX_REQUIRED":
+      if (!headMatchesPr(state, payload.headSha)) reject(4, "findings target a stale PR head");
+      state.evidence.findings = { cleared: false, headSha: payload.headSha.toLowerCase(), unresolvedCount: payload.unresolvedCount };
+      toAwaitTdd(state, "FIX_FINDINGS");
+      return;
+    case "FIX_FINDINGS:FINDINGS_CLEARED": {
+      if (state.effects.teamReview.status !== "completed" || !headMatchesPr(state, payload.headSha)) {
+        reject(4, "findings cannot clear before review publication on the current head");
+      }
+      state.evidence.findings = { cleared: true, headSha: payload.headSha.toLowerCase(), unresolvedCount: 0 };
+      move(state, state.options.validate ? "VALIDATE" : (state.options.cover ? "COVER" : "DELIVER"));
+      return;
+    }
+    case "VALIDATE:VALIDATION_FAILED":
+      if (!headMatchesPr(state, payload.headSha)) reject(4, "validation targets a stale PR head");
+      state.evidence.validation = null;
+      toAwaitTdd(state, "VALIDATE");
+      return;
+    case "VALIDATE:VALIDATION_PASSED":
+      if (!headMatchesPr(state, payload.headSha)) reject(4, "validation targets a stale PR head");
+      state.evidence.validation = { passed: true, headSha: payload.headSha.toLowerCase() };
+      move(state, state.options.cover ? "COVER" : "DELIVER");
+      return;
+    case "COVER:COVERAGE_FAILED":
+      if (!headMatchesPr(state, payload.headSha)) reject(4, "coverage targets a stale PR head");
+      state.evidence.coverage = null;
+      toAwaitTdd(state, "COVER");
+      return;
+    case "COVER:COVERAGE_PASSED":
+      if (!headMatchesPr(state, payload.headSha)) reject(4, "coverage targets a stale PR head");
+      state.evidence.coverage = { passed: true, headSha: payload.headSha.toLowerCase() };
+      move(state, "DELIVER");
+      return;
+    case "FIX_FINDINGS:PR_HEAD_UPDATED":
+    case "VALIDATE:PR_HEAD_UPDATED":
+    case "COVER:PR_HEAD_UPDATED": {
+      if (!state.tdd.headUpdateRequired || state.tdd.returnStage !== from
+        || !state.evidence.pr || state.effects.prOpen.status !== "completed") {
+        reject(4, "PR head update is not bound to the completed fix attempt");
+      }
+      const previousHead = payload.previousHeadSha.toLowerCase();
+      const nextHead = payload.headSha.toLowerCase();
+      if (!sameSha(state.evidence.pr.headSha, previousHead)) reject(4, "PR head update starts from a stale head");
+      if (sameSha(previousHead, nextHead)) reject(4, "PR head update must prove a new commit");
+      state.evidence.pr.headSha = nextHead;
+      state.evidence.gates = { passed: true, headSha: nextHead };
+      state.evidence.findings = null;
+      state.evidence.validation = null;
+      state.evidence.coverage = null;
+      state.evidence.delivery = null;
+      state.tdd.headUpdateRequired = false;
+      move(state, "FIX_FINDINGS");
+      return;
+    }
+    case "DELIVER:DELIVERY_COMPLETE":
+      if (!headMatchesPr(state, payload.headSha) || !deliveryInvariants(state)) reject(4, "delivery invariants are incomplete");
+      state.evidence.delivery = { completed: true, headSha: payload.headSha.toLowerCase() };
+      move(state, "DONE");
+      return;
+    default:
+      reject(3, `event ${type} is not allowed from ${from}`);
+  }
+};
+
+// Validate the ledger as executable history, not merely as a chain of
+// well-shaped from/to labels. Replaying through the same closed transition
+// function catches impossible jumps and also proves that every derived state
+// field still agrees with the accepted events. stopBudget.count is deliberately
+// excluded: agentStop increments it under the same lock, but those guard attempts are
+// not semantic workflow events.
+semanticHistoryValid = state => {
+  const first = state.events[0];
+  const replay = {
+    schemaVersion: 1,
+    runId: state.runId,
+    projectRoot: state.projectRoot,
+    ownerSessionId: state.ownerSessionId,
+    stage: "PLANNING",
+    nextActionCode: NEXT_ACTION.PLANNING,
+    approvedPlanSha256: null,
+    options: { cover: state.options.cover, validate: state.options.validate },
+    tdd: { attempt: 0, chainId: null, sessionId: null, returnStage: null, outcome: null, headUpdateRequired: false },
+    effects: {
+      prOpen: { status: "none", operationKey: null },
+      teamReview: { status: "none", operationKey: null, provider: null },
+    },
+    evidence: { pr: null, gates: null, review: null, findings: null, validation: null, coverage: null, delivery: null },
+    blocked: { from: null, code: null },
+    bypasses: [],
+    stopBudget: { stage: "PLANNING", count: 0 },
+    events: [first],
+  };
+  if (Object.prototype.hasOwnProperty.call(state, "workOrder")) replay.workOrder = state.workOrder;
+  const rejectReplay = (_code, message) => { throw new Error(message || "invalid semantic history"); };
+  try {
+    for (const event of state.events.slice(1)) {
+      if (event.fromStage !== replay.stage) return false;
+      transition(replay, event.eventType, event.payload, rejectReplay);
+      if (event.toStage !== replay.stage) return false;
+      replay.events.push(event);
+    }
+  } catch (_) {
+    return false;
+  }
+  const derived = value => ({
+    stage: value.stage,
+    nextActionCode: value.nextActionCode,
+    approvedPlanSha256: value.approvedPlanSha256,
+    tdd: value.tdd,
+    effects: value.effects,
+    evidence: value.evidence,
+    blocked: value.blocked,
+    bypasses: value.bypasses,
+    stopBudgetStage: value.stopBudget.stage,
+  });
+  return canonical(derived(replay)) === canonical(derived(state));
+};
+
+if (mode === "read-active") {
+  const [activeFile, stateDir, expectedProjectRoot, expectedOwnerSessionId, legacyActiveFile = ""] = args;
+  if (!sessionIdentifier(expectedOwnerSessionId)) fail(3, "invalid owner session identity");
+  const inventory = readRunInventory(stateDir, expectedProjectRoot, expectedOwnerSessionId);
+  // Only this owner's runs are visible here. A nonterminal run owned by another
+  // session is neither an orphan nor a hidden run from this caller's position —
+  // it is simply not this session's business, which is what lets two sessions
+  // hold concurrent runs in one project root.
+  const owned = inventory.filter(candidate => candidate.ownerSessionId === expectedOwnerSessionId);
+  let pointerFile = activeFile;
+  let activeStat = regularFile(activeFile);
+  // A pointer minted before owner scoping carries no owner in its name. It is
+  // adopted only when the run it references belongs to THIS caller; a legacy
+  // pointer owned by anyone else is ignored rather than obeyed, which is what
+  // releases a project wedged by a session that no longer exists.
+  if (!activeStat && legacyActiveFile) {
+    const legacyStat = regularFile(legacyActiveFile);
+    if (legacyStat) {
+      const legacyPointer = readPointer(legacyActiveFile);
+      const legacyRun = inventory.find(candidate => candidate.runId === legacyPointer.runId);
+      if (legacyRun && legacyRun.ownerSessionId === expectedOwnerSessionId) {
+        pointerFile = legacyActiveFile;
+        activeStat = legacyStat;
+      }
+    }
+  }
+  if (!activeStat) {
+    const orphan = owned.find(state => !TERMINAL.has(state.stage));
+    if (orphan) fail(2, `active pointer absent while nonterminal run ${orphan.runId} remains`);
+    fail(1, `state file absent: ${path.basename(activeFile)}`);
+  }
+  const pointer = readPointer(pointerFile);
+  const state = inventory.find(candidate => candidate.runId === pointer.runId);
+  if (!state) fail(2, "active pointer references a run that is absent or owned by another session");
+  if (state.runId !== pointer.runId || state.projectRoot !== expectedProjectRoot) {
+    fail(2, "active pointer, run, and physical project root disagree");
+  }
+  if (state.ownerSessionId !== expectedOwnerSessionId) {
+    fail(2, "active pointer references a run owned by another session");
+  }
+  const hidden = owned.find(candidate => candidate.runId !== pointer.runId
+    && !TERMINAL.has(candidate.stage));
+  if (hidden) fail(2, `active pointer hides nonterminal run ${hidden.runId}`);
+  process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
+  process.exit(0);
+}
+
+// Occupancy is the owner-INDEPENDENT question: does any session hold a live run
+// in this working tree? It is what the standalone-TDD gate, deferred-review
+// adoption, and the contention probe ask — they must not be owner-scoped, or a
+// standalone chain could start underneath another session's durable run.
+if (mode === "read-workspace") {
+  const [stateDir, expectedProjectRoot, workspaceRoot, preferOwnerSessionId] = args;
+  if (!nonEmpty(workspaceRoot, 4096)) fail(3, "invalid workspace root");
+  const inventory = readRunInventory(stateDir, expectedProjectRoot);
+  const holders = inventory.filter(candidate => !TERMINAL.has(candidate.stage)
+    && mayHoldWorkspace(candidate, workspaceRoot));
+  if (holders.length === 0) fail(1, "no nonterminal run holds this workspace");
+  // The answer stays owner-INDEPENDENT: which holder is reported never changes
+  // WHETHER the tree is held. The optional preference exists because a caller
+  // that weighs the holder's identity must not have that decision made by
+  // filename sort order -- a record carrying no `workspaceRoot` holds EVERY
+  // tree in its project, so a legacy foreign record can sort ahead of the
+  // caller's own live run. With no preference supplied this is byte-identical
+  // to reporting the first holder.
+  const preferred = nonEmpty(preferOwnerSessionId, 128)
+    ? holders.find(candidate => candidate.ownerSessionId === preferOwnerSessionId)
+    : null;
+  const holder = preferred || holders[0];
+  process.stdout.write(`${JSON.stringify(holder, null, 2)}\n`);
+  process.exit(0);
+}
+
+if (mode === "read-run") {
+  const [runFile, expectedRunId, expectedProjectRoot] = args;
+  const state = readState(runFile, 1);
+  if (state.runId !== expectedRunId || state.projectRoot !== expectedProjectRoot) {
+    fail(2, "run file identity or physical project root mismatch");
+  }
+  process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
+  process.exit(0);
+}
+
+if (mode === "begin") {
+  const [activeFile, runFile, runOutput, activeOutput, runId, ownerSessionId, projectRoot, coverRaw, validateRaw,
+    workspaceRoot, legacyActiveFile = "", workOrderJson = ""] = args;
+  let workOrder = null;
+  if (workOrderJson !== "") {
+    try { workOrder = JSON.parse(workOrderJson); } catch (_) { fail(3, "invalid work-order binding"); }
+    if (!workOrderValid(workOrder)) fail(3, "invalid work-order binding");
+  }
+  // `ownerIdentity`, the WRITE-side vocabulary, matching this verb's own shell layer
+  // (`autopilot_begin_run`) and `stateValid`, which judges the persisted field. The
+  // loose `sessionIdentifier` was the opposite choice from `adopt`, which mints the
+  // same field — and the two are not nested in EITHER direction, so one of them was
+  // always wrong. It deferred the refusal to "initial state failed internal
+  // validation", which reads as a bug in this code rather than a bad argument.
+  // The READ side deliberately stays loose: `_autopilot_owner_key` and `read-active`
+  // key and read pointers ALREADY on disk, so tightening them would make an existing
+  // pointer unreachable rather than refuse a new one.
+  if (!identifier(runId) || !ownerIdentity(ownerSessionId) || !nonEmpty(projectRoot, 4096)
+    || !nonEmpty(workspaceRoot, 4096)
+    || !["true", "false"].includes(coverRaw) || !["true", "false"].includes(validateRaw)) fail(3, "invalid begin arguments");
+  const options = { cover: coverRaw === "true", validate: validateRaw === "true" };
+  const stateDir = path.dirname(activeFile);
+  const inventory = readRunInventory(stateDir, projectRoot);
+  const owned = inventory.filter(candidate => candidate.ownerSessionId === ownerSessionId);
+  let pointerFile = activeFile;
+  let activeStat = regularFile(activeFile);
+  if (!activeStat && legacyActiveFile) {
+    const legacyStat = regularFile(legacyActiveFile);
+    if (legacyStat) {
+      const legacyPointer = readPointer(legacyActiveFile);
+      const legacyRun = inventory.find(candidate => candidate.runId === legacyPointer.runId);
+      if (legacyRun && legacyRun.ownerSessionId === ownerSessionId) {
+        pointerFile = legacyActiveFile;
+        activeStat = legacyStat;
+      }
+    }
+  }
+  let pointer = null;
+  let activeRun = null;
+  if (activeStat) {
+    pointer = readPointer(pointerFile);
+    activeRun = inventory.find(candidate => candidate.runId === pointer.runId);
+    if (!activeRun) fail(2, "active pointer references an absent run");
+    if (activeRun.projectRoot !== projectRoot) fail(2, "active run belongs to another physical project root");
+    if (activeRun.ownerSessionId !== ownerSessionId) fail(2, "active pointer references a run owned by another session");
+  }
+
+  // A torn begin can leave the newly written nonterminal run without its
+  // pointer, or behind the prior terminal pointer. Only an identity- and
+  // option-exact retry of that sole orphan may finish publication. Any other
+  // begin must reject before writing either durable file. Scoped to this
+  // owner: another session's live run is not this caller's orphan.
+  const hiddenNonterminal = owned.filter(candidate => !TERMINAL.has(candidate.stage)
+    && (!pointer || candidate.runId !== pointer.runId));
+  if (hiddenNonterminal.length > 0) {
+    const recoverable = hiddenNonterminal.length === 1
+      && hiddenNonterminal[0].runId === runId
+      && (!activeRun || TERMINAL.has(activeRun.stage));
+    if (!recoverable) fail(4, `nonterminal orphan ${hiddenNonterminal[0].runId} requires exact recovery`);
+  }
+  if (pointer && pointer.runId !== runId && !TERMINAL.has(activeRun.stage)) {
+    fail(4, `active run ${pointer.runId} is not terminal`);
+  }
+  // The working tree is the resource two runs would actually collide on —
+  // same branch, same commits, same PR. This exclusion is owner-independent
+  // and replaces the project-wide one; a foreign holder is nameable, so the
+  // refusal points at the command that can release it.
+  const workspaceHolder = inventory.find(candidate => candidate.runId !== runId
+    && !TERMINAL.has(candidate.stage) && mayHoldWorkspace(candidate, workspaceRoot));
+  if (workspaceHolder) {
+    // The GUIDED form, not the runnable one: this refusal is surfaced by
+    // `zensu-log.sh` as the tool result of a command a model runs, so --confirm
+    // -- the consent control -- must not arrive pre-supplied. The holder here is
+    // always FOREIGN: the own-run cases above (hiddenNonterminal, the pointer
+    // run) already fail(4) and `candidate.runId !== runId` excludes the last
+    // survivor, which is why this copy needs no own-run branch. Keep those
+    // checks ABOVE this one.
+    // SHAPE-TEST both fields before interpolating, exactly as the shell renderer
+    // does. They reach a model-facing refusal, so a newline or a control byte
+    // would split one diagnostic into several. The vocabulary is this worker's
+    // OWN -- `identifier` and `STAGES` -- rather than a hand copy of the
+    // renderer's regex, so the guard cannot drift from the validator that
+    // produced the record. Unreachable through `stateValid` output today, which
+    // is exactly why a backstop must not be looser than what it backs.
+    if (!identifier(workspaceHolder.runId) || !STAGES.has(workspaceHolder.stage)) {
+      fail(4, "workspace is held by a nonterminal run whose record could not be rendered");
+    }
+    // The same pending-stage branch the renderer takes, and for the same reason: a
+    // holder whose inner TDD chain is live is refused by adoption with exit 3, so this
+    // copy must not offer it either. `S7v` pins the withheld wording in both places.
+    const holderPending = workspaceHolder.stage === "BLOCKED" && workspaceHolder.blocked
+      ? String(workspaceHolder.blocked.from || "") : workspaceHolder.stage;
+    if (holderPending !== "TDD_RUNNING") {
+      fail(4, `workspace held by nonterminal run ${workspaceHolder.runId} (stage ${workspaceHolder.stage}); `
+        + `report it to the user and, only after they say yes, run `
+        + `/zensu-autopilot-adopt to continue it here, or /zensu-autopilot-release to cancel it`);
+    }
+    // The forgeability bound, spelled out rather than shared, and the honest reason is
+    // PACKAGING rather than reach: this arm lives in the worker heredoc while the
+    // renderer's `forgeableSource` const lives in a separate `node -e` program — but
+    // this tree already loads modules by an env-supplied path in about thirty places,
+    // so "no reference can reach across" was a scheduling decision dressed as a
+    // structural bound, which is how a gap stops being revisited. That is the
+    // `REVIEWER_AGENT` position and it takes the same interim remedy, a machine pin
+    // against the owner: `S7m` compares this sentence with the renderer's model form
+    // byte for byte. THE TRIGGER for extracting it into a host-neutral module required
+    // from both sides: a further carrier of the same sentence, or the next change that
+    // has to reword it in every carrier anyway. Keep the doctor's own copy in step too.
+    fail(4, `workspace held by nonterminal run ${workspaceHolder.runId} (stage ${workspaceHolder.stage}); `
+      + `adoption is not an exit for this run, because its inner TDD chain is live and the session driving it may still be running`
+      + ` — that stage is read from the run document, which is an ordinary file any session in this project can write; `
+      + `report it to the user and, only after they say yes, run /zensu-autopilot-release to cancel it`);
+  }
+
+  const existing = inventory.find(candidate => candidate.runId === runId);
+  if (existing) {
+    if (existing.runId !== runId || existing.ownerSessionId !== ownerSessionId
+      || existing.projectRoot !== projectRoot || !mayHoldWorkspace(existing, workspaceRoot)
+      || canonical(existing.options) !== canonical(options)
+      || canonical(Object.prototype.hasOwnProperty.call(existing, "workOrder") ? existing.workOrder : null)
+        !== canonical(workOrder)) fail(4, "run identity/options conflict");
+    // A record minted before `workspaceRoot` existed holds EVERY tree, so while
+    // it stays nonterminal it blocks every other tree in the project. The exact
+    // retry is the owner asking for this same run from a known tree, which is
+    // the only moment the missing key can be filled in without guessing — so
+    // the no-op shortcut below is taken only when there is nothing to fill in.
+    const needsWorkspace = typeof existing.workspaceRoot !== "string";
+    if (activeStat && !needsWorkspace) {
+      if (pointer.runId === runId) process.exit(10);
+    }
+    if (needsWorkspace) {
+      existing.workspaceRoot = workspaceRoot;
+      if (!stateValid(existing)) fail(2, "legacy record failed validation after workspace upgrade");
+    }
+    writeOutput(runOutput, existing);
+    writeOutput(activeOutput, { schemaVersion: 1, runId });
+    process.exit(0);
+  }
+  const startPayload = {};
+  const state = {
+    schemaVersion: 1,
+    runId,
+    projectRoot,
+    workspaceRoot,
+    ownerSessionId,
+    stage: "PLANNING",
+    nextActionCode: NEXT_ACTION.PLANNING,
+    approvedPlanSha256: null,
+    options,
+    tdd: { attempt: 0, chainId: null, sessionId: null, returnStage: null, outcome: null, headUpdateRequired: false },
+    effects: {
+      prOpen: { status: "none", operationKey: null },
+      teamReview: { status: "none", operationKey: null, provider: null },
+    },
+    evidence: { pr: null, gates: null, review: null, findings: null, validation: null, coverage: null, delivery: null },
+    blocked: { from: null, code: null },
+    bypasses: [],
+    stopBudget: { stage: "PLANNING", count: 0 },
+    events: [{
+      eventId: "start",
+      eventType: "START",
+      payloadDigest: digest(startPayload),
+      payload: startPayload,
+      fromStage: null,
+      toStage: "PLANNING",
+    }],
+  };
+  if (workOrder) state.workOrder = workOrder;
+  if (!stateValid(state)) fail(2, "initial state failed internal validation");
+  writeOutput(runOutput, state);
+  writeOutput(activeOutput, { schemaVersion: 1, runId });
+  process.exit(0);
+}
+
+if (mode === "apply") {
+  const [stateDir, runFile, runOutput, runId, eventId, eventType, payloadJson, expectedProjectRoot,
+    expectedOwnerSessionId = ""] = args;
+  if (!identifier(runId) || !identifier(eventId) || !EVENT_TYPES.has(eventType) || eventType === "START") fail(3, "invalid event identity/type");
+  let payload;
+  try { payload = JSON.parse(payloadJson); } catch (_) { fail(3, "event payload is not JSON"); }
+  if (!payloadValid(eventType, payload)) fail(3, `invalid payload for ${eventType}`);
+  const state = readState(runFile);
+  if (state.runId !== runId || state.projectRoot !== expectedProjectRoot) {
+    fail(2, "run file identity or physical project root mismatch");
+  }
+  // The pointer that has to designate this run is its OWNER's, resolved from
+  // the run record rather than from the caller: an event may legitimately be
+  // applied by a hook that supplies no caller identity at all.
+  const pointer = activePointerFor(stateDir, state.ownerSessionId, runId);
+  if (!pointer || pointer.runId !== runId) fail(4, "event does not target the active run");
+  if (expectedOwnerSessionId && state.ownerSessionId !== expectedOwnerSessionId) {
+    fail(4, "event caller does not own the active run");
+  }
+  const payloadDigest = digest(payload);
+  const prior = state.events.find(event => event.eventId === eventId);
+  if (prior) {
+    if (prior.eventType === eventType && prior.payloadDigest === payloadDigest) process.exit(10);
+    fail(4, `eventId conflict: ${eventId}`);
+  }
+  // Legacy provider-less request/publication events remain readable and
+  // exactly replayable for schemaVersion 1 history. Every genuinely new
+  // request binds the provider before the remote effect, and publication must
+  // repeat that provider for locked receipt attestation.
+  if (["TEAM_REVIEW_REQUESTED", "TEAM_REVIEW_PUBLISHED"].includes(eventType)
+      && !["github", "gitlab"].includes(payload.provider)) {
+    fail(3, `${eventType} requires a provider-bound payload`);
+  }
+  if (TERMINAL.has(state.stage)) fail(3, "terminal run rejects new events");
+  // Reserve two final audit slots: one for a fail-closed BLOCK and one for the
+  // explicit CANCEL that can retire that blocked generation. At exhaustion a
+  // RESUME is deliberately rejected because it would create a live run with no
+  // remaining terminal slot.
+  if (state.events.length >= MAX_EVENTS - 2 && !["BLOCK", "CANCEL"].includes(eventType)) {
+    fail(4, "event ledger exhausted; only BLOCK followed by CANCEL may be recorded");
+  }
+  if (state.events.length >= MAX_EVENTS) fail(4, "event ledger exhausted");
+  const fromStage = state.stage;
+  transition(state, eventType, payload);
+  state.events.push({ eventId, eventType, payloadDigest, payload, fromStage, toStage: state.stage });
+  if (!stateValid(state)) fail(2, "transition produced invalid state");
+  writeOutput(runOutput, state);
+  process.exit(0);
+}
+
+// Release is the ONE path that cancels a run the caller does not own. It
+// bypasses exactly one check — the ownership comparison — and nothing else:
+// the transition, the ledger bound, the schema check and the atomic write are
+// the ordinary ones. Provenance is the event id, which the writer prefixes
+// `release-`; the CANCEL payload stays the empty object the ledger schema
+// already accepts, so a released run remains readable by any runtime that can
+// read an ordinary cancellation. No state field is added and no bypass-ledger
+// entry is written: this escapes no gate, it terminates a run.
+if (mode === "release") {
+  const [runFile, runOutput, runId, eventId, expectedProjectRoot, callerSessionId,
+    stateDir, callerWorkspace, ownerActivityTtlHours] = args;
+  // `ownerActivityTtlHours` is shape-checked for the same reason `adopt` checks it:
+  // without it a non-numeric value reaches `Number()` as NaN, `Number.isFinite` is
+  // false, and the liveness gate is skipped silently — here, ahead of an irreversible
+  // CANCEL. The shipped shell entry point normalizes the value before the worker sees
+  // it, so this is the SECOND line of defence for a direct worker call, not the first.
+  if (!identifier(runId) || !identifier(eventId) || !sessionIdentifier(callerSessionId)
+    || !nonEmpty(stateDir, 4096) || !nonEmpty(callerWorkspace, 4096)
+    || !/^[0-9]+$/.test(String(ownerActivityTtlHours))) {
+    fail(3, "invalid release arguments");
+  }
+  const state = readState(runFile);
+  if (state.runId !== runId || state.projectRoot !== expectedProjectRoot) {
+    fail(2, "run file identity or physical project root mismatch");
+  }
+  const payload = {};
+  const payloadDigest = digest(payload);
+  // Idempotency is decided before the terminal check so an interrupted
+  // release that already landed reports success rather than "already
+  // terminal", which reads like a refusal.
+  const prior = state.events.find(event => event.eventId === eventId);
+  if (prior) {
+    if (prior.eventType === "CANCEL" && prior.payloadDigest === payloadDigest) process.exit(10);
+    fail(4, `eventId conflict: ${eventId}`);
+  }
+  if (TERMINAL.has(state.stage)) fail(3, "terminal run cannot be released");
+  // A run id is an ordinary filename in a listable directory, so "take the id
+  // from a refusal" is not a scope control. The tree the caller stands in is:
+  // the refusal that hands out the id is workspace-derived, so scoping here
+  // costs the documented workflow nothing and removes enumerate-and-kill.
+  if (!mayHoldWorkspace(state, callerWorkspace)) {
+    // BOTH trees are named. The bare sentence told the caller they were in the
+    // wrong tree without saying which tree they were in or which one to move to,
+    // so the only way to act on it was to go and read the run document — the same
+    // "go and find out yourself" this whole refusal is meant to replace.
+    //
+    // `workspaceRoot` is a string here by construction: `mayHoldWorkspace`
+    // short-circuits to TRUE when the field is absent or not a string, so a
+    // record that reaches this branch carries one, and `stateValid` gates it
+    // through `nonEmpty`, which forbids control bytes. `callerWorkspace` is
+    // checked by `nonEmpty` at the top of this mode.
+    //
+    // The clause `release it from the tree it holds` is KEPT VERBATIM: W16 in
+    // tests/structure/test-autopilot-state-machine.sh pins it with `grep -qF`,
+    // and it is still the instruction. The tree names are appended rather than
+    // woven through it.
+    // Both values are rendered BOUNDED. `stateValid` accepts `workspaceRoot` up to
+    // 4096 and this message reaches a model through the release skill, which tells it
+    // to move to the named tree — so acceptance and rendering are separate decisions
+    // here exactly as they are in the doctor row that renders the same field.
+    const bound = value => (value.length > 200 ? `${value.slice(0, 200)}… (elided)` : value);
+    // The RECORD's tree is attacker-influenceable text and is judged before it is
+    // rendered; the CALLER's is not — the worker already put `callerWorkspace`
+    // through `realpathSync.native` plus an `lstat` that refuses a symlink or a
+    // non-directory, so it is this caller's own existing tree. `stateValid`'s
+    // `nonEmpty` is an ACCEPTANCE rule, not a rendering rule: it rejects C0 bytes
+    // only, so DEL, C1 and U+2028/U+2029 reach this message — and the doctor row
+    // that now sends a model here withholds exactly those under its own wider
+    // class, which would launder them through the one command it recommends. The
+    // backtick goes too, for the reason the doctor's own arms give.
+    const held = workspaceOf(state);
+    const renderable = typeof held === "string"
+      && !/[\u0000-\u001f\u007f-\u009f\u2028\u2029`]/.test(held);
+    const heldText = renderable
+      ? bound(held)
+      : "a tree this refusal does not render (it carries a character that must not be echoed)";
+    fail(6, `run does not hold the caller's working tree ${bound(callerWorkspace)}; `
+      + `release it from the tree it holds, ${heldText} — occupancy is `
+      + `containment in either direction, so a tree containing or contained by that `
+      + `one also works, and only a sibling worktree is refused`);
+  }
+  if (state.ownerSessionId === callerSessionId) {
+    // The ordinary CANCEL path resolves the owner pointer and refuses when none
+    // designates the run, so refusing the owner here too leaves a torn `begin`
+    // with no exit at all. Refuse only while that path can still work.
+    const ownerPointer = activePointerFor(stateDir, state.ownerSessionId, runId);
+    if (ownerPointer && ownerPointer.runId === runId) {
+      fail(4, "caller owns this run; cancel it through the ordinary event path");
+    }
+  } else {
+    // Liveness through the one evaluation both verbs share; this verb maps the verdict.
+    const liveness = ownerLiveness(stateDir, state.ownerSessionId, ownerActivityTtlHours);
+    if (liveness.verdict === "fresh") {
+      fail(7, "the owning session is still active; ask it to cancel, or wait for it to go stale");
+    } else if (liveness.verdict === "future") {
+      // A FUTURE mtime REFUSES on this verb. The premise an earlier spelling stood on —
+      // that refusing would make the run permanently unreleasable — is false: the owner
+      // can still cancel through the ordinary event path, and
+      // `autopilotReleaseOwnerActivityTtlHours: 0` is the documented, disclosed off-switch. So the choice is not "refuse
+      // forever" against "permit"; it is one extra, better-attributed step against
+      // letting a clock artefact authorise an irreversible CANCEL on a session
+      // that is demonstrably alive.
+      //
+      // The ACCIDENTAL case decides it. Against a deliberate writer refusing buys
+      // nothing — this directory is session-writable and DELETING the beacon
+      // stands the same guard down two branches below. But a future mtime arrives
+      // without one: a VM whose clock jumped, a container skewed against a shared
+      // filesystem, an NFS mount, a restore that carries mtimes forward. In every
+      // one of those the owner is LIVE, which is the case this guard exists for.
+      // Adopt failing open there costs a reversible ownership move; release
+      // failing open there costs a live run.
+      //
+      // The remedy names NO adoption route, at any stage, and that follows the house
+      // rule this file already enforces one function over: `_autopilot_workspace_refusal`
+      // never pairs a run id with a mutating command it has not verified as applicable.
+      // It used to BRANCH on the pending stage and offer adoption outside `TDD_RUNNING`
+      // — the route that defeats this very refusal, because adoption then permitted the
+      // same future stamp and its takeover unlinks the live owner's pointer. Adoption
+      // now refuses it too, so the two remaining exits are the owning session itself and
+      // the user-owned config route.
+      fail(7, `the recorded owner workflow document is dated in the future, so its age cannot bound this cancel; waiting will not resolve it. Ask the owning session to cancel, or have the user set hooks.autopilotReleaseOwnerActivityTtlHours to 0 to release without a liveness check`);
+    } else if (liveness.verdict === "absent") {
+      // The beacon is an ordinary file in a session-writable directory, so its
+      // ABSENCE removes the only recency bound on an irreversible cancel. Silence
+      // here made a clock-free release indistinguishable from one the clock allowed.
+      process.stderr.write("[zensu-autopilot-state] owner liveness unchecked: no workflow document for the recorded owner\n");
+    } else if (liveness.verdict === "disabled") {
+      process.stderr.write(`[zensu-autopilot-state] owner liveness unchecked: autopilotReleaseOwnerActivityTtlHours is ${ownerActivityTtlHours}\n`);
+    }
+  }
+  if (state.events.length >= MAX_EVENTS) fail(4, "event ledger exhausted");
+  const fromStage = state.stage;
+  transition(state, "CANCEL", payload);
+  state.events.push({ eventId, eventType: "CANCEL", payloadDigest, payload, fromStage, toStage: state.stage });
+  if (!stateValid(state)) fail(2, "transition produced invalid state");
+  writeOutput(runOutput, state);
+  process.exit(0);
+}
+
+if (mode === "release-work-order") {
+  const [runFile, runOutput, runId, eventId, expectedProjectRoot, orderId, belowAttempt] = args;
+  if (!identifier(runId) || !identifier(eventId) || !uuidValue(String(orderId || "").toLowerCase())
+    || !/^[1-9][0-9]{0,8}$/.test(String(belowAttempt))) {
+    fail(3, "invalid work-order release arguments");
+  }
+  const state = readState(runFile);
+  if (state.runId !== runId || state.projectRoot !== expectedProjectRoot) {
+    fail(2, "run file identity or physical project root mismatch");
+  }
+  if (!state.workOrder || state.workOrder.orderId !== String(orderId).toLowerCase()
+    || state.workOrder.attempt >= Number(belowAttempt)) {
+    fail(4, "run is not an earlier attempt of this work order");
+  }
+  const payload = {};
+  const payloadDigest = digest(payload);
+  const prior = state.events.find(event => event.eventId === eventId);
+  if (prior) {
+    if (prior.eventType === "CANCEL" && prior.payloadDigest === payloadDigest) process.exit(10);
+    fail(4, `eventId conflict: ${eventId}`);
+  }
+  if (TERMINAL.has(state.stage)) process.exit(10);
+  if (state.events.length >= MAX_EVENTS) fail(4, "event ledger exhausted");
+  const fromStage = state.stage;
+  transition(state, "CANCEL", payload);
+  state.events.push({ eventId, eventType: "CANCEL", payloadDigest, payload, fromStage, toStage: state.stage });
+  if (!stateValid(state)) fail(2, "transition produced invalid state");
+  writeOutput(runOutput, state);
+  process.exit(0);
+}
+
+// Adoption is release's CONSTRUCTIVE counterpart: the session standing in the
+// run's tree becomes its owner and continues it, instead of cancelling work that
+// is already delivered. It writes NO event and adds NO field — `STATE_KEYS` /
+// `STATE_KEYS_WORKSPACE` and `EVENT_TYPES` are strict sets and `readRunInventory`
+// fails the FIRST invalid record, so a new member of either would make every
+// older installation fail the whole project closed. Only `ownerSessionId`, an
+// existing field, takes a new value, and the owner pointer moves with it.
+// Provenance lives in the adopting session's workflow history under the reserved
+// `AUTOPILOT_ADOPTED` phase, exactly as session adoption records `RUNTIME_ADOPTED`.
+if (mode === "adopt") {
+  const [runFile, runOutput, runId, expectedProjectRoot, callerSessionId,
+    stateDir, callerWorkspace, ownerActivityTtlHours, callerPointerOutput,
+    reportMode = ""] = args;
+  // `ownerIdentity`, the shared WRITE vocabulary: the assignment to
+  // `state.ownerSessionId` below PERSISTS this value and `stateValid` judges it with
+  // the same rule, so a looser check only defers the refusal to
+  // `fail(2, "adoption produced invalid state")` — after both temps were written, and
+  // reading like a corrupt record rather than a bad argument. `begin` now applies the
+  // identical predicate; the two used to disagree in both directions.
+  // `ownerActivityTtlHours` is shape-checked here for the same reason `release`
+  // checks it: without it a non-numeric value silently disables the liveness gate
+  // and the disclosure below blames a `0` the operator never set.
+  if (!identifier(runId) || !ownerIdentity(callerSessionId)
+    || !nonEmpty(stateDir, 4096) || !nonEmpty(callerWorkspace, 4096)
+    || !nonEmpty(callerPointerOutput, 4096)
+    || !/^[0-9]+$/.test(String(ownerActivityTtlHours))
+    || (reportMode !== "" && reportMode !== "report")) {
+    fail(3, "invalid adopt arguments");
+  }
+  // The read-only half of this verb, and it is the SAME ladder rather than a second
+  // one: every refusal below is reached identically, and only the three `install`
+  // calls and the retire line are withheld. A separate reporting mode would answer
+  // questions this one never asks — which is exactly what made the `--confirm`-only
+  // shape wrong: the user was asked for a yes while the liveness fact stayed
+  // invisible until the command that had already moved ownership printed it.
+  const report = reportMode === "report";
+  // The two output operands are placeholder paths the shell never creates in this
+  // mode, so `writeOutput`'s own pre-creation requirement would refuse a write even
+  // if a later edit reached one. `install` states that intent where a reader sees it.
+  const install = (file, value) => {
+    if (report) fail(2, "the adoption report reached a write; nothing was written");
+    writeOutput(file, value);
+  };
+  const reportLine = text => {
+    if (report) process.stdout.write(`report: ${text}\n`);
+  };
+  const livenessSentence = verdict => {
+    if (verdict.verdict === "disabled") {
+      return `unchecked, because hooks.autopilotOwnerActivityTtlHours is ${ownerActivityTtlHours}`;
+    }
+    if (verdict.verdict === "retired") {
+      return "unchecked, because the recorded owner's active pointer no longer designates this run";
+    }
+    if (verdict.verdict === "absent") {
+      return "unchecked, because the recorded owner has no workflow document";
+    }
+    if (verdict.verdict === "future") {
+      return "the recorded owner's workflow document is dated in the future, so its age proves nothing and adoption is refused";
+    }
+    const minutes = Math.floor(verdict.ageMs / 60000);
+    const window = `${ownerActivityTtlHours}h`;
+    return verdict.verdict === "fresh"
+      ? `the recorded owner's workflow document was written ${minutes} minute(s) ago, inside the ${window} window, so adoption is refused`
+      : `the recorded owner's workflow document was written ${minutes} minute(s) ago, outside the ${window} window, so the age check permits adoption`;
+  };
+  reportLine(`run ${runId} was not changed by this call: no record, no pointer and no provenance entry is written; it runs under the project lease, so it serializes against live writers rather than reading past one`);
+  const state = readState(runFile);
+  if (state.runId !== runId || state.projectRoot !== expectedProjectRoot) {
+    fail(2, "run file identity or physical project root mismatch");
+  }
+  if (TERMINAL.has(state.stage)) fail(3, "terminal run cannot be adopted");
+  // Same scope control as release, and state its STRENGTH honestly rather than the
+  // strength one would want: a run id is an ordinary filename in a listable directory,
+  // and this narrows who may name one — it does not reduce the set to "the one tree".
+  // `mayHoldWorkspace` admits containment in EITHER direction and short-circuits TRUE
+  // on a record carrying no `workspaceRoot` at all, while `_autopilot_session_workspace`
+  // substitutes the project root whenever cwd is outside it. So a run whose recorded
+  // tree IS the project root — what `begin` records for a session started there — is
+  // reachable from every directory in that project, and a pre-`workspaceRoot` record is
+  // reachable unconditionally. It is already bounded to ONE project by the identity
+  // check above, and `ownerSessionId` is an unauthenticated field in a session-writable
+  // directory, so this is a guard against accidental takeover and never an
+  // authorization boundary. Refusing a `workspaceRoot`-less record here was weighed and
+  // declined: it would strand exactly the pre-upgrade runs adoption exists to rescue,
+  // to tighten a check that was never load-bearing for that threat.
+  if (!mayHoldWorkspace(state, callerWorkspace)) {
+    fail(6, "run does not hold the caller's working tree; adopt it from the tree it holds");
+  }
+  // THREE outcomes live under "the caller already owns this record", and each one
+  // gets its OWN exit code rather than a token inside stdout. A code cannot be
+  // produced by a dropped write, so a lost stdout line on the takeover path falls
+  // into the protocol fault instead of impersonating a repair — which is what the
+  // in-band token existed to prevent, at the cost of a sentinel the shell had to
+  // re-spell. 10 = already fully owned, 11 = pointer repaired, 0 = real takeover.
+  if (state.ownerSessionId === callerSessionId) {
+    // Both owner exits print the stale pointers another key still holds for this run,
+    // one basename per line, and the shell retires each through the basename gate. A
+    // retry after an interrupted takeover lands on one of these two exits, and nothing
+    // else can re-derive the filename once the previous owner has left the record.
+    const staleNames = staleOwnerPointersFor(stateDir, runId, callerSessionId);
+    // In report mode the basenames must NOT travel: this stdout is prose a user
+    // reads, the shell retires nothing here, and a bare filename in the middle of it
+    // would read as a file that had already been removed. The COUNT is disclosed
+    // instead, because retiring those pointers is a write the report owes the user.
+    const reportStale = () => {
+      if (report) {
+        if (staleNames.length > 0) {
+          reportLine(`--confirm would also retire ${staleNames.length} stale owner pointer${staleNames.length === 1 ? "" : "s"} that another session key still holds for this run`);
+        }
+        return;
+      }
+      if (staleNames.length > 0) process.stdout.write(`${staleNames.join("\n")}\n`);
+    };
+    const ownPointer = activePointerFor(stateDir, callerSessionId, runId);
+    if (ownPointer && ownPointer.runId === runId) {
+      reportLine(`--confirm would change nothing: this session already owns run ${runId} and its owner pointer already designates it`);
+      reportStale();
+      process.exit(10);
+    }
+    // Ownership here is decided by `ownerSessionId`, an unauthenticated field in a
+    // session-writable directory, and the repair below reinstalls this session's pointer.
+    // A run whose live inner chain another session drives is refused BEFORE that, the
+    // same pending-stage test the takeover applies: without it a record planted with this
+    // session's id at TDD_RUNNING became this session's active run on its own say-so.
+    const repairPending = state.stage === "BLOCKED" ? state.blocked.from : state.stage;
+    if (repairPending === "TDD_RUNNING" && state.tdd && state.tdd.sessionId !== callerSessionId) {
+      fail(3, "the run record names this session as its owner, but its inner TDD chain is driven by another session, so its owner pointer is not reinstalled; that chain has to be finished or cancelled in its own session first");
+    }
+    // The repair is about to install a pointer at the caller's OWN key, so any OTHER
+    // nonterminal run this caller owns is orphaned behind it: `read-active` then
+    // refuses with exit 2 for every consumer while the CLI has just reported a
+    // successful repair, and the skill's own Step 3 verification cannot pass.
+    // Keyed on the INVENTORY, not on the pointer. An earlier spelling asked
+    // `activePointerFor` for the shadowed run, which answers null on the legacy
+    // fallback whenever `autopilot-active.json` names a different run — exactly the
+    // shape that most needs the refusal — and it also sat ABOVE the `ownedElsewhere`
+    // check the takeover path applies, so a caller owning a second run with no owner
+    // pointer at all was never judged either. One owner-scoped filter covers both.
+    const shadowed = readRunInventory(stateDir, expectedProjectRoot, callerSessionId)
+      .find(candidate => candidate.runId !== runId && !TERMINAL.has(candidate.stage));
+    if (shadowed) {
+      fail(4, `caller already owns nonterminal run ${shadowed.runId}; finish it, or cancel it through the ordinary CANCEL event path, before repairing this one`);
+    }
+    // The record is already correct, so the shell installs ONLY the pointer temp on
+    // this path and discards the run temp. Rewriting an unchanged record could only
+    // fail after the pointer had landed, reporting a torn run for a repair that held,
+    // and it would persist the normalization `readState` applies to a legacy record.
+    // Stdout carries only the stale pointers: there is no previous owner to record,
+    // and the exit code already carries the outcome.
+    reportLine(`--confirm would reinstall this session's owner pointer for run ${runId}; the record already names this session, so nothing would be taken over`);
+    if (report) {
+      reportStale();
+      process.exit(11);
+    }
+    install(callerPointerOutput, { schemaVersion: 1, runId });
+    reportStale();
+    process.exit(11);
+  }
+  // An inner TDD chain is driven by `state.tdd.sessionId`'s session and this verb
+  // moves the RUN only. Refusing keeps the two from disagreeing about who owns the
+  // generation, which a half-move would guarantee. The test is the PENDING stage,
+  // not the literal one: BLOCK is legal from TDD_RUNNING (`STOP_TERMINAL` excludes
+  // it) and RESUME restores `blocked.from`, while `tdd.sessionId` still names the
+  // previous owner's chain — so a literal test would adopt a run whose
+  // `TDD_RUNNING:TDD_CHAIN_DONE` the new owner can never satisfy. `stateValid`
+  // spells the same idiom.
+  const pendingStage = state.stage === "BLOCKED" ? state.blocked.from : state.stage;
+  if (pendingStage === "TDD_RUNNING") {
+    // The remedy names the exits that REMAIN. It used to advise blocking the chain, and
+    // blocking changes nothing: this test is the PENDING stage, which a BLOCK out of
+    // TDD_RUNNING preserves, so the same refusal fires again. What does clear it is the
+    // chain's own session finishing or cancelling it — `tdd.sessionId` names that session
+    // — and the run itself stays cancellable through the release verb.
+    fail(3, "run has a live inner TDD chain driven by another session; blocking that chain does not make the run adoptable, because this verb tests the pending stage, which a BLOCK preserves. The chain's own session has to finish or cancel it, or the whole run can be cancelled with /zensu-autopilot-release");
+  }
+  // The caller's pointer is about to be overwritten, so a run it ALREADY owns would
+  // be orphaned behind it: `read-active` refuses with exit 2 for every consumer once
+  // a pointer hides a nonterminal owned run, and `begin`'s own recovery arm cannot
+  // repair it because it requires a terminal active run. `begin` guards exactly this
+  // with `hiddenNonterminal`; the adopt branch reads only the target run file, so
+  // the inventory has to be built here to see the caller's other runs at all. The
+  // reachable shape is a session driving a run in one worktree that adopts a
+  // stranded run in a sibling worktree of the same project — the workspace hold
+  // makes it impossible within one tree.
+  //
+  // The read is OWNER-SCOPED, and that is not an optimization: it narrows how often
+  // a foreign record can deny this verb. The filter below already narrows to the
+  // caller, so passing the owner is verdict-identical; `read-active` passes it for
+  // the same reason.
+  //
+  // KNOWN RESIDUAL, stated because an earlier wording of this comment claimed the
+  // scoping CLOSED it and it does not. `readRunInventory` skips a foreign record
+  // only when `rawOwnerOf` returns a STRING that differs. Two sub-cases never reach
+  // that comparison and still deny the verb project-wide:
+  //   * an UNPARSEABLE record — `rawOwnerOf` answers null, which is not skipped, so
+  //     the record falls through to `readState` and `fail(2)`s;
+  //   * an UNSAFE record — `rawOwnerOf` opens through `regularFile`, which `fail(2)`s
+  //     on a symlink, a hard link, a non-file or a >1 MiB record before returning.
+  // So one truncated or planted `autopilot-run-*.json` — what a crashed `begin`
+  // leaves behind — makes `--autopilot-adopt` exit 2 for every run in the project
+  // while `--autopilot-release --confirm` keeps working, because release builds no
+  // inventory. That inverts the constructive-before-destructive preference the
+  // skill states, and closing it means deciding what an unattributable foreign
+  // record does to an owner-scoped read — a change to `readRunInventory`'s contract
+  // with its own test round, not a line here.
+  //
+  // It runs BEFORE the liveness block: this is a CALLER-side precondition, and a
+  // caller that can never adopt anything must not first be told to wait for the
+  // target's owner to go stale. It also keeps the inventory off the exit-7 path.
+  const ownedElsewhere = readRunInventory(stateDir, expectedProjectRoot, callerSessionId)
+    .filter(candidate => candidate.ownerSessionId === callerSessionId
+      && candidate.runId !== runId
+      && !TERMINAL.has(candidate.stage));
+  if (ownedElsewhere.length > 0) {
+    // NOT "release it": `--autopilot-release` refuses precisely this caller, whose
+    // own pointer still designates its own run ("caller owns this run; cancel it
+    // through the ordinary event path"). Naming a remedy the sibling verb rejects
+    // is what makes the two contracts fail to compose. The run named here is read
+    // from an unauthenticated record in a session-writable directory.
+    fail(4, `caller already owns nonterminal run ${ownedElsewhere[0].runId}; finish it, or cancel it through the ordinary CANCEL event path, before adopting another`);
+  }
+  const previousOwner = state.ownerSessionId;
+  // view UNCONDITIONALLY, because two decisions depend on it and only one of them
+  // is the clock. Nested inside the TTL branch this read never happened at
+  // `autopilotOwnerActivityTtlHours: 0`, yet the retire line below still emitted a
+  // basename — so the shell unlinked a pointer whose contents nobody had checked
+  // against this run. Path traversal was never open (the basename is a sha256 hex
+  // digest), but the CHOICE of file was, and `--autopilot-release` unlinks no
+  // pointer at all, so this was the one place adoption reached further into another
+  // session's state than its destructive sibling.
+  const ownerResolved = activePointerFileFor(stateDir, previousOwner, runId);
+  const ownerPointer = ownerResolved ? ownerResolved.pointer : null;
+  const ownerPointerDesignatesRun = Boolean(ownerPointer && ownerPointer.runId === runId);
+  // A pointer that no longer designates the run is abandonment evidence that owes
+  // nothing to a clock: without it the previous owner's own `read-active` returns
+  // nothing, so it is not driving this run whatever its document mtime says. That is
+  // why this verb passes the pointer precondition and release does not.
+  const liveness = ownerLiveness(stateDir, previousOwner, ownerActivityTtlHours,
+    { requirePointer: true, pointerDesignates: ownerPointerDesignatesRun });
+  // Emitted BEFORE the two refusing arms, so the report carries the verdict on the
+  // paths where `--confirm` would be refused as well. Those refusals name themselves
+  // on stderr and say nothing about the age, which is the fact a user weighs.
+  reportLine(`owner liveness — ${livenessSentence(liveness)}`);
+  if (liveness.verdict === "fresh") {
+    fail(7, "the owning session is still active; ask it to hand the run over, or wait for it to go stale");
+  } else if (liveness.verdict === "future") {
+    // REFUSED, like release, and the reversibility argument that once permitted here is
+    // what made it wrong: the release refuses a future stamp because its accidental
+    // causes — a jumped VM clock, an NFS mount, an mtime-preserving restore — leave the
+    // owner LIVE, and its remedy then recommended adoption as the route around itself.
+    // Two confirmations later the live run was cancelled. Reversibility does not help
+    // the victim either: its own adopt-back is refused while the adopter's document is
+    // fresh. This arm is reached only while the previous owner's pointer still
+    // designates the run — a retired pointer stands the whole check down one branch up,
+    // which is the abandonment evidence that owes nothing to a clock.
+    fail(7, "the recorded owner workflow document is dated in the future, so its age cannot show that the owner has stopped; waiting will not resolve it. Ask the owning session to hand the run over, or have the user set hooks.autopilotOwnerActivityTtlHours to 0 to adopt without a liveness check");
+  } else if (liveness.verdict === "absent") {
+    process.stderr.write("[zensu-autopilot-state] owner liveness unchecked: no workflow document for the recorded owner\n");
+  } else if (liveness.verdict === "retired") {
+    // The guard has THREE ways to stand down and every one must say so. This is the one
+    // an outsider can reach: the pointer is an ordinary file in a session-writable
+    // directory, so unlinking it removes the only recency bound on this takeover.
+    // Silence here made a clock-free adoption indistinguishable from one the clock allowed.
+    process.stderr.write("[zensu-autopilot-state] owner liveness unchecked: the previous owner's active pointer no longer designates this run\n");
+  } else if (liveness.verdict === "disabled") {
+    process.stderr.write(`[zensu-autopilot-state] owner liveness unchecked: autopilotOwnerActivityTtlHours is ${ownerActivityTtlHours}\n`);
+  }
+  state.ownerSessionId = callerSessionId;
+  if (!stateValid(state)) fail(2, "adoption produced invalid state");
+  // The report stops HERE, after the last check and before the first write, so its
+  // exit 0 means every worker check a confirmed run takes has passed — not merely
+  // that the liveness arm did.
+  if (report) {
+    reportLine(`--confirm would take run ${runId} over from session ${previousOwner}; its stage, its events and its evidence stay as they are`);
+    if (ownerPointerDesignatesRun) {
+      reportLine("--confirm would also retire the previous owner's active pointer for this run");
+    }
+    process.exit(0);
+  }
+  install(callerPointerOutput, { schemaVersion: 1, runId });
+  install(runOutput, state);
+  // The caller installs the two temps, retires this pointer, and carries the
+  // previous owner into the provenance entry. Only the pointer BASENAME travels,
+  // and the shell re-checks its shape, so a value read out of a run record can
+  // never name a file outside the state directory. The basename is emitted ONLY
+  // when the pointer designates THIS run: an empty first field is the shell's
+  // "nothing to retire", and it is what keeps the unlink from naming a pointer of
+  // the previous owner's that belongs to some other run of theirs. It is taken from
+  // the file the resolution ACTUALLY read, never re-derived from the owner digest —
+  // the legacy fallback wins often enough that a derived name pointed at nothing
+  // while the pointer that designated the run survived.
+  const retiredBasename = ownerPointerDesignatesRun
+    ? path.basename(ownerResolved.file)
+    : "";
+  process.stdout.write(`${retiredBasename}\t${previousOwner}\n`);
+  process.exit(0);
+}
+
+if (mode === "team-review-receipt-meta") {
+  const [runFile, expectedRunId, eventId] = args;
+  const state = readState(runFile);
+  const event = state.events[state.events.length - 1];
+  const review = state.evidence.review;
+  if (state.runId !== expectedRunId || !event || event.eventId !== eventId
+      || event.eventType !== "TEAM_REVIEW_PUBLISHED" || !review
+      || event.payload.marker !== review.marker || event.payload.headSha.toLowerCase() !== review.headSha
+      || event.payload.operationKey !== state.effects.teamReview.operationKey
+      || !reviewMarkerMatches(review.marker, event.payload.operationKey, event.payload.headSha,
+        review.payloadDigest, review.partCount)) fail(4, "candidate team-review receipt is inconsistent");
+  process.stdout.write(JSON.stringify({
+    operationKey: event.payload.operationKey,
+    headSha: review.headSha,
+    payloadDigest: review.payloadDigest,
+    partCount: review.partCount,
+    provider: review.provider,
+  }));
+  process.exit(0);
+}
+
+if (mode === "increment-budget") {
+  const [stateDir, runFile, runOutput, runId, expectedStage, expectedProjectRoot,
+    expectedOwnerSessionId = ""] = args;
+  const state = readState(runFile);
+  const pointer = activePointerFor(stateDir, state.ownerSessionId, runId);
+  if (!pointer || pointer.runId !== runId) fail(4, "budget does not target the active run");
+  if (state.runId !== runId || state.projectRoot !== expectedProjectRoot
+    || state.stage !== expectedStage || STOP_TERMINAL.has(state.stage)) {
+    fail(4, "stop budget stage is stale or terminal");
+  }
+  if (expectedOwnerSessionId && state.ownerSessionId !== expectedOwnerSessionId) {
+    fail(4, "stop-budget caller does not own the active run");
+  }
+  state.stopBudget.count += 1;
+  if (!stateValid(state)) fail(2, "budget increment produced invalid state");
+  writeOutput(runOutput, state);
+  process.stdout.write(String(state.stopBudget.count));
+  process.exit(0);
+}
+
+if (mode === "increment-budget-capped") {
+  const [stateDir, runFile, runOutput, runId, expectedStage, expectedProjectRoot,
+    expectedOwnerSessionId, capRaw, blockCode] = args;
+  const cap = Number(capRaw);
+  if (!natural(cap) || !identifier(blockCode)) fail(3, "invalid capped-budget arguments");
+  const state = readState(runFile);
+  const pointer = activePointerFor(stateDir, state.ownerSessionId, runId);
+  if (!pointer || pointer.runId !== runId) fail(4, "capped budget does not target the active run");
+  if (state.runId !== runId || state.projectRoot !== expectedProjectRoot
+    || state.stage !== expectedStage || STOP_TERMINAL.has(state.stage)) {
+    fail(4, "capped stop budget stage is stale or terminal");
+  }
+  if (expectedOwnerSessionId && state.ownerSessionId !== expectedOwnerSessionId) {
+    fail(4, "capped stop-budget caller does not own the active run");
+  }
+  const count = state.stopBudget.count + 1;
+  state.stopBudget.count = count;
+  let blocked = false;
+  if (count > cap) {
+    if (state.events.length >= MAX_EVENTS) fail(4, "event ledger exhausted before capped BLOCK");
+    const payload = { code: blockCode };
+    const fromStage = state.stage;
+    const eventId = `outer-block-${crypto.createHash("sha256").update(canonical([
+      runId, expectedStage, count, blockCode, state.events.length,
+    ])).digest("hex")}`;
+    transition(state, "BLOCK", payload);
+    state.events.push({
+      eventId,
+      eventType: "BLOCK",
+      payloadDigest: digest(payload),
+      payload,
+      fromStage,
+      toStage: state.stage,
+    });
+    blocked = true;
+  }
+  if (!stateValid(state)) fail(2, "capped budget mutation produced invalid state");
+  writeOutput(runOutput, state);
+  process.stdout.write(JSON.stringify({ count, blocked }));
+  process.exit(0);
+}
+
+fail(3, `unknown worker mode: ${mode || "(empty)"}`);
+NODE
+}
+
+_autopilot_begin_critical() {
+  local root="$1" run_id="$2" owner_session_id="$3" cover="$4" validate="$5"
+  local workspace_root="${6:-}" work_order_json="${7:-}"
+  [ -n "$workspace_root" ] || workspace_root="$(_autopilot_session_workspace "$root")" || return 2
+  local state_dir="$root/.zensu/state"
+  local run_file="$state_dir/autopilot-run-${run_id}.json"
+  local active_file legacy_file
+  active_file="$(_autopilot_active_path "$state_dir" "$owner_session_id")" || return 3
+  legacy_file="$(_autopilot_legacy_active_path "$state_dir")" || return 3
+  local run_tmp active_tmp rc
+  # `_autopilot_storage_safe` covers the legacy pointer by name; the
+  # owner-keyed one is validated at each of the TWO sites that write it — here and
+  # in `_autopilot_adopt_critical`.
+  COPILOT_PROJECT_DIR="$root" _tdd_path_safe "$active_file" regular-or-absent || return 2
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || return 5
+  active_tmp="$(_autopilot_mktemp_beside "$active_file")" || { rm -f "$run_tmp"; return 5; }
+  _autopilot_node begin "$active_file" "$run_file" "$run_tmp" "$active_tmp" \
+    "$run_id" "$owner_session_id" "$root" "$cover" "$validate" "$workspace_root" "$legacy_file" \
+    "$work_order_json"
+  rc=$?
+  if [ "$rc" -eq 10 ]; then
+    rm -f "$run_tmp" "$active_tmp"
+    return 0
+  fi
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp" "$active_tmp"
+    return "$rc"
+  fi
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp" "$active_tmp"; return 5; }
+  _tdd_atomic_replace_regular "$active_tmp" "$active_file" || { rm -f "$active_tmp"; return 5; }
+}
+
+autopilot_begin_run() {
+  local run_id="${1:-}" owner_session_id="${2:-}" root cover validate workspace_root session_workspace root_rendered declared_rendered
+  local work_order_json="${7:-}"
+  _autopilot_identifier_ok "$run_id" && _autopilot_owner_identity_ok "$owner_session_id" || return 3
+  case "$work_order_json" in *[$'\n\r']*) return 3 ;; esac
+  root="$(_autopilot_project_root "${3:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  cover="${4:-false}"
+  validate="${5:-true}"
+  case "$cover:$validate" in
+    true:true|true:false|false:true|false:false) ;;
+    *) return 3 ;;
+  esac
+  # Default the workspace to the working tree the caller is standing in. A
+  # session that begins from the project root therefore keeps exactly the
+  # pre-change exclusion; a session working inside a worktree gets its own.
+  workspace_root="${6:-}"
+  if [ -n "$workspace_root" ]; then
+    # A declared workspace must BE a working tree, not merely sit inside one.
+    # `autopilot_workspace_root` answers the git toplevel, so a plain
+    # subdirectory of a repository silently widens to the whole project root and
+    # the run records a far broader occupancy claim than was asked for. Both
+    # sides are canonicalized by the same renderer, so an alias spelling still
+    # compares equal and only a genuine non-toplevel is refused.
+    declared_rendered="$(_autopilot_rendered_dir "$workspace_root")" \
+      || declared_rendered="$(cd -P -- "$workspace_root" 2>/dev/null && pwd -P)" || return 2
+    workspace_root="$(autopilot_workspace_root "$workspace_root")" || return 2
+    [ "$workspace_root" = "$declared_rendered" ] || return 3
+    # A declared workspace that names neither the session's own resolved tree
+    # nor a directory under the project root would record a key nothing else
+    # can claim while the run's commits still land elsewhere, which defeats the
+    # only remaining collision guard. Accepted narrowing: a git worktree
+    # OUTSIDE the project root can no longer be declared.
+    session_workspace="$(_autopilot_session_workspace "$root")" || return 2
+    # Both sides of the containment test must be in ONE namespace: the workspace
+    # arrives host-rendered, so the project root is rendered by the same helper
+    # rather than compared in its shell spelling.
+    root_rendered="$(_autopilot_rendered_dir "$root")" || root_rendered="$root"
+    if [ "$workspace_root" != "$session_workspace" ]; then
+      case "$workspace_root" in
+        "$root_rendered"|"$root_rendered"/*) ;;
+        *) return 3 ;;
+      esac
+    fi
+  else
+    workspace_root="$(_autopilot_session_workspace "$root")" || return 2
+  fi
+  case "$workspace_root" in *[$'\n\r']*) return 3 ;; esac
+  _autopilot_prepare_storage "$root" || return 2
+  _autopilot_locked_run "$root" "$run_id" _autopilot_begin_critical \
+    "$root" "$run_id" "$owner_session_id" "$cover" "$validate" "$workspace_root" "$work_order_json"
+}
+
+_autopilot_attest_team_review_publication_critical() {
+  local root="$1" run_id="$2" run_tmp="$3" event_id="$4"
+  local meta tuple operation_key head_sha expected_digest part_count provider snapshot actual_receipt
+  meta="$(_autopilot_node team-review-receipt-meta "$run_tmp" "$run_id" "$event_id")" || return $?
+  tuple="$(printf '%s' "$meta" | node -e '
+    let value;try{value=JSON.parse(require("fs").readFileSync(0,"utf8"));}catch(_){process.exit(2);}
+    if(!value||typeof value!=="object"||Array.isArray(value)
+        ||!/^team-review:v1:[a-f0-9]{64}$/.test(value.operationKey||"")
+        ||!/^[a-f0-9]{7,64}$/.test(value.headSha||"")
+        ||!/^[a-f0-9]{64}$/.test(value.payloadDigest||"")
+        ||!Number.isSafeInteger(value.partCount)||value.partCount<1||value.partCount>999999
+        ||!["github","gitlab"].includes(value.provider))process.exit(2);
+    process.stdout.write([value.operationKey,value.headSha,value.payloadDigest,String(value.partCount),value.provider].join("|"));
+  ' 2>/dev/null)" || return 2
+  IFS='|' read -r operation_key head_sha expected_digest part_count provider <<< "$tuple"
+  [ -n "$operation_key" ] && [ -n "$head_sha" ] && [ -n "$expected_digest" ] \
+    && [ -n "$part_count" ] && [ -n "$provider" ] || return 2
+  snapshot="$(_autopilot_read_team_review_payload_critical \
+    "$root" "$run_id" "$operation_key" "$head_sha" "$provider")" || return $?
+  actual_receipt="$(_autopilot_team_review_payload_inspect \
+    "$snapshot" "$head_sha" true receipt "$provider")" || return $?
+  [ "$actual_receipt" = "$expected_digest|$part_count" ] || return 4
+}
+
+_autopilot_apply_critical() {
+  local root="$1" run_id="$2" event_id="$3" event_type="$4" payload_json="$5"
+  local caller_session_id="${6:-}"
+  local state_dir="$root/.zensu/state"
+  local run_file="$state_dir/autopilot-run-${run_id}.json"
+  local run_tmp rc
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || return 5
+  _autopilot_node apply "$state_dir" "$run_file" "$run_tmp" "$run_id" "$event_id" "$event_type" "$payload_json" "$root" "$caller_session_id"
+  rc=$?
+  if [ "$rc" -eq 10 ]; then
+    rm -f "$run_tmp"
+    return 0
+  fi
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp"
+    return "$rc"
+  fi
+  if [ "$event_type" = TEAM_REVIEW_PUBLISHED ]; then
+    _autopilot_attest_team_review_publication_critical \
+      "$root" "$run_id" "$run_tmp" "$event_id"
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      rm -f "$run_tmp"
+      return "$rc"
+    fi
+  fi
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp"; return 5; }
+}
+
+autopilot_apply_event() {
+  local run_id="${1:-}" event_id="${2:-}" event_type="${3:-}" payload_json="${4:-}" root
+  local caller_session_id="${6:-}"
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$event_id" || return 3
+  # The `release-` event-id namespace belongs to autopilot_release_run, which
+  # derives it from the run alone so a repeat release lands on the same ledger
+  # entry. The CLI arm refuses it as well, but this writer is reachable directly
+  # and a forged entry there would make an ordinary CANCEL indistinguishable
+  # from an audited release in the ledger.
+  case "$event_id" in release-*) return 3 ;; esac
+  if [ -n "$caller_session_id" ]; then
+    _autopilot_identifier_ok "$caller_session_id" || return 3
+  fi
+  root="$(_autopilot_project_root "${5:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_apply_critical \
+    "$root" "$run_id" "$event_id" "$event_type" "$payload_json" "$caller_session_id"
+}
+
+autopilot_read_run() {
+  local run_id="${1:-}" root run_file
+  _autopilot_identifier_ok "$run_id" || return 2
+  root="$(_autopilot_project_root "${2:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  run_file="$root/.zensu/state/autopilot-run-${run_id}.json"
+  _autopilot_node read-run "$run_file" "$run_id" "$root"
+}
+
+_autopilot_read_active_critical() {
+  local root="$1" owner="$2" state_dir="$1/.zensu/state" active_file legacy_file
+  active_file="$(_autopilot_active_path "$state_dir" "$owner")" || return 3
+  legacy_file="$(_autopilot_legacy_active_path "$state_dir")" || return 3
+  _autopilot_node read-active "$active_file" "$state_dir" "$root" "$owner" "$legacy_file"
+}
+
+# The optional third argument selects WHICH holder is reported when several hold
+# the tree; it never changes whether the tree is held, so this stays the
+# owner-INDEPENDENT question. Supply it from any caller that WEIGHS the holder's
+# identity OR RENDERS the holder to a user — the second half matters and is easy
+# to miss: `_autopilot_begin_standalone_tdd_critical` refuses unconditionally and
+# weighs nothing, yet must still forward it, because the sentence it prints
+# differs for an own run and quotes a destructive command for a foreign one.
+# Either way the point is the same: the decision must not be made by filename
+# sort order.
+_autopilot_read_workspace_critical() {
+  local root="$1" workspace="$2" prefer_owner="${3:-}" state_dir="$1/.zensu/state"
+  _autopilot_node read-workspace "$state_dir" "$root" "$workspace" "$prefer_owner"
+}
+
+autopilot_read_active() {
+  local root owner="${2:-}"
+  root="$(_autopilot_project_root "${1:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_session_id_ok "$owner" || return 3
+  _autopilot_read_storage_ready "$root" || return $?
+  # view the pointer and full run inventory under the same project-wide lock
+  # as begin. A healthy begin publishes run then pointer with two renames; a
+  # concurrent hook must wait for both rather than diagnosing that brief,
+  # intentional window as an orphan. If begin crashes, the lock is released
+  # and the durable partial publication is then classified fail-closed.
+  _autopilot_locked_run "$root" "" _autopilot_read_active_critical "$root" "$owner"
+}
+
+_ZENSU_AP_ACTIVE_RECORD=""
+_ZENSU_AP_ACTIVE_WORKER_RC=""
+_autopilot_active_probe() {
+  _ZENSU_AP_ACTIVE_RECORD="$(_autopilot_read_active_critical "$1" "$2")"
+  _ZENSU_AP_ACTIVE_WORKER_RC=$?
+  return 0
+}
+
+_autopilot_active_read_without_lease() {
+  local root="$1" owner="$2" rc=0 record=""
+  _ZENSU_AP_ACTIVE_RECORD=""
+  _autopilot_storage_safe "$root" "" || return 5
+  record="$(_autopilot_read_active_critical "$root" "$owner" 2>/dev/null)" || rc=$?
+  _autopilot_storage_safe "$root" "" || return 5
+  [ "$rc" -eq 1 ] && return 1
+  [ "$rc" -eq 0 ] || return 5
+  printf '%s' "$record" | node -e '
+    try {
+      const s=JSON.parse(require("fs").readFileSync(0,"utf8")||"{}");
+      process.exit(["DONE","CANCELLED"].includes(s.stage)?0:1);
+    } catch (_) { process.exit(1); }
+  ' 2>/dev/null || return 5
+  _ZENSU_AP_ACTIVE_RECORD="$record"
+}
+
+_autopilot_workspace_read_without_lease() {
+  local root="$1" workspace="$2" prefer_owner="$3" rc=0
+  _autopilot_storage_safe "$root" "" || return 5
+  _autopilot_read_workspace_critical "$root" "$workspace" "$prefer_owner" >/dev/null 2>&1 || rc=$?
+  _autopilot_storage_safe "$root" "" || return 5
+  [ "$rc" -eq 1 ] && return 1
+  return 5
+}
+
+autopilot_read_active_strict() {
+  local root owner="${2:-}"
+  [ "$#" -eq 2 ] && [ -n "${1:-}" ] || return 3
+  _autopilot_session_id_ok "$owner" || return 3
+  root="$(_autopilot_project_root "$1")" || return 5
+  _autopilot_read_storage_ready "$root"
+  case "$?" in
+    0) ;;
+    1) return 1 ;;
+    *) return 5 ;;
+  esac
+  _ZENSU_AP_ACTIVE_RECORD=""
+  _ZENSU_AP_ACTIVE_WORKER_RC=""
+  _autopilot_locked_run "$root" "" _autopilot_active_probe "$root" "$owner" || {
+    [ -z "$_ZENSU_AP_ACTIVE_WORKER_RC" ] || return 5
+    _autopilot_active_read_without_lease "$root" "$owner" || return $?
+    printf '%s\n' "$_ZENSU_AP_ACTIVE_RECORD"
+    return 0
+  }
+  case "$_ZENSU_AP_ACTIVE_WORKER_RC" in
+    0) ;;
+    1) return 1 ;;
+    2) return 2 ;;
+    *) return 5 ;;
+  esac
+  [ -n "$_ZENSU_AP_ACTIVE_RECORD" ] || return 5
+  printf '%s\n' "$_ZENSU_AP_ACTIVE_RECORD"
+}
+
+_autopilot_release_critical() {
+  local root="$1" run_id="$2" event_id="$3" caller_session_id="$4"
+  local caller_workspace="$5" ttl_hours="$6"
+  local state_dir="$root/.zensu/state"
+  local run_file="$state_dir/autopilot-run-${run_id}.json"
+  local run_tmp rc
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || return 5
+  _autopilot_node release "$run_file" "$run_tmp" "$run_id" "$event_id" "$root" "$caller_session_id" \
+    "$state_dir" "$caller_workspace" "$ttl_hours"
+  rc=$?
+  if [ "$rc" -eq 10 ]; then
+    rm -f "$run_tmp"
+    return 0
+  fi
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp"
+    return "$rc"
+  fi
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp"; return 5; }
+}
+
+# Cancel a nonterminal run owned by ANOTHER session. It runs under the same
+# project lock as every other writer, so it cannot race a live owner mid-event;
+# the owner's own pointer is left untouched and simply comes to designate a
+# terminal run, which every reader already handles.
+autopilot_release_run() {
+  local run_id="${1:-}" event_id="${2:-}" root caller_session_id="${4:-}"
+  local caller_workspace ttl_hours
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$event_id" || return 3
+  _autopilot_session_id_ok "$caller_session_id" || return 3
+  root="$(_autopilot_project_root "${3:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  caller_workspace="$(_autopilot_session_workspace "$root")" || return 2
+  ttl_hours="$(zensu_autopilot_release_owner_activity_ttl_hours 2>/dev/null)" || ttl_hours=""
+  # A failed or non-numeric read falls back to the getter's own DEFAULT, never to 0:
+  # 0 disables the liveness check, so normalizing a fault to it would fail OPEN on a
+  # guard whose job is to protect a live owner's run, and would emit a disclosure
+  # blaming a config value the operator never set. Only a real configured 0 disables.
+  case "$ttl_hours" in *[!0-9]*|'') ttl_hours=6 ;; esac
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_release_critical \
+    "$root" "$run_id" "$event_id" "$caller_session_id" "$caller_workspace" "$ttl_hours"
+}
+
+_autopilot_release_work_order_critical() {
+  local root="$1" run_id="$2" event_id="$3" order_id="$4" below_attempt="$5"
+  local state_dir="$root/.zensu/state"
+  local run_file="$state_dir/autopilot-run-${run_id}.json"
+  local run_tmp rc
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || return 5
+  _autopilot_node release-work-order "$run_file" "$run_tmp" "$run_id" "$event_id" "$root" "$order_id" "$below_attempt"
+  rc=$?
+  if [ "$rc" -eq 10 ]; then
+    rm -f "$run_tmp"
+    return 0
+  fi
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp"
+    return "$rc"
+  fi
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp"; return 5; }
+}
+
+autopilot_release_work_order_run() {
+  local run_id="${1:-}" order_id="${2:-}" below_attempt="${3:-}" root
+  [ "$#" -ge 3 ] && [ "$#" -le 4 ] || return 3
+  _autopilot_identifier_ok "$run_id" || return 3
+  case "$order_id" in ''|*[!0-9a-fA-F-]*) return 3 ;; esac
+  [ "${#order_id}" -eq 36 ] || return 3
+  case "$below_attempt" in ''|0*|*[!0-9]*) return 3 ;; esac
+  [ "${#below_attempt}" -le 9 ] || return 3
+  root="$(_autopilot_project_root "${4:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_release_work_order_critical \
+    "$root" "$run_id" "work-order-release-${below_attempt}" "$order_id" "$below_attempt"
+}
+
+_autopilot_adopt_critical() {
+  local root="$1" run_id="$2" caller_session_id="$3"
+  # The mode is POSITIONALLY REQUIRED, not defaulted. Refusing an unrecognized value
+  # while DEFAULTING an absent one was half a property, and the missing half was the
+  # dangerous one: the permissive spelling is the one that MOVES OWNERSHIP, so an
+  # omission selected exactly that spelling in silence.
+  # `_autopilot_workspace_refusal` takes the same decision for a strictly less dangerous
+  # axis, refusing a short call rather than assuming an audience.
+  #
+  # The requirement is the SAME at the public entry point now, and the asymmetry that
+  # stood here is gone. It was never a design: `autopilot_adopt_run` kept its default
+  # only because nine call sites in `tests/structure/test-autopilot-adopt-cli.sh` passed
+  # three arguments, which left the guard on the one layer no caller outside this file
+  # reaches. Those call sites were converted in the commit that closed it. This copy
+  # stays as defence in depth for a second caller of the critical section.
+  if [ "$#" -ne 6 ]; then
+    _autopilot_adopt_refusal "the adoption mode operand is required"
+    return 3
+  fi
+  local caller_workspace="$4" ttl_hours="$5" mode="$6"
+  local state_dir="$root/.zensu/state"
+  local run_file="$state_dir/autopilot-run-${run_id}.json"
+  local caller_pointer caller_beacon run_tmp ptr_tmp ptr_prior="" retired retired_line stale_names="" rc
+  # The two outcome names the CLI reads are module-scope on purpose (they must cross
+  # this function's boundary), so they are STAGED here and published only after both
+  # installs land. Assigning them at classification time made a failed install report
+  # a takeover the caller could then never find: the CLI selects its stderr line AND
+  # gates the AUTOPILOT_ADOPTED provenance write on the token, deliberately not on the
+  # return code, so a `return 5` with the token already set announced and RECORDED a
+  # takeover that had not happened. Both success arms had the defect, at two different
+  # assignment sites, so fixing only one leaves the other live.
+  local pending_outcome="" pending_owner=""
+  caller_pointer="$(_autopilot_active_path "$state_dir" "$caller_session_id")" || {
+    _autopilot_adopt_refusal "the owner pointer path could not be derived for this caller"
+    return 3
+  }
+  # Same pre-check `_autopilot_begin_critical` performs: `_autopilot_storage_safe`
+  # covers the LEGACY pointer by name only, so the owner-keyed one is validated at
+  # each site that writes it. `_tdd_atomic_replace_regular` re-applies the check, so
+  # this is defense in depth — but it turns a late exit 5 into an early, named exit 2.
+  COPILOT_PROJECT_DIR="$root" _tdd_path_safe "$caller_pointer" regular-or-absent || {
+    _autopilot_adopt_refusal "the owner pointer path was refused: not a regular file or an absent path inside the state directory"
+    return 2
+  }
+  # The report branches off AFTER both pre-checks and BEFORE the first temp, because
+  # a temp beside the run record is a write, and the report's contract is that it
+  # makes none. The worker still needs two output operands; these placeholders are
+  # never created, and `writeOutput` refuses a path that was not pre-created, so a
+  # regression that reached a write would fail rather than land. Both carry the
+  # `autopilot-` prefix so the suite's state-directory comparison would see one.
+  #
+  # The report nevertheless runs under the project lease, exactly as a confirmed
+  # adoption does, and that is deliberate rather than an oversight: this branch is
+  # reached from inside `_autopilot_locked_run`, so the ladder it reports on is the
+  # ladder a `--confirm` would take against the same instant. Reading it unleased
+  # would be cheaper and would let the report predict a verdict the confirmed run
+  # then refuses. The cost is stated where a reader meets it: "read-only" is a claim
+  # about the three artifacts, never about the process. A report SERIALIZES against
+  # live writers and can itself be refused on lease contention, and the lease's own
+  # lock file is created and unlinked by `releaseOwnedLock` in
+  # `session-control-core-v1.js` rather than left behind. Do NOT drop the lease to
+  # make the phrase literally true; narrow the phrase instead, which is why the CLI
+  # enumerates the three artifacts rather than claiming nothing happened.
+  if [ "$mode" = report ]; then
+    _autopilot_node adopt "$run_file" "$state_dir/autopilot-adopt-report-run.unwritten" \
+      "$run_id" "$root" "$caller_session_id" "$state_dir" "$caller_workspace" \
+      "$ttl_hours" "$state_dir/autopilot-adopt-report-pointer.unwritten" report
+    rc=$?
+    # 10 and 11 are successes here exactly as on the confirmed path, which collapses
+    # them to 0; the report line already said which one it was.
+    if [ "$rc" -eq 10 ] || [ "$rc" -eq 11 ]; then
+      return 0
+    fi
+    return "$rc"
+  fi
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || {
+    _autopilot_adopt_refusal "temp allocation beside the run record failed; nothing moved"
+    return 5
+  }
+  ptr_tmp="$(_autopilot_mktemp_beside "$caller_pointer")" || {
+    rm -f "$run_tmp"
+    _autopilot_adopt_refusal "temp allocation beside the owner pointer failed; nothing moved"
+    return 5
+  }
+  retired_line="$(_autopilot_node adopt "$run_file" "$run_tmp" "$run_id" "$root" \
+    "$caller_session_id" "$state_dir" "$caller_workspace" "$ttl_hours" "$ptr_tmp")"
+  rc=$?
+  # THREE outcomes are successes and each arrives as its OWN exit code, so no token
+  # travels inside stdout: 10 = record and pointer already agree, nothing to do;
+  # 11 = the record was already ours and its pointer was reinstalled; 0 = a real
+  # takeover, the only one that carries a stdout line. An exit code cannot be
+  # produced by a dropped write, which is what the retired in-band token existed to
+  # guarantee at the cost of a sentinel both halves had to spell identically.
+  if [ "$rc" -eq 10 ]; then
+    rm -f "$run_tmp" "$ptr_tmp"
+    ZENSU_AUTOPILOT_ADOPT_OUTCOME=already-owned
+    _autopilot_retire_stale_pointers "$state_dir" "$retired_line"
+    return 0
+  fi
+  if [ "$rc" -eq 11 ]; then
+    pending_outcome=repaired
+    stale_names="$retired_line"
+    retired=""
+  elif [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp" "$ptr_tmp"
+    return "$rc"
+  else
+    # A takeover ALWAYS emits a TAB, so a tabless line is a lost or short stdout
+    # write, not an outcome, and it can no longer impersonate a repair.
+    case "$retired_line" in
+      *$'\t'*) ;;
+      *)
+        rm -f "$run_tmp" "$ptr_tmp"
+        _autopilot_adopt_refusal "the worker result line was malformed; no install was attempted and nothing moved"
+        return 5
+        ;;
+    esac
+    retired="${retired_line%%$'\t'*}"
+    pending_owner="${retired_line#*$'\t'}"
+    # The SECOND field carries the same weight as the tab: `zensu-log.sh` gates the
+    # `AUTOPILOT_ADOPTED` provenance write on a non-empty previous owner, so a line
+    # that ends AT the tab produces a real takeover recorded as coming from nobody —
+    # the exact class the tab guard above exists to close, one field short. The test
+    # this replaced compared the stripped value against the whole line, which the tab
+    # guard had already made impossible, so it never fired.
+    if [ -z "$pending_owner" ]; then
+      rm -f "$run_tmp" "$ptr_tmp"
+      _autopilot_adopt_refusal "the worker result line named no previous owner; no install was attempted and nothing moved"
+      return 5
+    fi
+    pending_outcome=adopted
+  fi
+  # Install the POINTER first. A failure of the record install below rolls that
+  # pointer back — restoring the bytes it replaced, or unlinking it when there were
+  # none — so only a crash between the two installs, or a rollback that itself fails,
+  # leaves the caller holding a pointer to a run it does not own. That torn state is
+  # loud but slow to heal: `read-active` refuses with exit 2, and a retry re-enters the
+  # whole takeover ladder, so it stays refused with exit 7 while the previous owner
+  # still looks active and with exit 3 once that owner drives the run terminal. The
+  # reverse order is just as loud — a missing pointer beside an owned nonterminal run
+  # also refuses with exit 2 — and heals faster, because the already-owner branch
+  # repairs it past the pending-stage and liveness refusals. The order is kept because
+  # its rollback restores one small pointer file rather than a run record, not because
+  # its torn state is louder, and reordering stays an open question.
+  # The rollback copy is taken BEFORE the first install, so undoing it needs no
+  # allocation that could fail after something has already moved. The repair path has
+  # nothing to roll back, because it installs no record.
+  if [ "$pending_outcome" = adopted ] && [ -f "$caller_pointer" ]; then
+    ptr_prior="$(_autopilot_mktemp_beside "$caller_pointer")" || {
+      rm -f "$run_tmp" "$ptr_tmp"
+      _autopilot_adopt_refusal "temp allocation for the owner pointer rollback copy failed; nothing moved"
+      return 5
+    }
+    cat "$caller_pointer" > "$ptr_prior" || {
+      rm -f "$run_tmp" "$ptr_tmp" "$ptr_prior"
+      _autopilot_adopt_refusal "the existing owner pointer could not be copied for rollback; nothing moved"
+      return 5
+    }
+  fi
+  _tdd_atomic_replace_regular "$ptr_tmp" "$caller_pointer" || {
+    rm -f "$run_tmp" "$ptr_tmp" ${ptr_prior:+"$ptr_prior"}
+    _autopilot_adopt_refusal "pointer install failed; nothing moved"
+    return 5
+  }
+  if [ "$pending_outcome" = repaired ]; then
+    rm -f "$run_tmp"
+  else
+    _tdd_atomic_replace_regular "$run_tmp" "$run_file" || {
+      rm -f "$run_tmp"
+      if { [ -n "$ptr_prior" ] && _tdd_atomic_replace_regular "$ptr_prior" "$caller_pointer"; } \
+        || { [ -z "$ptr_prior" ] && rm -f "$caller_pointer"; }; then
+        _autopilot_adopt_refusal "record install failed; the owner pointer was rolled back and nothing moved"
+      else
+        rm -f ${ptr_prior:+"$ptr_prior"}
+        _autopilot_adopt_refusal "record install failed and rolling back the owner pointer also failed; ${caller_pointer##*/} now names a run this session does not own, so its read-active refuses with exit 2 until that file is removed or a retried adoption lands"
+      fi
+      return 5
+    }
+    rm -f ${ptr_prior:+"$ptr_prior"}
+  fi
+  # Taking the run over is this session ACTING, so its own liveness beacon is refreshed
+  # here, inside the lease. Both run verbs judge liveness on the owner's workflow-document
+  # mtime, and without this a session whose document was stale left the run it had just
+  # taken looking silent to the next verb queued behind the lease, until its own next
+  # turn end or the CLI's best-effort provenance write. `touch -c` creates nothing, and a
+  # beacon that is not a safe regular file is left alone and disclosed.
+  caller_beacon="$state_dir/tdd-phase-${caller_session_id}.json"
+  if ! { COPILOT_PROJECT_DIR="$root" _tdd_path_safe "$caller_beacon" regular \
+    && touch -c "$caller_beacon" 2>/dev/null; }; then
+    printf '%s\n' "[zensu-autopilot-state] this session's own workflow document could not be refreshed, so a second adoption or a release of this run is not refused until this session's next turn end" >&2
+  fi
+  # Every install this outcome needs landed, so it may now be published to the CLI. Nothing
+  # above this line may set either name, with ONE deliberate exception: the rc=10
+  # arm sets the outcome to `already-owned` and returns without installing anything,
+  # so there is no torn state for a premature publication to misreport. Every arm
+  # that DOES install publishes here and only here.
+  ZENSU_AUTOPILOT_ADOPT_OUTCOME="$pending_outcome"
+  ZENSU_AUTOPILOT_ADOPTED_PREVIOUS_OWNER="$pending_owner"
+  # The worker prints a BASENAME; re-check its shape here so a value that reached
+  # the run record from anywhere cannot name a file outside the state directory. A
+  # pointer left behind does NOT go unnoticed — `read-active` builds an owner-scoped
+  # inventory, so the previous owner's own read finds a pointer to a run its inventory
+  # skips and REFUSES with exit 2 rather than reporting no active run. That is the same
+  # loud torn state the install order accepts, so a failed check skips the unlink and
+  # never the adoption, but it is disclosed rather than swallowed.
+  # TWO accepted spellings, because the worker now emits the name of the file it
+  # actually read: the owner-keyed `autopilot-active-<64 hex>.json`, and the LEGACY
+  # `autopilot-active.json`, which `activePointerFileFor` still resolves. The shape
+  # rule lives in `_autopilot_owner_pointer_basename_ok` so this site does not become
+  # a third shell spelling of either pointer name.
+  if [ -n "$retired" ]; then
+    _autopilot_retire_pointer "$state_dir" "$retired"
+  fi
+  _autopilot_retire_stale_pointers "$state_dir" "$stale_names"
+  return 0
+}
+
+# Retire one pointer the worker named, through the basename shape gate. Returns 0 when
+# it was unlinked and 1 when it survived, which is disclosed either way.
+_autopilot_retire_pointer() {
+  if _autopilot_owner_pointer_basename_ok "$2" && rm -f "$1/$2"; then
+    return 0
+  fi
+  _autopilot_retire_unreachable "$2"
+  return 1
+}
+
+# Retire every stale pointer the worker listed on the two owner exits, one basename per
+# line. Each retire is disclosed, because the CLI's own line for those exits reports
+# that ownership did not change and would otherwise hide a removed file.
+_autopilot_retire_stale_pointers() {
+  local state_dir="$1" names="$2" name
+  [ -n "$names" ] || return 0
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    if _autopilot_retire_pointer "$state_dir" "$name"; then
+      printf '[zensu-autopilot-state] retired a stale owner pointer that still designated this run: %s\n' "$name" >&2
+    fi
+  done <<EOF
+$names
+EOF
+}
+
+# One line, on the OPERATOR channel, for every refusal the shell half of
+# `--autopilot-adopt` takes on its own. Without it those paths returned 2, 3 and 5 in
+# silence — `_tdd_paths_safe` redirects everything and the CLI prints nothing when no
+# outcome was published — while skills/zensu-autopilot-adopt/SKILL.md instructs the reader
+# that "the stderr line tells them apart" and names a refused owner-pointer path as
+# one of the cases to distinguish. A documented discriminator that emits nothing is
+# worse than none, because it is followed.
+_autopilot_adopt_refusal() {
+  printf '[zensu-autopilot-state] --autopilot-adopt refused: %s\n' "$1" >&2
+}
+
+# One line, on the OPERATOR channel, when the previous owner's pointer survives an
+# adoption. It is not cosmetic: that pointer makes the previous owner's own
+# `read-active` refuse with exit 2 for every one of its hook call sites, and without
+# this the only trace of the cause is a file nobody was told about.
+_autopilot_retire_unreachable() {
+  printf '[zensu-autopilot-state] previous owner pointer not retired: %s; its session will see "active pointer references a run that is absent or owned by another session" until it is removed\n' \
+    "$1" >&2
+}
+
+# Take over a nonterminal run owned by ANOTHER session — release's constructive
+# counterpart, where the work continues under a new owner instead of being
+# cancelled. It runs under the same project lock as every other writer, so it
+# cannot race a live owner mid-event, and it writes no event: only the record's
+# `ownerSessionId` and the owner pointer move.
+autopilot_adopt_run() {
+  # The mode is POSITIONALLY REQUIRED at this layer too. It used to default to `confirm`
+  # here while the critical section below refused an omission, which left the guard on
+  # the one layer no caller outside this file reaches: an omitted operand selected the
+  # spelling that MOVES OWNERSHIP, in silence, at the public entry point. The nine
+  # three-argument call sites that blocked this are converted in the same commit, and
+  # `B38` drives both layers.
+  if [ "$#" -ne 4 ]; then
+    _autopilot_adopt_refusal "the adoption mode operand is required"
+    return 3
+  fi
+  local run_id="${1:-}" root caller_session_id="${3:-}" mode="$4"
+  local caller_workspace ttl_hours ready_rc
+  # Cleared FIRST, so a previous call's value can never be read as this one's —
+  # the same discipline `_autopilot_publish_workspace_refusal` follows.
+  ZENSU_AUTOPILOT_ADOPTED_PREVIOUS_OWNER=""
+  ZENSU_AUTOPILOT_ADOPT_OUTCOME=""
+  # `report` runs the whole ladder and writes nothing; it never publishes either name
+  # above, so the CLI announces no outcome and writes no provenance for it. An
+  # unrecognized mode is refused rather than defaulted, because the permissive
+  # spelling here is the one that moves ownership.
+  if [ "$mode" != confirm ] && [ "$mode" != report ]; then
+    _autopilot_adopt_refusal "the adoption mode is neither confirm nor report"
+    return 3
+  fi
+  _autopilot_identifier_ok "$run_id" || {
+    _autopilot_adopt_refusal "the run id is not a schema identifier"
+    return 3
+  }
+  # The WRITE predicate, unlike every sibling verb that only COMPARES a caller id:
+  # this one PERSISTS it as `ownerSessionId`. `begin` applies the identical rule.
+  # Gating loosely here only deferred the refusal into the worker, where it surfaces
+  # as the generic "invalid adopt arguments" the skill's exit-3 row attributes to
+  # three other causes. Both gates MUST name themselves: moving the refusal earlier
+  # is only an improvement while it still says something, and the first spelling of
+  # this gate returned a bare 3, which was strictly worse than the worker line it
+  # replaced.
+  _autopilot_owner_identity_ok "$caller_session_id" || {
+    _autopilot_adopt_refusal "the caller session id is not a persistable owner identity"
+    return 3
+  }
+  root="$(_autopilot_project_root "${2:-${COPILOT_PROJECT_DIR:-.}}")" || {
+    _autopilot_adopt_refusal "the project root could not be resolved"
+    return 2
+  }
+  caller_workspace="$(_autopilot_session_workspace "$root")" || {
+    _autopilot_adopt_refusal "the caller working tree could not be resolved"
+    return 2
+  }
+  ttl_hours="$(zensu_autopilot_owner_activity_ttl_hours 2>/dev/null)" || ttl_hours=""
+  # A failed or non-numeric read falls back to the getter's own DEFAULT, never to 0:
+  # 0 disables the liveness check, so normalizing a fault to it would fail OPEN on a
+  # guard whose job is to protect a live owner's run, and would emit a disclosure
+  # blaming a config value the operator never set. Only a real configured 0 disables.
+  case "$ttl_hours" in *[!0-9]*|'') ttl_hours=1 ;; esac
+  # rc 1 and rc 2 are DIFFERENT conditions and only rc 2 is a fault. rc 1 is an
+  # absent `.zensu/state`, which a fresh clone, a `git clean` and a removed worktree
+  # all produce, and the skill's exit-1 row says so; asserting corruption there sent
+  # the reader hunting for a planted symlink that was never there.
+  _autopilot_read_storage_ready "$root" "$run_id" || {
+    ready_rc=$?
+    if [ "$ready_rc" -eq 1 ]; then
+      _autopilot_adopt_refusal "this project holds no Autopilot run storage"
+    else
+      _autopilot_adopt_refusal "the run record is unreadable or the state directory is unsafe"
+    fi
+    return "$ready_rc"
+  }
+  _autopilot_locked_run "$root" "$run_id" _autopilot_adopt_critical \
+    "$root" "$run_id" "$caller_session_id" "$caller_workspace" "$ttl_hours" "$mode"
+}
+
+# Chain ids share the 128-character durable identifier contract, while the
+# event ids that carry them must also remain within that same bound. Preserve
+# the readable legacy id for ordinary chains and switch only oversized
+# composites to a deterministic digest.
+autopilot_chain_event_id() {
+  local kind="${1:-}" chain_id="${2:-}" prefix candidate digest
+  _autopilot_identifier_ok "$chain_id" || return 3
+  case "$kind" in
+    start)  prefix="tdd-started" ;;
+    done)   prefix="tdd-done" ;;
+    rearm)  prefix="review-rearm-resume" ;;
+    *) return 3 ;;
+  esac
+  candidate="${prefix}-${chain_id}"
+  if [ "${#candidate}" -le 128 ]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  digest="$(printf '%s' "$chain_id" | node -e '
+    const crypto=require("crypto"),fs=require("fs");
+    process.stdout.write(crypto.createHash("sha256").update(fs.readFileSync(0)).digest("hex"));
+  ' 2>/dev/null)" || return 5
+  [ "${#digest}" -eq 64 ] || return 5
+  printf '%s-%s\n' "$prefix" "$digest"
+}
+
+# Produce the only TEAM_REVIEW_REQUESTED operation key accepted by the durable
+# transition: a fixed-size digest of the run id plus the original lowercase PR
+# head. Callers persist this write-ahead key before attempting remote publish.
+autopilot_team_review_operation_key() {
+  local run_id="${1:-}" head_sha="${2:-}"
+  [ "$#" -eq 2 ] && _autopilot_identifier_ok "$run_id" || return 3
+  RUN_ID="$run_id" HEAD_SHA="$head_sha" node -e '
+    const crypto=require("crypto");
+    const head=process.env.HEAD_SHA;
+    if(!/^[a-fA-F0-9]{7,64}$/.test(head))process.exit(3);
+    const canonical=value => value && typeof value === "object" && !Array.isArray(value)
+      ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`
+      : JSON.stringify(value);
+    const seed={headSha:head.toLowerCase(),runId:process.env.RUN_ID};
+    process.stdout.write(`team-review:v1:${crypto.createHash("sha256").update(canonical(seed)).digest("hex")}`);
+  ' 2>/dev/null
+}
+
+autopilot_work_order_review_operation_key() {
+  local order_id="${1:-}" head_sha="${2:-}"
+  [ "$#" -eq 2 ] || return 3
+  ORDER_ID="$order_id" HEAD_SHA="$head_sha" node -e '
+    const crypto=require("crypto");
+    const head=process.env.HEAD_SHA;
+    const order=process.env.ORDER_ID;
+    if(!/^[a-fA-F0-9]{7,64}$/.test(head))process.exit(3);
+    if(!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(order))process.exit(3);
+    const canonical=value => value && typeof value === "object" && !Array.isArray(value)
+      ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`
+      : JSON.stringify(value);
+    const seed={headSha:head.toLowerCase(),orderId:order.toLowerCase()};
+    process.stdout.write(`team-review:v1:${crypto.createHash("sha256").update(canonical(seed)).digest("hex")}`);
+  ' 2>/dev/null
+}
+
+# The delegated review body is a remote-write input, so a crash after the forge
+# accepted it must not allow a retry to synthesize different bytes for the same
+# operation key. Keep one private immutable snapshot per operation/head pair in
+# the project-local durable state directory.
+_autopilot_team_review_payload_target() {
+  local root="${1:-}" operation_key="${2:-}" head_sha="${3:-}" operation_digest
+  [ "$#" -eq 3 ] || return 3
+  operation_digest="$(OPERATION_KEY="$operation_key" HEAD_SHA="$head_sha" node -e '
+    const crypto = require("crypto");
+    const operationKey = process.env.OPERATION_KEY;
+    const head = String(process.env.HEAD_SHA || "").toLowerCase();
+    if (!/^team-review:v1:[a-f0-9]{64}$/.test(operationKey)
+        || !/^[a-f0-9]{7,64}$/.test(head)) process.exit(3);
+    process.stdout.write(crypto.createHash("sha256").update(operationKey).digest("hex"));
+  ' 2>/dev/null)" || return 3
+  [ -n "$root" ] && [ "${#operation_digest}" -eq 64 ] || return 3
+  # The operation key already binds the run plus original PR head. Persisting
+  # its full 256-bit digest is therefore collision-resistant without spelling
+  # the head a second time, and keeps security-critical state below Windows'
+  # legacy MAX_PATH boundary for ordinary project roots.
+  printf '%s/.zensu/state/autopilot-team-review-payload-%s.json\n' \
+    "${root%/}" "$operation_digest"
+}
+
+_autopilot_team_review_payload_identity_critical() {
+  local root="$1" run_id="$2" operation_key="$3" head_sha="$4" provider="$5"
+  local state_dir="$root/.zensu/state" expected_key state owner order_id
+  case "$provider" in github|gitlab) ;; *) return 3 ;; esac
+  expected_key="$(autopilot_team_review_operation_key "$run_id" "$head_sha")" || return $?
+  if [ "$operation_key" != "$expected_key" ]; then
+    order_id="$(_autopilot_node read-run "$state_dir/autopilot-run-${run_id}.json" "$run_id" "$root" \
+      | node -e '
+        try {
+          const run = JSON.parse(require("fs").readFileSync(0, "utf8"));
+          if (!run.workOrder || typeof run.workOrder.orderId !== "string") process.exit(4);
+          process.stdout.write(run.workOrder.orderId);
+        } catch (_) { process.exit(4); }
+      ' 2>/dev/null)" || return 4
+    expected_key="$(autopilot_work_order_review_operation_key "$order_id" "$head_sha")" || return 4
+    [ "$operation_key" = "$expected_key" ] || return 4
+  fi
+  # The pointer that must still designate this run is its OWNER's, and the
+  # owner is a property of the run rather than of whoever is attesting.
+  owner="$(_autopilot_node read-run "$state_dir/autopilot-run-${run_id}.json" "$run_id" "$root" \
+    | node -e '
+      try { process.stdout.write(JSON.parse(require("fs").readFileSync(0,"utf8")).ownerSessionId); }
+      catch (_) { process.exit(2); }
+    ' 2>/dev/null)" || return 2
+  [ -n "$owner" ] || return 2
+  state="$(_autopilot_read_active_critical "$root" "$owner")" || return $?
+  printf '%s' "$state" | RUN_ID="$run_id" OPERATION_KEY="$operation_key" \
+    HEAD_SHA="$head_sha" PROVIDER="$provider" node -e '
+      let state;
+      try { state = JSON.parse(require("fs").readFileSync(0, "utf8")); }
+      catch (_) { process.exit(2); }
+      const head = String(process.env.HEAD_SHA || "").toLowerCase();
+      const review = state && state.effects && state.effects.teamReview;
+      const pr = state && state.evidence && state.evidence.pr;
+      if (!state || state.runId !== process.env.RUN_ID || state.stage !== "TEAM_REVIEW"
+          || !review || review.status !== "requested"
+          || review.operationKey !== process.env.OPERATION_KEY
+          || review.provider !== process.env.PROVIDER
+          || !pr || typeof pr.headSha !== "string" || pr.headSha.toLowerCase() !== head
+          || (state.evidence && state.evidence.review !== null)) process.exit(4);
+    ' 2>/dev/null
+}
+
+# Securely inspect a payload. The target variant additionally requires private
+# permissions. Reading through O_NOFOLLOW and comparing lstat/fstat identities
+# closes the leaf-swap window and rejects hard-linked files.
+_autopilot_team_review_payload_inspect() {
+  local payload_file="${1:-}" head_sha="${2:-}" private="${3:-false}" digest_mode="${4:-raw}" provider="${5:-}"
+  local native_payload_file env_exclusions
+  [ "$#" -ge 3 ] && [ "$#" -le 5 ] || return 3
+  case "$private" in true|false) ;; *) return 3 ;; esac
+  case "$digest_mode" in raw|canonical) [ -z "$provider" ] || return 3 ;; receipt) case "$provider" in github|gitlab) ;; *) return 3 ;; esac ;; *) return 3 ;; esac
+  native_payload_file="$(_autopilot_native_path "$payload_file")" || return 2
+  env_exclusions="$(_autopilot_msys_env_exclusions PAYLOAD_FILE)" || return 2
+  MSYS2_ENV_CONV_EXCL="$env_exclusions" PAYLOAD_FILE="$native_payload_file" HEAD_SHA="$head_sha" PRIVATE="$private" DIGEST_MODE="$digest_mode" \
+    PROVIDER="$provider" node -e '
+    const fs = require("fs");
+    const crypto = require("crypto");
+    const noFollow = process.platform !== "win32" && Number.isInteger(fs.constants.O_NOFOLLOW)
+      ? fs.constants.O_NOFOLLOW : 0;
+    const max = 8 * 1024 * 1024;
+    const file = process.env.PAYLOAD_FILE;
+    const head = String(process.env.HEAD_SHA || "").toLowerCase();
+    const requirePrivate = process.env.PRIVATE === "true";
+    const unsafe = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+    const fail = code => process.exit(code);
+    const validate = data => {
+      let payload;
+      try { payload = JSON.parse(data.toString("utf8")); } catch (_) { fail(2); }
+      if (!payload || Array.isArray(payload) || typeof payload !== "object") fail(2);
+      const keys = Object.keys(payload).sort().join(",");
+      if (keys !== "body,comments,commit_id,event") fail(2);
+      if (typeof payload.body !== "string" || unsafe.test(payload.body)
+          || payload.body.includes("zensu-review:v1")
+          || !["COMMENT", "APPROVE", "REQUEST_CHANGES"].includes(payload.event)
+          || typeof payload.commit_id !== "string"
+          || payload.commit_id.toLowerCase() !== head
+          || !Array.isArray(payload.comments) || payload.comments.length > 999998) fail(2);
+      for (const comment of payload.comments) {
+        if (!comment || Array.isArray(comment) || typeof comment !== "object"
+            || !Object.keys(comment).every(key =>
+              ["body", "path", "line", "side", "start_line", "start_side"].includes(key))
+            || typeof comment.body !== "string" || unsafe.test(comment.body)
+            || comment.body.includes("zensu-review:v1")
+            || typeof comment.path !== "string" || !comment.path || unsafe.test(comment.path)
+            || comment.path.includes("zensu-review:v1")) fail(2);
+        if (comment.side != null && !["LEFT", "RIGHT"].includes(comment.side)) fail(2);
+        if (comment.line != null && (!Number.isSafeInteger(comment.line) || comment.line < 1)) fail(2);
+        const hasStartLine = comment.start_line != null;
+        const hasStartSide = comment.start_side != null;
+        if (hasStartLine !== hasStartSide) fail(2);
+        if (hasStartLine && (!Number.isSafeInteger(comment.start_line) || comment.start_line < 1
+            || !Number.isSafeInteger(comment.line) || comment.start_line > comment.line
+            || !["LEFT", "RIGHT"].includes(comment.start_side)
+            || comment.start_side !== comment.side)) fail(2);
+      }
+      return payload;
+    };
+    const canonical = value => {
+      if (value === null || typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
+      if (typeof value === "number") {
+        if (!Number.isFinite(value)) fail(2);
+        return JSON.stringify(value);
+      }
+      if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+      if (typeof value === "object") {
+        return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+      }
+      fail(2);
+    };
+    const privateMode = stat => process.platform === "win32" || (stat.mode & 0o777) === 0o600;
+    let fd;
+    try {
+      const before = fs.lstatSync(file);
+      if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1
+          || before.size < 1 || before.size > max
+          || (requirePrivate && !privateMode(before))) fail(2);
+      fd = fs.openSync(file, fs.constants.O_RDONLY | noFollow);
+      const opened = fs.fstatSync(fd);
+      if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== before.dev
+          || opened.ino !== before.ino || opened.size !== before.size
+          || (requirePrivate && !privateMode(opened))) fail(2);
+      const data = fs.readFileSync(fd);
+      const after = fs.fstatSync(fd);
+      fs.closeSync(fd); fd = undefined;
+      if (data.length !== opened.size || after.dev !== opened.dev || after.ino !== opened.ino
+          || after.nlink !== 1 || after.size !== opened.size
+          || after.mtimeMs !== opened.mtimeMs || after.ctimeMs !== opened.ctimeMs) fail(2);
+      const payload = validate(data);
+      const canonicalDigest = crypto.createHash("sha256").update(canonical(payload)).digest("hex");
+      if (process.env.DIGEST_MODE === "receipt") {
+        const count = process.env.PROVIDER === "github" ? 1 : payload.comments.length + 1;
+        if (!Number.isSafeInteger(count) || count < 1 || count > 999999) fail(2);
+        process.stdout.write(`${canonicalDigest}|${count}`);
+      } else {
+        const digestInput = process.env.DIGEST_MODE === "canonical" ? canonical(payload) : data;
+        process.stdout.write(crypto.createHash("sha256").update(digestInput).digest("hex"));
+      }
+    } catch (_) {
+      if (fd !== undefined) { try { fs.closeSync(fd); } catch (_) {} }
+      fail(2);
+    }
+  ' 2>/dev/null
+}
+
+# Recover the sole crash shape produced by the atomic no-replace publication:
+# link(temp, target) succeeded, but the process died before unlink(temp). This
+# runs only while the project-wide Autopilot lock is held. Exactly two links
+# must exist and both must be the deterministic target plus one mktemp-shaped
+# sibling pointing at the same private inode. Anything ambiguous stays
+# fail-closed and untouched.
+_autopilot_recover_team_review_payload_alias() {
+  local target="${1:-}" native_target env_exclusions
+  [ "$#" -eq 1 ] && [ -n "$target" ] || return 3
+  native_target="$(_autopilot_native_project_path "$target")" || return 2
+  env_exclusions="$(_autopilot_msys_env_exclusions TARGET_FILE)" || return 2
+  MSYS2_ENV_CONV_EXCL="$env_exclusions" TARGET_FILE="$native_target" node -e '
+    const fs = require("fs");
+    const path = require("path");
+    const noFollow = process.platform !== "win32" && Number.isInteger(fs.constants.O_NOFOLLOW)
+      ? fs.constants.O_NOFOLLOW : 0;
+    const target = process.env.TARGET_FILE;
+    const directory = path.dirname(target);
+    const basename = path.basename(target);
+    const expectedTarget = /^autopilot-team-review-payload-[a-f0-9]{64}\.json$/;
+    const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const expectedTemp = new RegExp(`^${escape(basename)}\\.tmp\\.[A-Za-z0-9]{8}$`);
+    const privateMode = stat => process.platform === "win32" || (stat.mode & 0o777) === 0o600;
+    const privateRegular = stat => stat.isFile() && !stat.isSymbolicLink() && privateMode(stat);
+    let targetFd, tempFd, directoryFd;
+    const close = fd => { if (fd !== undefined) { try { fs.closeSync(fd); } catch (_) {} } };
+    const fail = code => {
+      close(targetFd); close(tempFd); close(directoryFd);
+      process.exit(code);
+    };
+    if (!expectedTarget.test(basename)) fail(3);
+    let targetBefore;
+    try { targetBefore = fs.lstatSync(target); }
+    catch (error) {
+      if (error.code === "ENOENT") process.exit(0);
+      fail(2);
+    }
+    if (!privateRegular(targetBefore)) fail(2);
+    if (targetBefore.nlink === 1) process.exit(0);
+    if (targetBefore.nlink !== 2) fail(2);
+
+    let names, aliases;
+    try {
+      names = fs.readdirSync(directory).filter(name => expectedTemp.test(name));
+      aliases = names.filter(name => {
+        const stat = fs.lstatSync(path.join(directory, name));
+        return stat.dev === targetBefore.dev && stat.ino === targetBefore.ino;
+      });
+    } catch (_) { fail(2); }
+    // A pre-link crash can leave unrelated private temp files with the same
+    // prefix. Ignore and preserve them; only same-inode aliases account for
+    // targetBefore.nlink. nlink=2 plus one such alias is the sole healable case.
+    if (aliases.length !== 1) fail(2);
+    const temp = path.join(directory, aliases[0]);
+
+    try {
+      const tempBefore = fs.lstatSync(temp);
+      if (!privateRegular(tempBefore) || tempBefore.nlink !== 2
+          || tempBefore.dev !== targetBefore.dev || tempBefore.ino !== targetBefore.ino) fail(2);
+      targetFd = fs.openSync(target, fs.constants.O_RDONLY | noFollow);
+      tempFd = fs.openSync(temp, fs.constants.O_RDONLY | noFollow);
+      const targetOpen = fs.fstatSync(targetFd);
+      const tempOpen = fs.fstatSync(tempFd);
+      if (!privateRegular(targetOpen) || !privateRegular(tempOpen)
+          || targetOpen.nlink !== 2 || tempOpen.nlink !== 2
+          || targetOpen.dev !== targetBefore.dev || targetOpen.ino !== targetBefore.ino
+          || tempOpen.dev !== targetOpen.dev || tempOpen.ino !== targetOpen.ino) fail(2);
+
+      // Re-account both names immediately before removal. nlink=2 plus these
+      // two same-inode directory entries proves that no foreign link exists.
+      const targetFinal = fs.lstatSync(target);
+      const tempFinal = fs.lstatSync(temp);
+      if (!privateRegular(targetFinal) || !privateRegular(tempFinal)
+          || targetFinal.nlink !== 2 || tempFinal.nlink !== 2
+          || targetFinal.dev !== targetOpen.dev || targetFinal.ino !== targetOpen.ino
+          || tempFinal.dev !== targetOpen.dev || tempFinal.ino !== targetOpen.ino) fail(2);
+      fs.unlinkSync(temp);
+
+      const targetAfterOpen = fs.fstatSync(targetFd);
+      const tempAfterOpen = fs.fstatSync(tempFd);
+      const targetAfter = fs.lstatSync(target);
+      if (!privateRegular(targetAfterOpen) || !privateRegular(tempAfterOpen)
+          || !privateRegular(targetAfter) || targetAfterOpen.nlink !== 1
+          || tempAfterOpen.nlink !== 1 || targetAfter.nlink !== 1
+          || targetAfterOpen.dev !== targetOpen.dev || targetAfterOpen.ino !== targetOpen.ino
+          || tempAfterOpen.dev !== targetOpen.dev || tempAfterOpen.ino !== targetOpen.ino
+          || targetAfter.dev !== targetOpen.dev || targetAfter.ino !== targetOpen.ino) fail(2);
+      close(targetFd); targetFd = undefined;
+      close(tempFd); tempFd = undefined;
+
+      // Windows does not support opening directories through fs.openSync.
+      // The file/link publication is already durable there; directory fsync
+      // is a POSIX-only strengthening step.
+      if (process.platform !== "win32") {
+        directoryFd = fs.openSync(directory, fs.constants.O_RDONLY);
+        try { fs.fsyncSync(directoryFd); } catch (error) {
+          if (!["EINVAL", "ENOTSUP", "EBADF"].includes(error.code)) throw error;
+        }
+        close(directoryFd); directoryFd = undefined;
+      }
+    } catch (_) { fail(2); }
+  ' 2>/dev/null
+}
+
+_autopilot_read_team_review_payload_critical() {
+  local root="$1" run_id="$2" operation_key="$3" head_sha="$4" provider="$5"
+  local state_dir="$root/.zensu/state" target
+  _autopilot_team_review_payload_identity_critical \
+    "$root" "$run_id" "$operation_key" "$head_sha" "$provider" || return $?
+  target="$(_autopilot_team_review_payload_target "$root" "$operation_key" "$head_sha")" \
+    || return $?
+  COPILOT_PROJECT_DIR="$root" _tdd_paths_safe "$state_dir" directory || return 2
+  _autopilot_recover_team_review_payload_alias "$target" || return $?
+  COPILOT_PROJECT_DIR="$root" _tdd_paths_safe \
+    "$state_dir" directory "$target" regular-or-absent || return 2
+  [ -e "$target" ] || return 1
+  _autopilot_team_review_payload_inspect "$target" "$head_sha" true >/dev/null || return $?
+  printf '%s\n' "$target"
+}
+
+autopilot_read_team_review_payload() {
+  local run_id="${1:-}" operation_key="${2:-}" head_sha="${3:-}" provider="${4:-}" root
+  [ "$#" -eq 5 ] && _autopilot_identifier_ok "$run_id" || return 3
+  case "$provider" in github|gitlab) ;; *) return 3 ;; esac
+  root="$(_autopilot_project_root "${5:-}")" || return 2
+  _autopilot_team_review_payload_target "$root" "$operation_key" "$head_sha" \
+    >/dev/null || return 3
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_read_team_review_payload_critical \
+    "$root" "$run_id" "$operation_key" "$head_sha" "$provider"
+}
+
+_autopilot_store_team_review_payload_critical() {
+  local root="$1" run_id="$2" operation_key="$3" head_sha="$4" source_file="$5" provider="$6"
+  local state_dir="$root/.zensu/state" target tmp rc source_digest target_digest
+  local native_source_file native_target native_tmp env_exclusions
+  _autopilot_team_review_payload_identity_critical \
+    "$root" "$run_id" "$operation_key" "$head_sha" "$provider" || return $?
+  target="$(_autopilot_team_review_payload_target "$root" "$operation_key" "$head_sha")" \
+    || return $?
+  COPILOT_PROJECT_DIR="$root" _tdd_paths_safe "$state_dir" directory || return 2
+  _autopilot_recover_team_review_payload_alias "$target" || return $?
+  COPILOT_PROJECT_DIR="$root" _tdd_paths_safe \
+    "$state_dir" directory "$source_file" regular "$target" regular-or-absent || return 2
+  source_digest="$(_autopilot_team_review_payload_inspect \
+    "$source_file" "$head_sha" false)" || return $?
+
+  # Existing snapshots are immutable. A byte-identical replay is idempotent;
+  # every other payload (including unsafe identity/mode changes) is a conflict.
+  if [ -e "$target" ]; then
+    target_digest="$(_autopilot_team_review_payload_inspect \
+      "$target" "$head_sha" true)" || return $?
+    [ "$source_digest" = "$target_digest" ] || return 4
+    printf '%s\n' "$target"
+    return 0
+  fi
+
+  tmp="$(mktemp "${target}.tmp.XXXXXXXX" 2>/dev/null)" || return 5
+  COPILOT_PROJECT_DIR="$root" _tdd_paths_safe "$tmp" regular "$target" regular-or-absent \
+    || { rm -f "$tmp"; return 2; }
+  native_source_file="$(_autopilot_native_path "$source_file")" \
+    || { rm -f "$tmp"; return 2; }
+  native_target="$(_autopilot_native_project_path "$target")" \
+    || { rm -f "$tmp"; return 2; }
+  native_tmp="$(_autopilot_native_project_path "$tmp")" \
+    || { rm -f "$tmp"; return 2; }
+  env_exclusions="$(_autopilot_msys_env_exclusions 'SOURCE_FILE;TARGET_FILE;TEMP_FILE')" \
+    || { rm -f "$tmp"; return 2; }
+  MSYS2_ENV_CONV_EXCL="$env_exclusions" \
+    SOURCE_FILE="$native_source_file" TARGET_FILE="$native_target" TEMP_FILE="$native_tmp" \
+    EXPECTED_DIGEST="$source_digest" \
+    node -e '
+      const fs = require("fs");
+      const crypto = require("crypto");
+      const noFollow = process.platform !== "win32" && Number.isInteger(fs.constants.O_NOFOLLOW)
+        ? fs.constants.O_NOFOLLOW : 0;
+      const source = process.env.SOURCE_FILE;
+      const target = process.env.TARGET_FILE;
+      const temp = process.env.TEMP_FILE;
+      let sourceFd, tempFd;
+      const close = fd => { if (fd !== undefined) { try { fs.closeSync(fd); } catch (_) {} } };
+      try {
+        const sourceBefore = fs.lstatSync(source);
+        if (!sourceBefore.isFile() || sourceBefore.isSymbolicLink() || sourceBefore.nlink !== 1) process.exit(2);
+        sourceFd = fs.openSync(source, fs.constants.O_RDONLY | noFollow);
+        const sourceOpen = fs.fstatSync(sourceFd);
+        if (!sourceOpen.isFile() || sourceOpen.nlink !== 1 || sourceOpen.dev !== sourceBefore.dev
+            || sourceOpen.ino !== sourceBefore.ino || sourceOpen.size !== sourceBefore.size) process.exit(2);
+        const data = fs.readFileSync(sourceFd);
+        const sourceAfter = fs.fstatSync(sourceFd);
+        close(sourceFd); sourceFd = undefined;
+        if (data.length !== sourceOpen.size || sourceAfter.size !== sourceOpen.size
+            || sourceAfter.mtimeMs !== sourceOpen.mtimeMs || sourceAfter.ctimeMs !== sourceOpen.ctimeMs) process.exit(2);
+        if (crypto.createHash("sha256").update(data).digest("hex") !== process.env.EXPECTED_DIGEST) process.exit(4);
+
+        const tempBefore = fs.lstatSync(temp);
+        if (!tempBefore.isFile() || tempBefore.isSymbolicLink() || tempBefore.nlink !== 1) process.exit(2);
+        tempFd = fs.openSync(temp, fs.constants.O_WRONLY | noFollow);
+        const tempOpen = fs.fstatSync(tempFd);
+        if (!tempOpen.isFile() || tempOpen.nlink !== 1 || tempOpen.dev !== tempBefore.dev
+            || tempOpen.ino !== tempBefore.ino) process.exit(2);
+        fs.ftruncateSync(tempFd, 0);
+        fs.fchmodSync(tempFd, 0o600);
+        fs.writeFileSync(tempFd, data);
+        fs.fsyncSync(tempFd);
+        close(tempFd); tempFd = undefined;
+
+        // link(2) is an atomic no-replace publication. EEXIST is never
+        // overwritten; the shell revalidates any concurrently published file.
+        fs.linkSync(temp, target);
+        fs.unlinkSync(temp);
+        if (process.platform !== "win32") {
+          try {
+            const directoryFd = fs.openSync(require("path").dirname(target), fs.constants.O_RDONLY);
+            try { fs.fsyncSync(directoryFd); } catch (error) {
+              if (!["EINVAL", "ENOTSUP", "EBADF"].includes(error.code)) throw error;
+            }
+            fs.closeSync(directoryFd);
+          } catch (error) {
+            if (!["EINVAL", "ENOTSUP", "EBADF"].includes(error.code)) throw error;
+          }
+        }
+      } catch (error) {
+        close(sourceFd); close(tempFd);
+        if (error && error.code === "EEXIST") process.exit(4);
+        process.exit(5);
+      }
+    ' 2>/dev/null
+  rc=$?
+  rm -f "$tmp"
+  if [ "$rc" -eq 4 ]; then
+    COPILOT_PROJECT_DIR="$root" _tdd_paths_safe "$target" regular-or-absent || return 2
+    [ -e "$target" ] || return 4
+    target_digest="$(_autopilot_team_review_payload_inspect \
+      "$target" "$head_sha" true)" || return $?
+    [ "$source_digest" = "$target_digest" ] || return 4
+  elif [ "$rc" -ne 0 ]; then
+    return "$rc"
+  fi
+  target_digest="$(_autopilot_team_review_payload_inspect \
+    "$target" "$head_sha" true)" || return $?
+  [ "$source_digest" = "$target_digest" ] || return 4
+  printf '%s\n' "$target"
+}
+
+autopilot_store_team_review_payload() {
+  local run_id="${1:-}" operation_key="${2:-}" head_sha="${3:-}" source_file="${4:-}" \
+    provider="${5:-}" root native_source_file env_exclusions
+  [ "$#" -eq 6 ] && _autopilot_identifier_ok "$run_id" || return 3
+  case "$provider" in github|gitlab) ;; *) return 3 ;; esac
+  root="$(_autopilot_project_root "${6:-}")" || return 2
+  _autopilot_team_review_payload_target "$root" "$operation_key" "$head_sha" \
+    >/dev/null || return 3
+  native_source_file="$(_autopilot_native_path "$source_file")" || return 3
+  env_exclusions="$(_autopilot_msys_env_exclusions SOURCE_FILE)" || return 3
+  MSYS2_ENV_CONV_EXCL="$env_exclusions" SOURCE_FILE="$native_source_file" node -e '
+    const path = require("path");
+    const source = process.env.SOURCE_FILE;
+    const resolved = path.resolve(source || "");
+    if (!source || /[\u0000-\u001f]/.test(source) || /[\u0000-\u001f]/.test(resolved)) process.exit(3);
+  ' >/dev/null 2>&1 || return 3
+  source_file="$(_autopilot_shell_path "$source_file")" || return 3
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_store_team_review_payload_critical \
+    "$root" "$run_id" "$operation_key" "$head_sha" "$source_file" "$provider"
+}
+
+# `read-workspace` already returns the holding record; rendering it here is the
+# only way the run id reaches the user. `--autopilot-status` is owner-scoped and
+# structurally cannot show a foreign run, and no verb lists holders — so a
+# refusal that discards this record names a remedy nobody can carry out.
+# The THIRD argument is REQUIRED and closed: `operator` or `model`, nothing else.
+# An omission or an unknown value returns non-zero with NO output — it does not
+# fall back to a form. That direction is deliberate: the OPERATOR form quotes BOTH
+# audited commands, `zensu-log.sh --autopilot-adopt --run <id> --confirm` and
+# `zensu-log.sh --autopilot-release --run <id> --confirm`, so
+# defaulting to it would hand a runnable cancel to whichever channel forgot to
+# say who reads it. Any site whose output a MODEL reads passes `model`.
+#
+# All THREE arguments are POSITIONALLY REQUIRED -- `[ "$#" -eq 3 ]` -- and only
+# the VALUE of the second may be empty. Calling it "optional" reads as omittable
+# and it is not: a two-argument call refuses. The second argument is the calling
+# session's id, and supplying a real one is what keeps this renderer honest about
+# its own remedy. `--autopilot-release`
+# skips its self-release guard in exactly the state where the caller's own run
+# turns up as the holder — that guard fires only while the owner pointer still
+# designates the run — so quoting the release command there tells the caller to
+# cancel its own live generation. With the id supplied, an own-run holder gets
+# the finish-or-repair sentence instead. A caller that omits it gets the foreign
+# wording unconditionally, which is why every site that can see its own run
+# passes it.
+_autopilot_workspace_refusal() {
+  local holder="${1:-}" caller_session="${2:-}" audience="${3:-}" env_exclusions
+  [ -n "$holder" ] || return 1
+  # The audience is REQUIRED, not defaulted. Refusing a typo was only half the
+  # property: an OMISSION would have silently yielded the operator form, which
+  # quotes the complete `--confirm` invocation — the exact axis this split
+  # exists for. Requiring it turns a prose obligation into an arity error.
+  [ "$#" -eq 3 ] || return 1
+  case "$audience" in operator|model) ;; *) return 1 ;; esac
+  env_exclusions="$(_autopilot_msys_env_exclusions "CALLER_SESSION;REFUSAL_AUDIENCE")" || return 1
+  # The record is PIPED, not exported. `stateValid` accepts up to 512 events, so
+  # a pretty-printed holder can be tens of kilobytes -- past a single
+  # environment string on Linux and past the whole environment block under the
+  # Windows process creation that Git bash uses. An E2BIG spawn failure here
+  # reads as "holder unreadable", which the fence treats as BLOCKING: the wedge
+  # this whole change removes would come back for any run with a long history.
+  # `emit_block` in the agentStop hook already uses this shape for the same reason.
+  # NO APOSTROPHES anywhere inside the `node -e` program below, comments included. It is
+  # one single-quoted shell argument, so a single apostrophe closes that string and the
+  # renderer silently returns EMPTY for every audience — a measured failure, not a
+  # hypothetical. The bound is the whole program, from the opening quote to the closing
+  # one, never "below some point in this function".
+  #
+  # This comment sits ABOVE the pipeline for a second reason of the same kind: the
+  # invocation spans a backslash continuation, and a comment placed between the
+  # continued lines breaks the command exactly as an apostrophe breaks the program.
+  printf '%s' "$holder" | MSYS2_ENV_CONV_EXCL="$env_exclusions" \
+    CALLER_SESSION="${caller_session}" REFUSAL_AUDIENCE="${audience}" node -e '
+    let input = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", chunk => { input += chunk; });
+    process.stdin.on("end", () => {
+    let value;
+    try { value = JSON.parse(input); } catch (_) { process.exit(1); }
+    // Shape-test rather than type-test, and BIND once: this text reaches a
+    // model-facing block reason, so a newline or a control byte in either field
+    // would split one diagnostic into several, and validating one expression
+    // while emitting another lets the two diverge. Every current caller hands
+    // over `stateValid` output, so this refuses nothing produced today.
+    const runId = value ? String(value.runId || "") : "";
+    const stage = value ? String(value.stage || "") : "";
+    // The stage test is MEMBERSHIP, deliberately, and this set is a hand copy of
+    // the module-scope `STAGES` above -- the renderer runs in its own `node -e`
+    // program and cannot see it. A guard whose only job is to hold when the
+    // upstream stops holding must not be LOOSER than that upstream: `stateValid`
+    // gates this field on the closed set, while a bare `[A-Z_]{1,32}` shape rule
+    // would admit `IGNORE_PRIOR` or `SEE_BELOW` straight into a model-facing
+    // block reason. Keep the two in step; `test-autopilot-stop-enforcer.sh`
+    // compares them.
+    const RENDERABLE_STAGES = new Set([
+      "PLANNING", "AWAIT_TDD", "TDD_RUNNING", "GATES", "CONVERGE", "OPEN_PR",
+      "TEAM_REVIEW", "FIX_FINDINGS", "VALIDATE", "COVER", "DELIVER", "BLOCKED",
+      "DONE", "CANCELLED",
+    ]);
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(runId)
+        || !RENDERABLE_STAGES.has(stage)) process.exit(1);
+    // Adoption refuses a holder whose PENDING stage is TDD_RUNNING with exit 3, before
+    // it reads any beacon, so a refusal that offered it there sent the reader to a verb
+    // that declines. The pending stage is what the adopt worker tests: BLOCK is legal
+    // from TDD_RUNNING and RESUME restores blocked.from. A record with no blocked object
+    // falls back to its literal stage, which is what a holder rendered from a
+    // read-workspace result carries.
+    const blockedFrom = value && value.blocked ? String(value.blocked.from || "") : "";
+    const pendingStage = stage === "BLOCKED" && RENDERABLE_STAGES.has(blockedFrom)
+      ? blockedFrom : stage;
+    const adoptable = pendingStage !== "TDD_RUNNING";
+    // The clause every arm that WITHHOLDS the constructive verb has to carry, named
+    // once rather than inlined per arm: this renderer already tracks a hand-copy
+    // family, and a fourth member spelled three times is how the next reword leaves
+    // one arm behind. `zensu-doctor-report.js` states the identical sentence over the
+    // identical fact under the name `chainBound`; the two are held in step by nothing,
+    // so keep them in step by hand.
+    //
+    // WHY it is attached at all: `pendingStage` is read from the run document, an
+    // ordinary file in a session-writable directory. Every arm keyed on it is keyed on
+    // a forgeable fact, and these arms are the ones that leave ONLY the irreversible
+    // cancel on offer — so a planted `TDD_RUNNING` steers a reader to the destructive
+    // verb while withholding the reversible one. The bound belongs to the withholding
+    // arms alone; appending it to the sentence an adoptable holder gets would make it
+    // noise exactly where it must read as a warning, which the `S7w` control pins.
+    // ONE spelling of the source clause, and two bounds built from it. The own-run
+    // withhold arm below bounds the chain session as well as the stage, and spelling
+    // that clause out separately would have made a further carrier of a sentence
+    // this file already keeps in step by hand.
+    const forgeableSource = "read from the run document, which is an ordinary file any session in this project can write";
+    const forgeableStage = ` — that stage is ${forgeableSource}`;
+    const caller = String(process.env.CALLER_SESSION || "");
+    // Every branch below RETURNS rather than calling `process.exit(0)`. Stdout
+    // here is always a pipe (the caller is a command substitution), and Node
+    // documents pipe writes as asynchronous on macOS, where `process.exit()`
+    // drops a pending write. Truncation was NOT demonstrated for these ~200-byte
+    // messages, because the libuv try-write path completes them inline -- so it is
+    // removal of a hazard class, not a fix for an observed defect. Returning
+    // costs nothing: the handler is the last thing the program does.
+    if (caller !== "" && String(value.ownerSessionId || "") === caller) {
+      // RELEASE stays withheld here and adoption does NOT, and the asymmetry is the
+      // point. The release worker skips its self-release guard in exactly this state,
+      // so following it would cancel the live generation this very session owns. The
+      // adopt own-run path is non-destructive: it reinstalls a missing owner pointer
+      // and exits 11, or exits 10 having changed nothing, and this branch is reached
+      // precisely when that pointer read failed, which is the state the verb repairs.
+      // Withholding it inherited the release rule without the release reason, leaving
+      // the one branch whose repair exists pointing at no remedy at all. The GUIDED
+      // form only: `--confirm` is the consent control and a model must not be handed
+      // a complete invocation.
+      //
+      // The offer is CONDITIONAL, and it did not used to be. This arm returned above
+      // both `adoptable` gates without ever consulting them, so for a holder whose
+      // pending stage is `TDD_RUNNING` it named a repair the worker declines: the
+      // already-owner branch refuses with exit 3 when the chain is driven by another
+      // session. A refusal that routes a reader to a verb its own code refuses is the
+      // defect this renderer already fixed once for the foreign arms. The condition is
+      // the predicate the repair worker itself applies, spelled identically so that
+      // `S7x` can compare the two:
+      // a record carrying an empty or absent chain session compares unequal there and
+      // is withheld from here, and a record carrying no `tdd` object at all is refused
+      // by neither. Diverging would put the renderer and the verb back into
+      // disagreement, in one direction or the other.
+      //
+      // This arm quotes NEITHER verb, so it owes the reader a next step: everything it
+      // says is read from a file any session in this project can write, and a planted
+      // record would otherwise leave a session told only what it may not do. The step
+      // it names is READ-ONLY — the doctor row names that run document — because the
+      // one thing this state must not do is route anybody to a cancel.
+      if (!adoptable && value.tdd && value.tdd.sessionId !== caller) {
+        process.stdout.write(`workspace held by nonterminal run ${runId} (stage ${stage}), `
+          + `whose run record names this session as its owner and names another session as the `
+          + `driver of its inner TDD chain, so reinstalling its owner pointer is refused with `
+          + `exit 3; that chain has to be finished or cancelled in its own session before this `
+          + `session can finish or repair that run — that stage and both session names are `
+          + `${forgeableSource}, so read that run document in the autopilot: row of /zensu-doctor `
+          + `before acting on it\n`);
+        return;
+      }
+      process.stdout.write(`workspace held by nonterminal run ${runId} (stage ${stage}), `
+        + `whose run record names this session as its owner; its durable state is still active here, `
+        + `so finish or repair that run rather than releasing it — `
+        + `/zensu-autopilot-adopt reinstalls its owner pointer if that is what is missing\n`);
+      return;
+    }
+    if (String(process.env.REFUSAL_AUDIENCE || "") === "model") {
+      // The model-facing form deliberately does NOT quote a ready-to-run
+      // command. Both remedies mutate a run owned by another session, and
+      // --confirm is the consent control: the skills require an explicit yes in
+      // the conversation before either is issued, so handing a model a complete
+      // invocation routes around the only place that control exists. It also
+      // refuses to name a bare zensu-log.sh, which a model would resolve against
+      // the repository it is standing in. Adoption comes FIRST because it is the
+      // constructive remedy — the work continues under a new owner — and a cancel
+      // that was reached for first cannot be undone.
+      if (!adoptable) {
+        process.stdout.write(`workspace held by nonterminal run ${runId} (stage ${stage}); `
+          + `adoption is not an exit for this run, because its inner TDD chain is live and the session driving it may still be running${forgeableStage}; `
+          + `report it to the user and, only after they say yes, run /zensu-autopilot-release to cancel it\n`);
+        return;
+      }
+      process.stdout.write(`workspace held by nonterminal run ${runId} (stage ${stage}); `
+        + `report it to the user and, only after they say yes, run `
+        + `/zensu-autopilot-adopt to continue it here, or /zensu-autopilot-release to cancel it\n`);
+      return;
+    }
+    if (!adoptable) {
+      // The operator form withholds the audited adopt invocation for the same reason,
+      // and keeps the release one, which is the exit that remains.
+      process.stdout.write(`workspace held by nonterminal run ${runId} (stage ${stage}); `
+        + `adoption is not an exit for this run, because its inner TDD chain is live and the session driving it may still be running${forgeableStage}; `
+        + `ask that session to hand it over or finish it, or once it is idle cancel it with:\n`
+        + `zensu-log.sh --autopilot-release --run ${runId} --confirm\n`);
+      return;
+    }
+    // One command per LINE. This is the channel a human copy-pastes from, and prose
+    // appended after a complete invocation is copied along with it — an earlier
+    // spelling of this renderer produced `--confirm.` that way. Both lead-ins sit
+    // AHEAD of their command so nothing trails one.
+    process.stdout.write(`workspace held by nonterminal run ${runId} (stage ${stage}); `
+      + `ask that session to hand it over, or once it is idle take it over with:\n`
+      + `zensu-log.sh --autopilot-adopt --run ${runId} --confirm\n`
+      + `or cancel it with:\n`
+      + `zensu-log.sh --autopilot-release --run ${runId} --confirm\n`);
+    });
+  ' 2>/dev/null
+}
+
+# Publish the rendered refusal so a caller does not have to RE-DERIVE it.
+# `stop-chain-enforcer.sh` used to take a second read AFTER the fence returned,
+# and the worker reports `preferred || holders[0]` — so a second FOREIGN run
+# publishing in that window could be named instead of the record the fence
+# actually judged, and the rendered remedy quotes a real CANCEL. Publishing here
+# means the message is derived ONCE from the record the fence judged. Say that
+# precisely rather than "under the lease": TWO of the four publish sites are the
+# fences of `_autopilot_deferred_contention_result`, which is reached exactly
+# BECAUSE the lease could not be taken and whose own header calls it a read-only
+# proof. What makes the value travel is not the lease but the call chain — every
+# frame between the assignment and the hook's read runs in the current shell.
+# Both public entry points clear it first, so a stale sentence cannot be reused.
+#
+# TWO forms are produced. The operator form goes to stderr and quotes BOTH audited
+# CLI verbs, because a human reads it. The MODEL form is what the block reason
+# carries, and it names the two guided skills instead — `/zensu-autopilot-adopt`
+# first, `/zensu-autopilot-release` second — because a complete `--confirm`
+# invocation would route a model around the only place that consent control exists,
+# and because adoption continues the run while release cancels it irreversibly.
+ZENSU_AUTOPILOT_WORKSPACE_HOLD_TEXT=""
+_autopilot_publish_workspace_refusal() {
+  # The audience is REQUIRED here TOO. Guarding only the inner renderer left the
+  # property open where it matters: this wrapper is the API a new call site uses,
+  # so its default was the surviving axis on which an omission could silently
+  # emit the runnable `--confirm` form. An omission now degrades to the hook's
+  # unnamed fallback rather than to the audited command.
+  #
+  # EVERY refusing arm returns NON-ZERO, and the codes are DISTINCT because the
+  # two causes need different responses. Returning 0 made a refusal
+  # indistinguishable from a successful publish, so a caller that wanted to fall
+  # back could not tell that it had to. The cleared variable is still the
+  # fail-safe; the status is what lets a new call site NOTICE.
+  #
+  #   1 -- the CALLER is wrong: a bad arity or an unrecognized audience. A defect
+  #        at the call site, identical on every run.
+  #   2 -- the RENDER failed: the arguments were accepted and the model form still
+  #        could not be produced. That is the transient spawn failure this
+  #        function's own comments name as the motivating hazard, so it may not
+  #        share a code with a caller defect -- and it may not report success,
+  #        which is what it used to do.
+  [ "$#" -eq 3 ] || { ZENSU_AUTOPILOT_WORKSPACE_HOLD_TEXT=""; return 1; }
+  local holder="${1:-}" caller_session="${2:-}" stderr_audience="${3:-}" stderr_text model_text
+  case "$stderr_audience" in operator|model) ;; *) ZENSU_AUTOPILOT_WORKSPACE_HOLD_TEXT=""; return 1 ;; esac
+  # The MODEL form is rendered FIRST and exactly ONCE, and everything else is
+  # derived from that success. The two forms used to be rendered INDEPENDENTLY,
+  # so a transient spawn failure on either one left the operator line naming the
+  # run while the block reason fell back to the hook's unnamed sentence: two
+  # channels contradicting each other about one hold, a stream apart. Ordering it
+  # this way makes the published sentence the thing that decides — without it
+  # there is nothing to print, and the refusal degrades consistently to unnamed.
+  model_text="$(_autopilot_workspace_refusal "$holder" "$caller_session" model 2>/dev/null)" || model_text=""
+  ZENSU_AUTOPILOT_WORKSPACE_HOLD_TEXT="$model_text"
+  # A FAILED model render published NOTHING, so this may not answer 0. The status
+  # used to cover arity and audience only, while the paragraph above it claimed
+  # the status is what lets a caller notice -- leaving the runtime spawn failure
+  # it names as the hazard the single outcome that still reported success. The
+  # DEGRADATION is unchanged: nothing is published and the refusal falls back to
+  # the hook's unnamed sentence. What changes is that a caller can see it.
+  [ -n "$model_text" ] || return 2
+  # The stderr AUDIENCE is a property of the channel, not of this function. For
+  # the agentStop hook a human reads that stream, so the audited command is right
+  # there. For the standalone-begin fence it is the tool RESULT of a
+  # `zensu-log.sh --tdd-begin` a model runs — and on that path nothing reads the
+  # published value, so the stderr line is the only output the model gets.
+  #
+  # A FAILED operator render falls back to the model text rather than to silence.
+  # That is a degradation — the audited command is withheld — but it cannot
+  # contradict the block reason, because it IS the block reason.
+  if [ "$stderr_audience" = model ]; then
+    stderr_text="$model_text"
+  else
+    stderr_text="$(_autopilot_workspace_refusal "$holder" "$caller_session" operator 2>/dev/null)" || stderr_text=""
+    [ -n "$stderr_text" ] || stderr_text="$model_text"
+  fi
+  printf '%s\n' "$stderr_text" >&2
+  return 0
+}
+
+# Starting a standalone inner generation must serialize with every durable
+# outer begin/start. The decision and inner write therefore share the canonical
+# Outer -> Inner lock order. BLOCKED is resumable and still owns the WORKSPACE;
+# only a workspace no nonterminal run holds permits this unbound generation.
+# The question is owner-INDEPENDENT on purpose: a standalone chain must not
+# start underneath another session's durable run in the same working tree — and
+# unlike the deferred-review fences below, this one refuses UNCONDITIONALLY on a
+# hold, because arming a chain under a foreign run is the harm itself.
+_autopilot_begin_standalone_tdd_critical() {
+  local root="$1" session_id="$2" vanilla="$3" workspace="${4:-}"
+  local read_rc holder
+  [ -n "$workspace" ] || workspace="$(_autopilot_session_workspace "$root")" || return 2
+  # The preference is forwarded here for the same reason the deferred-review
+  # fences forward it: this site RENDERS the holder to a user, and the renderer
+  # weighs the holder's identity. Without it the read returns `holders[0]` by
+  # sorted filename, so a legacy foreign record could be named — with its
+  # release command — while the caller's own run is the one that actually
+  # blocks. The refusal itself stays unconditional; only which record it names
+  # changes.
+  if holder="$(_autopilot_read_workspace_critical "$root" "$workspace" "$session_id" 2>/dev/null)"; then
+    read_rc=0
+  else
+    read_rc=$?
+  fi
+  case "$read_rc" in
+    0)
+      # `model`, not the default: this refusal reaches the caller as the tool
+      # result of a `zensu-log.sh --tdd-begin` the model runs, so its stderr is a
+      # model-read channel and must not carry a runnable `--confirm` invocation.
+      _autopilot_publish_workspace_refusal "$holder" "$session_id" model
+      return 4
+      ;;
+    1) ;;
+    *) return "$read_rc" ;;
+  esac
+  tdd_begin_session "$session_id" "$vanilla" false false ""
+}
+
+# Owner-INDEPENDENT occupancy, for a caller that must not act underneath ANOTHER
+# session's durable run in the same working tree. `autopilot_read_active` cannot
+# answer this: it is owner-scoped by construction, so a foreign run is invisible
+# to it. Exit 0 means the tree is held and prints the holding record, 1 means it
+# is free, anything else is a read that failed and must be treated as held.
+# The optional THIRD argument is the holder preference and must be forwarded, or
+# a caller that reports the holder to a user names `holders[0]` while the fence
+# that refused judged a different record. Stated, so it is not assumed live: this
+# parameter still has NO production caller on THIS wrapper — `autopilot_workspace_hold_report`
+# below forwards the same holder preference, but it does so to
+# `_autopilot_read_workspace_critical` directly rather than through this function — the agentStop hook's re-read was
+# deleted once the fence began publishing its sentence, and the one remaining
+# production call (`post-review-tdd-delegate.sh`) passes a single argument. S7h2
+# guards it for the next caller.
+#
+# The divergence between the PREFERRED holder and `holders[0]` is not cosmetic:
+# the OPERATOR form of the rendered remedy quotes BOTH audited commands, and one of
+# them, `zensu-log.sh --autopilot-release --run <id> --confirm`, applies a real
+# CANCEL — bounded now by the owner-liveness ladder, which refuses with exit 7 while
+# the owner's document is fresh, but a bound is not an exemption. Naming the wrong
+# run still points a destructive command at a live foreign one. (The model form
+# names two guided skills, adoption first.)
+autopilot_read_workspace() {
+  local root workspace prefer_owner="${3:-}"
+  root="$(_autopilot_project_root "${1:-${COPILOT_PROJECT_DIR:-.}}")" || return 5
+  workspace="${2:-}"
+  [ -n "$workspace" ] || workspace="$(_autopilot_session_workspace "$root")" || return 5
+  # An unrecognizable preference is dropped to "no preference" rather than
+  # travelling to the worker, matching `autopilot_read_active`s gate on its own
+  # owner argument. It can only change WHICH holder is reported, never whether
+  # the tree is held, so dropping it is always safe.
+  [ -z "$prefer_owner" ] || _autopilot_session_id_ok "$prefer_owner" || prefer_owner=""
+  # A verb named `read` must not create the state DIRECTORY.
+  # `_autopilot_read_storage_ready` validates without the `mkdir -p` that
+  # `_autopilot_prepare_storage` performs, and answers 1 when the directory is
+  # simply absent -- the same "nothing holds this tree" verdict the locked read
+  # would reach. The project lease below still lands its own lock artifacts
+  # inside an EXISTING state directory; that is not what this swap is about.
+  _autopilot_read_storage_ready "$root"
+  case "$?" in
+    0) ;;
+    1) return 1 ;;
+    *) return 5 ;;
+  esac
+  _ZENSU_AP_HOLD_RECORD=""
+  _ZENSU_AP_HOLD_WORKER_RC=""
+  _autopilot_locked_run "$root" "" _autopilot_hold_probe "$root" "$workspace" "$prefer_owner" || {
+    [ -z "$_ZENSU_AP_HOLD_WORKER_RC" ] || return 5
+    _autopilot_workspace_read_without_lease "$root" "$workspace" "$prefer_owner"
+    return $?
+  }
+  case "$_ZENSU_AP_HOLD_WORKER_RC" in
+    0) ;;
+    1) return 1 ;;
+    2) return 2 ;;
+    *) return 5 ;;
+  esac
+  [ -n "$_ZENSU_AP_HOLD_RECORD" ] || return 5
+  printf '%s\n' "$_ZENSU_AP_HOLD_RECORD"
+}
+
+# The rendered hold sentence for the CALLER's own working tree, or a non-zero
+# status when nothing holds it. This is the PUBLIC entry point for a consumer that
+# needs the sentence without being a fence: `zensu-log.sh --autopilot-status`,
+# whose owner-scoped answer is structurally blind to a foreign run and therefore
+# reads as "no run exists" while the tree is held.
+#
+# It exists as a public verb rather than as a direct call to
+# `_autopilot_workspace_refusal` from `zensu-log.sh` for two reasons, both already
+# recorded in this file's own history. First, no file outside this module calls an
+# `_autopilot_*` helper any more, and the last one was deleted deliberately.
+# Second, and load-bearing: the own-vs-foreign choice belongs to the RENDERER. An
+# earlier spelling of that decision lived in a caller and failed OPEN — an
+# unresolvable owner compared unequal to the session id and selected the FOREIGN
+# text, offering a release command against the caller's own live generation
+# exactly when ownership could not be established. Passing the caller's id through
+# to the renderer keeps that one decision in one place.
+#
+# The AUDIENCE is the caller's to choose and is positionally required by the
+# renderer, so a new consumer cannot silently inherit the operator form.
+# ONE read, three facts. The caller needs the rendered sentence AND the ownership
+# that selects its lead-in AND whether the tree was proven free — and taking those
+# from separate leased reads is the defect this module deleted from the agentStop hook
+# once already: two reads can name different holders, so a lead-in derived from the
+# second can contradict a sentence rendered from the first, and the remedy then
+# points at a run the other read did not judge.
+#
+# It also separates a PROVEN-FREE verdict from a lease that could not be acquired.
+# `_tdd_locked_run` returns 1 for a storage-safety failure, a keeper launch failure
+# and a failed acquisition, and the worker's own "no run holds this tree" is also
+# 1 — so composing on `_autopilot_locked_run`'s status alone makes a could-not-look
+# indistinguishable from an all-clear. The probe below always returns 0, so a
+# non-zero from `_autopilot_locked_run` is unambiguously the LOCK's, and the
+# worker's own status is carried out separately.
+_ZENSU_AP_HOLD_RECORD=""
+_ZENSU_AP_HOLD_WORKER_RC=""
+_autopilot_hold_probe() {
+  _ZENSU_AP_HOLD_RECORD="$(_autopilot_read_workspace_critical "$1" "$2" "${3:-}" 2>/dev/null)"
+  _ZENSU_AP_HOLD_WORKER_RC=$?
+  return 0
+}
+
+# Prints one line: `<own|foreign|unknown><TAB><sentence>`.
+# Exit 0 a holder was found and rendered; 1 the tree is PROVEN free — the worker's
+# own verdict, OR an absent state directory, which reaches this status ahead of the
+# lease because no run document can exist without one; 5 the question could not be
+# answered — stated as a CRITERION rather than a list, because the list was written once
+# naming three causes while the verb carried far more `return 5` sites than that, and a
+# numeral here would go stale the next time one is added: EVERY fault that is not a
+# decision maps to 5, which today means path resolution, the storage-safety check, the
+# project lease, the worker, an empty holder record, a holder whose owner could not be
+# resolved when the caller supplied a session id, and a failed render; 3 a REFUSED CALL —
+# a bad arity, an unrecognized audience, or a caller-session argument that is not a
+# session id.
+#
+# `_autopilot_locked_run` runs its callback in the CURRENT shell, so this function
+# must not be wrapped in a command substitution by its own body; the caller may
+# substitute it freely, because everything then happens inside that subshell.
+autopilot_workspace_hold_report() {
+  local caller_session="${2:-}" audience="${3:-}" root workspace owner kind
+  [ "$#" -eq 3 ] || return 3
+  case "$audience" in operator|model) ;; *) return 3 ;; esac
+  root="$(_autopilot_project_root "${1:-${COPILOT_PROJECT_DIR:-.}}")" || return 5
+  workspace="$(_autopilot_session_workspace "$root")" || return 5
+  # DIVERGES from `autopilot_read_workspace` deliberately, and the divergence is
+  # justified by what the argument DECIDES here. There the preference only selects
+  # WHICH holder is reported, never whether the tree is held, so dropping an
+  # unrecognizable one costs nothing. Here the same value decides the KIND — own,
+  # foreign or not established — and it is `$2` in BOTH verbs while meaning a
+  # WORKSPACE PATH in one and a SESSION ID in the other. A transposed call is
+  # therefore silent: a path fails `_autopilot_session_id_ok` on its separators,
+  # the preference is dropped, and the verb confidently reports `unknown`, which
+  # its caller renders as "this session owns no durable run" — a false statement
+  # about ownership rather than a refusal. An empty value still means "no
+  # preference"; only a non-empty one that is not a session id refuses.
+  if [ -n "$caller_session" ] && ! _autopilot_session_id_ok "$caller_session"; then
+    return 3
+  fi
+  _autopilot_read_storage_ready "$root"
+  case "$?" in
+    0) ;;
+    # A state directory that is simply absent is the same "nothing holds this tree"
+    # verdict the locked read would reach, and saying so is not a guess.
+    1) return 1 ;;
+    *) return 5 ;;
+  esac
+  _ZENSU_AP_HOLD_RECORD=""
+  _ZENSU_AP_HOLD_WORKER_RC=""
+  _autopilot_locked_run "$root" "" _autopilot_hold_probe "$root" "$workspace" "$caller_session" || return 5
+  case "$_ZENSU_AP_HOLD_WORKER_RC" in
+    0) ;;
+    1) return 1 ;;
+    *) return 5 ;;
+  esac
+  [ -n "$_ZENSU_AP_HOLD_RECORD" ] || return 5
+  # Ownership from the SAME record the sentence is rendered from.
+  kind=unknown
+  if [ -n "$caller_session" ]; then
+    owner="$(_autopilot_holder_owner "$_ZENSU_AP_HOLD_RECORD" 2>/dev/null)" || owner=""
+    # The KIND and the sentence are derived from one record by two separate `node`
+    # runs, so a transient failure of THIS one while the renderer below succeeds
+    # would print `unknown` beside a sentence reading "which belongs to this
+    # session" — the precise lead-in/sentence contradiction the one-read design
+    # above says it prevents. The read is what is shared; the two DERIVATIONS are
+    # not, so when the caller supplied an id and the owner still cannot be
+    # resolved, the question was not answered: report 5 rather than a lead-in this
+    # verb did not establish. With NO id supplied, `unknown` is the honest answer
+    # and stays one.
+    [ -n "$owner" ] || return 5
+    if [ "$owner" = "$caller_session" ]; then kind=own; else kind=foreign; fi
+  fi
+  # The KIND is printed only once the sentence it introduces has been rendered.
+  # Printing it first put a bare `<kind><TAB>` on stdout and THEN returned 5 when
+  # the render failed, so a caller doing `line="$(verb …)"; rc=$?` held a truncated
+  # line beside a failure status — and the wire format's own contract says the two
+  # halves come from one read precisely so a lead-in can never stand without the
+  # sentence it introduces.
+  local sentence
+  # The renderer's status must NOT become this function's. `_autopilot_workspace_refusal`
+  # returns 1 on several arms — an empty holder, a bad arity, an unrecognized audience,
+  # a failed env-exclusion render — and inherits its `node -e` child's 1 on any uncaught
+  # error. Letting that through would make a failed RENDER indistinguishable from the
+  # worker's own "no run holds this tree", which is the exact conflation every other
+  # fault in this verb is mapped to 5 to avoid. The sibling
+  # `_autopilot_publish_workspace_refusal` gives the same failure its own distinct code
+  # for the same reason.
+  sentence="$(_autopilot_workspace_refusal "$_ZENSU_AP_HOLD_RECORD" "$caller_session" "$audience")" \
+    || return 5
+  printf '%s\t%s\n' "$kind" "$sentence"
+}
+
+autopilot_begin_standalone_tdd() {
+  ZENSU_AUTOPILOT_WORKSPACE_HOLD_TEXT=""
+  local root session_id="${2:-}" vanilla="${3:-false}" workspace
+  [ "$#" -eq 3 ] || return 3
+  [ -n "$session_id" ] && [ "${#session_id}" -le 128 ] || return 3
+  case "$session_id" in *[!A-Za-z0-9_-]*) return 3 ;; esac
+  case "$vanilla" in true|false) ;; *) return 3 ;; esac
+  root="$(_autopilot_project_root "${1:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  workspace="$(_autopilot_session_workspace "$root")" || return 2
+  _autopilot_prepare_storage "$root" || return 2
+  _autopilot_locked_run "$root" "" _autopilot_begin_standalone_tdd_critical \
+    "$root" "$session_id" "$vanilla" "$workspace"
+}
+
+# The holder's owner, or a non-zero status when the record cannot be read. The
+# caller treats an unreadable holder as blocking, so this never has to guess.
+_autopilot_holder_owner() {
+  [ "$#" -eq 1 ] || return 1
+  local holder="${1:-}"
+  [ -n "$holder" ] || return 1
+  # Piped for the same reason as the renderer above: a large but schema-valid
+  # record must not turn this into an E2BIG spawn failure, which the caller
+  # reads as an unreadable holder and answers by blocking.
+  # NO APOSTROPHES inside the program below, comments included — same single-quoted
+  # `node -e` hazard as the renderer. A broken program here reads as an unreadable
+  # holder, and the fence answers that by BLOCKING.
+  printf '%s' "$holder" | node -e '
+    let input = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", chunk => { input += chunk; });
+    process.stdin.on("end", () => {
+    let value;
+    try { value = JSON.parse(input); } catch (_) { process.exit(1); }
+    // Bind once: validating one expression and emitting another lets the two
+    // diverge for a non-string JSON value that `String()` coerces cleanly.
+    const owner = value ? String(value.ownerSessionId || "") : "";
+    // The class mirrors `identifier`, which is what `stateValid` actually gates
+    // `ownerSessionId` with -- NOT `sessionIdentifier`, which an earlier comment
+    // here named. `identifier` forbids a leading `_`/`-` and PERMITS `.` and
+    // `:`, and `_autopilot_identifier_ok` admits the same, so a narrower class
+    // would answer "holder unreadable" -- i.e. BLOCKING -- for a record the
+    // product itself minted, re-instating the wedge this change removes.
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$/.test(owner)) process.exit(1);
+    process.stdout.write(owner);
+    });
+  ' 2>/dev/null
+}
+
+# The holder's run id, for the disclosure line. Separate from the owner reader so
+# neither has to widen its own shape rule for the other's field.
+_autopilot_holder_run_id() {
+  [ "$#" -eq 1 ] || return 1
+  local holder="${1:-}"
+  [ -n "$holder" ] || return 1
+  # NO APOSTROPHES inside the program below, comments included — same single-quoted
+  # `node -e` hazard as the renderer. A broken program here reads as an unreadable
+  # holder, and the fence answers that by BLOCKING.
+  printf '%s' "$holder" | node -e '
+    let input = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", chunk => { input += chunk; });
+    process.stdin.on("end", () => {
+    let value;
+    try { value = JSON.parse(input); } catch (_) { process.exit(1); }
+    const runId = value ? String(value.runId || "") : "";
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(runId)) process.exit(1);
+    process.stdout.write(runId);
+    });
+  ' 2>/dev/null
+}
+
+# Is there deferred-review work at all? This tracks `_tdd_adopt_pending_review_critical`'s
+# own "no work" verdict, and it is a HAND COPY of that ladder -- the two must be
+# read together, because a bare existence test disagrees with it in BOTH
+# directions and each disagreement costs something real:
+#
+#   * An unsafe marker (symlink, FIFO, directory, dangling link) is TAMPER
+#     EVIDENCE to the owner, which refuses rather than treating it as absent.
+#     `[ -f ]` alone reads those shapes as "no work" and would RELAX the fence on
+#     exactly the state the owner blocks on, so they report PRESENT here.
+#   * A plain marker past the TTL is "no work" to the owner, which DELETES it and
+#     returns 2. Reporting it present would re-create the permanent wedge this
+#     fence exists to remove -- and the fence returns before the deleter ever
+#     runs, so nothing would ever reap it either.
+#
+# A stale CLAIM is deliberately NOT excused: the owner reconciles a claim rather
+# than dropping it, because a claim is a crash-recovery ownership record.
+#
+# **Say what this copy does NOT reproduce.** It tracks the marker half of the
+# ladder only. Any claim file at all reports work PRESENT here, while the owner
+# reads the claim METADATA and answers "no work" (rc=2, which the fence maps to
+# 6) for a claim reconciled `owned` by another session, and for a
+# `done|cancelled` claim with nothing queued behind it. So with the tree FREE
+# those states release while under a foreign hold they still block — the same
+# class of refusal this change exists to remove, one case narrower. The direction
+# is a retained refusal rather than a relaxation, which is why it ships; closing
+# it needs a read-only reconciliation status the owning module does not export,
+# and that is the recorded standing fix.
+#
+# Both relax inputs are SESSION-WRITABLE: `.zensu/state/` is reachable from
+# inside a session, so deleting the marker or backdating its `ts` releases the
+# hold. That is why the release arm discloses on stderr -- the disclosure is the
+# only observable, and it is deliberate rather than decorative. This predicate
+# also reads the marker under the OUTER project lease only, never the pending
+# lease that governs that file, so a marker being published concurrently can
+# read as absent. The marker is never LOST by that: it stays queued, and the next
+# agentStop that samples it acts on it -- with the tree free that is the adoption, and
+# under a foreign hold it is this fence refusing again. So what a missed sample
+# defers is the REFUSAL, never the adoption; a held tree is precisely where no
+# adoption happens. Do not restate this as "a later agentStop adopts it": that wording
+# describes an outcome the held case cannot reach.
+# Anything that cannot be resolved reports work PRESENT: the only consequence of
+# this answer is whether an occupancy refusal stands, so failing closed is free.
+# The marker path comes from `zensu_pending_review_file` -- the SAME derivation
+# `tdd_adopt_pending_review` uses -- rather than from the caller's `$root`, and
+# that is deliberate: the question is "is there work the adoption would do", so
+# the adoption's own authority is the correct one. The two agree by construction
+# on the production path, where the agentStop hook re-exports `PROJECT_ROOT` from
+# `zensu_resolve_project_dir` and passes it in. `$root` is still taken, because
+# `_tdd_path_safe` anchors its containment on `COPILOT_PROJECT_DIR` and the two
+# fences do not inherit the same value -- the locked one runs under
+# `_autopilot_locked_run`, which sets it, and the contention one does not. Left
+# unset, the guard falls back to the nearest existing ancestor and stops lstat'ing
+# a symlinked `.zensu` component, which is the whole reason the guard is here.
+_autopilot_deferred_work_present() {
+  [ "$#" -eq 2 ] || return 0
+  local ttl_hours="${1:-0}" root="${2:-${COPILOT_PROJECT_DIR:-}}" pending_file claim_file
+  pending_file="$(zensu_pending_review_file 2>/dev/null </dev/null)" || return 0
+  [ -n "$pending_file" ] || return 0
+  claim_file="$(zensu_pending_review_claim_file "$pending_file" 2>/dev/null </dev/null)" || return 0
+  [ -n "$claim_file" ] || return 0
+  # NO builtin short-circuit ahead of the guard, and the omission is the point.
+  # A `[ ! -e ] && [ ! -L ]` pair tests the LEAF only, while `_tdd_paths_safe`
+  # walks EVERY component and refuses on a symlinked ANCESTOR. With `.zensu/state`
+  # a symlink to a directory that lacks the marker, `-e` is false (it follows the
+  # prefix to an absent leaf) and `-L` is false (it lstats that absent leaf), so a
+  # leaf-only test answers "absent in every form" and the fence RELAXES -- the one
+  # direction this predicate may never fail in. That ancestor walk is the whole
+  # reason the guard is here, so nothing may answer ahead of it. A shortcut that
+  # ALSO walked the ancestors would be a hand copy of the guard's own rule, which
+  # this repository records as its recurring drift class; the seam is to call the
+  # owner, and it is taken here.
+  #
+  # Skipping the spawn was what the shortcut bought, and the cost is paid back
+  # rather than merely accepted: `_tdd_paths_safe` takes (path, mode) PAIRS and
+  # validates them in a SINGLE `node -e`, so this steady state now costs ONE spawn
+  # where the ladder before the shortcut cost two. What is genuinely lost is the
+  # zero-spawn case when neither path exists -- and that case is not separable
+  # from the relaxing one with builtins alone, which is exactly the finding.
+  #
+  # `</dev/null` on every child spawned here: each runs inside the project lease,
+  # and one that inherits the keeper coprocess pipe holds its write end open.
+  # `zensu_pending_review_file` above is a spawn too -- it reaches
+  # `zensu_resolve_project_dir`, which runs its own `node -e`. The claim accessor
+  # beside it is NOT, because it is handed the path this frame already resolved.
+  COPILOT_PROJECT_DIR="$root" _tdd_paths_safe \
+    "$pending_file" regular-or-absent \
+    "$claim_file" regular-or-absent </dev/null || return 0
+  # MARKER first, CLAIM second -- the read order is the race fix, and the
+  # verdicts are unchanged by it: a fresh marker is work, a claim is
+  # unconditional work, and the TTL still applies to the marker alone. A STALE
+  # marker must fall THROUGH to the claim rather than answering here, because the
+  # owner reconciles a claim rather than dropping it.
+  if [ -f "$pending_file" ]; then
+    _tdd_pending_file_stale "$pending_file" "$ttl_hours" </dev/null || return 0
+  fi
+  [ -f "$claim_file" ] && return 0
+  return 1
+}
+
+# A held workspace refuses this agentStop only when the hold can actually affect it.
+# TWO independent reasons, and the fence needs BOTH to stay correct:
+#
+#   1. The holder is THIS session's own run. In production that state is only
+#      reachable when the owner-keyed pointer read failed while the run record is
+#      live, so releasing would infer completion for an active own generation
+#      (`test-autopilot-stop-enforcer.sh` S8g models exactly this). Because this
+#      arm weighs the holder's IDENTITY, both call sites pass the session id into
+#      `_autopilot_read_workspace_critical` as its holder preference: several runs
+#      can hold one tree -- a record carrying no `workspaceRoot` holds every tree
+#      in its project -- and without the preference a foreign record sorting first
+#      would shadow the caller's own live run and flip this arm to release.
+#   2. There is deferred-review work a foreign run could interleave with. That is
+#      what the owner-INDEPENDENT occupancy rule exists to protect.
+#
+# With neither, there is nothing to adopt and nothing to protect. Refusing there
+# blocked the agentStop of every session whose working tree merely CONTAINS -- or is
+# contained by -- the holder's worktree, with a message prescribing a retry that
+# could never succeed. This is NOT an owner-scoping of the fence: a foreign run
+# stays fully visible to it, and its refusal stands whenever work is in play.
+_autopilot_workspace_hold_blocks_adoption() {
+  # EXACT, not a range: `root` is the last argument and a dropped one widens the
+  # containment anchor, which fails toward RELAX rather than toward blocking.
+  [ "$#" -eq 4 ] || return 0
+  local holder="${1:-}" session_id="${2:-}" ttl_hours="${3:-0}" root="${4:-${COPILOT_PROJECT_DIR:-}}" owner
+  [ -n "$holder" ] || return 0
+  owner="$(_autopilot_holder_owner "$holder")" || return 0
+  [ -n "$session_id" ] || return 0
+  [ "$owner" = "$session_id" ] && return 0
+  _autopilot_deferred_work_present "$ttl_hours" "$root" && return 0
+  # Disclose the one state in which a seen hold is deliberately not enforced.
+  # Silence here is indistinguishable from "no run held the tree at all", and a
+  # relaxation nobody can observe is the shape this repository treats as worse
+  # than the wedge it removes.
+  # Name the run: a fixed string cannot be correlated with the `--autopilot-status`
+  # or refusal output that does name one, and it repeats on every agentStop.
+  printf 'zensu: nonterminal Autopilot run %s holds this working tree but has no deferred review to interleave with; agentStop is not blocked on it\n' \
+    "$(_autopilot_holder_run_id "$holder" 2>/dev/null || printf '(unnamed)')" >&2
+  return 1
+}
+
+# The deferred-review hold verdict, shared by the two fences that ask it. Four
+# operands had to be spelled identically at two sites and the block was
+# byte-identical between them -- a memory item rather than a call site. Answers
+# 4 when the hold stands, having PUBLISHED the sentence from the record it
+# judged, and 6 when the hold does not concern this agentStop.
+#
+# The SECOND contention fence deliberately does NOT call this. By the time it
+# runs, `tdd_pending_review_owned_by_other` has proven a foreign claim, so work
+# is known to be in play and its refusal is unconditional. Keeping that outside
+# the helper is what makes the asymmetry visible as a different call rather than
+# as a flag a reader has to find.
+#
+# A wrong arity answers 4, the blocking direction, and publishes nothing -- so
+# the caller degrades to the unnamed remedy rather than to a release command it
+# never derived.
+_autopilot_deferred_hold_verdict() {
+  [ "$#" -eq 4 ] || return 4
+  local holder="$1" session_id="$2" ttl_hours="$3" root="$4"
+  if _autopilot_workspace_hold_blocks_adoption "$holder" "$session_id" "$ttl_hours" "$root"; then
+    _autopilot_publish_workspace_refusal "$holder" "$session_id" operator
+    return 4
+  fi
+  return 6
+}
+
+# Deferred-review adoption has the same ownership boundary as a standalone TDD
+# begin, but its inner operation first claims the project-wide pending marker.
+# Keep the complete lock order Outer project -> pending marker -> Inner session:
+# a concurrent durable begin must publish both run and pointer before adoption
+# decides, and adoption must finish its claim+seed before the Outer lock releases.
+_autopilot_adopt_pending_review_critical() {
+  local root="$1" session_id="$2" vanilla="$3" ttl_hours="$4" owner_pid="$5"
+  local workspace="${6:-}" read_rc adopt_rc holder
+  [ -n "$workspace" ] || workspace="$(_autopilot_session_workspace "$root")" || return 2
+  if holder="$(_autopilot_read_workspace_critical "$root" "$workspace" "$session_id" 2>/dev/null)"; then
+    read_rc=0
+  else
+    read_rc=$?
+  fi
+  case "$read_rc" in
+    0)
+      # Nothing to adopt and no own generation to protect: the shared verdict
+      # answers the ordinary no-work result instead of denying a agentStop this hold
+      # does not concern.
+      _autopilot_deferred_hold_verdict "$holder" "$session_id" "$ttl_hours" "$root"
+      return $?
+      ;;
+    1) ;;
+    *) return "$read_rc" ;;
+  esac
+  if tdd_adopt_pending_review "$session_id" "$vanilla" "$ttl_hours" "$owner_pid"; then
+    return 0
+  else
+    adopt_rc=$?
+  fi
+  # Keep Outer corruption/unsafe-storage rc=2 distinct from the Inner API's
+  # legacy rc=2 meaning "no pending marker or recoverable claim".
+  [ "$adopt_rc" -eq 2 ] && return 6
+  # rc=1 from the Inner claim/seed operation is a permanent result for this
+  # transaction (unsafe marker, storage failure, or Inner-lock failure). Keep
+  # it distinct while the Outer lock is still held so the public helper does
+  # not mistake it for Outer-lock contention and retry the whole transaction.
+  [ "$adopt_rc" -eq 1 ] && return 7
+  return "$adopt_rc"
+}
+
+# When the Outer lease is saturated, avoid sending every safely losing agentStop a
+# generic storage-error prompt. This is a read-only proof: check Outer, prove a
+# stable foreign plain claim, then check Outer again as the TOCTOU fence. A run
+# published after that final absent/terminal read linearizes after this agentStop.
+_autopilot_deferred_contention_result() {
+  local root="$1" session_id="$2" ttl_hours="$3" workspace="${4:-}" read_rc holder
+  [ -n "$workspace" ] || workspace="$(_autopilot_session_workspace "$root")" || return 2
+  _autopilot_storage_safe "$root" "" || return 2
+  if holder="$(_autopilot_read_workspace_critical "$root" "$workspace" "$session_id" 2>/dev/null)"; then
+    read_rc=0
+  else
+    read_rc=$?
+  fi
+  case "$read_rc" in
+    # Same discrimination as the locked fence above, and for the same reason:
+    # this read runs BEFORE any pending artifact is consulted, so without it a
+    # foreign hold denies a agentStop that has nothing to adopt. The SECOND fence
+    # below deliberately keeps the unconditional refusal -- by then
+    # `tdd_pending_review_owned_by_other` has proven a foreign claim, so work is
+    # known to be in play.
+    0)
+      _autopilot_deferred_hold_verdict "$holder" "$session_id" "$ttl_hours" "$root"
+      return $?
+      ;;
+    1) ;;
+    # This unlocked read may observe begin's durable run before its active
+    # pointer is published. Storage safety was proven above, so this is
+    # inconclusive and must return to the serialized retry path.
+    2) return 8 ;;
+    *) return "$read_rc" ;;
+  esac
+
+  tdd_pending_review_owned_by_other "$session_id" "$ttl_hours" || return 8
+
+  _autopilot_storage_safe "$root" "" || return 2
+  # A foreign claim is proven by now, so this fence refuses unconditionally --
+  # but it must still RENDER the holder. It is reached only under Outer-lease
+  # contention, which is exactly when the agentStop hook's own lease-taking read
+  # fails, so discarding the record here left the run id named on neither
+  # channel. All THREE rc=4 producers therefore call the same renderer.
+  if holder="$(_autopilot_read_workspace_critical "$root" "$workspace" "$session_id" 2>/dev/null)"; then
+    read_rc=0
+  else
+    read_rc=$?
+  fi
+  case "$read_rc" in
+    0)
+      _autopilot_publish_workspace_refusal "$holder" "$session_id" operator
+      return 4
+      ;;
+    1) return 6 ;;
+    # The final fence can see the same valid run->pointer publication window.
+    # Without a conclusive absent/terminal/active result, retry under Outer.
+    2) return 8 ;;
+    *) return "$read_rc" ;;
+  esac
+}
+
+autopilot_adopt_pending_review() {
+  ZENSU_AUTOPILOT_WORKSPACE_HOLD_TEXT=""
+  local root session_id="${2:-}" vanilla="${3:-false}" ttl_hours="${4:-0}"
+  local owner_pid="${5:-$$}" lock_attempt=0 rc contention_rc workspace
+  [ "$#" -eq 4 ] || [ "$#" -eq 5 ] || return 3
+  _autopilot_session_id_ok "$session_id" || return 3
+  case "$vanilla" in true|false) ;; *) return 3 ;; esac
+  case "$ttl_hours" in ''|*[!0-9]*) return 3 ;; esac
+  case "$owner_pid" in ''|*[!0-9]*) return 3 ;; esac
+  [ "$owner_pid" -gt 0 ] || return 3
+  root="$(_autopilot_project_root "${1:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  workspace="$(_autopilot_session_workspace "$root")" || return 2
+  _autopilot_prepare_storage "$root" || return 2
+  # The Core lease has a deliberately bounded per-acquisition wait.
+  # A burst of agentStop hooks can legitimately queue many slow Outer->pending->Inner
+  # composites behind one another, so retry that rc=1 transaction as a whole.
+  # Claim/seed is idempotent and crash-recoverable; unsafe/corrupt/owned/no-work
+  # results have distinct codes and are never retried here.
+  while [ "$lock_attempt" -lt 5 ]; do
+    if _autopilot_locked_run "$root" "" _autopilot_adopt_pending_review_critical \
+        "$root" "$session_id" "$vanilla" "$ttl_hours" "$owner_pid" "$workspace"; then
+      return 0
+    else
+      rc=$?
+    fi
+    # Preserve the public legacy rc=1 contract for Inner adoption failures,
+    # but do not retry them as though the Outer project lock were contended.
+    [ "$rc" -eq 7 ] && return 1
+    [ "$rc" -eq 1 ] || return "$rc"
+    _autopilot_deferred_contention_result "$root" "$session_id" "$ttl_hours" "$workspace"
+    contention_rc=$?
+    case "$contention_rc" in
+      4|6) return "$contention_rc" ;;
+      8) ;;
+      *) return "$contention_rc" ;;
+    esac
+    lock_attempt=$((lock_attempt + 1))
+  done
+  return 1
+}
+
+_autopilot_increment_budget_critical() {
+  local root="$1" run_id="$2" expected_stage="$3" caller_session_id="${4:-}"
+  local state_dir="$root/.zensu/state"
+  local run_file="$state_dir/autopilot-run-${run_id}.json"
+  local run_tmp result rc
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || return 5
+  result="$(_autopilot_node increment-budget "$state_dir" "$run_file" "$run_tmp" "$run_id" "$expected_stage" "$root" "$caller_session_id")"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp"
+    return "$rc"
+  fi
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp"; return 5; }
+  printf '%s\n' "$result"
+}
+
+autopilot_increment_stop_budget() {
+  local run_id="${1:-}" expected_stage="${2:-}" root caller_session_id="${4:-}"
+  _autopilot_identifier_ok "$run_id" || return 3
+  if [ -n "$caller_session_id" ]; then
+    _autopilot_identifier_ok "$caller_session_id" || return 3
+  fi
+  root="$(_autopilot_project_root "${3:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_increment_budget_critical \
+    "$root" "$run_id" "$expected_stage" "$caller_session_id"
+}
+
+_autopilot_increment_budget_capped_critical() {
+  local root="$1" run_id="$2" expected_stage="$3" caller_session_id="$4"
+  local cap="$5" block_code="$6" state_dir="$1/.zensu/state"
+  local run_file="$state_dir/autopilot-run-${run_id}.json"
+  local run_tmp result rc
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || return 5
+  result="$(_autopilot_node increment-budget-capped "$state_dir" "$run_file" "$run_tmp" \
+    "$run_id" "$expected_stage" "$root" "$caller_session_id" "$cap" "$block_code")"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp"
+    return "$rc"
+  fi
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp"; return 5; }
+  printf '%s\n' "$result"
+}
+
+autopilot_increment_stop_budget_capped() {
+  local run_id="${1:-}" expected_stage="${2:-}" root caller_session_id="${4:-}"
+  local cap="${5:-}" block_code="${6:-}"
+  [ "$#" -eq 6 ] || return 3
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$caller_session_id" \
+    && _autopilot_identifier_ok "$block_code" || return 3
+  case "$cap" in ''|*[!0-9]*) return 3 ;; esac
+  root="$(_autopilot_project_root "${3:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_increment_budget_capped_critical \
+    "$root" "$run_id" "$expected_stage" "$caller_session_id" "$cap" "$block_code"
+}
+
+# Caller already holds the project-wide Outer lock. Derive the BLOCK event id
+# from the exact locked generation so crash retries are idempotent and no stale
+# caller can choose a later stage accidentally.
+_autopilot_apply_block_locked() {
+  local root="$1" run_id="$2" block_code="$3" discriminator="$4"
+  local run_file="$root/.zensu/state/autopilot-run-${run_id}.json"
+  local state generation event_id payload
+  state="$(_autopilot_node read-run "$run_file" "$run_id" "$root")" || return $?
+  generation="$(printf '%s' "$state" | node -e '
+    try {
+      const s=JSON.parse(require("fs").readFileSync(0,"utf8"));
+      process.stdout.write(`${s.stage}:${s.events.length}`);
+    } catch (_) { process.exit(3); }
+  ' 2>/dev/null)" || return 2
+  event_id="$(RUN_ID="$run_id" CODE="$block_code" DISC="$discriminator" \
+    GENERATION="$generation" node -e '
+      const crypto=require("crypto");
+      process.stdout.write("outer-block-"+crypto.createHash("sha256").update(JSON.stringify([
+        process.env.RUN_ID,process.env.CODE,process.env.DISC,process.env.GENERATION
+      ])).digest("hex"));
+    ' 2>/dev/null)" || return 5
+  payload="$(CODE="$block_code" node -e '
+    process.stdout.write(JSON.stringify({code:process.env.CODE}));
+  ' 2>/dev/null)" || return 5
+  _autopilot_apply_critical "$root" "$run_id" "$event_id" BLOCK "$payload" ""
+}
+
+_autopilot_reconcile_stop_inner_critical() {
+  local root="$1" run_id="$2" session_id="$3" attempt="$4" chain_id="$5"
+  local return_stage="$6" state_file="$7" snapshot mode outcome payload event_id
+  if snapshot="$(tdd_chain_snapshot "$state_file" "$session_id" 2>/dev/null)"; then
+    mode="$(printf '%s' "$snapshot" | RUN_ID="$run_id" ATTEMPT="$attempt" \
+      CHAIN_ID="$chain_id" RETURN_STAGE="$return_stage" node -e '
+        try {
+          const s=JSON.parse(require("fs").readFileSync(0,"utf8"));
+          const a=s.autopilot;
+          const linked=a && a.runId===process.env.RUN_ID
+            && String(a.attempt)===process.env.ATTEMPT
+            && a.chainId===process.env.CHAIN_ID && a.returnStage===process.env.RETURN_STAGE
+            && s.active===true;
+          if(!linked)process.exit(3);
+          if(s.chainDone===false && (a.outcome==="" || a.outcome==="max-rounds")){
+            process.stdout.write("pending");process.exit(0);
+          }
+          if(s.chainDone===true && s.implComplete===true
+              && ["pass","no-changes","max-rounds"].includes(a.outcome)){
+            process.stdout.write(`done\t${a.outcome}`);process.exit(0);
+          }
+          process.exit(3);
+        } catch (_) { process.exit(3); }
+      ' 2>/dev/null)" || mode="invalid"
+  else
+    mode="invalid"
+  fi
+
+  case "$mode" in
+    pending)
+      _autopilot_node read-run "$root/.zensu/state/autopilot-run-${run_id}.json" "$run_id" "$root"
+      ;;
+    done$'\t'*)
+      outcome="${mode#*$'\t'}"
+      payload="$(ATTEMPT="$attempt" CHAIN_ID="$chain_id" SID="$session_id" \
+        OUTCOME="$outcome" node -e '
+          process.stdout.write(JSON.stringify({attempt:Number(process.env.ATTEMPT),
+            chainId:process.env.CHAIN_ID,sessionId:process.env.SID,outcome:process.env.OUTCOME}));
+        ' 2>/dev/null)" || return 5
+      event_id="$(autopilot_chain_event_id "done" "$chain_id")" || return $?
+      _autopilot_apply_critical "$root" "$run_id" "$event_id" \
+        TDD_CHAIN_DONE "$payload" "$session_id" || return $?
+      _autopilot_node read-run "$root/.zensu/state/autopilot-run-${run_id}.json" "$run_id" "$root"
+      ;;
+    *)
+      _autopilot_apply_block_locked "$root" "$run_id" TDD_RECONCILIATION_INVALID \
+        "reconcile-${attempt}-${chain_id}" || return $?
+      _autopilot_node read-run "$root/.zensu/state/autopilot-run-${run_id}.json" "$run_id" "$root"
+      ;;
+  esac
+}
+
+_autopilot_reconcile_stop_critical() {
+  local root="$1" caller_session_id="$2" state_dir="$1/.zensu/state"
+  local state meta run_id owner stage attempt chain_id return_stage state_file
+  state="$(_autopilot_read_active_critical "$root" "$caller_session_id")" || return $?
+  meta="$(printf '%s' "$state" | node -e '
+    try {
+      const s=JSON.parse(require("fs").readFileSync(0,"utf8"));
+      process.stdout.write([s.runId,s.ownerSessionId,s.stage,s.tdd.attempt,
+        s.tdd.chainId||"",s.tdd.returnStage||""].join("\t"));
+    } catch (_) { process.exit(3); }
+  ' 2>/dev/null)" || return 2
+  IFS=$'\t' read -r run_id owner stage attempt chain_id return_stage <<<"$meta"
+  if [ "$owner" != "$caller_session_id" ] || [ "$stage" != "TDD_RUNNING" ]; then
+    printf '%s\n' "$state"
+    return 0
+  fi
+  if ! _autopilot_identifier_ok "$chain_id"; then
+    _autopilot_apply_block_locked "$root" "$run_id" TDD_RECONCILIATION_INVALID \
+      "missing-chain-${attempt}" || return $?
+    _autopilot_node read-run "$state_dir/autopilot-run-${run_id}.json" "$run_id" "$root"
+    return $?
+  fi
+  state_file="$(tdd_state_file "$caller_session_id")"
+  if _tdd_locked_run "$state_file" _autopilot_reconcile_stop_inner_critical \
+      "$root" "$run_id" "$caller_session_id" "$attempt" "$chain_id" \
+      "$return_stage" "$state_file"; then
+    return 0
+  fi
+  _autopilot_apply_block_locked "$root" "$run_id" TDD_RECONCILIATION_INVALID \
+    "inner-read-${attempt}-${chain_id}" || return $?
+  _autopilot_node read-run "$state_dir/autopilot-run-${run_id}.json" "$run_id" "$root"
+}
+
+_ZENSU_AP_RECONCILE_RECORD=""
+_ZENSU_AP_RECONCILE_WORKER_RC=""
+_autopilot_reconcile_probe() {
+  _ZENSU_AP_RECONCILE_RECORD="$(_autopilot_reconcile_stop_critical "$1" "$2")"
+  _ZENSU_AP_RECONCILE_WORKER_RC=$?
+  return 0
+}
+
+autopilot_reconcile_stop_active() {
+  local root caller_session_id="${2:-}"
+  [ "$#" -eq 2 ] || return 3
+  _autopilot_session_id_ok "$caller_session_id" || return 3
+  root="$(_autopilot_project_root "${1:-${COPILOT_PROJECT_DIR:-.}}")" || return 5
+  _autopilot_read_storage_ready "$root"
+  case "$?" in
+    0) ;;
+    1) return 1 ;;
+    *) return 5 ;;
+  esac
+  _ZENSU_AP_RECONCILE_RECORD=""
+  _ZENSU_AP_RECONCILE_WORKER_RC=""
+  _autopilot_locked_run "$root" "" _autopilot_reconcile_probe "$root" "$caller_session_id" || {
+    [ -z "$_ZENSU_AP_RECONCILE_WORKER_RC" ] || return 5
+    _autopilot_active_read_without_lease "$root" "$caller_session_id" || return $?
+    printf '%s\n' "$_ZENSU_AP_ACTIVE_RECORD"
+    return 0
+  }
+  [ "$_ZENSU_AP_RECONCILE_WORKER_RC" -eq 0 ] || return "$_ZENSU_AP_RECONCILE_WORKER_RC"
+  [ -n "$_ZENSU_AP_RECONCILE_RECORD" ] || return 5
+  printf '%s\n' "$_ZENSU_AP_RECONCILE_RECORD"
+}
+
+_autopilot_increment_inner_budget_critical() {
+  local root="$1" run_id="$2" session_id="$3" attempt="$4" chain_id="$5"
+  local return_stage="$6" cap="$7" block_code="$8" state_file="$9"
+  local _budget_file="${10}" result_file="${11}"
+  local count blocked=false native_state_file env_exclusions
+  _tdd_increment_stop_budget_critical "$state_file" "$session_id" "" \
+    "$result_file" "$run_id" "$attempt" "$chain_id" "$return_stage" || return $?
+  count="$(cat "$result_file" 2>/dev/null)" || return 1
+  case "$count" in ''|*[!0-9]*) return 1 ;; esac
+  if [ "$count" -gt "$cap" ]; then
+    native_state_file="$(_autopilot_native_project_path "$state_file")" || return 2
+    env_exclusions="$(_autopilot_msys_env_exclusions STATE_FILE)" || return 2
+    MSYS2_ENV_CONV_EXCL="$env_exclusions" STATE_FILE="$native_state_file" \
+      SID="$session_id" RUN_ID="$run_id" ATTEMPT="$attempt" \
+      CHAIN_ID="$chain_id" COUNT="$count" node -e '
+        try {
+          const s=JSON.parse(require("fs").readFileSync(process.env.STATE_FILE,"utf8"));
+          const exact=s.session_id_hash===`sha256:${process.env.SID.slice("scv1_".length)}`
+            && s.active===true
+            && s.implComplete===true && s.chainDone===false
+            && s.autopilotRunId===process.env.RUN_ID
+            && s.autopilotAttempt===Number(process.env.ATTEMPT)
+            && s.chainId===process.env.CHAIN_ID
+            && s.stopBlockCount===Number(process.env.COUNT);
+          process.exit(exact?0:3);
+        } catch (_) { process.exit(3); }
+      ' 2>/dev/null || return 4
+    _autopilot_apply_block_locked "$root" "$run_id" "$block_code" \
+      "inner-cap-${attempt}-${chain_id}-${count}" || return $?
+    blocked=true
+  fi
+  printf '{"count":%s,"blocked":%s}\n' "$count" "$blocked"
+}
+
+_autopilot_increment_inner_budget_outer_critical() {
+  local root="$1" expected_run="$2" expected_stage="$3" expected_events="$4"
+  local expected_attempt="$5" expected_return_stage="$6" expected_chain="$7"
+  local session_id="$8" cap="$9" block_code="${10}" state_dir="$1/.zensu/state"
+  local state meta run_id owner stage events attempt chain_id return_stage tdd_session
+  local state_file state_dir_inner
+  local result_file result rc
+  state="$(_autopilot_read_active_critical "$root" "$session_id")" || return $?
+  meta="$(printf '%s' "$state" | node -e '
+    try {
+      const s=JSON.parse(require("fs").readFileSync(0,"utf8"));
+      process.stdout.write([s.runId,s.ownerSessionId,s.stage,s.events.length,
+        s.tdd.attempt,s.tdd.chainId||"",s.tdd.returnStage||"",s.tdd.sessionId||""].join("\t"));
+    } catch (_) { process.exit(3); }
+  ' 2>/dev/null)" || return 2
+  IFS=$'\t' read -r run_id owner stage events attempt chain_id return_stage tdd_session <<<"$meta"
+  [ "$run_id" = "$expected_run" ] && [ "$stage" = "$expected_stage" ] \
+    && [ "$events" = "$expected_events" ] && [ "$owner" = "$session_id" ] \
+    && [ "$attempt" = "$expected_attempt" ] && [ "$chain_id" = "$expected_chain" ] \
+    && [ "$return_stage" = "$expected_return_stage" ] \
+    && [ "$stage" = "TDD_RUNNING" ] && [ "$tdd_session" = "$session_id" ] \
+    && _autopilot_identifier_ok "$chain_id" || return 4
+
+  state_file="$(tdd_state_file "$session_id")"
+  state_dir_inner="$(dirname "$state_file")"
+  _tdd_path_safe "$state_file" regular "$state_dir_inner" || return 2
+  result_file="$(mktemp "${state_file}.stop-count.XXXXXX" 2>/dev/null)" || return 5
+  result="$(_tdd_locked_run "$state_file" _autopilot_increment_inner_budget_critical \
+    "$root" "$run_id" "$session_id" "$expected_attempt" "$expected_chain" \
+    "$expected_return_stage" "$cap" "$block_code" \
+    "$state_file" "" "$result_file")"
+  rc=$?
+  rm -f "$result_file" 2>/dev/null || true
+  [ "$rc" -eq 0 ] || return "$rc"
+  printf '%s\n' "$result"
+}
+
+autopilot_increment_inner_stop_budget_capped() {
+  local run_id="${1:-}" expected_stage="${2:-}" expected_events="${3:-}" root
+  local expected_attempt="${4:-}" expected_return_stage="${5:-}" expected_chain="${6:-}"
+  local session_id="${8:-}" cap="${9:-}" block_code="${10:-}"
+  [ "$#" -eq 10 ] || return 3
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$session_id" \
+    && _autopilot_identifier_ok "$expected_chain" \
+    && _autopilot_identifier_ok "$block_code" || return 3
+  case "$expected_events:$expected_attempt:$cap" in *[!0-9:]*) return 3 ;; esac
+  [ -n "$expected_events" ] && [ -n "$cap" ] || return 3
+  [ "$expected_attempt" -ge 1 ] && [ "$expected_attempt" -le 999 ] || return 3
+  case "$expected_return_stage" in GATES|CONVERGE|FIX_FINDINGS|VALIDATE|COVER) ;; *) return 3 ;; esac
+  root="$(_autopilot_project_root "${7:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_increment_inner_budget_outer_critical \
+    "$root" "$run_id" "$expected_stage" "$expected_events" "$expected_attempt" \
+    "$expected_return_stage" "$expected_chain" "$session_id" "$cap" "$block_code"
+}
+
+_autopilot_verify_inner_binding_critical() {
+  local state_file="$1" session_id="$2" run_id="$3" attempt="$4"
+  local return_stage="$5" chain_id="$6" native_state_file env_exclusions
+  native_state_file="$(_autopilot_native_project_path "$state_file")" || return 2
+  env_exclusions="$(_autopilot_msys_env_exclusions STATE_FILE)" || return 2
+  MSYS2_ENV_CONV_EXCL="$env_exclusions" STATE_FILE="$native_state_file" \
+    SID="$session_id" RUN_ID="$run_id" ATTEMPT="$attempt" \
+    RETURN_STAGE="$return_stage" CHAIN_ID="$chain_id" node -e '
+      const fs=require("fs");
+      let s;
+      try { s=JSON.parse(fs.readFileSync(process.env.STATE_FILE,"utf8")); }
+      catch (_) { process.exit(3); }
+      const ok=s && typeof s==="object" && !Array.isArray(s)
+        && s.session_id_hash===`sha256:${process.env.SID.slice("scv1_".length)}`
+        && s.active===true
+        && s.autopilotRunId===process.env.RUN_ID
+        && s.autopilotAttempt===Number(process.env.ATTEMPT)
+        && s.autopilotReturnStage===process.env.RETURN_STAGE
+        && s.chainId===process.env.CHAIN_ID
+        && s.chainDone===false && s.chainOutcome==="";
+      process.exit(ok?0:3);
+    ' 2>/dev/null
+}
+
+_autopilot_verify_inner_binding() {
+  local session_id="$1" run_id="$2" attempt="$3" return_stage="$4" chain_id="$5"
+  local state_file
+  state_file="$(tdd_state_file "$session_id")"
+  _tdd_path_safe "$state_file" regular "$(dirname "$state_file")" || return 1
+  _tdd_locked_run "$state_file" _autopilot_verify_inner_binding_critical \
+    "$state_file" "$session_id" "$run_id" "$attempt" "$return_stage" "$chain_id"
+}
+
+# Prepare the outer TDD_STARTED transition while holding the one project-wide
+# Autopilot lock, create/reset the matching inner generation under its own lock,
+# then publish the outer state. A concurrent contender therefore fails before
+# touching the inner file. If a process dies after the inner write, retrying the
+# exact event reconstructs the outer side; no conflicting chain may win later.
+_autopilot_begin_tdd_critical() {
+  local root="$1" run_id="$2" event_id="$3" session_id="$4" vanilla="$5"
+  local attempt="$6" return_stage="$7" chain_id="$8"
+  local state_dir="$root/.zensu/state" run_file run_tmp payload rc
+  local native_run_tmp env_exclusions
+  run_file="$state_dir/autopilot-run-${run_id}.json"
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || return 5
+  payload="$(ATTEMPT="$attempt" CHAIN_ID="$chain_id" SID="$session_id" node -e '
+    process.stdout.write(JSON.stringify({attempt:Number(process.env.ATTEMPT),chainId:process.env.CHAIN_ID,sessionId:process.env.SID}));
+  ')" || { rm -f "$run_tmp"; return 5; }
+  _autopilot_node apply "$state_dir" "$run_file" "$run_tmp" "$run_id" "$event_id" \
+    TDD_STARTED "$payload" "$root" "$session_id"
+  rc=$?
+  if [ "$rc" -eq 10 ]; then
+    rm -f "$run_tmp"
+    _autopilot_verify_inner_binding "$session_id" "$run_id" "$attempt" "$return_stage" "$chain_id"
+    return $?
+  fi
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp"
+    return "$rc"
+  fi
+  native_run_tmp="$(_autopilot_native_project_path "$run_tmp")" \
+    || { rm -f "$run_tmp"; return 2; }
+  env_exclusions="$(_autopilot_msys_env_exclusions STATE_FILE)" \
+    || { rm -f "$run_tmp"; return 2; }
+  if ! MSYS2_ENV_CONV_EXCL="$env_exclusions" STATE_FILE="$native_run_tmp" \
+      RUN_ID="$run_id" SID="$session_id" ATTEMPT="$attempt" \
+      RETURN_STAGE="$return_stage" CHAIN_ID="$chain_id" node -e '
+        try {
+          const s=JSON.parse(require("fs").readFileSync(process.env.STATE_FILE,"utf8"));
+          const ok=s.runId===process.env.RUN_ID && s.ownerSessionId===process.env.SID
+            && s.stage==="TDD_RUNNING" && s.tdd
+            && s.tdd.attempt===Number(process.env.ATTEMPT)
+            && s.tdd.returnStage===process.env.RETURN_STAGE
+            && s.tdd.chainId===process.env.CHAIN_ID
+            && s.tdd.sessionId===process.env.SID;
+          process.exit(ok?0:3);
+        } catch (_) { process.exit(3); }
+      ' 2>/dev/null; then
+    rm -f "$run_tmp"
+    return 4
+  fi
+  if ! tdd_begin_session "$session_id" "$vanilla" false false "" \
+      "$run_id" "$attempt" "$return_stage" "$chain_id"; then
+    rm -f "$run_tmp"
+    return 5
+  fi
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp"; return 5; }
+}
+
+autopilot_begin_tdd_attempt() {
+  local run_id="${1:-}" event_id="${2:-}" root session_id="${4:-}" vanilla="${5:-}"
+  local attempt="${6:-}" return_stage="${7:-}" chain_id="${8:-}"
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$event_id" \
+    && _autopilot_identifier_ok "$session_id" && _autopilot_identifier_ok "$chain_id" || return 3
+  case "$vanilla" in true|false) ;; *) return 3 ;; esac
+  case "$attempt" in ''|*[!0-9]*) return 3 ;; esac
+  [ "$attempt" -ge 1 ] && [ "$attempt" -le 999 ] || return 3
+  case "$return_stage" in GATES|CONVERGE|FIX_FINDINGS|VALIDATE|COVER) ;; *) return 3 ;; esac
+  root="$(_autopilot_project_root "${3:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_begin_tdd_critical \
+    "$root" "$run_id" "$event_id" "$session_id" "$vanilla" "$attempt" "$return_stage" "$chain_id"
+}
+
+# TDD_CHAIN_DONE uses the same lock ordering as start: outer project lock first,
+# then the inner session lock. The inner helper commits chainOutcome+chainDone in
+# one CAS write. Only after that succeeds is the prepared outer transition
+# renamed into place. Both helpers accept an exact duplicate as a no-op, which
+# makes the one unavoidable two-file crash window recoverable by retry.
+_autopilot_finish_tdd_critical() {
+  local root="$1" run_id="$2" event_id="$3" session_id="$4" attempt="$5"
+  local chain_id="$6" outcome="$7" claimed_seen="$8" claimed_ticket="${9:-}"
+  local state_dir="$root/.zensu/state" run_file run_tmp payload rc
+  run_file="$state_dir/autopilot-run-${run_id}.json"
+  run_tmp="$(_autopilot_mktemp_beside "$run_file")" || return 5
+  payload="$(ATTEMPT="$attempt" CHAIN_ID="$chain_id" SID="$session_id" OUTCOME="$outcome" node -e '
+    process.stdout.write(JSON.stringify({attempt:Number(process.env.ATTEMPT),chainId:process.env.CHAIN_ID,sessionId:process.env.SID,outcome:process.env.OUTCOME}));
+  ')" || { rm -f "$run_tmp"; return 5; }
+  _autopilot_node apply "$state_dir" "$run_file" "$run_tmp" "$run_id" "$event_id" \
+    TDD_CHAIN_DONE "$payload" "$root" "$session_id"
+  rc=$?
+  if [ "$rc" -eq 10 ]; then
+    # The durable outer event is the acknowledgement record. It was only ever
+    # committed after the matching inner CAS succeeded, so a late exact retry
+    # remains successful even when a newer inner generation now owns the
+    # session file.
+    rm -f "$run_tmp"
+    return 0
+  fi
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$run_tmp"
+    return "$rc"
+  fi
+  if [ "$claimed_seen" = "true" ]; then
+    tdd_finish_autopilot_chain "$session_id" "$run_id" "$attempt" "$chain_id" "$outcome" "$claimed_ticket"
+  else
+    tdd_finish_autopilot_chain "$session_id" "$run_id" "$attempt" "$chain_id" "$outcome"
+  fi
+  local finish_rc=$?
+  if [ "$finish_rc" -ne 0 ]; then
+    rm -f "$run_tmp"
+    return "$finish_rc"
+  fi
+  _tdd_atomic_replace_regular "$run_tmp" "$run_file" || { rm -f "$run_tmp"; return 5; }
+}
+
+autopilot_finish_tdd_attempt() {
+  local run_id="${1:-}" event_id="${2:-}" root session_id="${4:-}" attempt="${5:-}"
+  local chain_id="${6:-}" outcome="${7:-}" claimed_seen="${8:-false}" claimed_ticket="${9:-}"
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$event_id" \
+    && _autopilot_identifier_ok "$session_id" && _autopilot_identifier_ok "$chain_id" || return 3
+  case "$attempt" in ''|*[!0-9]*) return 3 ;; esac
+  [ "$attempt" -ge 1 ] && [ "$attempt" -le 999 ] || return 3
+  case "$outcome" in pass|no-changes|max-rounds) ;; *) return 3 ;; esac
+  case "$claimed_seen" in true|false) ;; *) return 3 ;; esac
+  if [ "$claimed_seen" = "true" ]; then
+    _tdd_review_ticket_shape_ok "$claimed_ticket" || return 3
+  elif [ -n "$claimed_ticket" ]; then
+    return 3
+  fi
+  root="$(_autopilot_project_root "${3:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_finish_tdd_critical \
+    "$root" "$run_id" "$event_id" "$session_id" "$attempt" "$chain_id" "$outcome" \
+      "$claimed_seen" "$claimed_ticket"
+}
+
+# Rearm one exhausted inner review generation while holding the outer project
+# lock first, then the inner session lock. This shares the exact lock ordering
+# with TDD start/finish, so a concurrent TDD_CHAIN_DONE cannot turn the outer
+# run BLOCKED between the rearm decision and the inner CAS.
+_autopilot_rearm_review_critical() {
+  local root="$1" run_id="$2" session_id="$3" attempt="$4" chain_id="$5" ticket="$6"
+  local state_dir="$root/.zensu/state" run_file state_file state mode retire=false
+  local inner_ctx reconcile_fields outcome payload done_event_id rearm_event_id
+  run_file="$state_dir/autopilot-run-${run_id}.json"
+  state_file="$(tdd_state_file "$session_id")"
+  state="$(_autopilot_node read-run "$run_file" "$run_id" "$root")" || return $?
+  mode="$(printf '%s' "$state" | SID="$session_id" RUN_ID="$run_id" \
+    ATTEMPT="$attempt" CHAIN_ID="$chain_id" node -e '
+      try {
+        const fs=require("fs"),s=JSON.parse(fs.readFileSync(0,"utf8"));
+        const exact=s.runId===process.env.RUN_ID && s.ownerSessionId===process.env.SID
+          && s.tdd && s.tdd.sessionId===process.env.SID
+          && s.tdd.attempt===Number(process.env.ATTEMPT) && s.tdd.chainId===process.env.CHAIN_ID;
+        if(!exact)process.exit(3);
+        if(s.stage==="TDD_RUNNING")process.stdout.write("active");
+        else if(s.stage==="BLOCKED" && s.blocked && s.blocked.code==="TDD_MAX_ROUNDS")process.stdout.write("retire-resume");
+        else if(s.stage==="AWAIT_TDD")process.stdout.write("retire-retry");
+        else process.exit(3);
+      } catch (_) { process.exit(3); }
+    ' 2>/dev/null)" || return 3
+  if [ "$mode" = "active" ]; then
+    inner_ctx="$(tdd_autopilot_context "$state_file" "$session_id" 2>/dev/null)" || return 3
+    reconcile_fields="$(AUTOPILOT_CTX="$inner_ctx" RUN_ID="$run_id" ATTEMPT="$attempt" \
+      CHAIN_ID="$chain_id" node -e '
+        try {
+          const c=JSON.parse(process.env.AUTOPILOT_CTX);
+          const exact=c.runId===process.env.RUN_ID && String(c.attempt)===process.env.ATTEMPT
+            && c.chainId===process.env.CHAIN_ID && c.active===true && c.implComplete===true;
+          if(!exact)process.exit(3);
+          process.stdout.write(`${c.chainDone}\t${c.outcome}`);
+        } catch (_) { process.exit(3); }
+      ' 2>/dev/null)" || return 3
+    IFS=$'\t' read -r inner_done outcome <<<"$reconcile_fields"
+    if [ "$inner_done" = "true" ]; then
+      case "$outcome" in pass|no-changes|max-rounds) ;; *) return 3 ;; esac
+      payload="$(ATTEMPT="$attempt" CHAIN_ID="$chain_id" SID="$session_id" OUTCOME="$outcome" node -e '
+        process.stdout.write(JSON.stringify({attempt:Number(process.env.ATTEMPT),chainId:process.env.CHAIN_ID,sessionId:process.env.SID,outcome:process.env.OUTCOME}));
+      ')" || return 5
+      done_event_id="$(autopilot_chain_event_id "done" "$chain_id")" || return $?
+      _autopilot_apply_critical "$root" "$run_id" "$done_event_id" \
+        TDD_CHAIN_DONE "$payload" "$session_id" || return $?
+      # A pass/no-changes receipt has now advanced the outer run and is not a
+      # resettable exhausted generation. max-rounds becomes BLOCKED and must be
+      # retired before the same locked composite resumes a fresh attempt.
+      [ "$outcome" = "max-rounds" ] || return 3
+      mode="retire-resume"
+    fi
+  fi
+  case "$mode" in active) retire=false ;; *) retire=true ;; esac
+  tdd_rearm_autopilot_review "$session_id" "$run_id" "$attempt" "$chain_id" "$ticket" "$retire" \
+    || return $?
+  if [ "$mode" = "retire-resume" ]; then
+    rearm_event_id="$(autopilot_chain_event_id rearm "$chain_id")" || return $?
+    _autopilot_apply_critical "$root" "$run_id" "$rearm_event_id" \
+      RESUME '{}' "$session_id" || return $?
+  fi
+}
+
+autopilot_rearm_review() {
+  local run_id="${1:-}" root session_id="${3:-}" attempt="${4:-}"
+  local chain_id="${5:-}" ticket="${6:-}"
+  [ "$#" -eq 6 ] || return 3
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$session_id" \
+    && _autopilot_identifier_ok "$chain_id" || return 3
+  case "$attempt" in ''|*[!0-9]*) return 3 ;; esac
+  [ "$attempt" -ge 1 ] && [ "$attempt" -le 999 ] || return 3
+  _tdd_review_ticket_shape_ok "$ticket" || return 3
+  root="$(_autopilot_project_root "${2:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_rearm_review_critical \
+    "$root" "$run_id" "$session_id" "$attempt" "$chain_id" "$ticket"
+}
+
+_autopilot_terminal_inner_matches_critical() {
+  local state_file="$1" session_id="$2" run_id="$3" attempt="$4"
+  local return_stage="$5" chain_id="$6" snapshot
+  snapshot="$(tdd_chain_snapshot "$state_file" "$session_id" 2>/dev/null)" || return 4
+  printf '%s' "$snapshot" | RUN_ID="$run_id" ATTEMPT="$attempt" \
+    RETURN_STAGE="$return_stage" CHAIN_ID="$chain_id" node -e '
+      try {
+        const s=JSON.parse(require("fs").readFileSync(0,"utf8"));
+        const a=s.autopilot;
+        const exact=s.active===true && s.implComplete===true && s.chainDone===false
+          && a && a.runId===process.env.RUN_ID
+          && String(a.attempt)===process.env.ATTEMPT
+          && a.returnStage===process.env.RETURN_STAGE
+          && a.chainId===process.env.CHAIN_ID;
+        process.exit(exact?0:4);
+      } catch (_) { process.exit(4); }
+    ' 2>/dev/null
+}
+
+_autopilot_terminal_owns_inner_critical() {
+  local root="$1" run_id="$2" session_id="$3" attempt="$4"
+  local return_stage="$5" chain_id="$6" state_dir="$1/.zensu/state" state state_file
+  state="$(_autopilot_read_active_critical "$root" "$session_id")" || return $?
+  printf '%s' "$state" | RUN_ID="$run_id" SID="$session_id" ATTEMPT="$attempt" \
+    RETURN_STAGE="$return_stage" CHAIN_ID="$chain_id" node -e '
+      try {
+        const s=JSON.parse(require("fs").readFileSync(0,"utf8"));
+        const exact=["DONE","BLOCKED","CANCELLED"].includes(s.stage)
+          && s.runId===process.env.RUN_ID && s.ownerSessionId===process.env.SID
+          && s.tdd && String(s.tdd.attempt)===process.env.ATTEMPT
+          && s.tdd.returnStage===process.env.RETURN_STAGE
+          && s.tdd.chainId===process.env.CHAIN_ID
+          && s.tdd.sessionId===process.env.SID;
+        process.exit(exact?0:4);
+      } catch (_) { process.exit(4); }
+    ' 2>/dev/null || return 4
+  state_file="$(tdd_state_file "$session_id")"
+  _tdd_path_safe "$state_file" regular "$(dirname "$state_file")" || return 2
+  _tdd_locked_run "$state_file" _autopilot_terminal_inner_matches_critical \
+    "$state_file" "$session_id" "$run_id" "$attempt" "$return_stage" "$chain_id"
+}
+
+# Prove that the *current* project pointer and current Inner still form the
+# same agentStop-releasing generation. The project lock remains held while the
+# Inner mutex is acquired, matching every composite Autopilot mutation.
+autopilot_terminal_owns_inner_current() {
+  local run_id="${1:-}" root session_id="${3:-}" attempt="${4:-}"
+  local return_stage="${5:-}" chain_id="${6:-}"
+  [ "$#" -eq 6 ] || return 3
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$chain_id" \
+    && _autopilot_session_id_ok "$session_id" || return 3
+  case "$attempt" in ''|*[!0-9]*) return 3 ;; esac
+  [ "$attempt" -ge 1 ] && [ "$attempt" -le 999 ] || return 3
+  case "$return_stage" in GATES|CONVERGE|FIX_FINDINGS|VALIDATE|COVER) ;; *) return 3 ;; esac
+  root="$(_autopilot_project_root "${2:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_terminal_owns_inner_critical \
+    "$root" "$run_id" "$session_id" "$attempt" "$return_stage" "$chain_id"
+}
+
+_autopilot_reset_inner_critical() {
+  local root="$1" run_id="$2" session_id="$3" attempt="$4" chain_id="$5"
+  local state_dir="$root/.zensu/state" state
+  # Reset is also the terminal agentStop release linearization point. view the
+  # current pointer while the project lock is held; a historical terminal run
+  # file must never authorize clearing or releasing a newer active run.
+  state="$(_autopilot_read_active_critical "$root" "$session_id")" || return $?
+  printf '%s' "$state" | SID="$session_id" RUN_ID="$run_id" ATTEMPT="$attempt" \
+    CHAIN_ID="$chain_id" node -e '
+      try {
+        const fs=require("fs"),s=JSON.parse(fs.readFileSync(0,"utf8"));
+        const exact=["DONE","CANCELLED"].includes(s.stage)
+          && s.runId===process.env.RUN_ID && s.ownerSessionId===process.env.SID
+          && s.tdd && s.tdd.sessionId===process.env.SID
+          && s.tdd.attempt===Number(process.env.ATTEMPT) && s.tdd.chainId===process.env.CHAIN_ID;
+        process.exit(exact?0:3);
+      } catch (_) { process.exit(3); }
+    ' 2>/dev/null || return 3
+  tdd_reset_pending_review_claim "$session_id" "$run_id" "$attempt" "$chain_id"
+}
+
+autopilot_reset_inner() {
+  local run_id="${1:-}" root session_id="${3:-}" attempt="${4:-}" chain_id="${5:-}"
+  [ "$#" -eq 5 ] || return 3
+  _autopilot_identifier_ok "$run_id" && _autopilot_identifier_ok "$session_id" \
+    && _autopilot_identifier_ok "$chain_id" || return 3
+  case "$attempt" in ''|*[!0-9]*) return 3 ;; esac
+  [ "$attempt" -ge 1 ] && [ "$attempt" -le 999 ] || return 3
+  root="$(_autopilot_project_root "${2:-${COPILOT_PROJECT_DIR:-.}}")" || return 2
+  _autopilot_read_storage_ready "$root" "$run_id" || return $?
+  _autopilot_locked_run "$root" "$run_id" _autopilot_reset_inner_critical \
+    "$root" "$run_id" "$session_id" "$attempt" "$chain_id"
+}

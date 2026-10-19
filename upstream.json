@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/MKITConsulting/zensu-claude-code",
+  "commit": "65d6aba7e3f6c0d98af2a02c9b4854c1f0c78980",
+  "version": "0.27.0",
+  "directory": "upstream/zensu-claude-code",
+  "skills": 32,
+  "agents": 6,
+  "hookRegistrations": 43
+}
