@@ -1,0 +1,33 @@
+description: "Backward-compat regression: existing tdd-manager scenarios with PreToolUse gate active"
+
+providers:
+  - id: 'exec: ../../scripts/claude-promptfoo-wrapper.sh'
+    config:
+      agent: zensu:tdd-manager
+      working_dir: ../tdd-manager/test-project
+
+prompts:
+  - id: regression-baseline
+    label: "Existing reverseString TDD spec — must remain green with gate enabled"
+    raw: |
+      Add a reverseString(input: string): string function to the existing strings module at src/strings.ts.
+      It should reverse the characters of the input string.
+      Use strict RED/GREEN TDD.
+
+tests:
+  - vars: {}
+    assert:
+      - type: icontains
+        value: "RED"
+      - type: icontains
+        value: "GREEN"
+      - type: not-icontains
+        value: "TDD-Phase-Gate"
+        comment: "Gate must NOT fire during a clean Happy-Path run"
+      - type: not-icontains
+        value: "permissionDecision\":\"deny"
+        comment: "No deny output expected on Happy-Path"
+
+evaluateOptions:
+  maxConcurrency: 1
+  repeat: 1

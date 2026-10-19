@@ -1,0 +1,6367 @@
+'use strict';
+
+const crypto = require('node:crypto');
+const childProcess = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const SCHEMA = 'zensu.session-control';
+const SCHEMA_VERSION = 1;
+const WORKFLOW_SCHEMA = 'zensu.workflow-state';
+const ATTESTATION_SCHEMA = 'zensu.control-attestation';
+const HASH_DOMAIN = Buffer.from('zensu.session-control/v1/session-id\0', 'utf8');
+const RUNTIME_DOMAIN = Buffer.from('zensu.session-control/v1/runtime-digest\0', 'utf8');
+const DARWIN_PROCESS_START_DOMAIN = Buffer.from('zensu.process-start/darwin-v1\0', 'utf8');
+const EXTERNAL_PROCESS_LOCK_DOMAIN = Buffer.from('zensu.external-process-lock/v1\0', 'utf8');
+const SESSION_KEY_RE = /^scv1_([a-f0-9]{64})$/;
+const HASH_RE = /^sha256:([a-f0-9]{64})$/;
+const HOSTS = new Set(['copilot']);
+const MAX_RUNTIME_FILES = 10000;
+const MAX_RUNTIME_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_RUNTIME_TOTAL_BYTES = 64 * 1024 * 1024;
+const MAX_JSON_BYTES = 1024 * 1024;
+const LOCK_STALE_MS = 30000;
+const EXTERNAL_LOCK_POLL_MS = 50;
+const EXTERNAL_LOCK_DEFAULT_ATTEMPTS = 200;
+const LOCK_TOKEN_RE = /^[a-f0-9]{48}$/;
+const LOCK_IDENTITY_RE = /^[a-z0-9._:-]{1,160}$/;
+const LOCK_OWNER_MAX_BYTES = 4096;
+const TRANSIENT_LOCK_SNAPSHOT_ERROR_RE = /^session-control-v1: (?:file identity changed while opening|file (?:path )?changed while reading|missing file): /;
+const DARWIN_PROCESS_START_RE = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([1-9]|[12][0-9]|3[01]) ([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9] [0-9]{4}$/;
+const WORKFLOW_RESERVED_FIELDS = new Set([
+  'schema',
+  'schema_version',
+  'session_id',
+  'session_id_hash',
+  'workflow_state',
+  'revision',
+  'last_event',
+  'updated_at',
+  'actor',
+]);
+
+function fail(message) {
+  throw new Error(`session-control-v1: ${message}`);
+}
+
+function requireText(value, label) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    fail(`${label} must be a non-empty string`);
+  }
+  return value;
+}
+
+function requireHost(host) {
+  requireText(host, 'host');
+  if (!HOSTS.has(host)) {
+    fail(`unsupported host "${host}"`);
+  }
+  return host;
+}
+
+function sessionIdHash(sessionId) {
+  const value = requireText(sessionId, 'session id');
+  const keyMatch = SESSION_KEY_RE.exec(value);
+  if (keyMatch) {
+    return `sha256:${keyMatch[1]}`;
+  }
+  const hashMatch = HASH_RE.exec(value);
+  if (hashMatch) {
+    return value;
+  }
+  const digest = crypto.createHash('sha256').update(HASH_DOMAIN).update(value, 'utf8').digest('hex');
+  return `sha256:${digest}`;
+}
+
+function sessionKey(sessionId) {
+  const value = requireText(sessionId, 'session id');
+  const keyMatch = SESSION_KEY_RE.exec(value);
+  if (keyMatch) {
+    return value;
+  }
+  return `scv1_${sessionIdHash(value).slice('sha256:'.length)}`;
+}
+
+function canonicalDirectory(input, label) {
+  const value = requireText(input, label);
+  if (/[\0\r\n]/.test(value)) {
+    fail(`${label} is unsafe`);
+  }
+  let canonical;
+  try {
+    canonical = fs.realpathSync.native(value);
+  } catch {
+    fail(`${label} does not exist`);
+  }
+  const stat = fs.lstatSync(canonical);
+  if (stat.isSymbolicLink() || !stat.isDirectory()) {
+    fail(`${label} must be a real directory`);
+  }
+  return canonical;
+}
+
+// Control characters and DEL. canonicalDirectory rejects a SUBSET of these
+// (`[\0\r\n]`) on the strict path; the callers below need the wider class,
+// because their value never passes through realpath and reaches a terminal and
+// the model's context as-is — the /zensu-doctor report renders it verbatim.
+const UNSAFE_PATH_CHARACTERS = new RegExp('[\\u0000-\\u001f\\u007f]');
+
+// The shape half of canonicalDirectory's job, for the callers that must NOT
+// require the directory to exist. There are THREE, and they arrived from two
+// branches: the orphaned-project-root reader and the pruned-plugin-root reader
+// each waive that function's existence check for one recorded root, and
+// buildContext re-mints a record around a value one of them returned.
+//
+// It is NOT a strict subset of canonicalDirectory, and saying so would mislead:
+// it rejects a WIDER control-character class, and it adds an absoluteness and a
+// normalization check that the canonicalizing path gets for free from realpath.
+// Those two are what keep a waived branch from admitting a spelling no
+// canonical comparison will ever match — `/a/b/../c` passes `isAbsolute` alone.
+// Kept as one function rather than inline copies because a shape check guarding
+// a value printed into a terminal is exactly the rule that rots when written
+// twice.
+function requireAbsentDirectoryPath(input, label) {
+  const value = requireText(input, label);
+  if (UNSAFE_PATH_CHARACTERS.test(value)) {
+    fail(`${label} is unsafe`);
+  }
+  if (!path.isAbsolute(value)) {
+    fail(`${label} must be absolute`);
+  }
+  if (path.resolve(value) !== value) {
+    fail(`${label} must be normalized`);
+  }
+  return value;
+}
+
+function isInside(base, candidate) {
+  const relative = path.relative(base, candidate);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+function ensureDescendantDirectory(baseInput, targetInput) {
+  const base = canonicalDirectory(baseInput, 'directory base');
+  const requestedBase = path.resolve(baseInput);
+  const requestedTarget = path.resolve(targetInput);
+  const target = isInside(requestedBase, requestedTarget)
+    ? path.join(base, path.relative(requestedBase, requestedTarget))
+    : requestedTarget;
+  if (!isInside(base, target)) {
+    fail('directory target escapes its trusted base');
+  }
+  const relative = path.relative(base, target);
+  let current = base;
+  if (relative === '') {
+    return current;
+  }
+  for (const part of relative.split(path.sep)) {
+    current = path.join(current, part);
+    if (!fs.existsSync(current)) {
+      try {
+        fs.mkdirSync(current, { mode: 0o700 });
+      } catch (error) {
+        if (error.code !== 'EEXIST') throw error;
+      }
+    }
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) {
+      fail(`symlink directory rejected: ${current}`);
+    }
+    if (!stat.isDirectory()) {
+      fail(`expected directory: ${current}`);
+    }
+  }
+  return current;
+}
+
+function sameFileIdentity(left, right) {
+  if (!left || !right) return false;
+  const inodeKnown = left.ino !== 0 && right.ino !== 0;
+  if (inodeKnown) return left.dev === right.dev && left.ino === right.ino;
+  return left.birthtimeMs === right.birthtimeMs && left.mode === right.mode;
+}
+
+function readRegularFileSnapshot(
+  file,
+  maxBytes = MAX_JSON_BYTES,
+  missingAllowed = false,
+  allowMultipleLinks = false,
+) {
+  const noFollow = process.platform !== 'win32' && Number.isInteger(fs.constants.O_NOFOLLOW)
+    ? fs.constants.O_NOFOLLOW : 0;
+  // O_NONBLOCK is what keeps this reader from BLOCKING, which is a different
+  // hazard from the symlink one O_NOFOLLOW covers. `open(2)` on a FIFO with no
+  // writer waits forever, and the `isFile()` rejection below cannot help: it runs
+  // on the DESCRIPTOR, so it is reached only once the open has already returned.
+  // Every caller reads a path under `<project>/.zensu/state/`, which is writable
+  // from inside a session and covered by no gate while a chain is inactive, so a
+  // planted FIFO is reachable — and one caller, the zen-mode userPromptSubmitted
+  // hook, reads on EVERY prompt, which turns a blocked open into a session with
+  // no way out: the prompt never reaches the model, so the off-phrase escape is
+  // never evaluated either.
+  //
+  // POSIX LEAVES the flag UNSPECIFIED for a regular file — it specifies
+  // `O_NONBLOCK` for FIFOs and for block and character special files, and says
+  // nothing about the rest. "Unspecified" is not "no effect", and the stronger
+  // wording stood here as the reason this change was safe for the shared
+  // reader's other callers. What is true, and what the safety actually rests on:
+  // Linux and macOS ignore it on a regular file, so no legitimate caller changes
+  // behaviour on the supported hosts; on a FIFO or device the open returns
+  // immediately and the existing `fstat` `isFile()` check rejects it. The read
+  // loop below carries an `EAGAIN` arm so the residual — a filesystem where the
+  // unspecified behaviour does bite — is handled rather than assumed away.
+  // Guarded the same way as O_NOFOLLOW because the constant is not defined on
+  // every build; where it is absent `nonBlock` is 0 and this class stays open.
+  const nonBlock = process.platform !== 'win32' && Number.isInteger(fs.constants.O_NONBLOCK)
+    ? fs.constants.O_NONBLOCK : 0;
+  let descriptor;
+  let pathBefore = null;
+  const parent = path.dirname(file);
+  const parentBefore = fs.lstatSync(parent);
+  if (parentBefore.isSymbolicLink() || !parentBefore.isDirectory()) {
+    fail(`unsafe parent directory: ${parent}`);
+  }
+  try {
+    // O_NOFOLLOW is not available on every Windows Node build. In that case,
+    // bracket open() with lstat/fstat identity checks instead of trusting the
+    // path lookup performed before the descriptor exists.
+    if (noFollow === 0) {
+      try {
+        pathBefore = fs.lstatSync(file);
+      } catch (error) {
+        if (missingAllowed && error.code === 'ENOENT') return null;
+        if (error.code === 'ENOENT') fail(`missing file: ${file}`);
+        throw error;
+      }
+      if (pathBefore.isSymbolicLink()) fail(`symlink file rejected: ${file}`);
+    }
+    try {
+      descriptor = fs.openSync(file, fs.constants.O_RDONLY | noFollow | nonBlock);
+    } catch (error) {
+      if (missingAllowed && error.code === 'ENOENT') return null;
+      if (error.code === 'ELOOP' || error.code === 'EMLINK') {
+        fail(`symlink file rejected: ${file}`);
+      }
+      if (error.code === 'ENOENT') fail(`missing file: ${file}`);
+      throw error;
+    }
+
+    const before = fs.fstatSync(descriptor);
+    if (!before.isFile()) fail(`not a regular file: ${file}`);
+    if (!allowMultipleLinks && before.nlink > 1) fail(`multi-linked file rejected: ${file}`);
+    if (before.size > maxBytes) fail(`file exceeds size limit: ${file}`);
+    if (pathBefore && !sameFileIdentity(pathBefore, before)) {
+      fail(`file identity changed while opening: ${file}`);
+    }
+
+    const data = Buffer.alloc(before.size);
+    let offset = 0;
+    // AN EAGAIN ARM, so the non-blocking open's guarantee is true by
+    // construction rather than by platform behaviour. The descriptor is already
+    // gated behind the `isFile()` check above, so a FIFO or device never reaches
+    // this loop and `EAGAIN` is unreachable on the hosts this ships to. It is
+    // still handled, because the flag is what makes that true: on a filesystem
+    // where the unspecified regular-file behaviour does bite — historically
+    // Linux mandatory locking, some network and FUSE mounts — `readSync` throws
+    // rather than returning a short count, and an unhandled throw here would
+    // surface as a corrupt-document failure. The retry budget is bounded so a
+    // descriptor that never becomes readable fails loudly instead of spinning.
+    // PACED, not spun. A bare `continue` spent all 64 retries in microseconds, so
+    // the budget bounded the LOOP without ever waiting for the condition it
+    // exists to outlast — a descriptor that is momentarily unreadable is
+    // unreadable for milliseconds, not nanoseconds. `sleep` is this module's ONE
+    // blocking pause - `setTimeout` needs an event loop this synchronous call
+    // never returns to - and it is asked for the BEST-EFFORT contract here: the
+    // retry budget terminates without the pause, so a host that cannot wait costs
+    // latency and nothing else, whereas the lock poll sharing that primitive must
+    // actually wait and keeps the strict default. The worst case is bounded at
+    // 64 ms of wall clock, paid only on a host where the arm is reachable at all.
+    let againBudget = 64;
+    while (offset < data.length) {
+      let read;
+      try {
+        read = fs.readSync(descriptor, data, offset, data.length - offset, null);
+      } catch (error) {
+        if ((error.code === 'EAGAIN' || error.code === 'EWOULDBLOCK') && againBudget > 0) {
+          againBudget -= 1;
+          sleep(1, { bestEffort: true });
+          continue;
+        }
+        throw error;
+      }
+      if (read === 0) fail(`file changed while reading: ${file}`);
+      offset += read;
+    }
+
+    const after = fs.fstatSync(descriptor);
+    if (
+      !sameFileIdentity(before, after)
+      || before.size !== after.size
+      || before.mtimeMs !== after.mtimeMs
+      || before.ctimeMs !== after.ctimeMs
+    ) {
+      fail(`file changed while reading: ${file}`);
+    }
+    let pathAfter;
+    try {
+      pathAfter = fs.lstatSync(file);
+    } catch (error) {
+      if (error.code === 'ENOENT') fail(`file path changed while reading: ${file}`);
+      throw error;
+    }
+    if (pathAfter.isSymbolicLink() || !sameFileIdentity(after, pathAfter)) {
+      fail(`file path changed while reading: ${file}`);
+    }
+    const parentAfter = fs.lstatSync(parent);
+    if (
+      parentAfter.isSymbolicLink()
+      || !parentAfter.isDirectory()
+      || !sameFileIdentity(parentBefore, parentAfter)
+    ) {
+      fail(`parent directory changed while reading: ${file}`);
+    }
+    return { data, stat: after };
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+  }
+}
+
+function readRegularFile(file, maxBytes = MAX_JSON_BYTES) {
+  return readRegularFileSnapshot(file, maxBytes).data;
+}
+
+function readJson(file) {
+  const data = readRegularFile(file);
+  try {
+    return JSON.parse(data.toString('utf8'));
+  } catch {
+    fail(`invalid JSON: ${file}`);
+  }
+}
+
+function manifestPath(pluginRoot, host) {
+  requireHost(host);
+  const manifestDirectory = '.';
+  return path.join(pluginRoot, manifestDirectory, 'plugin.json');
+}
+
+function pluginMetadata(pluginRootInput, host) {
+  const pluginRoot = canonicalDirectory(pluginRootInput, 'plugin root');
+  const file = manifestPath(pluginRoot, host);
+  if (!fs.existsSync(file)) {
+    fail(`host-specific plugin manifest is missing: ${file}`);
+  }
+  const manifest = readJson(file);
+  if (manifest.name !== 'zensu') {
+    fail('plugin manifest must identify zensu');
+  }
+  requireText(manifest.version, 'plugin version');
+  return { pluginRoot, manifest, manifestFile: file };
+}
+
+// A record minted by an EARLIER installation of this same plugin may still be
+// served by the running one when the two declare a compatible lineage. That is
+// the ordinary consequence of a plugin update landing while a session is live:
+// the record stays valid in every respect and only the version directory it
+// names is no longer the executing one. Before this predicate existed such a
+// session denied every tool for the rest of its life, including the read-only
+// diagnostic that reports the state.
+//
+// The axis is semver with the one clause the specification leaves to the
+// publisher: while major is 0 the MINOR number is the breaking axis, so 0.17.1
+// and 0.17.2 share a lineage and 0.17.x and 0.18.0 do not. Without that clause
+// "same major" would make 0.9.2 compatible with 0.17.2. A downgrade is never
+// compatible — only the newer tree can be expected to understand the older
+// one's state, never the reverse — so the executing version must be at least
+// the recorded one. `AGENTS.md` "Runtime Lineage" states which changes force
+// the breaking bump; this function cannot verify that policy was followed, it
+// only encodes what the version numbers then mean.
+//
+// Components are bounded at nine digits so the numeric comparison below stays
+// exact. An unbounded run would let two distinct spellings above 2^53 collapse
+// to one Number and tie, which the loop reads as compatible — accepting a
+// downgrade. No real manifest reaches that magnitude; the bound is here because
+// the predicate is exported cross-host and its input is a file on disk.
+const RUNTIME_VERSION_RE = /^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})$/;
+
+function parseRuntimeVersion(value) {
+  if (typeof value !== 'string') return null;
+  const match = RUNTIME_VERSION_RE.exec(value);
+  return match === null ? null : [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function runtimeLineageCompatible(recordedVersion, executingVersion) {
+  const recorded = parseRuntimeVersion(recordedVersion);
+  const executing = parseRuntimeVersion(executingVersion);
+  if (recorded === null || executing === null) return false;
+  if (recorded[0] !== executing[0]) return false;
+  if (recorded[0] === 0 && recorded[1] !== executing[1]) return false;
+  for (let index = 0; index < recorded.length; index += 1) {
+    if (executing[index] !== recorded[index]) return executing[index] > recorded[index];
+  }
+  return true;
+}
+
+// The single identity a compatible upgrade may change is the version DIRECTORY.
+// Three conditions, all required, and none of them waives an integrity check:
+//
+//   - The two roots are siblings under one parent. Every marketplace install of
+//     the same plugin lands beside the versions it replaces, while a working
+//     checkout loaded through a development flag lives in a repository and is
+//     never a sibling of a cache entry — so it cannot adopt an installed
+//     session's record no matter which version its manifest declares. That
+//     bound is structural rather than a claim about any host's environment.
+//   - The executing manifest parses and shares the recorded lineage.
+//   - The RECORDED runtime is still measured exactly as before: readContext
+//     computes the digest against the recorded root and requires that root's
+//     manifest to still declare the recorded version. This predicate decides
+//     only WHICH runtime may serve a record, never whether the record is sound.
+//
+// The cost is stated plainly in `docs/session-control.md`: the pin weakens from
+// "the measured code is the enforcing code" to "the enforcing code shares a
+// declared-compatible lineage with the measured code".
+//
+// It is the site-level decision every root comparison shares, so the five call
+// sites hold ONE implementation between them instead of five hand-copies.
+//
+// This is a PREDICATE and never throws. An executing root with no readable
+// zensu manifest is not a lineage claim — it is a root that cannot be
+// identified at all — so it answers false and each call site denies with its
+// OWN message. Letting pluginMetadata's exception escape instead would replace
+// every site's deny reason with a manifest error and force all five to wrap the
+// call; the verdict would be the same, the diagnosis would not. The shape guards
+// make "never throws" true for ANY input, not just a validated context: this
+// seam is exported cross-host, so a port may hand it an object it assembled
+// itself, in a path where an exception is not the documented outcome.
+function servesRecordedRuntime(context, executedPluginRoot, host) {
+  if (!context || typeof context !== 'object' || Array.isArray(context)) return false;
+  if (typeof context.plugin_root !== 'string') return false;
+  if (context.plugin_root === executedPluginRoot) return true;
+  if (typeof executedPluginRoot !== 'string') return false;
+  if (path.dirname(context.plugin_root) !== path.dirname(executedPluginRoot)) return false;
+  let executingVersion;
+  try {
+    executingVersion = pluginMetadata(executedPluginRoot, host).manifest.version;
+  } catch {
+    return false;
+  }
+  return runtimeLineageCompatible(context.plugin_version, executingVersion);
+}
+
+// The version a root DECLARES, or null when it declares nothing readable. It
+// exists so a caller that has already been refused by servesRecordedRuntime can
+// NAME the two versions instead of reporting an anonymous disagreement — the
+// whole difference between "start a fresh session" and "0.17.2 recorded, 0.18.0
+// executing".
+//
+// TOTAL and never throws, for the same reason servesRecordedRuntime is a
+// predicate: every caller is already on a failure path, and an exception there
+// would replace a precise diagnosis with a manifest error. A null answer means
+// the root could not be identified at all, which callers report as such rather
+// than guessing a number.
+function executingPluginVersion(pluginRootInput, host) {
+  try {
+    return pluginMetadata(pluginRootInput, host).manifest.version;
+  } catch {
+    return null;
+  }
+}
+
+function localManifestEntry(pluginRoot, value, label) {
+  const raw = requireText(value, label)
+    .replace(/^\$\{(?:COPILOT_)?PLUGIN_ROOT\}/, pluginRoot);
+  const candidate = path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(pluginRoot, raw);
+  if (!isInside(pluginRoot, candidate)) {
+    fail(`${label} escapes plugin root`);
+  }
+  if (!fs.existsSync(candidate)) {
+    fail(`${label} is missing: ${candidate}`);
+  }
+  return candidate;
+}
+
+function manifestRuntimeEntries(pluginRoot, host, manifest) {
+  const entries = new Set([manifestPath(pluginRoot, host)]);
+  for (const directory of ['hooks', 'com.github.copilot', 'skills', 'docs', 'templates', 'harness']) {
+    const candidate = path.join(pluginRoot, directory);
+    if (fs.existsSync(candidate)) {
+      entries.add(candidate);
+    }
+  }
+  for (const file of ['README.md', 'CHANGELOG.md', 'LICENSE']) {
+    const candidate = path.join(pluginRoot, file);
+    if (fs.existsSync(candidate)) entries.add(candidate);
+  }
+
+  const addReferences = (value, label) => {
+    if (typeof value === 'string') {
+      entries.add(localManifestEntry(pluginRoot, value, label));
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => addReferences(entry, `${label}[${index}]`));
+    }
+  };
+  for (const field of ['hooks', 'agents', 'skills', 'mcpServers']) {
+    if (manifest[field] !== undefined) {
+      addReferences(manifest[field], `plugin manifest ${field}`);
+    }
+  }
+
+  if (manifest.mcpServers !== undefined) {
+    for (const relative of ['mcp-runtime/package.json', 'mcp-runtime/package-lock.json']) {
+      const candidate = path.join(pluginRoot, relative);
+      if (fs.existsSync(candidate)) entries.add(candidate);
+    }
+  }
+  const scripts = path.join(pluginRoot, 'scripts');
+  if (fs.existsSync(scripts)) entries.add(scripts);
+  return [...entries];
+}
+
+function collectRuntimeFiles(pluginRoot, host, manifest) {
+  const entries = manifestRuntimeEntries(pluginRoot, host, manifest);
+
+  const files = new Map();
+  const visit = (candidate) => {
+    const stat = fs.lstatSync(candidate);
+    if (stat.isSymbolicLink()) {
+      fail(`runtime symlink rejected: ${candidate}`);
+    }
+    if (stat.isFile()) {
+      if (stat.size > MAX_RUNTIME_FILE_BYTES) {
+        fail(`runtime file exceeds size limit: ${candidate}`);
+      }
+      const relative = path.relative(pluginRoot, candidate).split(path.sep).join('/');
+      files.set(relative, { file: candidate, size: stat.size });
+      if (files.size > MAX_RUNTIME_FILES) {
+        fail('runtime file count exceeds limit');
+      }
+      return;
+    }
+    if (!stat.isDirectory()) {
+      fail(`unsupported runtime entry: ${candidate}`);
+    }
+    const children = fs.readdirSync(candidate).sort();
+    for (const child of children) {
+      visit(path.join(candidate, child));
+    }
+  };
+
+  for (const entry of entries) {
+    visit(entry);
+  }
+  return [...files.values()].sort((left, right) => {
+    const a = path.relative(pluginRoot, left.file).split(path.sep).join('/');
+    const b = path.relative(pluginRoot, right.file).split(path.sep).join('/');
+    return a.localeCompare(b);
+  });
+}
+
+function computeRuntimeDigest(pluginRootInput, hostInput) {
+  const host = requireHost(hostInput);
+  const { pluginRoot, manifest } = pluginMetadata(pluginRootInput, host);
+  const files = collectRuntimeFiles(pluginRoot, host, manifest);
+  const digest = crypto.createHash('sha256').update(RUNTIME_DOMAIN);
+  let totalBytes = 0;
+  for (const entry of files) {
+    totalBytes += entry.size;
+    if (totalBytes > MAX_RUNTIME_TOTAL_BYTES) {
+      fail('runtime assets exceed total size limit');
+    }
+    const relative = path.relative(pluginRoot, entry.file).split(path.sep).join('/');
+    const content = readRegularFile(entry.file, MAX_RUNTIME_FILE_BYTES);
+    if (content.length !== entry.size) {
+      fail(`runtime file changed during digest: ${entry.file}`);
+    }
+    digest.update(String(Buffer.byteLength(relative)), 'utf8');
+    digest.update('\0');
+    digest.update(relative, 'utf8');
+    digest.update('\0');
+    digest.update(String(content.length), 'utf8');
+    digest.update('\0');
+    digest.update(content);
+    digest.update('\0');
+  }
+  return `sha256:${digest.digest('hex')}`;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+// The existence waiver is a SECOND PARAMETER, never a key of `options`, and that
+// is load-bearing rather than stylistic: `registerContext` forwards its caller's
+// whole options object into this function (`buildContext({ ...options, … })`),
+// so a waiver carried inside it could ride that spread into a FRESH record mint
+// — a path with no absence proof at all. Exactly the shape validateContext
+// already uses for its namesake, and for the same reason.
+//
+// It waives the SAME single check validateContext waives — whether the project
+// root still exists — and re-applies that function's shape half in its place, so
+// the only difference between the two paths is the existence test. It exists for
+// ONE caller, adoptContext, re-minting a record whose recorded worktree was
+// deleted: there is nothing to realpath, and refusing would leave that session
+// wedged with no write channel to repair itself. The emitted record shape is
+// unchanged — the value carried through is the one the previous record already
+// held, which was canonicalized when that record was minted.
+function buildContext(options, buildOptions) {
+  const host = requireHost(options.host);
+  const allowMissingProjectRoot = Boolean(buildOptions && buildOptions.allowMissingProjectRoot);
+  const projectRoot = allowMissingProjectRoot
+    ? requireAbsentDirectoryPath(options.projectRoot, 'project root')
+    : canonicalDirectory(options.projectRoot, 'project root');
+  const { pluginRoot, manifest } = pluginMetadata(options.pluginRoot, host);
+  const pluginData = canonicalDirectory(options.pluginData, 'plugin data');
+  const createdAt = options.createdAt || nowIso();
+  if (!Number.isFinite(Date.parse(createdAt))) {
+    fail('createdAt must be an ISO-compatible timestamp');
+  }
+  if (Object.prototype.hasOwnProperty.call(options, 'sourceRevision')
+      || Object.prototype.hasOwnProperty.call(options, 'sourceRevisionAuthority')) {
+    fail('source revision overrides are unsupported; source_revision is the runtime content digest');
+  }
+  // Compute the runtime identity exactly once. Session provenance is always
+  // content-addressed; Git identity belongs only in wrapper-owned evidence.
+  const runtimeDigest = computeRuntimeDigest(pluginRoot, host);
+
+  return {
+    schema: SCHEMA,
+    schema_version: SCHEMA_VERSION,
+    host,
+    session_id_hash: sessionIdHash(options.sessionId),
+    project_root: projectRoot,
+    plugin_root: pluginRoot,
+    plugin_data: pluginData,
+    plugin_version: manifest.version,
+    source_revision: runtimeDigest,
+    runtime_digest: runtimeDigest,
+    created_at: createdAt,
+    principal_profiles: {
+      main: 'main-v1',
+      reviewer: 'reviewer-readonly-v1',
+      evidence_worker: 'evidence-worker-v1',
+      host: 'host-profile-v1',
+    },
+  };
+}
+
+// `options.allowMissingProjectRoot` and `options.allowMissingPluginRoot` are NOT
+// symmetric, and the asymmetry is stated HERE because this is the block a caller
+// reads before opting in.
+//
+// `allowMissingProjectRoot` waives ONE check and nothing else: whether that
+// recorded root still exists on disk.
+//
+// `allowMissingPluginRoot` waives THREE, because readContextInternal reads the
+// same flag a SECOND time — the root's existence here, plus the runtime-digest
+// re-measure and the manifest-version match there. It CANNOT be narrowed: both of
+// those read the tree that is gone (computeRuntimeDigest and pluginMetadata are
+// handed context.plugin_root), so they have no input once the installation is
+// pruned. Splitting the flag in two would advertise a separation that does not
+// exist.
+//
+// State what that costs precisely, because it reads worse than it is: the waiver
+// drops a CONSISTENCY check, not a barrier. runtime_digest is a content hash of a
+// readable tree computed by an exported pure function — never a secret — so anyone
+// able to write the private records directory could always mint a record carrying
+// a correct digest for the executing tree. The barrier is that directory itself,
+// and every other bound still holds; readPrunedPluginRootContext enumerates them.
+//
+// Both default to off, so every caller that does not opt in keeps the strict
+// behaviour. Each has exactly one opt-in caller —
+// readOrphanedProjectRootContext and readPrunedPluginRootContext — which
+// separately PROVES the path is absent and re-applies the shape half through
+// requireAbsentDirectoryPath. Waiving the check does not mean the field is
+// unvalidated: the requireText loop below still rejects a missing or blank value.
+//
+// buildContext takes a waiver named `allowMissingProjectRoot` too, for the
+// adoption re-mint. It is a SEPARATE parameter on a different function and the
+// two never reach each other; the name is shared because the thing waived is.
+function validateContext(context, expectedHost, options) {
+  const allowMissingProjectRoot = Boolean(options && options.allowMissingProjectRoot);
+  const allowMissingPluginRoot = Boolean(options && options.allowMissingPluginRoot);
+  if (!context || typeof context !== 'object' || Array.isArray(context)) {
+    fail('context record must be an object');
+  }
+  if (context.schema !== SCHEMA || context.schema_version !== SCHEMA_VERSION) {
+    fail('context schema mismatch');
+  }
+  requireHost(context.host);
+  if (expectedHost && context.host !== expectedHost) {
+    fail('context host mismatch');
+  }
+  if (!HASH_RE.test(context.session_id_hash || '')) {
+    fail('context session hash is invalid');
+  }
+  if (
+    !context.principal_profiles
+    || context.principal_profiles.main !== 'main-v1'
+    || context.principal_profiles.reviewer !== 'reviewer-readonly-v1'
+    || context.principal_profiles.evidence_worker !== 'evidence-worker-v1'
+    || context.principal_profiles.host !== 'host-profile-v1'
+  ) {
+    fail('context principal profiles are invalid');
+  }
+  for (const field of ['project_root', 'plugin_root', 'plugin_data', 'plugin_version', 'runtime_digest', 'created_at', 'source_revision']) {
+    requireText(context[field], `context ${field}`);
+  }
+  if (!allowMissingProjectRoot) {
+    canonicalDirectory(context.project_root, 'context project root');
+  }
+  if (!allowMissingPluginRoot) {
+    canonicalDirectory(context.plugin_root, 'context plugin root');
+  }
+  canonicalDirectory(context.plugin_data, 'context plugin data');
+  if (!HASH_RE.test(context.runtime_digest)) {
+    fail('context runtime digest is invalid');
+  }
+  if (!HASH_RE.test(context.source_revision) || context.source_revision !== context.runtime_digest) {
+    fail('context source revision must equal its runtime content digest');
+  }
+  return context;
+}
+
+function contextRecordFile(recordsDir, sessionId) {
+  return path.join(recordsDir, `${sessionKey(sessionId)}.json`);
+}
+
+// THE ONE PAUSE PRIMITIVE, and the fault contract is the CALLER'S to state. A
+// second copy of this function shipped beside it for one release, performing the
+// identical `Atomics.wait` while SWALLOWING a throw — so the module held two
+// opposite contracts for one mechanism and nothing said which was right. On a
+// build without `SharedArrayBuffer`, or one that refuses `Atomics.wait` on the
+// main thread, the two would have diverged exactly where it matters: the lock
+// poll would throw while the reader spun.
+//
+// The DEFAULT is strict, because that is what a poll that must actually wait
+// needs — silently not waiting there would burn the CPU and break the lock's own
+// timing, which is worse than a loud failure. `bestEffort` is opt-in for a caller
+// whose bound terminates without the pause: the EAGAIN retry is bounded at 64
+// iterations either way, so for it a missing pause costs latency and nothing else.
+function sleep(milliseconds, options) {
+  const bestEffort = !!(options && options.bestEffort);
+  try {
+    const buffer = new SharedArrayBuffer(4);
+    Atomics.wait(new Int32Array(buffer), 0, 0, milliseconds);
+  } catch (error) {
+    if (!bestEffort) throw error;
+  }
+}
+
+function linuxProcessStartTicks(pid) {
+  const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+  const commandEnd = stat.lastIndexOf(')');
+  if (commandEnd < 0) return null;
+  const fields = stat.slice(commandEnd + 2).trim().split(/\s+/);
+  const startTicks = fields[19];
+  if (!startTicks || !/^\d+$/.test(startTicks)) return null;
+  return startTicks;
+}
+
+function darwinProcessStartText(pid) {
+  const started = childProcess.execFileSync('/bin/ps', ['-p', String(pid), '-o', 'lstart='], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    timeout: 1000,
+    env: {
+      PATH: '/usr/bin:/bin',
+      LC_ALL: 'C',
+      LANG: 'C',
+      TZ: 'UTC',
+    },
+  }).trim().replace(/\s+/g, ' ');
+  return DARWIN_PROCESS_START_RE.test(started) ? started : null;
+}
+
+function processStartIdentity(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return null;
+  try {
+    if (process.platform === 'linux') {
+      const startTicks = linuxProcessStartTicks(pid);
+      if (!startTicks) return null;
+      let bootId = 'unknown-boot';
+      try {
+        bootId = fs.readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim();
+      } catch {
+        // startTicks is still stronger than PID-only ownership on Linux.
+      }
+      const identity = `linux:${bootId}:${startTicks}`;
+      return LOCK_IDENTITY_RE.test(identity) ? identity : null;
+    }
+    if (process.platform === 'darwin') {
+      const started = darwinProcessStartText(pid);
+      if (!started) return null;
+      const digest = crypto.createHash('sha256')
+        .update(DARWIN_PROCESS_START_DOMAIN)
+        .update(started, 'utf8')
+        .digest('hex');
+      return `darwin:${digest}`;
+    }
+  } catch {
+    // A platform or permission that cannot expose process start identity falls
+    // back to conservative PID liveness. It never treats uncertainty as dead.
+  }
+  return null;
+}
+
+let ownProcessStartIdentity;
+function currentProcessStartIdentity() {
+  if (ownProcessStartIdentity === undefined) {
+    ownProcessStartIdentity = processStartIdentity(process.pid) || null;
+  }
+  return ownProcessStartIdentity;
+}
+
+const LINUX_USER_HZ = 100;
+const DARWIN_PROCESS_START_FIELDS_RE = /^[A-Z][a-z]{2} ([A-Z][a-z]{2}) ([0-9]{1,2}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) ([0-9]{4})$/;
+const DARWIN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WIN32_PROCESS_START_TIMEOUT_MS = 5000;
+const WIN32_FILETIME_TICKS_PER_MS = 10000n;
+const WIN32_FILETIME_UNIX_EPOCH_MS = 11644473600000n;
+const OWNER_START_SKEW_MS = 1000;
+const OWNER_START_PROBE_INTERVAL_MS = 2000;
+const OWNER_START_PROBE_LIMIT = 256;
+const HOLDER_MARKER_EXCLUSIVE_OPEN = 0x10000000;
+const HOLDER_MARKER_UNLINK_ATTEMPTS = 5;
+const HOLDER_MARKER_UNLINK_RETRY_MS = 10;
+const HOLDER_MARKER_UNLINK_RETRY_CODES = new Set(['EBUSY', 'EPERM', 'EACCES']);
+
+function linuxBootTimeMs() {
+  const match = /^btime ([0-9]{1,15})$/m.exec(fs.readFileSync('/proc/stat', 'utf8'));
+  return match ? Number(match[1]) * 1000 : null;
+}
+
+function darwinProcessStartMs(started) {
+  const match = DARWIN_PROCESS_START_FIELDS_RE.exec(started);
+  if (!match) return null;
+  const month = DARWIN_MONTHS.indexOf(match[1]);
+  if (month < 0) return null;
+  const startedMs = Date.UTC(
+    Number(match[6]),
+    month,
+    Number(match[2]),
+    Number(match[3]),
+    Number(match[4]),
+    Number(match[5]),
+  );
+  return Number.isFinite(startedMs) ? startedMs : null;
+}
+
+function win32ProcessStartMs(pid) {
+  const configuredRoot = process.env.SystemRoot;
+  const root = configuredRoot && path.win32.isAbsolute(configuredRoot) ? configuredRoot : 'C:\\Windows';
+  const powershellDirectory = path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0');
+  const program = [
+    "$ProgressPreference='SilentlyContinue'",
+    "$PSModuleAutoLoadingPreference='None'",
+    `try { [System.Diagnostics.Process]::GetProcessById(${pid}).StartTime.ToFileTimeUtc() }`,
+    'catch {',
+    'Import-Module CimCmdlets -ErrorAction agentStop',
+    `(Get-CimInstance -Query 'SELECT CreationDate FROM Win32_Process WHERE ProcessId = ${pid}' -ErrorAction agentStop).CreationDate.ToFileTimeUtc()`,
+    '}',
+  ].join('\n');
+  const output = childProcess.execFileSync(
+    path.win32.join(powershellDirectory, 'powershell.exe'),
+    ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(program, 'utf16le').toString('base64')],
+    {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: WIN32_PROCESS_START_TIMEOUT_MS,
+      windowsHide: true,
+      env: {
+        SystemRoot: root,
+        windir: root,
+        SystemDrive: path.win32.parse(root).root.replace(/\\+$/, ''),
+        ComSpec: path.win32.join(root, 'System32', 'cmd.exe'),
+        PATH: [
+          path.win32.join(root, 'System32'),
+          root,
+          path.win32.join(root, 'System32', 'Wbem'),
+          powershellDirectory,
+        ].join(';'),
+        PSModulePath: path.win32.join(powershellDirectory, 'Modules'),
+        PATHEXT: '.COM;.EXE;.BAT;.CMD',
+        TEMP: process.env.TEMP || path.win32.join(root, 'Temp'),
+        TMP: process.env.TMP || path.win32.join(root, 'Temp'),
+        LOCALAPPDATA: process.env.LOCALAPPDATA || '',
+        APPDATA: process.env.APPDATA || '',
+        USERPROFILE: process.env.USERPROFILE || '',
+        HOMEDRIVE: process.env.HOMEDRIVE || '',
+        HOMEPATH: process.env.HOMEPATH || '',
+      },
+    },
+  );
+  const lines = String(output).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const last = lines.length ? lines[lines.length - 1] : '';
+  if (!/^[0-9]{1,20}$/.test(last)) return null;
+  const startedMs = Number(BigInt(last) / WIN32_FILETIME_TICKS_PER_MS - WIN32_FILETIME_UNIX_EPOCH_MS);
+  return Number.isSafeInteger(startedMs) && startedMs > 0 ? startedMs : null;
+}
+
+function processStartLowerBoundMs(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return null;
+  try {
+    if (process.platform === 'linux') {
+      const startTicks = linuxProcessStartTicks(pid);
+      const bootMs = linuxBootTimeMs();
+      if (!startTicks || bootMs === null) return null;
+      return bootMs + Number(startTicks) * (1000 / LINUX_USER_HZ);
+    }
+    if (process.platform === 'darwin') {
+      const started = darwinProcessStartText(pid);
+      return started ? darwinProcessStartMs(started) : null;
+    }
+    if (process.platform === 'win32') return win32ProcessStartMs(pid);
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+const ownerStartProbes = new Map();
+
+function liveOwnerStartedAfterRecord(owner) {
+  const recordedAt = Date.parse(owner.created_at);
+  if (!Number.isFinite(recordedAt) || Date.now() - recordedAt <= OWNER_START_SKEW_MS) return false;
+  const key = `${owner.pid}:${owner.token}`;
+  const previous = ownerStartProbes.get(key);
+  if (previous && (previous.replaced || Date.now() - previous.at < OWNER_START_PROBE_INTERVAL_MS)) {
+    return previous.replaced;
+  }
+  const started = processStartLowerBoundMs(owner.pid);
+  const replaced = started !== null && started > recordedAt + OWNER_START_SKEW_MS;
+  if (ownerStartProbes.size >= OWNER_START_PROBE_LIMIT) ownerStartProbes.clear();
+  ownerStartProbes.set(key, { replaced, at: Date.now() });
+  return replaced;
+}
+
+const heldHolderMarkers = new Map();
+
+function holderMarkersApply() {
+  return process.platform === 'win32';
+}
+
+function holderMarkerPath(file, token) {
+  return path.join(path.dirname(file), `.${path.basename(file)}.${token}.marker`);
+}
+
+function holderMarkerNameFree(marker) {
+  try {
+    fs.unlinkSync(marker);
+  } catch (error) {
+    return error.code === 'ENOENT';
+  }
+  return true;
+}
+
+function holderMarkerExclusive(marker) {
+  let probe;
+  try {
+    probe = fs.openSync(marker, 'r');
+  } catch (error) {
+    return error.code === 'EBUSY';
+  }
+  try {
+    fs.closeSync(probe);
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function openHolderMarker(file, token) {
+  const marker = holderMarkerPath(file, token);
+  let descriptor;
+  try {
+    descriptor = fs.openSync(
+      marker,
+      fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_EXCL | HOLDER_MARKER_EXCLUSIVE_OPEN,
+      0o600,
+    );
+  } catch (error) {
+    if (error.code === 'EEXIST') return false;
+    return holderMarkerNameFree(marker);
+  }
+  if (holderMarkerExclusive(marker)) {
+    heldHolderMarkers.set(token, descriptor);
+    return true;
+  }
+  fs.closeSync(descriptor);
+  return holderMarkerNameFree(marker);
+}
+
+function closeHolderMarker(token) {
+  const descriptor = heldHolderMarkers.get(token);
+  if (descriptor === undefined) return false;
+  heldHolderMarkers.delete(token);
+  try {
+    fs.closeSync(descriptor);
+  } catch {
+    return true;
+  }
+  return true;
+}
+
+function removeHolderMarker(file, token) {
+  if (!holderMarkersApply()) return;
+  const marker = holderMarkerPath(file, token);
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      fs.unlinkSync(marker);
+      return;
+    } catch (error) {
+      if (!HOLDER_MARKER_UNLINK_RETRY_CODES.has(error.code)) return;
+      if (attempt >= HOLDER_MARKER_UNLINK_ATTEMPTS) return;
+    }
+    sleep(HOLDER_MARKER_UNLINK_RETRY_MS, { bestEffort: true });
+  }
+}
+
+function retireHolderMarker(file, token) {
+  closeHolderMarker(token);
+  removeHolderMarker(file, token);
+}
+
+function abandonHolderMarker(file, token) {
+  if (!closeHolderMarker(token)) return;
+  let current;
+  try {
+    current = lockOwner(file);
+  } catch {
+    return;
+  }
+  if (current === null && fs.existsSync(file)) return;
+  if (current && current.owner && current.owner.token === token) return;
+  removeHolderMarker(file, token);
+}
+
+function holderMarkerState(file, owner) {
+  if (!holderMarkersApply() || typeof file !== 'string') return 'not-applicable';
+  let descriptor;
+  try {
+    descriptor = fs.openSync(holderMarkerPath(file, owner.token), 'r');
+  } catch (error) {
+    if (error.code === 'EBUSY') return 'held';
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return 'absent';
+    return 'unreadable';
+  }
+  let released = false;
+  try {
+    const stat = fs.fstatSync(descriptor);
+    released = stat.isFile() && stat.size === 0 && stat.nlink === 1;
+  } catch {
+    released = false;
+  }
+  try {
+    fs.closeSync(descriptor);
+  } catch {
+    return 'unreadable';
+  }
+  return released ? 'released' : 'unreadable';
+}
+
+function lockRecordCreatedAt() {
+  return new Date(Math.max(Date.now(), Math.ceil(performance.timeOrigin))).toISOString();
+}
+
+function lockOwner(file) {
+  let snapshot = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      snapshot = readRegularFileSnapshot(file, LOCK_OWNER_MAX_BYTES, true, true);
+      break;
+    } catch (error) {
+      if (!TRANSIENT_LOCK_SNAPSHOT_ERROR_RE.test(error.message)) throw error;
+      try {
+        fs.lstatSync(file);
+      } catch (statError) {
+        if (statError.code === 'ENOENT') return null;
+        throw statError;
+      }
+    }
+  }
+  if (!snapshot) {
+    // Lock artifacts are intentionally short-lived. A generation that changes
+    // throughout all descriptor reads is treated as contended, never stale;
+    // createOwnedArtifact() still prevents entry while its path exists.
+    return null;
+  }
+  let owner = null;
+  try {
+    owner = JSON.parse(snapshot.data.toString('utf8'));
+  } catch {
+    // Corrupt artifacts fail closed while fresh and can only be reclaimed
+    // after the stale threshold using inode identity below.
+  }
+  if (
+    !owner
+    || !Number.isSafeInteger(owner.pid)
+    || owner.pid <= 0
+    || typeof owner.token !== 'string'
+    || !LOCK_TOKEN_RE.test(owner.token)
+    || (
+      owner.release_token_digest !== undefined
+      && (
+        typeof owner.release_token_digest !== 'string'
+        || !HASH_RE.test(owner.release_token_digest)
+      )
+    )
+    || !Number.isFinite(Date.parse(owner.created_at || ''))
+    || (
+      owner.process_start_identity !== undefined
+      && owner.process_start_identity !== null
+      && (
+        typeof owner.process_start_identity !== 'string'
+        || !LOCK_IDENTITY_RE.test(owner.process_start_identity)
+      )
+    )
+  ) owner = null;
+  return { stat: snapshot.stat, owner, file };
+}
+
+function processIsAlive(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+}
+
+function sameArtifact(left, right) {
+  if (!left || !right) return false;
+  if (!sameFileIdentity(left.stat, right.stat)) return false;
+  if (left.owner && right.owner && left.owner.token !== right.owner.token) return false;
+  if (Boolean(left.owner) !== Boolean(right.owner)) return false;
+  return left.stat.size === right.stat.size;
+}
+
+function removeArtifactIfSame(file, snapshot) {
+  let current;
+  try {
+    current = lockOwner(file);
+  } catch {
+    return false;
+  }
+  if (!sameArtifact(current, snapshot)) return false;
+  const quarantine = path.join(
+    path.dirname(file),
+    `.${path.basename(file)}.${process.pid}.${crypto.randomBytes(24).toString('hex')}.quarantine`,
+  );
+  try {
+    fs.renameSync(file, quarantine);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    return false;
+  }
+  const quarantined = lockOwner(quarantine);
+  if (!sameArtifact(quarantined, snapshot)) {
+    // rename() may have moved a replacement that won after the first identity
+    // check. Restore it with a no-clobber hard link and never delete it.
+    try {
+      fs.linkSync(quarantine, file);
+      fs.unlinkSync(quarantine);
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      fail('lock replacement race could not be restored safely');
+    }
+    return false;
+  }
+  fs.unlinkSync(quarantine);
+  if (snapshot.owner) retireHolderMarker(file, snapshot.owner.token);
+  return true;
+}
+
+function assertDirectoryIdentity(directory, expected, label = 'lock directory') {
+  if (!expected) return;
+  let actual;
+  try {
+    actual = fs.lstatSync(directory);
+  } catch {
+    fail(`${label} identity changed`);
+  }
+  if (actual.isSymbolicLink() || !actual.isDirectory() || !sameFileIdentity(actual, expected)) {
+    fail(`${label} identity changed`);
+  }
+}
+
+function createOwnedArtifact(
+  file,
+  kind,
+  ownerOverride = null,
+  expectedDirectory = null,
+  tokenSink = null,
+) {
+  const directory = path.dirname(file);
+  const token = crypto.randomBytes(24).toString('hex');
+  const temporary = path.join(directory, `.${path.basename(file)}.${process.pid}.${token}.candidate`);
+  const ownerPid = ownerOverride ? ownerOverride.pid : process.pid;
+  const ownerIdentity = ownerOverride
+    ? ownerOverride.processStartIdentity
+    : currentProcessStartIdentity();
+  const releaseTokenDigest = ownerOverride ? (ownerOverride.releaseTokenDigest ?? null) : null;
+  if (!Number.isSafeInteger(ownerPid) || ownerPid <= 0) fail('lock owner pid is invalid');
+  if (
+    ownerIdentity !== null
+    && (typeof ownerIdentity !== 'string' || !LOCK_IDENTITY_RE.test(ownerIdentity))
+  ) {
+    fail('lock owner process identity is invalid');
+  }
+  if (releaseTokenDigest !== null && !HASH_RE.test(releaseTokenDigest)) {
+    fail('lock release capability digest is invalid');
+  }
+  const owner = {
+    pid: ownerPid,
+    token,
+    kind,
+    created_at: lockRecordCreatedAt(),
+    process_start_identity: ownerIdentity,
+  };
+  if (releaseTokenDigest !== null) owner.release_token_digest = releaseTokenDigest;
+  if (tokenSink !== null && typeof tokenSink !== 'function') {
+    fail('lock token sink must be a function');
+  }
+  let descriptor;
+  let temporaryCreated = false;
+  let linked = false;
+  let published = false;
+  let expectedArtifact = null;
+  try {
+    if (tokenSink) tokenSink(token);
+    assertDirectoryIdentity(directory, expectedDirectory);
+    descriptor = fs.openSync(temporary, 'wx', 0o600);
+    temporaryCreated = true;
+    assertDirectoryIdentity(directory, expectedDirectory);
+    fs.writeFileSync(descriptor, JSON.stringify(owner));
+    fs.fsyncSync(descriptor);
+    expectedArtifact = { stat: fs.fstatSync(descriptor), owner };
+    fs.closeSync(descriptor);
+    descriptor = undefined;
+    if (ownerPid === process.pid && holderMarkersApply() && !openHolderMarker(file, token)) {
+      return null;
+    }
+    assertDirectoryIdentity(directory, expectedDirectory);
+    fs.linkSync(temporary, file);
+    linked = true;
+    assertDirectoryIdentity(directory, expectedDirectory);
+    const snapshot = lockOwner(file);
+    if (!snapshot || !snapshot.owner || snapshot.owner.token !== token) {
+      fail('new lock identity could not be verified');
+    }
+    published = true;
+    return snapshot;
+  } catch (error) {
+    if (linked && expectedArtifact) {
+      removeArtifactIfSame(file, expectedArtifact);
+    }
+    if (error.code === 'EEXIST' && !linked) return null;
+    throw error;
+  } finally {
+    if (!published && heldHolderMarkers.has(token)) {
+      if (linked) abandonHolderMarker(file, token);
+      else retireHolderMarker(file, token);
+    }
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+    if (temporaryCreated) {
+      try {
+        fs.unlinkSync(temporary);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+    }
+  }
+}
+
+function artifactStaleness(snapshot) {
+  if (!snapshot) {
+    return { stale: false, alive: false, identity: null, startedAfterRecord: false, marker: 'not-applicable' };
+  }
+  if (!snapshot.owner) {
+    return {
+      stale: Date.now() - snapshot.stat.mtimeMs > LOCK_STALE_MS,
+      alive: false,
+      identity: null,
+      startedAfterRecord: false,
+      marker: 'not-applicable',
+    };
+  }
+  if (!processIsAlive(snapshot.owner.pid)) {
+    return { stale: true, alive: false, identity: null, startedAfterRecord: false, marker: 'not-applicable' };
+  }
+  const marker = holderMarkerState(snapshot.file, snapshot.owner);
+  if (marker === 'held' || marker === 'released') {
+    return { stale: marker === 'released', alive: true, identity: null, startedAfterRecord: false, marker };
+  }
+  if (snapshot.owner.process_start_identity) {
+    const actual = snapshot.owner.pid === process.pid
+      ? currentProcessStartIdentity()
+      : processStartIdentity(snapshot.owner.pid);
+    if (actual) {
+      return {
+        stale: actual !== snapshot.owner.process_start_identity,
+        alive: true,
+        identity: actual,
+        startedAfterRecord: false,
+        marker,
+      };
+    }
+  }
+  const startedAfterRecord = liveOwnerStartedAfterRecord(snapshot.owner);
+  return { stale: startedAfterRecord, alive: true, identity: null, startedAfterRecord, marker };
+}
+
+function artifactIsStale(snapshot) {
+  return artifactStaleness(snapshot).stale;
+}
+
+function reclaimStaleArtifact(file) {
+  const snapshot = lockOwner(file);
+  if (!artifactIsStale(snapshot)) return false;
+  return removeArtifactIfSame(file, snapshot);
+}
+
+function withRecoverySentinel(lockDirectory, key, callback, expectedDirectory = null) {
+  const recoveryFile = path.join(lockDirectory, `.${key}.recovery`);
+  let recovery = null;
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    assertDirectoryIdentity(lockDirectory, expectedDirectory);
+    if (fs.existsSync(recoveryFile)) reclaimStaleArtifact(recoveryFile);
+    recovery = createOwnedArtifact(recoveryFile, 'recovery', null, expectedDirectory);
+    if (recovery) break;
+    sleep(20);
+  }
+  if (!recovery) fail('timed out acquiring recovery sentinel');
+  try {
+    return callback();
+  } finally {
+    try {
+      if (!removeArtifactIfSame(recoveryFile, recovery)) {
+        fail('recovery sentinel ownership changed');
+      }
+    } finally {
+      abandonHolderMarker(recoveryFile, recovery.owner.token);
+    }
+  }
+}
+
+function recoverStaleLock(lockDirectory, key, lockFile, expectedDirectory = null) {
+  return withRecoverySentinel(lockDirectory, key, () => {
+    const current = lockOwner(lockFile);
+    if (artifactIsStale(current) && !removeArtifactIfSame(lockFile, current)) {
+      fail('stale lock identity changed during recovery');
+    }
+  }, expectedDirectory);
+}
+
+function releaseOwnedLock(lockDirectory, key, lockFile, acquired, expectedDirectory = null) {
+  try {
+    return withRecoverySentinel(lockDirectory, key, () => {
+      const current = lockOwner(lockFile);
+      if (!sameArtifact(current, acquired)) {
+        fail('lock ownership changed before release');
+      }
+      if (!removeArtifactIfSame(lockFile, acquired)) {
+        fail('lock identity changed during release');
+      }
+    }, expectedDirectory);
+  } finally {
+    abandonHolderMarker(lockFile, acquired.owner.token);
+  }
+}
+
+// A lock that could not be acquired carries a CODE, so the automatic adopter can
+// map it to `lock-timeout` without matching the message text.
+const LOCK_TIMEOUT_CODE = 'ZENSU_LOCK_TIMEOUT';
+
+function isLockTimeout(error) {
+  return Boolean(error) && error.code === LOCK_TIMEOUT_CODE;
+}
+
+function withFileLock(lockDirectory, key, callback) {
+  const directory = canonicalDirectory(lockDirectory, 'lock directory');
+  if (!/^[a-zA-Z0-9._-]{1,160}$/.test(key)) fail('lock key has an invalid format');
+  if (typeof callback !== 'function') fail('lock callback must be a function');
+  const lockFile = path.join(directory, `.${key}.lock`);
+  const recoveryFile = path.join(directory, `.${key}.recovery`);
+  let acquired;
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    if (fs.existsSync(recoveryFile)) {
+      reclaimStaleArtifact(recoveryFile);
+      sleep(20);
+      continue;
+    }
+    if (fs.existsSync(lockFile)) {
+      if (externalArtifactNeedsRecovery(lockOwner(lockFile), attempt)) {
+        recoverStaleLock(directory, key, lockFile);
+      }
+      sleep(20);
+      continue;
+    }
+    acquired = createOwnedArtifact(lockFile, 'lock');
+    if (acquired) {
+      // A recovery owner may have won immediately after our pre-check. Do not
+      // enter the critical section until that generation has completed.
+      if (!fs.existsSync(recoveryFile)) break;
+      releaseOwnedLock(directory, key, lockFile, acquired);
+      acquired = undefined;
+    }
+    sleep(20);
+  }
+  if (!acquired) {
+    const timedOut = new Error('session-control-v1: timed out acquiring per-session lock');
+    timedOut.code = LOCK_TIMEOUT_CODE;
+    throw timedOut;
+  }
+  try {
+    return callback();
+  } finally {
+    releaseOwnedLock(directory, key, lockFile, acquired);
+  }
+}
+
+function externalProcessLockBinding(options) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    fail('external process lock options are invalid');
+  }
+  const lockDirectoryInput = requireText(options.lockDirectory, 'lock directory');
+  const resourceInput = requireText(options.resourcePath, 'lock resource path');
+  if (!path.isAbsolute(lockDirectoryInput) || !path.isAbsolute(resourceInput)) {
+    fail('external process lock paths must be absolute');
+  }
+  if (/[\0\r\n]/.test(lockDirectoryInput) || /[\0\r\n]/.test(resourceInput)) {
+    fail('external process lock path is unsafe');
+  }
+
+  const requestedDirectory = path.resolve(lockDirectoryInput);
+  const requestedResource = path.resolve(resourceInput);
+  const requestedParent = path.dirname(requestedResource);
+  const resourceName = path.basename(requestedResource);
+  if (requestedResource === requestedParent || resourceName === '.' || resourceName === '..') {
+    fail('external process lock resource must be a file path');
+  }
+
+  const directoryInputStat = fs.lstatSync(requestedDirectory);
+  const parentInputStat = fs.lstatSync(requestedParent);
+  if (
+    directoryInputStat.isSymbolicLink()
+    || !directoryInputStat.isDirectory()
+    || parentInputStat.isSymbolicLink()
+    || !parentInputStat.isDirectory()
+  ) {
+    fail('external process lock directory is unsafe');
+  }
+
+  const directory = fs.realpathSync.native(requestedDirectory);
+  const resourceParent = fs.realpathSync.native(requestedParent);
+  if (directory !== resourceParent) {
+    fail('external process lock resource must use the lock directory');
+  }
+  const directoryStat = fs.lstatSync(directory);
+  if (directoryStat.isSymbolicLink() || !directoryStat.isDirectory()) {
+    fail('external process lock directory is unsafe');
+  }
+
+  const resourcePath = path.join(resourceParent, resourceName);
+  try {
+    const resourceStat = fs.lstatSync(resourcePath);
+    if (resourceStat.isSymbolicLink() || !resourceStat.isFile() || resourceStat.nlink !== 1) {
+      fail('external process lock resource is unsafe');
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+
+  const digest = crypto.createHash('sha256')
+    .update(EXTERNAL_PROCESS_LOCK_DOMAIN)
+    .update(resourcePath, 'utf8')
+    .digest('hex');
+  const key = `external-${digest}`;
+  return {
+    directory,
+    directoryStat,
+    resourcePath,
+    key,
+    lockFile: path.join(directory, `.${key}.lock`),
+    recoveryFile: path.join(directory, `.${key}.recovery`),
+  };
+}
+
+function externalProcessLockPath(options) {
+  return externalProcessLockBinding(options).lockFile;
+}
+
+function lockArtifactRefusal(file) {
+  let entry;
+  try {
+    entry = fs.lstatSync(file);
+  } catch {
+    return 'unreadable';
+  }
+  if (entry.isSymbolicLink()) return 'symlink';
+  if (!entry.isFile()) return 'irregular';
+  if (entry.size > LOCK_OWNER_MAX_BYTES) return 'oversized';
+  return 'unreadable';
+}
+
+function inspectLockArtifact(file) {
+  let snapshot;
+  try {
+    snapshot = lockOwner(file);
+  } catch {
+    return { state: 'refused', cause: lockArtifactRefusal(file) };
+  }
+  if (!snapshot) {
+    try {
+      fs.lstatSync(file);
+    } catch (error) {
+      if (error.code === 'ENOENT') return { state: 'absent' };
+    }
+    return { state: 'changing' };
+  }
+  const staleness = artifactStaleness(snapshot);
+  if (!snapshot.owner) {
+    return { state: 'ownerless', stale: staleness.stale, mtimeMs: snapshot.stat.mtimeMs };
+  }
+  return {
+    state: 'owned',
+    stale: staleness.stale,
+    pid: snapshot.owner.pid,
+    alive: staleness.alive,
+    identityRecorded: Boolean(snapshot.owner.process_start_identity),
+    identityCurrent: staleness.identity,
+    startedAfterRecord: staleness.startedAfterRecord,
+    marker: staleness.marker,
+    createdAtMs: Date.parse(snapshot.owner.created_at),
+  };
+}
+
+function inspectExternalProcessLock(options) {
+  const binding = externalProcessLockBinding(options);
+  return {
+    lockFile: binding.lockFile,
+    recoveryFile: binding.recoveryFile,
+    staleAfterMs: LOCK_STALE_MS,
+    lock: inspectLockArtifact(binding.lockFile),
+    recovery: inspectLockArtifact(binding.recoveryFile),
+    inspectedAtMs: Date.now(),
+  };
+}
+
+function externalProcessLockAttemptLimit(value) {
+  if (value === undefined) return EXTERNAL_LOCK_DEFAULT_ATTEMPTS;
+  if (!Number.isSafeInteger(value) || value < 1 || value > 500) {
+    fail('external process lock attempt limit is invalid');
+  }
+  return value;
+}
+
+function externalProcessReleaseTokenDigest(token) {
+  if (typeof token !== 'string' || !LOCK_TOKEN_RE.test(token)) {
+    fail('external process lock token is invalid');
+  }
+  return `sha256:${crypto.createHash('sha256')
+    .update(EXTERNAL_PROCESS_LOCK_DOMAIN)
+    .update('release-capability\0', 'utf8')
+    .update(token, 'utf8')
+    .digest('hex')}`;
+}
+
+function constantTimeTextEqual(left, right) {
+  if (typeof left !== 'string' || typeof right !== 'string') return false;
+  const leftBuffer = Buffer.from(left, 'utf8');
+  const rightBuffer = Buffer.from(right, 'utf8');
+  return leftBuffer.length === rightBuffer.length
+    && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function requireExternalProcessOwnerAuthority(ownerPid) {
+  if (!Number.isSafeInteger(ownerPid) || ownerPid <= 0) {
+    fail('external process lock owner pid is invalid');
+  }
+  if (ownerPid !== process.pid && ownerPid !== process.ppid) {
+    fail('external process lock owner authority must identify the current process or parent process');
+  }
+}
+
+function externalProcessOwnerIsStable(ownerPid) {
+  if (ownerPid !== process.pid && ownerPid !== process.ppid) return false;
+  return processIsAlive(ownerPid);
+}
+
+function externalIdentityProbeAttempt(attempt) {
+  const ordinal = (attempt + 20) / 20;
+  return Number.isInteger(ordinal) && (ordinal & (ordinal - 1)) === 0;
+}
+
+function externalArtifactNeedsRecovery(snapshot, attempt) {
+  if (!snapshot) return false;
+  if (!snapshot.owner || !processIsAlive(snapshot.owner.pid)) {
+    return artifactIsStale(snapshot);
+  }
+  const marker = holderMarkerState(snapshot.file, snapshot.owner);
+  if (marker === 'held') return false;
+  if (marker === 'released') return true;
+  return externalIdentityProbeAttempt(attempt) && artifactIsStale(snapshot);
+}
+
+function acquireExternalProcessLock(options) {
+  const binding = externalProcessLockBinding(options);
+  const ownerPid = options.ownerPid;
+  requireExternalProcessOwnerAuthority(ownerPid);
+  if (!processIsAlive(ownerPid)) {
+    fail('external process lock owner is not alive');
+  }
+  const attemptLimit = externalProcessLockAttemptLimit(options.attemptLimit);
+  const tokenSink = options.tokenSink === undefined ? null : options.tokenSink;
+  if (tokenSink !== null && typeof tokenSink !== 'function') {
+    fail('external process lock token sink must be a function');
+  }
+  let ownerProcessStartIdentity = null;
+  let releaseToken = null;
+  let owner = null;
+  let acquired = null;
+
+  for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
+    if (!externalProcessOwnerIsStable(ownerPid)) {
+      fail('external process lock owner changed before publication');
+    }
+    assertDirectoryIdentity(binding.directory, binding.directoryStat);
+    if (fs.existsSync(binding.recoveryFile)) {
+      reclaimStaleArtifact(binding.recoveryFile);
+      sleep(EXTERNAL_LOCK_POLL_MS);
+      continue;
+    }
+    if (fs.existsSync(binding.lockFile)) {
+      const current = lockOwner(binding.lockFile);
+      if (externalArtifactNeedsRecovery(current, attempt)) {
+        recoverStaleLock(
+          binding.directory,
+          binding.key,
+          binding.lockFile,
+          binding.directoryStat,
+        );
+      }
+      sleep(EXTERNAL_LOCK_POLL_MS);
+      continue;
+    }
+    if (!owner) {
+      ownerProcessStartIdentity = processStartIdentity(ownerPid);
+      releaseToken = crypto.randomBytes(24).toString('hex');
+      owner = {
+        pid: ownerPid,
+        processStartIdentity: ownerProcessStartIdentity,
+        releaseTokenDigest: externalProcessReleaseTokenDigest(releaseToken),
+      };
+    }
+    acquired = createOwnedArtifact(
+      binding.lockFile,
+      'external-process-lock',
+      owner,
+      binding.directoryStat,
+      tokenSink ? () => tokenSink(releaseToken) : null,
+    );
+    if (acquired) {
+      if (!fs.existsSync(binding.recoveryFile)) break;
+      releaseOwnedLock(
+        binding.directory,
+        binding.key,
+        binding.lockFile,
+        acquired,
+        binding.directoryStat,
+      );
+      acquired = null;
+    }
+    sleep(EXTERNAL_LOCK_POLL_MS);
+  }
+
+  if (!acquired) {
+    fail('timed out acquiring external process lock');
+  }
+  if (!externalProcessOwnerIsStable(ownerPid)) {
+    releaseOwnedLock(
+      binding.directory,
+      binding.key,
+      binding.lockFile,
+      acquired,
+      binding.directoryStat,
+    );
+    fail('external process lock owner changed during acquisition');
+  }
+
+  return {
+    token: releaseToken,
+    lockFile: binding.lockFile,
+    ownerPid,
+    processStartIdentity: ownerProcessStartIdentity,
+  };
+}
+
+function releaseExternalProcessLock(options) {
+  const binding = externalProcessLockBinding(options);
+  const ownerPid = options.ownerPid;
+  const token = options.token;
+  requireExternalProcessOwnerAuthority(ownerPid);
+  if (typeof token !== 'string' || !LOCK_TOKEN_RE.test(token)) {
+    fail('external process lock token is invalid');
+  }
+
+  const acquired = lockOwner(binding.lockFile);
+  const tokenMatches = acquired && acquired.owner && acquired.owner.release_token_digest
+    ? constantTimeTextEqual(
+      acquired.owner.release_token_digest,
+      externalProcessReleaseTokenDigest(token),
+    )
+    : Boolean(acquired && acquired.owner && acquired.owner.token === token);
+  if (
+    !acquired
+    || !acquired.owner
+    || acquired.owner.kind !== 'external-process-lock'
+    || acquired.owner.pid !== ownerPid
+    || !tokenMatches
+  ) {
+    fail('external process lock ownership does not match release token');
+  }
+  if (!processIsAlive(ownerPid)) {
+    fail('external process lock owner is not alive at release');
+  }
+  if (acquired.owner.process_start_identity) {
+    const actualIdentity = processStartIdentity(ownerPid);
+    if (actualIdentity && actualIdentity !== acquired.owner.process_start_identity) {
+      fail('external process lock owner identity changed before release');
+    }
+  }
+
+  releaseOwnedLock(
+    binding.directory,
+    binding.key,
+    binding.lockFile,
+    acquired,
+    binding.directoryStat,
+  );
+  return true;
+}
+
+// Git bash may interpose a different native parent process for each Node
+// invocation even while the same bash critical section remains alive. The
+// release capability is therefore stable across invocations. Only its digest
+// is stored in the lock artifact, so read access to that artifact does not grant
+// release authority. Descriptor-backed identity checks still protect removal.
+function releaseExternalProcessLockByToken(options) {
+  const binding = externalProcessLockBinding(options);
+  const token = options.token;
+  if (typeof token !== 'string' || !LOCK_TOKEN_RE.test(token)) {
+    fail('external process lock token is invalid');
+  }
+  const acquired = lockOwner(binding.lockFile);
+  const digest = externalProcessReleaseTokenDigest(token);
+  if (!acquired) {
+    fail('external process lock is missing at capability release');
+  }
+  if (!acquired.owner) {
+    fail('external process lock owner is unreadable at capability release');
+  }
+  if (acquired.owner.kind !== 'external-process-lock') {
+    fail('external process lock kind changed before capability release');
+  }
+  if (typeof acquired.owner.release_token_digest !== 'string') {
+    fail('external process lock has no capability digest');
+  }
+  if (!constantTimeTextEqual(acquired.owner.release_token_digest, digest)) {
+    fail(`external process lock release token digest mismatch (${acquired.owner.release_token_digest} != ${digest})`);
+  }
+  releaseOwnedLock(
+    binding.directory,
+    binding.key,
+    binding.lockFile,
+    acquired,
+    binding.directoryStat,
+  );
+  return true;
+}
+
+function contextComparable(context) {
+  return {
+    schema: context.schema,
+    schema_version: context.schema_version,
+    host: context.host,
+    session_id_hash: context.session_id_hash,
+    project_root: context.project_root,
+    plugin_root: context.plugin_root,
+    plugin_data: context.plugin_data,
+    plugin_version: context.plugin_version,
+    source_revision: context.source_revision,
+    runtime_digest: context.runtime_digest,
+    principal_profiles: context.principal_profiles,
+  };
+}
+
+function registerContext(options) {
+  const pluginData = canonicalDirectory(options.pluginData, 'plugin data');
+  const recordsDir = ensureDescendantDirectory(options.pluginData, options.recordsDir);
+  const locksDir = ensureDescendantDirectory(pluginData, path.join(path.dirname(recordsDir), 'locks'));
+  const key = sessionKey(options.sessionId);
+  const file = contextRecordFile(recordsDir, key);
+
+  return withFileLock(locksDir, key, () => {
+    if (fs.existsSync(file)) {
+      const existing = validateContext(readJson(file), options.host);
+      const expected = buildContext({ ...options, createdAt: existing.created_at });
+      if (JSON.stringify(contextComparable(existing)) !== JSON.stringify(contextComparable(expected))) {
+        fail('immutable session context mismatch');
+      }
+      return existing;
+    }
+
+    const context = buildContext(options);
+    atomicCreateJson(file, context);
+    return context;
+  });
+}
+
+function readContextInternal(options) {
+  const recordsDirInput = requireText(options.recordsDir, 'records directory');
+  if (!fs.existsSync(recordsDirInput)) {
+    fail('context record directory is missing');
+  }
+  const recordsDir = canonicalDirectory(recordsDirInput, 'records directory');
+  const file = contextRecordFile(recordsDir, options.sessionId);
+  const context = validateContext(readJson(file), options.expectedHost, {
+    allowMissingProjectRoot: options.allowMissingProjectRoot,
+    allowMissingPluginRoot: options.allowMissingPluginRoot,
+  });
+  if (context.session_id_hash !== sessionIdHash(options.sessionId)) {
+    fail('context session hash mismatch');
+  }
+  // With the minting installation gone there is nothing to re-measure: the
+  // digest and the declared version stay shape-checked by validateContext and
+  // are otherwise taken on the record's word. That is the stated cost of the
+  // pruned-root waiver, and readPrunedPluginRootContext — its only caller —
+  // proves the root is absent before it hands the record to anyone.
+  if (!options.allowMissingPluginRoot) {
+    const currentDigest = computeRuntimeDigest(context.plugin_root, context.host);
+    if (currentDigest !== context.runtime_digest) {
+      fail('context runtime digest mismatch');
+    }
+    const { manifest } = pluginMetadata(context.plugin_root, context.host);
+    if (manifest.version !== context.plugin_version) {
+      fail('context plugin version mismatch');
+    }
+  }
+  return context;
+}
+
+function readContext(options) {
+  return readContextInternal({
+    ...options,
+    allowMissingProjectRoot: false,
+    allowMissingPluginRoot: false,
+  });
+}
+
+// One of the two bind failures a caller may treat as "nothing left to enforce"
+// (the other is a session with no record at all, which never reaches this
+// reader): every part of the record validates exactly as readContext demands,
+// and its recorded project root is simply gone — the harness recycled or the user deleted that
+// worktree. The workflow document lives at <project_root>/.zensu/state/, so it
+// is not reachable from this record: no review chain and no Autopilot run remain
+// reachable, which is the same argument that already releases a session with no
+// record at all.
+//
+// Deliberately NOT this state, and therefore still fail-closed: a root that
+// EXISTS but no longer matches (a symlinked, moved, or re-created directory), a
+// dangling symlink or a file at that path, and any record that disagrees about
+// anything ELSE — plugin root, plugin data, session hash, runtime digest,
+// plugin version, schema, or principal profiles. Those are integrity signals,
+// not a vanished worktree, and a second disagreement is never relaxed alongside
+// the first. Throws on every one of them; returns the context only for the
+// exact state described above.
+function readOrphanedProjectRootContext(options) {
+  // Both waivers are pinned, not just this reader's own: the spread carries the
+  // caller's options, and the COMBINED state — project root gone AND installation
+  // pruned — must refuse because the reader forbids it, never because no caller
+  // happened to pass the other flag. readContext pins both for the same reason.
+  const context = readContextInternal({
+    ...options,
+    allowMissingProjectRoot: true,
+    allowMissingPluginRoot: false,
+  });
+  // Waiving canonicalDirectory waives its EXISTENCE check, which is the point —
+  // but it would also waive that function's shape validation, and this value is
+  // not inert: callers print it to stderr and into the /zensu-doctor report,
+  // which the doctor skill renders verbatim. Without the shape half a record
+  // whose project_root alone was edited to an absent path carrying newlines or
+  // ANSI escapes would classify as the relaxable state and get its bytes echoed
+  // into a terminal and into the model's context — a record the strict
+  // readContext fails closed on. Re-apply it, so EXISTENCE stays the only
+  // waived check ON THIS READER — the pruned-plugin-root reader below waives
+  // three, and the flag block above says which.
+  //
+  // NAMING THE TIGHTENING, because the extraction carried it in silently and the
+  // reworded sentence above absorbs it without saying so. The inline code this
+  // replaced applied TWO checks, UNSAFE_PATH_CHARACTERS and path.isAbsolute.
+  // requireAbsentDirectoryPath adds a THIRD — `path.resolve(value) !== value` — so
+  // a project_root that is absent, absolute and control-character free but NOT
+  // resolve-normalized used to classify as the relaxable orphan state, where agentStop
+  // releases and the gates relax, and now fails closed into the generic deny. The
+  // tightening is INTENDED for this reader: the value reaches the same terminal and
+  // the same report the other two checks protect, and a non-normalized spelling is
+  // exactly the shape that makes a printed path mean something other than it reads.
+  //
+  // The rule is kept HERE deliberately. Applying it only where the value is
+  // WRITTEN would move the refusal out of adoptableRecord into a throw inside
+  // adoptContext, and would break the AC-C14b row that pins an absolute-but-
+  // unnormalized project_root as `record-unreadable`.
+  //
+  // The practical blast radius is nil, because project_root is minted through
+  // canonicalDirectory and a realpathSync.native result is resolve-stable on POSIX
+  // and win32 alike — but that is an argument, not a test, so this arm has its own
+  // unit case rather than inheriting the pruned call site's. The one spelling the
+  // argument does not cover is a win32 UNC share root, where path.win32.resolve
+  // appends a separator realpathSync.native does not; that is UNVERIFIED in both
+  // directions, because no suite exercises it.
+  requireAbsentDirectoryPath(context.project_root, 'context project root');
+  // lstat, never realpath: realpath follows a symlink and would report a
+  // dangling link as absent, quietly turning a present-but-wrong root into the
+  // relaxable state.
+  try {
+    fs.lstatSync(context.project_root);
+  } catch (error) {
+    if (error.code === 'ENOENT') return context;
+    fail('context project root is unreadable');
+  }
+  // Unreachable — fail() always throws. Stated rather than followed by a
+  // `return context`, which would hand back a root that still exists if fail()
+  // ever stopped throwing: the exact value this reader must never return.
+  fail('context project root still exists');
+}
+
+// The relaxed reader for the OTHER recorded root. An installation the host has
+// pruned from its plugin cache leaves a record that is intact in every respect
+// except that its plugin_root no longer exists — and with it every way to
+// re-measure the runtime digest or re-read the declared version. Existence is
+// the one waived check, and it is proven rather than assumed: the path must be
+// absent (lstat, never realpath, for the reason the orphan reader states), and
+// its PARENT must still be a real directory, because a pruned installation
+// leaves its cache directory behind while a record naming a root under a
+// directory that never existed is not this state. Lineage is deliberately NOT
+// judged here — the state is reachable under a compatible lineage too, and in
+// both cases the record cannot be served; the callers decide what the absence
+// means, and adoption is the one exit.
+function readPrunedPluginRootContext(options) {
+  // Sibling waiver pinned off — see readOrphanedProjectRootContext above.
+  const context = readContextInternal({
+    ...options,
+    allowMissingPluginRoot: true,
+    allowMissingProjectRoot: false,
+  });
+  requireAbsentDirectoryPath(context.plugin_root, 'context plugin root');
+  canonicalDirectory(path.dirname(context.plugin_root), 'context plugin root parent');
+  try {
+    fs.lstatSync(context.plugin_root);
+  } catch (error) {
+    if (error.code === 'ENOENT') return context;
+    fail('context plugin root is unreadable');
+  }
+  fail('context plugin root still exists');
+}
+
+// ---------------------------------------------------------------------------
+// Adoption — taking an intact record over when the executing runtime cannot SERVE
+// it: a declared-incompatible lineage, or a pruned minting installation. Say
+// "taking over", never "serving": a pruned record is adopted once and never served.
+// ---------------------------------------------------------------------------
+//
+// runtimeLineageCompatible decides who may serve a record from the DECLARED
+// versions, and while the plugin is at major 0 a differing minor is a refusal.
+// That rule is unchanged and is not weakened here. What it cannot see is whether
+// the persisted shapes actually moved — and when they did not, its refusal
+// wedges a session the running code could read perfectly well. Every write
+// channel is denied, so the user cannot repair it, and before the diagnosis
+// existed they were not even told why.
+//
+// Adoption is the one explicit, verified exit — and deliberately NOT a ledgered
+// one: the bypass ledger records gate ESCAPES so that everything rendered under
+// "Gates bypassed" is true, and adoption escapes no gate. Its provenance is a
+// workflow history entry, exactly as `--chain-recover`'s is. It is authorised by
+// SCHEMA EQUALITY rather than by the version numbers, because the schema is what
+// the bytes on disk are actually held to — and that gate CLOSES ITSELF:
+//
+//   - the record's own `schema_version` is enforced by validateContext, so a
+//     future SCHEMA_VERSION bump makes readContext throw and adoption refuses
+//     without anyone having to remember to add a check;
+//   - the workflow document's `schema` and `schema_version` are enforced by
+//     validateWorkflowState, for the same reason and with the same consequence.
+//
+// A release that genuinely breaks a persisted shape is therefore non-adoptable
+// by construction, not by policy. Everything else below is identity: the record
+// must still be provably the one it claims to be, and the runtime taking it over
+// must be a sibling installation of the one that minted it.
+//
+// What adoption does NOT do: it never rewrites a record (the old one is set
+// aside under a new name and stays readable), never touches the workflow
+// document's decision fields, and never relaxes plugin_data — the boundary that
+// keeps a development checkout and an installed marketplace plugin on separate
+// record stores.
+// The ONE spelling of the workflow document's location. workflowStateDirectory
+// composes it with the creating helpers; adoptionWorkflowStatePath composes it
+// without them. Both must agree, or the read-only probe and the read it guards
+// resolve to different files.
+// Frozen because it is EXPORTED: an external consumer that pushed a segment
+// would move where this module itself resolves every workflow document.
+const WORKFLOW_STATE_SEGMENTS = Object.freeze(['.zensu', 'state']);
+const WORKFLOW_STATE_PREFIX = 'tdd-phase-';
+
+const ADOPTION_REFUSALS = {
+  RECORD_UNREADABLE: 'record-unreadable',
+  PLUGIN_DATA: 'plugin-data-mismatch',
+  ALREADY_SERVED: 'already-served',
+  NOT_SIBLING: 'not-a-sibling-installation',
+  EXECUTING_UNIDENTIFIED: 'executing-runtime-unidentified',
+  BACKWARDS: 'executing-runtime-older',
+  WORKFLOW_SCHEMA: 'workflow-schema-mismatch',
+};
+
+// A version reaches a FILENAME below, so it is held to a strict shape first. The
+// record schema only requireText's plugin_version, so without this a crafted
+// manifest could steer the superseded record anywhere in the tree.
+const ADOPTION_SAFE_VERSION_RE = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/;
+
+
+// A refusal carries the SAME four state fields the accepting verdict carries, and
+// every one of them is always present. The state is what a deny renders — both
+// versions, and which relaxed reader answered — and the automatic-adoption module
+// used to re-derive it with a second walk of condition 1's reader ladder, a hand
+// copy that could answer differently from the walk that produced the refusal.
+// `record-unreadable` is the one refusal reached BEFORE any record was read, so it
+// carries the empty state; every later refusal passes what condition 1 established.
+function adoptionRefusal(reason, state) {
+  return Object.assign({
+    ok: false,
+    reason,
+    recorded: null,
+    executing: null,
+    orphanedProjectRoot: false,
+    prunedPluginRoot: false,
+  }, state || {});
+}
+
+// The workflow document's path WITHOUT creating anything. workflowStateFile
+// resolves through ensureDescendantDirectory, which mkdirs every missing
+// component — fine for a writer, wrong for a read-only probe. Both the
+// adoptability report and the provenance guard need to ask "is there a document"
+// without answering "there is now".
+function adoptionWorkflowStatePath(projectRoot, sessionId) {
+  // Composed from the SAME segment constants workflowStateDirectory uses, so the
+  // guard and the read it guards can never resolve to different files. A separate
+  // spelling would let a layout move skip the workflow-schema condition entirely
+  // — silently removing one conjunct of the self-closing property the whole
+  // authorising argument rests on. Named rather than numbered on purpose: the
+  // ordinal moved once already when a condition was removed, and a stale number
+  // here points at a check that no longer exists.
+  return path.join(
+    projectRoot,
+    ...WORKFLOW_STATE_SEGMENTS,
+    `${WORKFLOW_STATE_PREFIX}${sessionKey(sessionId)}.json`,
+  );
+}
+
+// Never throws: every caller is on a failure path already, and an exception
+// would replace a named condition with a stack trace. A refusal always names
+// exactly which of the conditions was not met.
+//
+// options.projectRoot is ACCEPTED FOR COMPATIBILITY AND NEVER READ — see the block
+// after condition 2 for why the comparison was removed. Rejecting a supplied value
+// would be worse than ignoring it: it would hard-fail every caller that still
+// passes one and turn a deliberate relaxation into a break. Stated on the header
+// because the options object still destructures five keys and a reader would
+// otherwise learn about the sixth thirty lines into the body.
+function adoptableRecord(options) {
+  let executingPluginRoot;
+  let pluginData;
+  let context;
+  let orphanedProjectRoot = false;
+  let prunedPluginRoot = false;
+  try {
+    executingPluginRoot = canonicalDirectory(options.executingPluginRoot, 'executing plugin root');
+    pluginData = canonicalDirectory(options.pluginData, 'plugin data');
+    // Condition 1 — the record is still provably itself. On the STRICT branch
+    // readContext recomputes the runtime digest against the RECORDED root and
+    // re-reads that root's manifest, so a forged or hand-edited record cannot
+    // reach adoption; it also enforces the context schema and that both recorded
+    // roots exist.
+    //
+    // TWO disagreements are admitted past that strict read, and only through it
+    // failing first. They arrived from different branches and are DISJOINT by
+    // construction, each reader pinning the other's waiver off, so a record with
+    // BOTH roots gone is refused by both and lands on `record-unreadable`. That
+    // disjointness is what makes the order below non-load-bearing.
+    //
+    // A recorded project root that is GONE. It has to be admitted: `git worktree
+    // remove` on a live session is an ordinary, documented cleanup, and combined
+    // with a mid-session plugin update it wedged the session permanently — every
+    // write channel denied, /zensu-doctor reporting "no valid record" for a record
+    // sitting intact in plugin data. Nothing is waived by admitting it: the
+    // workflow document lived under that root and is not reachable from this
+    // record, so there is no persisted shape left for the two runtimes to disagree
+    // about, which is the same argument that already relaxes this state for a
+    // COMPATIBLE upgrade. readOrphanedProjectRootContext waives exactly one check
+    // and REFUSES a root that still exists.
+    //
+    // A recorded installation the host PRUNED from its cache. Say what that
+    // branch gives up, because "the root's existence alone" is false:
+    // readPrunedPluginRootContext proves the absence and waives THREE checks —
+    // the root's existence, the digest re-measure and the manifest-version match
+    // — the last two because they read the tree that is gone. So the forgery
+    // sentence above does NOT carry over: there the digest and the declared
+    // version are taken on the record's word.
+    //
+    // What still bounds both relaxed branches, stated rather than left to be
+    // inferred: the session-id hash, the full schema and principal-profile
+    // validation, source_revision === runtime_digest, plugin_data equality, the
+    // sibling-root bound, ADOPTION_SAFE_VERSION_RE on both versions before either
+    // reaches a filename, the never-backwards comparison, and the PROVEN absence
+    // of the waived root. The barrier was never the digest — it is the private
+    // records directory. That is the stated cost, and the reason such a record is
+    // adopted once rather than served. Every OTHER disagreement — plugin version,
+    // session hash, schema, principal profiles — throws in all three readers and
+    // still lands on `record-unreadable` below.
+    const readerOptions = {
+      recordsDir: options.recordsDir,
+      sessionId: options.sessionId,
+      expectedHost: options.host,
+    };
+    try {
+      context = readContext(readerOptions);
+    } catch {
+      try {
+        context = readOrphanedProjectRootContext(readerOptions);
+        orphanedProjectRoot = true;
+      } catch {
+        context = readPrunedPluginRootContext(readerOptions);
+        prunedPluginRoot = true;
+      }
+    }
+  } catch {
+    return adoptionRefusal(ADOPTION_REFUSALS.RECORD_UNREADABLE);
+  }
+  // view once, here, because every refusal below reports it. executingPluginVersion
+  // never throws and answers null for a manifest it cannot read, which is also what
+  // the shape guard further down refuses on.
+  const executingVersion = executingPluginVersion(executingPluginRoot, context.host);
+  const state = {
+    recorded: context.plugin_version,
+    executing: typeof executingVersion === 'string' ? executingVersion : null,
+    orphanedProjectRoot,
+    prunedPluginRoot,
+  };
+  // Condition 2 — the record store boundary is never relaxed.
+  if (context.plugin_data !== pluginData) {
+    return adoptionRefusal(ADOPTION_REFUSALS.PLUGIN_DATA, state);
+  }
+  // There is deliberately NO condition on the CALLER's project root. It protected
+  // nothing — the anchor is carried FROM the record, and the write bound is
+  // readContext plus the sibling-root and plugin_data checks — and it contradicted
+  // `resolveHookSession`, which answers `projectRoot: context.project_root` because
+  // the mutable payload cwd is never a project authority. It also made this repair
+  // unreachable in the state it exists for: a fork whose cwd was a worktree records
+  // that worktree while the harness still reports the origin repo. The full account,
+  // including why a record whose project root is GONE is ADMITTED at condition 1
+  // above while every other disagreement still refuses as `record-unreadable`,
+  // is in `docs/session-control.md` under "Unbindable
+  // sessions".
+  //
+  // Condition 3 — nothing to adopt when this runtime already serves the record.
+  // Refusing here keeps adoption from being a way to re-mint a healthy session.
+  // A pruned root serves nothing — the strict read already failed — so the
+  // check is skipped for it: a compatible-but-pruned record is adoptable, not
+  // "already served", because no installation can bind it any more.
+  if (!prunedPluginRoot && servesRecordedRuntime(context, executingPluginRoot, context.host)) {
+    return adoptionRefusal(ADOPTION_REFUSALS.ALREADY_SERVED, state);
+  }
+  // Condition 4 — the same structural bound servesRecordedRuntime applies: a
+  // marketplace install lands beside the versions it replaces, a development
+  // checkout never does, so a --plugin-dir tree cannot adopt an installed
+  // session's record no matter what its manifest declares.
+  if (path.dirname(context.plugin_root) !== path.dirname(executingPluginRoot)) {
+    return adoptionRefusal(ADOPTION_REFUSALS.NOT_SIBLING, state);
+  }
+  if (typeof executingVersion !== 'string'
+    || !ADOPTION_SAFE_VERSION_RE.test(executingVersion)
+    || !ADOPTION_SAFE_VERSION_RE.test(context.plugin_version)) {
+    return adoptionRefusal(ADOPTION_REFUSALS.EXECUTING_UNIDENTIFIED, state);
+  }
+  // Condition 5 — never backwards. Only a newer tree can be expected to
+  // understand an older one's state; the reverse is the direction that loses
+  // data, and it stays refused here exactly as it is in runtimeLineageCompatible.
+  const recordedParts = parseRuntimeVersion(context.plugin_version);
+  const executingParts = parseRuntimeVersion(executingVersion);
+  if (recordedParts === null || executingParts === null) {
+    return adoptionRefusal(ADOPTION_REFUSALS.EXECUTING_UNIDENTIFIED, state);
+  }
+  for (let index = 0; index < recordedParts.length; index += 1) {
+    if (executingParts[index] !== recordedParts[index]) {
+      if (executingParts[index] < recordedParts[index]) {
+        return adoptionRefusal(ADOPTION_REFUSALS.BACKWARDS, state);
+      }
+      break;
+    }
+  }
+  // Condition 6 — the workflow document, when there is one, must be readable by
+  // THIS runtime. validateWorkflowState enforces `schema` and `schema_version`,
+  // so a real persisted-shape break refuses here. A missing document is not a
+  // disagreement: there is no shape to disagree about, and adoption leaves the
+  // session exactly as able to mint one as a fresh session would be.
+  //
+  // The path is joined by hand rather than through workflowStateFile, which goes
+  // via ensureDescendantDirectory and CREATES the missing components. This
+  // predicate is the read-only half of the command, and "without --confirm it is
+  // read-only" is the premise the gate widening rests on — a probe that mkdirs
+  // <project>/.zensu/state would falsify it.
+  const workflowFile = adoptionWorkflowStatePath(context.project_root, options.sessionId);
+  if (fs.existsSync(workflowFile)) {
+    try {
+      readWorkflowState({ projectRoot: context.project_root, sessionId: options.sessionId });
+    } catch {
+      return adoptionRefusal(ADOPTION_REFUSALS.WORKFLOW_SCHEMA, state);
+    }
+  }
+  return {
+    ok: true,
+    context,
+    recorded: context.plugin_version,
+    executing: executingVersion,
+    // WHICH relaxed reader answered, carried rather than re-derived: the caller
+    // must re-mint the record around the SAME value, and asking the filesystem a
+    // second time would let a directory re-created between the two reads turn a
+    // waived check into a canonicalized one. The two are mutually exclusive —
+    // the readers pin each other's waiver off — so at most one is ever true.
+    orphanedProjectRoot,
+    prunedPluginRoot,
+  };
+}
+
+// Copilot replaces an installed package in place. The old bytes are then gone,
+// so ordinary reads and automatic adoption MUST continue to reject their digest.
+// This separate, manual-only repair trusts the existing private record after an
+// explicit confirmation of that lost comparison; it never infers an update from
+// a matching version or from model-authored package metadata alone.
+function inPlacePrivateStore(options) {
+  requireHost(options.host);
+  const id = requireText(options.sessionId, 'raw Copilot session id');
+  if (id.length > 4096 || /[\0\r\n]/.test(id) || SESSION_KEY_RE.test(id) || HASH_RE.test(id)) fail('raw Copilot session id required');
+  const pluginData = canonicalDirectory(options.pluginData, 'plugin data');
+  if (pluginData !== options.pluginData) fail('plugin data is aliased');
+  const directories = [pluginData];
+  let current = pluginData;
+  for (const segment of ['session-control', 'v1', 'records']) {
+    current = path.join(current, segment);
+    directories.push(current);
+  }
+  if (current !== options.recordsDir) fail('private records directory does not match plugin data');
+  for (const directory of directories) {
+    const stat = fs.lstatSync(directory);
+    // Copilot owns the outer plugin-data container and creates it as 0755.
+    // It must not be writable by others; our private descendants remain 0700.
+    const forbiddenMode = directory === pluginData ? 0o022 : 0o077;
+    if (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync.native(directory) !== directory
+      || (process.platform !== 'win32' && (stat.mode & forbiddenMode) !== 0)
+      || (typeof process.getuid === 'function' && stat.uid !== process.getuid())) fail('private record store is unsafe');
+  }
+  return current;
+}
+
+function inPlaceOwnedFile(file) {
+  const stat = fs.lstatSync(file);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1
+    || (process.platform !== 'win32' && (stat.mode & 0o077) !== 0)
+    || (typeof process.getuid === 'function' && stat.uid !== process.getuid())) fail('private adoption file is unsafe');
+  return readRegularFile(file);
+}
+
+function verifiedNativeBuild(pluginRoot) {
+  const { manifest } = pluginMetadata(pluginRoot, 'copilot');
+  const build = readJson(path.join(pluginRoot, 'build.json'));
+  if (manifest.$schema !== 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
+    || build.schemaVersion !== 2 || build.host !== 'copilot' || build.version !== manifest.version
+    || !Array.isArray(build.files) || !build.files.length || build.files.length > MAX_RUNTIME_FILES) fail('native build receipt is invalid');
+  const declared = new Set(['build.json']);
+  let total = 0;
+  for (const entry of build.files) {
+    if (!entry || typeof entry.target !== 'string' || !entry.target || entry.target.includes('\\')
+      || path.posix.normalize(entry.target) !== entry.target || path.posix.isAbsolute(entry.target)
+      || entry.target.split('/').includes('..') || declared.has(entry.target)
+      || !/^[a-f0-9]{64}$/.test(entry.sha256 || '')) fail('native build file declaration is invalid');
+    const file = path.join(pluginRoot, entry.target);
+    let directory = pluginRoot;
+    for (const component of entry.target.split('/').slice(0, -1)) {
+      directory = path.join(directory, component);
+      if (!fs.lstatSync(directory).isDirectory()) fail('native build directory is unsafe');
+    }
+    const bytes = readRegularFile(file, MAX_RUNTIME_FILE_BYTES);
+    total += bytes.length;
+    if (total > MAX_RUNTIME_TOTAL_BYTES || crypto.createHash('sha256').update(bytes).digest('hex') !== entry.sha256) fail('native build file digest mismatch');
+    declared.add(entry.target);
+  }
+  let visited = 0;
+  function visit(directory) {
+    for (const name of fs.readdirSync(directory)) {
+      if (++visited > MAX_RUNTIME_FILES * 2) fail('native build inventory exceeds limit');
+      const file = path.join(directory, name), stat = fs.lstatSync(file);
+      if (stat.isSymbolicLink()) fail('native build symlink rejected');
+      if (stat.isDirectory()) visit(file);
+      else if (!stat.isFile() || !declared.delete(path.relative(pluginRoot, file).split(path.sep).join('/'))) fail('native build contains undeclared content');
+    }
+  }
+  visit(pluginRoot);
+  if (declared.size) fail('native build inventory is incomplete');
+  for (const required of ['hooks/native/dispatcher.js', 'hooks/native/protocol.js', 'hooks/native/context.js',
+    'com.github.copilot/hooks/hooks.json', 'hooks/registry.json']) {
+    if (!build.files.some(entry => entry.target === required)) fail('native build is missing its host integration');
+  }
+  return { version: manifest.version, digest: computeRuntimeDigest(pluginRoot, 'copilot') };
+}
+
+function inspectInPlaceRuntime(options) {
+  const recordsDir = inPlacePrivateStore(options);
+  const file = contextRecordFile(recordsDir, options.sessionId);
+  const recordBytes = inPlaceOwnedFile(file);
+  const context = validateContext(JSON.parse(recordBytes), 'copilot');
+  const fields = ['schema', 'schema_version', 'host', 'session_id_hash', 'project_root', 'plugin_root', 'plugin_data',
+    'plugin_version', 'source_revision', 'runtime_digest', 'created_at', 'principal_profiles'];
+  if (Object.keys(context).sort().join(',') !== fields.sort().join(',')
+    || Object.keys(context.principal_profiles).sort().join(',') !== 'evidence_worker,host,main,reviewer'
+    || !Number.isFinite(Date.parse(context.created_at))) fail('context record shape is invalid');
+  if (context.session_id_hash !== sessionIdHash(options.sessionId) || context.plugin_data !== options.pluginData) fail('context identity does not match');
+  const root = canonicalDirectory(options.executingPluginRoot, 'executing plugin root');
+  if (context.plugin_root !== root || canonicalDirectory(context.project_root, 'project root') !== context.project_root) fail('in-place adoption cannot change a root');
+  const runtime = verifiedNativeBuild(root);
+  if (!runtimeLineageCompatible(context.plugin_version, runtime.version)) fail('in-place adoption requires a compatible non-downgrade version');
+  if (runtime.digest === context.runtime_digest) fail('record already serves this runtime');
+  const workflowFile = adoptionWorkflowStatePath(context.project_root, options.sessionId);
+  const workflowBytes = inPlaceOwnedFile(workflowFile);
+  const workflow = validateWorkflowState(JSON.parse(workflowBytes), options.sessionId);
+  const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+  return { context, file, workflowFile, runtime, revision: workflow.revision,
+    recordHash: hash(recordBytes), workflowHash: hash(workflowBytes) };
+}
+
+function previewInPlaceRuntimeAdoption(options) {
+  try { return { ok: true, ...inspectInPlaceRuntime(options) }; }
+  catch (error) { return { ok: false, reason: 'in-place-runtime-not-verifiable', cause: error.message }; }
+}
+
+function adoptInPlaceRuntimeContext(options) {
+  if (options.confirm !== true || !options.expected || options.expected.ok !== true) fail('explicit in-place runtime confirmation and preview required');
+  const recordsDir = inPlacePrivateStore(options);
+  const locksDir = ensureDescendantDirectory(options.pluginData, path.join(path.dirname(recordsDir), 'locks'));
+  const key = sessionKey(options.sessionId), expected = options.expected;
+  return withFileLock(locksDir, key, () => {
+    const probe = inspectInPlaceRuntime(options);
+    if (probe.recordHash !== expected.recordHash || probe.workflowHash !== expected.workflowHash
+      || probe.runtime.digest !== expected.runtime.digest) fail('in-place adoption changed since preview');
+    return withWorkflowStateLock({ projectRoot: probe.context.project_root, sessionId: options.sessionId }, () => {
+      const current = inspectInPlaceRuntime(options);
+      if (current.recordHash !== expected.recordHash || current.workflowHash !== expected.workflowHash
+        || current.runtime.digest !== expected.runtime.digest || current.revision !== expected.revision) fail('in-place adoption CAS mismatch');
+      const next = { ...current.context, plugin_version: current.runtime.version,
+        runtime_digest: current.runtime.digest, source_revision: current.runtime.digest };
+      const supersededFile = path.join(recordsDir, `${key}.runtime-${current.context.runtime_digest.slice(7)}.json`);
+      supersedeContextRecord(current.file, supersededFile, next);
+      // No workflow write: pending tickets, completion, revision, and all other
+      // chain bytes remain exactly as observed under the workflow lock.
+      return { context: next, supersededFile, recorded: current.context.plugin_version,
+        executing: current.runtime.version, previousDigest: current.context.runtime_digest, workflowRevision: current.revision };
+    });
+  });
+}
+
+
+const ADOPTION_HISTORY_PHASE = 'RUNTIME_ADOPTED';
+const ADOPTION_HISTORY_REASON_PREFIX = 'runtime-adopted: ';
+// What adoptContext reports about its own provenance write, as a closed token.
+// Two renderers decide on these: the adoption notice says what /zensu-doctor can
+// show, and that is an entry ONLY under RECORDED. The cause of UNAVAILABLE is an
+// error message, open text by construction, so it travels beside the token as
+// `provenanceCause` and nobody branches on it.
+const ADOPTION_PROVENANCE = Object.freeze({
+  RECORDED: 'recorded',
+  NO_DOCUMENT: 'no-workflow-document',
+  UNAVAILABLE: 'unavailable',
+});
+
+// The version pair an adoption records, in ONE grammar. The history entry's reason,
+// the binder's ZENSU_SESSION_ADOPTED export line and the doctor's adoption row all
+// spell or parse `<recorded> -> <executing>`; a reader that re-parsed the pair by
+// hand would drift from this writer silently, rendering every real adoption as an
+// unreadable pair. The parser holds both halves to the version shape, because the
+// reason is read back out of a document the session can write.
+const ADOPTION_PAIR_SEPARATOR = ' -> ';
+
+function formatAdoptionPair(recorded, executing) {
+  return `${recorded}${ADOPTION_PAIR_SEPARATOR}${executing}`;
+}
+
+function formatAdoptionReason(recorded, executing) {
+  return `${ADOPTION_HISTORY_REASON_PREFIX}${formatAdoptionPair(recorded, executing)}`;
+}
+
+function parseAdoptionReason(reason) {
+  if (typeof reason !== 'string' || reason.indexOf(ADOPTION_HISTORY_REASON_PREFIX) !== 0) return null;
+  const pair = reason.slice(ADOPTION_HISTORY_REASON_PREFIX.length).split(ADOPTION_PAIR_SEPARATOR);
+  if (pair.length !== 2) return null;
+  if (!ADOPTION_SAFE_VERSION_RE.test(pair[0]) || !ADOPTION_SAFE_VERSION_RE.test(pair[1])) return null;
+  return { recorded: pair[0], executing: pair[1] };
+}
+
+// The two ways adoptContext refuses under its own lock, as CODES a caller can
+// branch on rather than prose it has to substring-match — the same reason the
+// baseline repair carries BASELINE_ALREADY_PRESENT_CODE. A hook that adopts
+// automatically must tell `already-served` (a concurrent hook won the lock,
+// which is the outcome it wanted) from every other refusal, and the message
+// text alone cannot be that contract. The messages themselves are unchanged.
+const ADOPTION_REFUSED_CODE = 'ZENSU_ADOPTION_REFUSED';
+const SUPERSEDED_EXISTS_CODE = 'ZENSU_SUPERSEDED_EXISTS';
+
+// The PREDICATE is the consumer surface, for the reason isBaselineAlreadyPresent
+// states: comparing against an imported constant reads as a match whenever both
+// sides are undefined.
+function isAdoptionRefusal(error) {
+  return Boolean(error) && error.code === ADOPTION_REFUSED_CODE;
+}
+
+function isSupersededRecordConflict(error) {
+  return Boolean(error) && error.code === SUPERSEDED_EXISTS_CODE;
+}
+
+// Where adoptContext sets the previous record aside. ONE spelling, exported: the
+// shared adoption preview has to ask whether that file is already there — the
+// crash-resume shape, which a preview cannot otherwise see because it never
+// reaches the copy — and a second spelling of the name would let the two disagree
+// about which file blocks the adoption.
+//
+// The version reaches a FILENAME, so the shape is ENFORCED here and no longer left
+// as a caller precondition. adoptableRecord guarantees it for every verdict it
+// accepts, but since a refusal carries the recorded version as well — attached
+// before the shape guard runs — a later caller handing a refusal's `recorded` in
+// would have joined an unscreened string into a path. It throws; every caller
+// either holds an accepted verdict or treats the throw as "no such file".
+// The basename alone is its own export because a renderer that needs only the NAME
+// — the doctor's adoption row — has no records directory to hand in, and calling
+// the path form with an empty directory was a call off its contract.
+function supersededRecordName(key, recordedVersion) {
+  if (typeof recordedVersion !== 'string' || !ADOPTION_SAFE_VERSION_RE.test(recordedVersion)) {
+    fail('superseded record name needs a recorded version of the safe shape');
+  }
+  return `${key}.superseded-${recordedVersion}.json`;
+}
+
+function supersededRecordFile(recordsDir, key, recordedVersion) {
+  return path.join(recordsDir, supersededRecordName(key, recordedVersion));
+}
+
+function contextRecordLocation(options) {
+  const pluginData = canonicalDirectory(options.pluginData, 'plugin data');
+  const recordsDir = ensureDescendantDirectory(options.pluginData, options.recordsDir);
+  const locksDir = ensureDescendantDirectory(pluginData, path.join(path.dirname(recordsDir), 'locks'));
+  const key = sessionKey(options.sessionId);
+  return { pluginData, recordsDir, locksDir, key, file: contextRecordFile(recordsDir, key) };
+}
+
+function supersedeContextRecord(file, supersededFile, next) {
+  // The existence check is the COPY's own O_EXCL, never a separate existsSync:
+  // that call resolves through symlinks, so a dangling link at the superseded
+  // name would answer false and copyFileSync would then write the record
+  // through it — and the rollback would unlink the link, leaving the collateral
+  // write behind. COPYFILE_EXCL refuses both, atomically, with no TOCTOU window.
+  // COPY aside, then replace in place — never rename-then-create. A rename
+  // first leaves a window in which `<key>.json` resolves to nothing, and a
+  // clean ENOENT there is `unregisteredSession`, the MOST relaxed state of all
+  // (the agentStop hook releases on it). A process death in that window would turn
+  // a repairable lineage break into a permanently record-less session with a
+  // live workflow document still on disk — strictly worse than what is being
+  // repaired, and beyond the reach of any rollback.
+  //
+  // copyFileSync rather than linkSync on purpose: atomicWriteJson refuses a
+  // target with nlink > 1, so a hard link would make the very next step fail.
+  // atomicWriteJson writes a temp file and renames it over the target, so at
+  // every instant the record name resolves to either the old bytes or the new.
+  try {
+    fs.copyFileSync(file, supersededFile, fs.constants.COPYFILE_EXCL);
+  } catch (error) {
+    if (error && error.code === 'EEXIST') {
+      // Names the file, because this is also the crash-resume shape — a death
+      // between the copy and the swap leaves it behind — and the session has
+      // no other write channel to find it with.
+      const conflict = new Error(`session-control-v1: a superseded record already exists and adoption would overwrite it: ${supersededFile}`);
+      conflict.code = SUPERSEDED_EXISTS_CODE;
+      conflict.supersededFile = supersededFile;
+      throw conflict;
+    }
+    throw error;
+  }
+  try {
+    atomicWriteJson(file, next);
+  } catch (error) {
+    // atomicWriteJson commits by rename and then re-checks the parent
+    // directory's identity, so a throw can land AFTER the new record is in
+    // place. Unlinking the copy then would destroy the only remaining bytes of
+    // the superseded record while the adoption has in fact landed — the one
+    // outcome worse than reporting a failure. Re-read the record and keep the
+    // copy when the new bytes are already there.
+    let committed = false;
+    let readable = false;
+    try {
+      committed = JSON.stringify(readJson(file)) === JSON.stringify(next);
+      readable = true;
+    } catch { readable = false; }
+    // Only an unambiguous "not committed" removes the copy. An unreadable
+    // re-read is INDETERMINATE, and if the record did commit that copy is the
+    // last readable image of the superseded record — deleting it on a guess is
+    // the one outcome worse than reporting a failure.
+    if (readable && !committed) {
+      try { fs.unlinkSync(supersededFile); } catch { /* nothing better to try */ }
+    }
+    throw error;
+  }
+}
+
+// Performs the adoption re-checked UNDER the records lock. The precondition is
+// deliberately evaluated twice — once by the caller to report, once here to act
+// — because between the two the plugin could have changed again.
+function adoptContext(options) {
+  const { pluginData, recordsDir, locksDir, key, file } = contextRecordLocation(options);
+
+  const adopted = withFileLock(locksDir, key, () => {
+    const verdict = adoptableRecord({ ...options, pluginData, recordsDir });
+    if (!verdict.ok) {
+      const refused = new Error(`session-control-v1: record is not adoptable: ${verdict.reason}`);
+      refused.code = ADOPTION_REFUSED_CODE;
+      refused.reason = verdict.reason;
+      throw refused;
+    }
+    const executingPluginRoot = canonicalDirectory(options.executingPluginRoot, 'executing plugin root');
+    // created_at is carried over on purpose: the session began when it began,
+    // and rewriting that would erase the only provenance the record still holds
+    // about its own origin.
+    const next = buildContext({
+      host: verdict.context.host,
+      sessionId: options.sessionId,
+      projectRoot: verdict.context.project_root,
+      pluginRoot: executingPluginRoot,
+      pluginData,
+      createdAt: verdict.context.created_at,
+    }, {
+      // Taken from the verdict, never re-derived from the filesystem. When it is
+      // set the anchor is a directory that no longer exists, so buildContext
+      // waives the existence check and keeps the recorded spelling; the new
+      // record then lands the session in the ordinary orphaned-project-root
+      // state, where reads and this repair's own diagnostics work and writes stay
+      // denied. Nothing recreates the deleted directory: the provenance write
+      // below is guarded by the workflow document's own existsSync, which is
+      // false for a root that is gone, so mutateWorkflowState — which mkdirs
+      // every missing component — is never reached.
+      //
+      // The SECOND argument, never a key of the object above: that object is the
+      // shape registerContext spreads a caller's options into, and this waiver
+      // must not be reachable from there.
+      allowMissingProjectRoot: verdict.orphanedProjectRoot,
+    });
+    // Set aside, never overwrite. "The record is immutable" stays literally true:
+    // no record is ever rewritten, a second one is minted beside it, and the
+    // first stays readable under a name that says what happened to it.
+    const supersededFile = supersededRecordFile(recordsDir, key, verdict.recorded);
+    supersedeContextRecord(file, supersededFile, next);
+    return {
+      context: next,
+      supersededFile,
+      recorded: verdict.recorded,
+      executing: verdict.executing,
+      projectRoot: verdict.context.project_root,
+      // Reported so the caller can say what the session is bound to NOW. For a
+      // vanished project root that is an anchor which no longer exists, which
+      // leaves writes denied after a successful adoption; announcing an
+      // unqualified success there would send the user straight into a deny they
+      // were just told was repaired.
+      orphanedProjectRoot: verdict.orphanedProjectRoot,
+      prunedPluginRoot: verdict.prunedPluginRoot,
+    };
+  });
+
+  // Provenance is a workflow history entry and NOT a record field, so the
+  // context record keeps the exact shape every other release reads. It is
+  // recorded after the swap because it is provenance, not a precondition: a
+  // failure here is reported to the caller, never smoothed over, and never
+  // reverts an adoption that already succeeded.
+  let provenance = ADOPTION_PROVENANCE.RECORDED;
+  let adoptProvenanceCause = null;
+  // A session with no workflow document is a state adoptableRecord explicitly
+  // blesses ("a missing document is not a disagreement"), so it must not be
+  // routed through the failure branch below — mutateWorkflowState fails closed on
+  // a missing baseline, and the caller renders that as an anomaly worth
+  // reporting. Say plainly that there was nothing to write to instead.
+  if (!fs.existsSync(adoptionWorkflowStatePath(adopted.projectRoot, options.sessionId))) {
+    provenance = ADOPTION_PROVENANCE.NO_DOCUMENT;
+  } else {
+    try {
+      mutateWorkflowState({
+        projectRoot: adopted.projectRoot,
+        sessionId: options.sessionId,
+        actor: 'main-v1',
+        workflowState: 'runtime_adopted',
+        event: 'runtime-adopted',
+      }, (state) => {
+        const history = Array.isArray(state.history) ? state.history : [];
+        // `ts`, never `timestamp`: that is the key validateWorkflowExtensions
+        // validates and the one both existing history writers in
+        // zensu-tdd-phase.sh set. A different spelling would make this the one
+        // entry every ts-keyed reader sees as untimestamped.
+        history.push({
+          step: '',
+          phase: ADOPTION_HISTORY_PHASE,
+          ts: nowIso(),
+          reason: formatAdoptionReason(adopted.recorded, adopted.executing),
+        });
+        state.history = history;
+        return state;
+      });
+    } catch (error) {
+      // Bare token plus a separate cause, the same split renderRestoreOutcome's
+      // RESTORED arm takes when it prints `provenance` and `provenance cause` as two
+      // rows.
+      // `error.message` on this path carries `session-control-v1: ` from fail(), so a
+      // composed `unavailable: <message>` trips safeDisplayValue's PAIR_SEPARATOR
+      // (`/ :|: /`) and folds the ROW, label included.
+      provenance = ADOPTION_PROVENANCE.UNAVAILABLE;
+      adoptProvenanceCause = error && error.message ? error.message : 'unknown';
+    }
+  }
+
+  // NO lease sweep here any more. It lives in review-evidence-sweep-v1.js and
+  // session-auto-adopt-v1.js's adoptForHook calls it after this function returns,
+  // for every caller — the hooks, the sessionStart adapter and the manual entry
+  // point all adopt through that one ladder. See the sweep module's header for
+  // why the direction had to invert (requiring the lease owner from this file is a
+  // cycle). The consequence for a caller: an adoption is not complete until the
+  // sweep has also run, and a host that calls this function directly gets a
+  // re-minted record with the superseded leases still wedging every later lease
+  // operation.
+  return {
+    ...adopted,
+    provenance,
+    provenanceCause: adoptProvenanceCause,
+  };
+}
+
+// A DIFFERENT wedge from the one adoption exits, and confusing the two is the
+// mistake this block exists to prevent. Adoption answers "this runtime may not
+// serve the record"; this answers "this runtime serves the record perfectly
+// well, and the workflow document the record anchors is GONE". The observed
+// cause is a worktree deleted and re-created — `.zensu/state/` is gitignored, so
+// the document does not come back — followed by a compaction that continues the
+// SAME session rather than starting a new one.
+//
+// The state is fail-closed by design and STAYS so. revalidateWorkflowState in
+// reviewer-capability-v1.js throws on a missing document precisely so that
+// deleting one file cannot turn an armed chain into "never active", and that
+// hook is on the `.*` matcher, so it denies every tool. Nothing here relaxes it.
+// The repair REBUILDS the document and leaves provenance behind.
+//
+// What it costs, stated here because the code cannot state it later: a chain
+// that was live when the document vanished is GONE. The rebuilt baseline reads
+// "never active", because that is all a fresh baseline can say. That is why the
+// writer records BASELINE_REBUILT on every path.
+//
+// Say what GATES it precisely, because an earlier wording here claimed a consent
+// control that does not exist. TWO callers reach this writer and NEITHER is user
+// consent. The adopt entry point requires the literal `--confirm` in argv, which
+// is a token the model supplies to itself — the same prose-backed, not
+// consent-backed shape AGENTS.md already records for `--autopilot-release`; the
+// "wait for the user to say yes" rule lives in skills/zensu-adopt-session/SKILL.md, not
+// in a gate. And copilot-session-control-v1.js's sessionStart record-exists branch
+// reaches it with NO token at all, on a clean ENOENT, so a session could delete
+// its own document and wait for an automatic compaction. That is an accepted gap
+// recorded in AGENTS.md §"Workflow-Baseline Repair", not a control.
+const BASELINE_STATES = {
+  PRESENT: 'present',
+  MISSING: 'missing',
+  UNSAFE: 'unsafe',
+  UNREADABLE: 'unreadable',
+};
+
+// Refusals name the BIND, never the document: reaching a verdict about the
+// document at all requires the record to be provably this session's and this
+// runtime's. Separate vocabulary from ADOPTION_REFUSALS on purpose — the two
+// commands answer different questions, and one shared set would invite a caller
+// to render one's remedy for the other's cause.
+const BASELINE_REFUSALS = {
+  RECORD_UNREADABLE: 'record-unreadable',
+  PLUGIN_DATA: 'plugin-data-mismatch',
+  NOT_SERVED: 'not-served-by-executing-runtime',
+};
+
+const BASELINE_HISTORY_PHASE = 'BASELINE_REBUILT';
+const BASELINE_HISTORY_REASON_PREFIX = 'baseline-rebuilt: ';
+
+// The two ways repairWorkflowBaseline can refuse, as CODES rather than as prose a
+// caller has to substring-match. The distinction is the whole reason they exist:
+// ALREADY_PRESENT is benign — someone else healed the document between the
+// caller's verdict and this one, which is the outcome the caller wanted — while
+// NOT_REPAIRABLE means something is sitting at that path and the refusal is the
+// point. Callers that cannot tell them apart end up contradicting each other.
+const BASELINE_ALREADY_PRESENT_CODE = 'ZENSU_WORKFLOW_BASELINE_ALREADY_PRESENT';
+const BASELINE_NOT_REPAIRABLE_CODE = 'ZENSU_WORKFLOW_BASELINE_NOT_REPAIRABLE';
+// The OWNER-side predicate, beside `isBaselineAlreadyPresent` and
+// `isRestoreRootAlreadyPresent`. This was the one code in the family whose
+// comparison was spelled twice — here and again in the report layer — which is the
+// class `baselineProvenanceUnrecorded` above records being extracted to remove.
+const isBaselineNotRepairable = (error) => Boolean(
+  error && error.code === BASELINE_NOT_REPAIRABLE_CODE);
+
+// The PREDICATE, not the raw constant, is what consumers must use. Comparing
+// `error.code === core.BASELINE_ALREADY_PRESENT_CODE` reads as a match whenever
+// BOTH sides are undefined — a port that copies the writer without the constant,
+// or any tree where the export is dropped, then reports EVERY refusal as the
+// benign race: headline "nothing to repair", exit 0, tamper included. A function
+// that tests a non-empty string cannot fail that way.
+// The guard is the FUNCTION, never a conjunct inside it. Two `typeof` tests used
+// to sit here against a module-scope literal declared a few lines above, where
+// they can never be false — they read as a defense while defending nothing. What
+// actually removes the hazard is that a consumer compares through a call instead
+// of against a constant it would have to import.
+function isBaselineAlreadyPresent(error) {
+  return Boolean(error) && error.code === BASELINE_ALREADY_PRESENT_CODE;
+}
+
+function baselineRefusal(reason) {
+  return { ok: false, reason };
+}
+
+// Classifies the document without reading it when a cheaper test already
+// decides, and the ORDER is the contract: the safety tests run before the parse,
+// so a symlink or a hard link is reported as tamper rather than as a document
+// that merely failed to validate. It mirrors revalidateWorkflowState in
+// reviewer-capability-v1.js — the gate whose refusal sends a user here — so the
+// two agree about which shapes are unsafe. MAX_JSON_BYTES is the same bound
+// readRegularFile applies, so a document called oversized here is one the reader
+// would refuse anyway.
+//
+// The DIRECTORY components are judged first, and leaving them out was a real
+// defect rather than an omission: `lstat` resolves every component except the
+// last, so a symlinked `.zensu` or `.zensu/state` whose target lacks the document
+// answered ENOENT and classified MISSING/repairable — a tamper shape offered as
+// rebuildable, while the write then failed at ensureDescendantDirectory and the
+// report told the user to retry the repair that cannot succeed. The gate this
+// claims to mirror has always checked them; the claim was false until it did.
+// The SHAPE half, split out because it needs no session id. Everything above the
+// parse — the directory ladder and the leaf's safety tests — answers MISSING or
+// UNSAFE from the filesystem alone, and PRESENT here means only "the shape is
+// fine, now read it". `/zensu-doctor` holds a session KEY rather than a raw
+// session id, so it can reach this and not the full classifier; without the split
+// it was left deciding MISSING from a `readdirSync` listing, which follows
+// symlinks and therefore promised a rebuild for shapes the repair refuses by
+// design, and rendered NOTHING when a symlinked component resolved to a real
+// directory holding the document while the gate denied every tool.
+// ONE walk over the directory components, reporting BOTH the verdict and the
+// component that produced it. It existed twice — once in the classifier that
+// DECIDES the verdict, once in the namer that decides WHICH path the operator is
+// told to inspect — as two hand-written copies with nothing pinning them
+// together. Adding a component or changing a safety test in the classifier alone
+// left the namer falling through to the leaf and naming it for an ancestor fault,
+// which is verbatim the defect the namer was written to fix, and it would have
+// failed silently. Both public signatures are unchanged.
+//
+// The components are composed from WORKFLOW_STATE_SEGMENTS rather than spelled
+// here, because that constant's own comment calls itself the ONE spelling of the
+// document's location: a layout move that edited it while these walks kept
+// validating `.zensu/state` would have judged one tree while the leaf named
+// another.
+//
+// The walk is anchored on the RESOLVED project root, not on the caller's
+// spelling. revalidateWorkflowState can compare each component against itself
+// because its projectRoot arrives canonical from the bound record; the classifier
+// is also called with a raw fixture path, and on macOS a temp root is spelled
+// `/var/...` by the caller and `/private/var/...` by the kernel — so requiring
+// the caller's own spelling to be canonical reported every healthy document under
+// such a root as tamper. Resolving the root once keeps the property that matters
+// (no symlink at `.zensu` or `.zensu/state`) without inheriting an ancestor's
+// legitimate aliasing.
+function baselineComponentLadder(projectRoot) {
+  let rootReal;
+  try {
+    rootReal = fs.realpathSync.native(projectRoot);
+  } catch {
+    // UNSAFE for EVERY failure, ENOENT included, and that is not the same rule
+    // the component loop below uses. An absent COMPONENT is what the repair
+    // creates; an absent PROJECT ROOT is not — `initializeWorkflowState` fails on
+    // it, so calling it MISSING would set `repairable: true` and put the report
+    // back to offering a rebuild that cannot succeed, which is the exact shape
+    // this ladder was added to remove. A vanished recorded root is already owned
+    // by `readContext`, which refuses it as `record-unreadable` before any caller
+    // reaches here.
+    return { rootReal: null, verdict: BASELINE_STATES.UNSAFE, at: projectRoot };
+  }
+  let candidate = rootReal;
+  for (const segment of WORKFLOW_STATE_SEGMENTS) {
+    candidate = path.join(candidate, segment);
+    let componentStat;
+    try {
+      componentStat = fs.lstatSync(candidate);
+    } catch (error) {
+      // A clean ENOENT is the repairable shape: initializeWorkflowState creates
+      // these components. Every other errno is NOT absence.
+      if (error && error.code === 'ENOENT') {
+        return { rootReal, verdict: BASELINE_STATES.MISSING, at: candidate };
+      }
+      return { rootReal, verdict: BASELINE_STATES.UNSAFE, at: candidate };
+    }
+    if (componentStat.isSymbolicLink() || !componentStat.isDirectory()) {
+      return { rootReal, verdict: BASELINE_STATES.UNSAFE, at: candidate };
+    }
+    try {
+      if (fs.realpathSync.native(candidate) !== candidate) {
+        return { rootReal, verdict: BASELINE_STATES.UNSAFE, at: candidate };
+      }
+    } catch {
+      return { rootReal, verdict: BASELINE_STATES.UNSAFE, at: candidate };
+    }
+  }
+  return { rootReal, verdict: null, at: null };
+}
+
+function classifyWorkflowBaselineShape(file, projectRoot) {
+  const ladder = baselineComponentLadder(projectRoot);
+  if (ladder.verdict !== null) return ladder.verdict;
+  let stat;
+  try {
+    stat = fs.lstatSync(file);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return BASELINE_STATES.MISSING;
+    // Anything else — EACCES, ENOTDIR, a symlink loop — is NOT absence.
+    // Reporting it as missing would aim the repair at a path it cannot own.
+    return BASELINE_STATES.UNSAFE;
+  }
+  if (stat.isSymbolicLink() || !stat.isFile() || stat.nlink !== 1 || stat.size > MAX_JSON_BYTES) {
+    return BASELINE_STATES.UNSAFE;
+  }
+  return BASELINE_STATES.PRESENT;
+}
+
+function classifyWorkflowBaseline(file, projectRoot, sessionId) {
+  const shape = classifyWorkflowBaselineShape(file, projectRoot);
+  if (shape !== BASELINE_STATES.PRESENT) return shape;
+  try {
+    readWorkflowState({ projectRoot, sessionId });
+  } catch {
+    return BASELINE_STATES.UNREADABLE;
+  }
+  return BASELINE_STATES.PRESENT;
+}
+
+// WHICH component made the verdict UNSAFE. The state alone cannot say: the ladder
+// returns the same bare token for a symlinked `.zensu`, a symlinked
+// `.zensu/state` and a bad leaf. Naming the leaf for all three sent the operator
+// to a path that need not exist — with `.zensu/state` symlinked elsewhere the
+// leaf is not there at all — while the diagnosis said "something is at that path"
+// and "remove the file". This file already fixed that class for the lease sweep
+// with `nameComponent()`; this is the same remedy for the same defect.
+//
+// Recomputed rather than threaded out of the classifier, so the classifier keeps
+// its one-value return and every existing caller and pin is untouched. It is only
+// ever called once, on a verdict already known to be UNSAFE.
+function baselineUnsafeComponent(projectRoot, file) {
+  const ladder = baselineComponentLadder(projectRoot);
+  // The two readings of one walk deliberately DIVERGE on the absent-component arm,
+  // and keeping that divergence is the reason this is a shared ladder rather than
+  // a shared return value. A clean ENOENT is MISSING to the classifier, because
+  // the repair creates those components; to the NAMER an absent component is not
+  // what made anything unsafe, so it falls through to the leaf exactly as the
+  // hand-written copy did by continuing past it.
+  if (ladder.rootReal === null) return projectRoot;
+  if (ladder.verdict === BASELINE_STATES.UNSAFE) return ladder.at;
+  return file;
+}
+
+// Never throws, for the reason adoptableRecord never throws: every caller is
+// already on a failure path, and an exception would replace a named condition
+// with a stack trace.
+function workflowBaselineVerdict(options) {
+  let context;
+  let executingPluginRoot;
+  let pluginData;
+  try {
+    executingPluginRoot = canonicalDirectory(options.executingPluginRoot, 'executing plugin root');
+    pluginData = canonicalDirectory(options.pluginData, 'plugin data');
+    context = readContext({
+      recordsDir: options.recordsDir,
+      sessionId: options.sessionId,
+      expectedHost: options.host,
+    });
+  } catch {
+    return baselineRefusal(BASELINE_REFUSALS.RECORD_UNREADABLE);
+  }
+  if (context.plugin_data !== pluginData) {
+    return baselineRefusal(BASELINE_REFUSALS.PLUGIN_DATA);
+  }
+  // The INVERSE of adoption's condition 3, deliberately. Adoption refuses when
+  // the executing runtime already serves the record; this REQUIRES it. A record
+  // this runtime may not serve is a lineage break with its own exit — routing it
+  // here would rebuild a document under a runtime that is not allowed to read
+  // the record anchoring it.
+  if (!servesRecordedRuntime(context, executingPluginRoot, context.host)) {
+    return baselineRefusal(BASELINE_REFUSALS.NOT_SERVED);
+  }
+  const file = adoptionWorkflowStatePath(context.project_root, options.sessionId);
+  const state = classifyWorkflowBaseline(file, context.project_root, options.sessionId);
+  return {
+    ok: true,
+    state,
+    // ONLY `missing` is repairable. `unsafe` and `unreadable` mean something IS
+    // sitting at that path; rebuilding over it would destroy the evidence and
+    // hand the session its capabilities back in the same step.
+    repairable: state === BASELINE_STATES.MISSING,
+    path: file,
+    // The component the refusal is ABOUT, so a diagnosis can send the operator to
+    // the thing that is actually there. Equals `path` when the leaf is at fault.
+    unsafeAt: state === BASELINE_STATES.UNSAFE
+      ? baselineUnsafeComponent(context.project_root, file)
+      : null,
+    projectRoot: context.project_root,
+    context,
+  };
+}
+
+// Rebuilds a MISSING baseline and records that it did. The verdict is evaluated
+// twice — once by the caller to report, once here to act — for the reason
+// adoptContext re-evaluates its own: between the two, the document could have
+// come back, or something could have been planted at its path.
+function repairWorkflowBaseline(options) {
+  const verdict = workflowBaselineVerdict(options);
+  if (!verdict.ok) fail(`workflow baseline is not repairable: ${verdict.reason}`);
+  if (!verdict.repairable) {
+    // TYPED, not a prose string. The refusal has two meanings a caller must be
+    // able to tell apart, and matching on the message is how that claim goes
+    // quietly wrong — the same argument reviewer-capability-v1.js makes for
+    // BASELINE_MISSING_CODE. `present` is a BENIGN race: between the caller's
+    // verdict and this one, a concurrent sessionStart or a second window healed
+    // the document, and the caller wanted it healed. Everything else is tamper.
+    // Without the code the two shipped callers disagreed: the sessionStart
+    // adapter re-classified and swallowed the race, while the adopt report
+    // reported `rebuild-failed`, exited 1, and told the user the cause had to be
+    // cleared first — for a session that was already fine.
+    const error = new Error(
+      `workflow baseline is not repairable: workflow-document-${verdict.state}`,
+    );
+    error.code = verdict.state === BASELINE_STATES.PRESENT
+      ? BASELINE_ALREADY_PRESENT_CODE
+      : BASELINE_NOT_REPAIRABLE_CODE;
+    error.baselineState = verdict.state;
+    throw error;
+  }
+  // Idempotent by construction: it returns an existing document untouched, so a
+  // concurrent writer that won the race is never overwritten.
+  //
+  // DECIDE FROM THE LOCKED CHECK, never from the verdict above it. That verdict is
+  // taken outside the state-directory lock, so a document created between it and
+  // this call is invisible to it — and the refusal ladder above only fires when
+  // the verdict ITSELF saw PRESENT. Reporting the narrower window as a rebuild
+  // this run performed appended a SECOND `BASELINE_REBUILT` entry onto somebody
+  // else's heal and printed "has been rebuilt" for work this run did not do,
+  // breaking the exactly-one invariant the suites pin. Routing it through the
+  // same typed refusal both callers already handle costs nothing and makes the
+  // benign race read the same however narrow the window was.
+  const initialized = initializeWorkflowStateDetailed({
+    projectRoot: verdict.projectRoot,
+    sessionId: options.sessionId,
+  });
+  if (!initialized.created) {
+    const raced = new Error(
+      `workflow baseline is not repairable: workflow-document-${BASELINE_STATES.PRESENT}`,
+    );
+    raced.code = BASELINE_ALREADY_PRESENT_CODE;
+    raced.baselineState = BASELINE_STATES.PRESENT;
+    throw raced;
+  }
+  // Provenance is a history entry and NOT a record or state field, exactly as it
+  // is for the adoption and for --chain-recover: a field would be a persisted
+  // shape change, which under the runtime-lineage rule costs a breaking release
+  // and would wedge every session then running.
+  //
+  // And deliberately NOT a bypass-ledger entry. The ledger records gate ESCAPES
+  // so that everything rendered under "Gates bypassed" is true; this escaped no
+  // gate, because the document a gate would have read was already gone.
+  let provenance = 'recorded';
+  let provenanceCause = null;
+  try {
+    mutateWorkflowState({
+      projectRoot: verdict.projectRoot,
+      sessionId: options.sessionId,
+      actor: 'main-v1',
+      workflowState: 'baseline_rebuilt',
+      event: 'baseline-rebuilt',
+    }, (state) => {
+      const history = Array.isArray(state.history) ? state.history : [];
+      // `ts`, never `timestamp`: that is the key validateWorkflowExtensions
+      // validates and the one every existing history writer sets.
+      history.push({
+        step: '',
+        phase: BASELINE_HISTORY_PHASE,
+        ts: nowIso(),
+        reason: `${BASELINE_HISTORY_REASON_PREFIX}${verdict.state}`,
+      });
+      state.history = history;
+      return state;
+    });
+  } catch (error) {
+    // Reported, never smoothed over, and never rolled back: the document is real
+    // and its provenance is not. Undoing a rebuild that already succeeded would
+    // put the session back in the state this repair exists to leave.
+    // THE ROW RULE (see session-adopt-report-v1.js). A composed `unavailable: <msg>`
+    // trips safeDisplayValue's PAIR_SEPARATOR and folds the ROW, label included —
+    // MEASURED for the sibling producers. Bare token, cause on its own field.
+    provenance = 'unavailable';
+    provenanceCause = error && error.message ? error.message : 'unknown';
+  }
+  return {
+    path: verdict.path,
+    projectRoot: verdict.projectRoot,
+    provenance,
+    provenanceCause,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Restoring a vanished recorded PROJECT root.
+//
+// A THIRD wedge, and the one most easily confused with the two above it.
+// adoptableRecord answers "this runtime may not SERVE the record";
+// workflowBaselineVerdict answers "it serves it fine and the workflow document is
+// gone". This one answers "it serves it fine and the DIRECTORY the record anchors
+// is gone" — the ordinary shape after `git worktree remove`, where readContext
+// throws, readOrphanedProjectRootContext succeeds, reads still work and every
+// write denies.
+//
+// WHY THIS IS NOT THE RE-ANCHORING THAT WAS REFUSED. AGENTS.md records the
+// refusal of re-anchoring a record to a live directory: a session may delete its
+// own root, so a caller-named anchor would become a cross-project write escape.
+// Nothing here accepts a caller-named anchor. The path comes only from
+// context.project_root, so the anchor never MOVES — the source-write gate keeps
+// comparing against exactly the root it compared against before, and creating a
+// directory at a path the record already names restores the authority the session
+// already had and adds none. Do not "generalize" this into a mode that takes a
+// destination; that is the refused design, not an extension of this one.
+const RESTORE_ROOT_REFUSALS = Object.freeze({
+  RECORD_UNREADABLE: 'record-unreadable',
+  PLUGIN_DATA: 'plugin-data-mismatch',
+  // Spelled exactly as BASELINE_REFUSALS.NOT_SERVED, because the CONDITION is
+  // identical — both are produced by servesRecordedRuntime. The sets stay separate
+  // objects for the reason stated above; what a separate vocabulary does not license
+  // is one constant NAME carrying two wire values, which turns a lookup against the
+  // wrong set into a silent false instead of a loud miss.
+  NOT_SERVED: 'not-served-by-executing-runtime',
+  ROOT_PRESENT: 'root-present',
+  UNSAFE_ANCESTOR: 'unsafe-ancestor',
+  TOO_MANY_MISSING_COMPONENTS: 'too-many-missing-components',
+  // Its OWN member rather than a second cause folded into UNSAFE_ANCESTOR: that one
+  // says the tree changed under the record, and its remedy is to inspect a link. This
+  // one says the tree is intact and the PERMISSIONS on it are wrong, whose remedy is a
+  // chmod or a different parent. One wire value carrying both would render a remedy
+  // for the other half in every report that hit it.
+  UNSAFE_ANCESTOR_OWNERSHIP: 'unsafe-ancestor-ownership',
+});
+
+const RESTORE_HISTORY_PHASE = 'PROJECT_ROOT_RESTORED';
+const RESTORE_HISTORY_REASON_PREFIX = 'project-root-restored: ';
+// The RACED half of the reason, and it is EXPORTED because a READER needs it. The
+// `/zensu-doctor` restore row states the repair's cost — the directory came back
+// EMPTY and is not a git worktree — and that sentence is true of a run that planted
+// the components and FALSE of one that lost the race, whose documented cause is a
+// `git worktree add` in another terminal: a populated worktree with a branch. The
+// row therefore has to tell the two entries apart, and the only signal in the
+// persisted document is this suffix. Hand-copying it into the renderer would put the
+// same drift trap there that the phase token already avoids by reading the core, so
+// a renderer that cannot resolve this export withholds the claim instead of guessing.
+const RESTORE_HISTORY_RACED_SUFFIX = ', completed by another run';
+
+// A JUDGEMENT, not a measurement, and stated as one so the next reader can raise
+// it on evidence rather than on taste. One removed worktree leaves a handful of
+// missing components below a directory that is still there; a gap deeper than
+// this means the whole tree MOVED, where re-creating a stub helps nobody and
+// quietly plants an empty directory in a place the user did not ask for.
+const RESTORE_MAX_MISSING_COMPONENTS = 4;
+
+// Reached only when the repair loses a race with something that re-created the
+// directory between the verdict and the write. TYPED rather than a prose string,
+// for the reason repairWorkflowBaseline gives about its own benign race: the
+// caller has to be able to tell "somebody else already did it" from tamper, and
+// matching on a message is how that claim goes quietly wrong.
+const RESTORE_ALREADY_PRESENT_CODE = 'ZENSU_PROJECT_ROOT_ALREADY_PRESENT';
+
+function restoreRootRefusal(reason, at) {
+  return at === undefined ? { ok: false, reason } : { ok: false, reason, at };
+}
+
+function isRestoreRootAlreadyPresent(error) {
+  return Boolean(error) && error.code === RESTORE_ALREADY_PRESENT_CODE;
+}
+
+// Walks UP from the recorded root to the nearest component that still exists, and
+// judges that component. Two properties carry it and neither is decoration.
+//
+// The symlink test is NOT the whole check. lstat on the nearest existing
+// component reports that component's own kind, so a symlink further UP the chain
+// is invisible to it — hence the realpath equality test, the same one
+// baselineComponentLadder applies to `.zensu` and `.zensu/state`. Following such
+// a link would create the recorded root inside a DIFFERENT tree, which is the one
+// escape this whole design exists to avoid.
+//
+// Refusing a symlinked ancestor costs nothing legitimate: every project_root is
+// minted through canonicalDirectory, i.e. realpathSync.native, so at mint time the
+// path contained no link at all. A link there NOW means the tree changed under the
+// record, which is exactly the case to refuse rather than resolve through.
+//
+// THE INPUT MUST BE CANONICAL, and that is a real precondition rather than a
+// nicety — the realpath equality test refuses any spelling that is not. The one
+// production caller satisfies it by construction (context.project_root is minted
+// through realpathSync.native), which is the whole reason the strict form is
+// affordable here. A caller handing it an uncanonicalized path gets
+// `unsafe-ancestor` for a perfectly ordinary tree: on macOS every path under
+// /var/folders resolves to /private/var/folders, so a hand-built temp path refuses.
+// That is the trap deletableTarget records in the doctor renderer — it walks from
+// the canonical root for exactly this reason — and it is why the suite
+// canonicalizes its fixture roots rather than relaxing this test.
+// The ancestor-permission rule, ONE implementation, named rather than inlined so the
+// ladder's refusal and its own unit cases judge the same thing.
+//
+// THREE ways it declines to decide, each deliberate. On a host with no POSIX identity —
+// win32 — `process.getuid` is absent and the mode bits are not the access control, so the
+// check ABSTAINS rather than refusing every restore there. A stat that carries no numeric
+// `uid` or `mode` is the same case. And the STICKY bit is a full exemption, taken with its
+// cost stated rather than argued away: `/tmp` is writable by every user and sticky by
+// design, and without the exemption the repair would refuse every recorded root under a
+// temp directory. What sticky buys is NARROWER than what this rule asks for. It constrains
+// `unlink` and `rename` of entries that ALREADY EXIST, so an entry this run created cannot
+// be removed or renamed out from under it by another user. It says nothing about CREATE, and every
+// component this writer plants is one `verdict.missing` proved ABSENT — so under a sticky
+// ancestor a co-tenant can still win the race to the name, and the realpath re-verification
+// after each mkdir is what catches that, never this rule. (The phrasing avoids the literal
+// that R12b reserves for the retraction below about the mode of the directory this repair
+// CREATES — a different claim from this one, which is about an ancestor the repair never
+// touches.)
+//
+// `root` is accepted as an owner beside the caller: a system-managed parent such as
+// `/opt` or `/srv` is a legitimate place for a project, and refusing it would invent a
+// location policy the record never asked for — the same reasoning that refused a location
+// allowlist for the destination itself.
+// The ABSTAIN ladder, shared by both rules below so a host that cannot decide
+// abstains identically wherever the question is asked. Hoisted rather than copied:
+// the two predicates disagree about the WRITE BITS on purpose, and a second copy of
+// the part they agree on is what lets that deliberate divergence drift into an
+// accidental one.
+function restoreOwnershipUndecidable(componentStat) {
+  if (typeof process.getuid !== 'function') return true;
+  return !componentStat
+    || typeof componentStat.uid !== 'number'
+    || typeof componentStat.mode !== 'number';
+}
+
+// THE LEAF RULE — the OWNER half alone, and it is a SEPARATE predicate rather than a
+// flag because the two questions are different. The recorded project root is the
+// DESTINATION this repair hands back, never a directory it plants a child inside, so
+// the swap window the write-bits half exists to close does not exist there: nothing is
+// created under the leaf by this function. Its mode is the user's own business, and a
+// worktree created under the ordinary umask 002 is 0775 — applying the ancestor rule to
+// it turned "the directory came back between the check and the write" into
+// `FAILED` / exit 1 for the most common shape of the benign race.
+//
+// What still has to hold is the owner: announcing ALREADY RESTORED over a directory
+// belonging to somebody else tells the user their anchor is back when what is at that
+// path is not theirs. `root` is accepted for the same reason it is accepted below.
+function restoreRootOwnerSafe(componentStat) {
+  if (restoreOwnershipUndecidable(componentStat)) return true;
+  return componentStat.uid === process.getuid() || componentStat.uid === 0;
+}
+
+function restoreAncestorPermissionsSafe(componentStat) {
+  if (restoreOwnershipUndecidable(componentStat)) return true;
+  // The owner half is the leaf rule, called rather than re-spelled: an ancestor this
+  // repair may plant inside must satisfy everything the destination must satisfy, and
+  // then one thing more.
+  if (!restoreRootOwnerSafe(componentStat)) return false;
+  if ((componentStat.mode & 0o1000) !== 0) return true;
+  return (componentStat.mode & 0o022) === 0;
+}
+
+// The same rule over EVERY component of a chain, which is what the ladder's own
+// comment always claimed and what it did not do. Judging the nearest existing
+// component alone leaves a GRANDPARENT open to every user's write above a self-owned
+// parent
+// unexamined, and the realpath equality test beside it proves the chain is LINK-FREE
+// while saying nothing about who may write to it — so the whole subtree stayed
+// replaceable while the check passed.
+//
+// Modelled on `assertSecureWorkspaceRoot` in `review-evidence-lease-v1.js`, which has
+// held the stricter rule all along for a LESS dangerous operation — reading a lease
+// workspace — than this one, which creates a directory at an arbitrary absolute path.
+// The divergence is what this closes; the template is not copied blindly, because that
+// walker also enforces a 0700 leaf, which is a rule about a directory IT creates and
+// would refuse every ordinary project root here.
+//
+// Returns the FIRST offending component walking DOWN from the filesystem root, so the
+// value is the HIGHEST one that fails rather than the nearest existing one. The
+// renderer labels it accordingly; do not reuse the sibling refusal's row here.
+//
+// A component it cannot stat is NOT reported, and the honest reason is narrower than
+// the one this comment used to give. It claimed "the ladder above already answers for
+// absence and for an unreadable component", which is true only from the nearest
+// EXISTING component downwards — the ladder walks UP from the recorded root and stops
+// there, so every ancestor ABOVE it, which is exactly what this walk covers, is one the
+// ladder never stats. So this arm fails OPEN, and nothing else answers for it. The
+// exposure is narrow rather than absent: `lstat` here succeeds for every ancestor of a
+// component the ladder just stat'ed successfully, because that stat already required
+// search permission on the whole chain — what remains is a permission change racing
+// between the two walks. Refusing instead was weighed and declined: an unreadable
+// ancestor is the ladder's own UNSAFE_ANCESTOR cause, and answering it a second time
+// here would replace a precise refusal with a less precise one.
+function restoreAncestorChainOffender(dir) {
+  const parsed = path.parse(dir);
+  const relative = path.relative(parsed.root, dir);
+  const segments = relative === '' ? [] : relative.split(path.sep);
+  let current = parsed.root;
+  for (let index = 0; ; index += 1) {
+    let componentStat;
+    try {
+      componentStat = fs.lstatSync(current);
+    } catch {
+      return null;
+    }
+    if (!restoreAncestorPermissionsSafe(componentStat)) return current;
+    if (index >= segments.length) return null;
+    current = path.join(current, segments[index]);
+  }
+}
+
+function restoreRootComponentLadder(projectRoot) {
+  const missing = [];
+  let candidate = projectRoot;
+  for (;;) {
+    let componentStat;
+    try {
+      componentStat = fs.lstatSync(candidate);
+    } catch (error) {
+      // ENOENT is a component the repair creates. ENOTDIR is ALSO absence — it
+      // means some ancestor is a file, so this path cannot exist either — and it
+      // is handled by continuing UP rather than refusing here, so the refusal
+      // names the file that is actually there instead of a child path that does
+      // not exist. That is the same lesson baselineUnsafeComponent records: an
+      // `at` the operator cannot inspect sends them to the wrong place. The walk
+      // then meets that file as the nearest EXISTING component and refuses it by
+      // the isDirectory test below. Every other errno — EACCES, a symlink loop —
+      // is NOT absence, and answering "missing" for it would aim a mkdir at a
+      // path this process cannot see.
+      if (!error || (error.code !== 'ENOENT' && error.code !== 'ENOTDIR')) {
+        // The candidate has NOT been proven to exist — the lstat on it is what just
+        // failed — so the refusal must not hand it to a renderer that labels `at` as
+        // the nearest EXISTING component. On the first iteration `candidate` IS the
+        // recorded root, and the report then told the operator to inspect a path that
+        // is very likely absent. That is the same failure the ENOTDIR arm above states
+        // it avoids, applied to one arm and not to its neighbour. The path is still
+        // carried, because it is the one an operator has to look at; only the CLAIM
+        // about it changes, and `atUnreadable` is what the renderer keys its label on.
+        const refusal = restoreRootRefusal(RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR, candidate);
+        refusal.atUnreadable = true;
+        return refusal;
+      }
+      missing.push(candidate);
+      const parent = path.dirname(candidate);
+      // path.dirname is a fixed point at the filesystem root on POSIX and at a
+      // drive root on win32, so this terminates. Reaching it means NOTHING on the
+      // way to the recorded root exists, which is not a removed worktree.
+      if (parent === candidate) {
+        // No `at`. Every candidate on this walk answered ENOENT, so naming one
+        // would send the operator to a path this ladder just proved absent —
+        // the same rule the ENOTDIR arm above follows, and the renderer already
+        // omits the line when `at` is missing.
+        return restoreRootRefusal(RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR);
+      }
+      candidate = parent;
+      continue;
+    }
+    // The recorded root itself is there. The verdict below proves absence through
+    // readOrphanedProjectRootContext before it ever calls this, so reaching here
+    // with an empty `missing` means the tree changed in between.
+    if (missing.length === 0) {
+      return restoreRootRefusal(RESTORE_ROOT_REFUSALS.ROOT_PRESENT, candidate);
+    }
+    if (componentStat.isSymbolicLink() || !componentStat.isDirectory()) {
+      return restoreRootRefusal(RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR, candidate);
+    }
+    try {
+      if (fs.realpathSync.native(candidate) !== candidate) {
+        return restoreRootRefusal(RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR, candidate);
+      }
+    } catch {
+      return restoreRootRefusal(RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR, candidate);
+    }
+    // WHO may write here. Every test above establishes WHAT this component is — a real,
+    // canonical, link-free directory — and none of them asks who else can change it. The
+    // loop then plants a directory inside it, re-verifying each created component by
+    // realpath, which NARROWS the swap window and cannot close it: Node exposes no
+    // `mkdirat`, so the name is resolved again on every syscall. Under an ancestor a
+    // co-tenant may write, that window is theirs to win. Refusing it closes the window by
+    // not opening it.
+    const offender = restoreAncestorChainOffender(candidate);
+    if (offender !== null) {
+      return restoreRootRefusal(RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR_OWNERSHIP, offender);
+    }
+    return {
+      ok: true,
+      nearestExisting: candidate,
+      // Top-down, which is the order they are created in and the order a report
+      // reads in. `missing` was built walking up.
+      missing: missing.slice().reverse(),
+    };
+  }
+}
+
+// Never throws: like adoptableRecord, every caller is already on a failure path,
+// and an exception would replace a named condition with a stack trace.
+//
+// The STRICT read must FAIL and the orphan read must SUCCEED. That makes this
+// verdict disjoint from the healthy case BY CONSTRUCTION rather than by an
+// ordering the next edit could break — and it is why a root that is present, or a
+// record broken in some other way, can never reach the write below.
+function restoreRootVerdict(options) {
+  let executingPluginRoot;
+  let pluginData;
+  let context;
+  try {
+    executingPluginRoot = canonicalDirectory(options.executingPluginRoot, 'executing plugin root');
+    pluginData = canonicalDirectory(options.pluginData, 'plugin data');
+  } catch {
+    return restoreRootRefusal(RESTORE_ROOT_REFUSALS.RECORD_UNREADABLE);
+  }
+  const readerOptions = {
+    recordsDir: options.recordsDir,
+    sessionId: options.sessionId,
+    expectedHost: options.host,
+  };
+  let strictReadSucceeded = false;
+  try {
+    readContext(readerOptions);
+    strictReadSucceeded = true;
+  } catch {
+    // Expected in the state this repair exists for.
+  }
+  if (strictReadSucceeded) return restoreRootRefusal(RESTORE_ROOT_REFUSALS.ROOT_PRESENT);
+  try {
+    context = readOrphanedProjectRootContext(readerOptions);
+  } catch {
+    // The strict read failed for some OTHER reason — a digest mismatch, a schema
+    // break, a pruned installation. Those have their own exits; this one must not
+    // silently stand in for them.
+    return restoreRootRefusal(RESTORE_ROOT_REFUSALS.RECORD_UNREADABLE);
+  }
+  if (context.plugin_data !== pluginData) {
+    return restoreRootRefusal(RESTORE_ROOT_REFUSALS.PLUGIN_DATA);
+  }
+  // The same bind workflowBaselineVerdict requires, for the same reason: creating
+  // the anchor of a record this runtime is not allowed to read would repair the
+  // wrong half. A lineage break has its own exit, and it is adoption.
+  if (!servesRecordedRuntime(context, executingPluginRoot, context.host)) {
+    return restoreRootRefusal(RESTORE_ROOT_REFUSALS.NOT_SERVED);
+  }
+  const ladder = restoreRootComponentLadder(context.project_root);
+  if (!ladder.ok) return ladder;
+  if (ladder.missing.length > RESTORE_MAX_MISSING_COMPONENTS) {
+    return {
+      ok: false,
+      reason: RESTORE_ROOT_REFUSALS.TOO_MANY_MISSING_COMPONENTS,
+      at: ladder.nearestExisting,
+      missingCount: ladder.missing.length,
+      limit: RESTORE_MAX_MISSING_COMPONENTS,
+    };
+  }
+  return {
+    ok: true,
+    projectRoot: context.project_root,
+    nearestExisting: ladder.nearestExisting,
+    missing: ladder.missing,
+    context,
+  };
+}
+
+// ONE predicate for "the rebuild happened and its BASELINE_REBUILT history entry did
+// not". It was spelled three times with three different tests — in the adopt report's
+// two renderers and in the sessionStart self-heal — and the three had already diverged
+// on which provenance values count. `existing` is excluded because nothing was rebuilt
+// there, so nothing was owed a history entry.
+function baselineProvenanceUnrecorded(baseline) {
+  if (!baseline || typeof baseline !== 'object') return false;
+  return baseline.provenance !== 'recorded' && baseline.provenance !== 'existing';
+}
+
+// ONE builder for the benign race. It was constructed verbatim at three sites, and a
+// suite row pinned the DUPLICATION (`grep -c 'code = RESTORE_ALREADY_PRESENT_CODE'`
+// equal to 3) rather than the property. The claim worth holding is that every
+// producer routes through here, which is what that row asserts now.
+//
+// This block sat above `baselineProvenanceUnrecorded` for a release — two functions
+// from its subject — so a reader arriving at that predicate met a paragraph about
+// something else. R12d grades the OFFSET rather than the text, because a needle alone
+// cannot see which function a comment introduces.
+function restoreRootAlreadyPresentError(created) {
+  const raced = new Error(
+    `recorded project root is not restorable: ${RESTORE_ROOT_REFUSALS.ROOT_PRESENT}`,
+  );
+  raced.code = RESTORE_ALREADY_PRESENT_CODE;
+  raced.created = Array.isArray(created) ? created.slice() : [];
+  return raced;
+}
+
+// Does `candidate` name a directory the RECORD CAN USE? Three answers in one call,
+// because the writer has to tell them apart and a bare `lstat` cannot: absent,
+// present-but-unusable, present-and-usable.
+//
+// EXPORTED for its own cases. The leaf arm that consumes it sits immediately below a
+// re-derivation of the verdict, so a present leaf is already ROOT_PRESENT there and
+// no fixture can reach the arm itself — routing the decision through one helper is
+// what gives the discrimination coverage at all.
+//
+// `real` is `realpathSync.native(candidate) === candidate`, which is the ladder's own
+// whole-chain test: equality proves transitively that NO component on the way here is
+// a link, not merely that the leaf is not one. A dangling link, a regular file, a
+// FIFO and a directory reached through a symlinked parent all answer present-unusable.
+function restoreRootRealDirectory(candidate) {
+  let entry;
+  try {
+    entry = fs.lstatSync(candidate);
+  } catch (error) {
+    // ENOENT and ENOTDIR are both absence: an ancestor that is a file means this
+    // path cannot exist either. Every other errno is NOT absence — EACCES and a
+    // symlink loop mean the process cannot see what is there — so they answer
+    // present-unusable, which is the refusing direction.
+    if (error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
+      return { present: false, real: false };
+    }
+    return { present: true, real: false };
+  }
+  if (entry.isSymbolicLink() || !entry.isDirectory()) return { present: true, real: false };
+  try {
+    // The STAT travels with the verdict. The arm that adopts a component this run did
+    // not create has to judge its owner and mode by the ladder's own rule, and taking a
+    // second lstat there would judge a different instant than the one the realpath test
+    // just proved — the two reads are what a swap in between would sit inside.
+    return { present: true, real: fs.realpathSync.native(candidate) === candidate, stat: entry };
+  } catch {
+    return { present: true, real: false };
+  }
+}
+
+// Re-creates the recorded project root and rebuilds the workflow baseline in the
+// same run. The verdict is evaluated twice — once by the caller to report, once
+// here to act — for the reason adoptContext and repairWorkflowBaseline re-evaluate
+// their own: between the two, the directory could have come back, or something
+// could have been planted on the way to it.
+//
+// THE ORDER IS THE CONTRACT: mkdir, then baseline, then provenance. The provenance
+// entry lives IN the workflow document, so it has nowhere to go until the baseline
+// exists, and the baseline cannot be written until the directory does.
+//
+// The baseline half never rolls the mkdir back and never throws out of here. The
+// directory is the primary repair — it is what un-denies the write gate — and a
+// failed document rebuild is reported so the caller can say so, exactly as
+// repairWorkflowBaseline reports a failed provenance write rather than undoing a
+// rebuild that succeeded.
+// `deps` is a FILESYSTEM seam and deliberately not a verdict one. An injectable
+// verdict would delete the TOCTOU re-check this function exists to be; an injectable
+// mkdir leaves every check in place and lets a fixture plant a name BETWEEN two
+// iterations, which is the only way any post-verdict arm below is reachable — the
+// verdict is re-derived here, so a static fixture just changes what the ladder
+// computes. Defaulted, so every production call site is unchanged.
+function restoreWorkflowProjectRoot(options, deps) {
+  const mkdir = (deps && deps.mkdir) || ((target) => fs.mkdirSync(target, { mode: 0o755 }));
+  const verdict = restoreRootVerdict(options);
+  if (!verdict.ok) {
+    // ROOT_PRESENT is the BENIGN race and must be TYPED, not a generic fail().
+    // This re-derivation is the one that actually observes it: the caller's
+    // verdict was taken before a record read and two runtime-digest walks, so a
+    // `git worktree add` in another terminal lands inside that window far more
+    // often than inside the nanosecond-wide leaf lstat below. With an untyped
+    // throw the report printed "FAILED … Run /zensu-doctor" for a session that
+    // had just become completely healthy, which is the opposite of what
+    // RESTORE_ALREADY_PRESENT_CODE exists to express.
+    if (verdict.reason === RESTORE_ROOT_REFUSALS.ROOT_PRESENT) {
+      throw restoreRootAlreadyPresentError([]);
+    }
+    fail(`recorded project root is not restorable: ${verdict.reason}`);
+  }
+  // The TOCTOU re-check, immediately before the write and never folded into the
+  // verdict above it. It DECIDES FROM EVIDENCE rather than from presence: a bare
+  // lstat answered "the recorded project root came back" for anything at that name,
+  // so one `ln -s /nonexistent <root>` — or a `touch` — turned the fully wedged
+  // state into an exit-0 "ALREADY RESTORED". The root had not come back:
+  // readContext realpaths the value, and readOrphanedProjectRootContext names a
+  // dangling symlink or a file there as explicitly NOT this state. The verdict one
+  // line up already refuses that shape as record-unreadable; only this window used
+  // to drop the standard.
+  const leaf = restoreRootRealDirectory(verdict.projectRoot);
+  if (leaf.present) {
+    if (!leaf.real) {
+      fail(`recorded project root is not restorable: ${RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR}`);
+    }
+    // The LEAF rule, not the ancestor one. Announcing ALREADY RESTORED over a directory
+    // nothing checked the owner of is the report telling the user their anchor is back
+    // while it is in fact somebody else's directory — but the ancestor rule's write-bits
+    // half has no business here, and applying it refused the ordinary umask-002 worktree.
+    if (!restoreRootOwnerSafe(leaf.stat)) {
+      fail('recorded project root is not restorable: '
+        + RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR_OWNERSHIP);
+    }
+    throw restoreRootAlreadyPresentError([]);
+  }
+  // ONE COMPONENT AT A TIME, and never `recursive: true`. A recursive mkdir
+  // resolves every intermediate component through ordinary path resolution, so a
+  // symlink planted at one of them between the ladder's check and this write is
+  // FOLLOWED — which re-opens the exact escape restoreRootComponentLadder's
+  // realpath test exists to close, and which the leaf lstat above cannot see
+  // because the leaf is still absent in that scenario. Creating each component
+  // with a bare mkdir makes a planted name fail EEXIST instead, and `missing` is
+  // already ordered top-down at the ladder for precisely this loop.
+  //
+  // This narrows the race; it does not close it. Node exposes no `mkdirat`, so
+  // between two iterations a component can still be swapped, and what the loop buys
+  // depends on WHERE: `mkdir(2)` does not follow a symlink at the FINAL component, so
+  // a name planted there fails EEXIST and is refused before anything is written —
+  // while every component ABOVE it is resolved normally and a swap there is followed
+  // in silence. The post-create realpath check below is what catches the second case,
+  // and it is detection AFTER the fact: the directory has already landed in the other
+  // tree. Do not restate this as "a swap is REFUSED rather than traversed" — that is
+  // true of one of the two positions, and the check below says so in its own words.
+  //
+  // Mode is explicit so the CAP does not depend on the ambient umask being tight.
+  // State what that buys and no more: `fs.mkdirSync(target, { mode })` hands the mode
+  // to mkdir(2), which applies `mode & ~umask`, so Node does not bypass the umask and
+  // the dependence is not removed — under `umask 077` the root still lands 0700. What
+  // the explicit mode does is bound the result from ABOVE independently of the umask:
+  // under a permissive `umask 002` this yields 0755 where Node's 0o777 default would
+  // have yielded 0775. It is strictly non-widening versus that default in every umask.
+  //
+  // An earlier revision of this comment claimed the explicit mode removed the umask
+  // dependence and that the root "could land world-writable" without it. Both are
+  // false, and the second contradicts this paragraph's own premise: a umask can only
+  // CLEAR bits, so it can never add a world-write bit neither 0o777 nor 0755 was
+  // given. A maintainer reasoning from the old text would have reached the wrong
+  // conclusion about what this argument protects.
+  const created = [];
+  // A run that PLANTED components and then lost the race must still record that it
+  // did. Every raced throw fires ABOVE repairWorkflowBaseline and above the
+  // mutateWorkflowState below, so the count reached the operator on stdout only and
+  // the workflow history — which this feature names as its ONLY durable disclosure,
+  // there being deliberately no bypass-ledger entry — recorded nothing at all. The
+  // partial case is ordinary rather than contrived: two sessions can legitimately
+  // name one project_root, so both interleave per component and each ends up having
+  // created a strict subset.
+  //
+  // The flag is what the loop sets INSTEAD of throwing, and only when there is work
+  // to record. A run that created NOTHING keeps throwing exactly as before: there is
+  // no provenance to write, and an entry claiming otherwise would be false. The two
+  // pre-loop arms above are unchanged for the same reason.
+  let alreadyPresent = false;
+  for (const component of verdict.missing) {
+    try {
+      mkdir(component);
+    } catch (error) {
+      if (error && error.code === 'EEXIST') {
+        // EEXIST is the ONE signal this primitive gives, and all three readings of
+        // it are decided from EVIDENCE rather than from the component's position.
+        // The position alone got two of them wrong: an intermediate EEXIST was
+        // read as tamper, and a leaf EEXIST as the benign race.
+        //
+        // FIRST, the whole chain. The race the comments describe is a
+        // `git worktree add` in another terminal, and git creates every component
+        // at once — so the loop meets EEXIST on an INTERMEDIATE first. If the
+        // recorded root is now a real canonical directory the repair is complete,
+        // whatever this component is: realpath equality on the leaf proves
+        // transitively that nothing on the way to it is a link. Reporting that as
+        // `FAILED … Run /zensu-doctor` is the same wrong outcome the ROOT_PRESENT
+        // re-derivation was added to prevent, one component up.
+        const leafNow = restoreRootRealDirectory(verdict.projectRoot);
+        if (leafNow.real && !restoreRootOwnerSafe(leafNow.stat)) {
+          // Same rule, same reason as the leaf arm above the loop: a recorded root that
+          // appeared during the race is still a directory this run is about to hand the
+          // session back, and nothing else judges who owns it. The LEAF rule, because
+          // this IS the recorded root — the ancestor rule one arm down judges a
+          // component the loop would go on to plant inside.
+          // CARRIED, like every other throw site in this loop. A race that refuses
+          // here can follow components this run really planted, and a composed
+          // `fail()` message cannot name them — safeDisplayValue folds a pair.
+          try {
+            fail('recorded project root is not restorable: '
+              + RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR_OWNERSHIP);
+          } catch (thrown) {
+            thrown.created = created.slice();
+            throw thrown;
+          }
+        }
+        if (leafNow.real) {
+          // The work is CARRIED, not discarded. `verdict.projectRoot` is the LAST
+          // element of `verdict.missing`, so with two or more missing components
+          // this run has already created the ones above it — and dropping `created`
+          // here made the caller print "this run created nothing" over directories
+          // it had just planted.
+          //
+          // CARRIED FURTHER than the message now: with work to record, the loop ends
+          // and the function falls through to the baseline repair and the provenance
+          // write, so what this run planted lands in the workflow history instead of
+          // living only in a line of stdout. See the flag's own comment above the loop.
+          if (created.length > 0) {
+            alreadyPresent = true;
+            break;
+          }
+          throw restoreRootAlreadyPresentError(created);
+        }
+        // SECOND, a sibling repair. ONE project_root can be named by SEVERAL
+        // records — a worktree that hosted three sessions and was then removed
+        // leaves three — so two sessions each running --restore-root --confirm is
+        // ordinary, not contrived. The loser meets EEXIST on a component the winner
+        // created, and what is at that name IS the directory the record needs.
+        // NOT pushed onto `created`: the provenance entry counts what THIS run
+        // performed, and claiming another run's work would make that entry false.
+        // EVIDENCE FIRST, identity second. Testing the identity first left one window
+        // open: a leaf whose directory becomes real BETWEEN the `leafNow` read above
+        // and this one failed the `component !== verdict.projectRoot` conjunct and fell
+        // to the refusal below, whose three claims this read has just disproven. No
+        // fixture can open that window — the seam injects mkdir, not the reads — so the
+        // ORDER is what closes it.
+        const there = restoreRootRealDirectory(component);
+        // WHICH rule depends on WHAT this component is, and the loop reaches both here:
+        // `missing` is ordered top-down and ends at the recorded root, so the last
+        // iteration judges the destination while every earlier one judges a directory
+        // the next iteration plants inside. Asking the ancestor question about the
+        // destination is the defect the leaf arms above fix; asking the leaf question
+        // about an intermediate would re-open the swap window this rule exists for.
+        const thereSafe = component === verdict.projectRoot
+          ? restoreRootOwnerSafe(there.stat)
+          : restoreAncestorPermissionsSafe(there.stat);
+        if (there.real && !thereSafe) {
+          // THE BYPASS THIS CLOSES. `restoreRootRealDirectory` tests lstat kind plus
+          // realpath equality and nothing about uid or mode, so this arm used to adopt a
+          // component the ladder would have refused — then plant the next one inside it.
+          // Two paths answering "is this safe to plant inside?" with different rules is
+          // the shape a race wins: the ladder sees a chain that is clean, and the loop
+          // meets a component a co-tenant created in between. Sticky does not prevent
+          // that: it constrains `unlink` and `rename` of EXISTING entries and says
+          // nothing about CREATE, and every component here is one that did not exist
+          // when the ladder looked.
+          // CARRIED, for the reason the sibling arm above states.
+          try {
+            fail('a component of the recorded project root exists at '
+              + `${component}, and is not one this repair may plant inside: `
+              + RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR_OWNERSHIP);
+          } catch (thrown) {
+            thrown.created = created.slice();
+            throw thrown;
+          }
+        }
+        if (there.real) {
+          if (component === verdict.projectRoot) {
+            // Same rule as the leaf arm above: with work to record, end the loop and
+            // let the provenance write run. With none, throw as before.
+            if (created.length > 0) {
+              alreadyPresent = true;
+              break;
+            }
+            throw restoreRootAlreadyPresentError(created);
+          }
+          continue;
+        }
+        // THIRD, everything else: a regular file, a link, or a name this process
+        // cannot canonicalize. Now the message describes what the code ESTABLISHED
+        // rather than what it assumed — the previous wording asserted "something is
+        // at that name that the verdict did not see" without ever looking.
+        try {
+          fail(`a component of the recorded project root already exists at ${component}, `
+            + 'so the path below it cannot be created as recorded — it is not a directory, '
+            + 'or it is a link, or it does not canonicalize to itself');
+        } catch (thrown) {
+          // Every failure arm carries the work too: the operator cleaning up needs to
+          // know which components this run planted, and a message cannot carry them —
+          // a composed `fail()` string is folded by safeDisplayValue's pair rule.
+          thrown.created = created.slice();
+          throw thrown;
+        }
+      }
+      // `fail()` throws, so the catch is what builds the error. Written as a catch
+      // around the call and never through an intermediate `let failure`: that shape
+      // read like ordinary flow, and if `fail()` ever stopped throwing on some path
+      // it left `failure` undefined and raised an untyped TypeError on the next
+      // line — AFTER this run had already created directories, which is the one
+      // moment the function must still be able to report what it planted.
+      try {
+        fail(`recorded project root could not be created at ${component}: `
+          + `${error && error.message ? error.message : 'unknown'}`);
+      } catch (thrown) {
+        thrown.created = created.slice();
+        throw thrown;
+      }
+    }
+    // mkdir(2) does not follow a symlink at the LAST component, so a name planted
+    // THERE fails EEXIST — but every component above it is resolved normally, and a
+    // swap there is followed in silence. The ladder's realpath test proved the whole
+    // chain link-free at verdict time; this re-applies it after each create, which is
+    // detection AFTER the fact — the directory is already in the wrong place — but it
+    // converts a silent success report naming the recorded path into a refusal.
+    // `created` deliberately does NOT gain this component: the name resolves
+    // somewhere else, so listing it under the recorded spelling would be false.
+    if (!restoreRootRealDirectory(component).real) {
+      const moved = new Error(
+        `recorded project root is not restorable: ${RESTORE_ROOT_REFUSALS.UNSAFE_ANCESTOR}`,
+      );
+      moved.created = created.slice();
+      // Reported under its OWN spelling rather than under none. Keeping it off
+      // `created` is right — that name resolves somewhere else, so listing it there
+      // would be false — but it left the one directory an operator most needs to find
+      // named nowhere at all, in the only branch that establishes tamper.
+      moved.misplaced = component;
+      throw moved;
+    }
+    created.push(component);
+  }
+  let baseline = null;
+  let baselineError = null;
+  let baselineNotRepairable = false;
+  try {
+    baseline = repairWorkflowBaseline(options);
+  } catch (error) {
+    // A concurrent sessionStart that healed the document first is the benign race
+    // and is NOT an error — it is the outcome this call wanted.
+    if (isBaselineAlreadyPresent(error)) {
+      // GUARDED, because this is the one call after the mkdir loop that can throw:
+      // adoptionWorkflowStatePath routes through sessionKey, which fails on a value
+      // this function never re-validates. Every other post-loop throw site attaches
+      // `created` precisely so the caller can report what was planted, and a throw
+      // escaping here would carry none — the one moment that report matters most.
+      let baselinePath = '';
+      try {
+        baselinePath = adoptionWorkflowStatePath(verdict.projectRoot, options.sessionId);
+      } catch (pathFault) {
+        baselinePath = '';
+      }
+      baseline = {
+        path: baselinePath,
+        projectRoot: verdict.projectRoot,
+        provenance: 'existing',
+      };
+    } else {
+      baselineError = error && error.message ? error.message : 'unknown';
+      // CARRIED as its own field, because the two faults have opposite remedies: a
+      // document that is merely MISSING is rebuilt by the adoption, while one that is
+      // UNSAFE or UNREADABLE is tamper evidence the repair refuses by design. Folding
+      // both into one message sent the operator into the command that just declined.
+      baselineNotRepairable = isBaselineNotRepairable(error);
+    }
+  }
+  // Provenance is a history entry and NOT a record or state field, exactly as it
+  // is for the adoption, for --chain-recover and for the baseline repair: a field
+  // would be a persisted shape change, which under the runtime-lineage rule costs
+  // a breaking release and would wedge every session then running.
+  //
+  // And deliberately NOT a bypass-ledger entry. The ledger records gate ESCAPES so
+  // that everything rendered under "Gates bypassed" is true; this escaped no gate
+  // — the gate was denying correctly, and what changed is the fact it reads.
+  let provenanceCause = null;
+  let provenance = 'recorded';
+  if (baselineError !== null) {
+    // A BARE TOKEN, with the cause carried separately. This value is rendered
+    // through `safeDisplayValue`, whose pair-forgery rule is `/ :|: /` — so any
+    // value carrying a foreign message folds, and `baselineError` ALWAYS carries
+    // one: every producer on that path goes through `fail()`, which prefixes
+    // `session-control-v1: `. Rewording the literal could not fix that, which is
+    // what made an earlier "no colon in this string" comment true of the literal
+    // and false of what rendered. MEASURED before the split, the whole row came
+    // back as `"unavailable\u003a the workflow document could not be rebuilt (…)"`.
+    // Splitting means the fold applies to the cause alone and the label survives.
+    provenance = 'unavailable';
+    // Deliberately NOT set here: the renderer already prints `baseline cause`
+    // from baselineError, and duplicating it on two adjacent rows leaves a reader
+    // unable to tell which of the two causes this field carries. It is reserved
+    // for the history-write failure below, which has no other row.
+    provenanceCause = null;
+  } else {
+    try {
+      mutateWorkflowState({
+        projectRoot: verdict.projectRoot,
+        sessionId: options.sessionId,
+        actor: 'main-v1',
+        workflowState: 'project_root_restored',
+        event: 'project-root-restored',
+      }, (state) => {
+        const history = Array.isArray(state.history) ? state.history : [];
+        // `ts`, never `timestamp`: that is the key validateWorkflowExtensions
+        // validates and the one every existing history writer sets.
+        history.push({
+          step: '',
+          phase: RESTORE_HISTORY_PHASE,
+          ts: nowIso(),
+          // `created`, never `verdict.missing`: the provenance entry claims work
+          // THIS run performed, and the two diverge whenever a component was
+          // already there. The sibling baseline repair states the same rule about
+          // itself — it exists to tell a creation from a find, because it appends
+          // an entry claiming it performed one.
+          // The RACED completion says so. An entry identical to an ordinary one
+          // would put the same claim on two different outcomes, and the one thing
+          // an operator reading this history needs here is that the recorded root
+          // came back from somewhere else while this run was still planting.
+          reason: `${RESTORE_HISTORY_REASON_PREFIX}${created.length} component(s)`
+            + (alreadyPresent ? RESTORE_HISTORY_RACED_SUFFIX : ''),
+        });
+        state.history = history;
+        return state;
+      });
+    } catch (error) {
+      provenance = 'unavailable';
+      provenanceCause = error && error.message ? error.message : 'unknown';
+    }
+  }
+  return {
+    projectRoot: verdict.projectRoot,
+    created,
+    nearestExisting: verdict.nearestExisting,
+    baseline,
+    baselineError,
+    baselineNotRepairable,
+    provenance,
+    provenanceCause,
+    // The RETURNED flag the renderer keys ALREADY RESTORED off. It replaces the
+    // throw for the partial case only; a run that created nothing still throws, so
+    // both mechanisms exist and a caller must read this field rather than assume a
+    // successful return means this run created the recorded root.
+    alreadyPresent,
+  };
+}
+
+function renderMainContext(contextInput) {
+  const context = validateContext(contextInput);
+  return [
+    '[zensu-session-context]',
+    `schema_version=${context.schema_version}`,
+    `host=${context.host}`,
+    `session_id_hash=${context.session_id_hash}`,
+    `project_root=${JSON.stringify(context.project_root)}`,
+    `plugin_root=${JSON.stringify(context.plugin_root)}`,
+    `runtime_digest=${context.runtime_digest}`,
+    'principal=main-v1',
+  ].join(' ');
+}
+
+function renderReviewerContext(contextInput) {
+  const context = validateContext(contextInput);
+  return [
+    '[zensu-reviewer-context]',
+    `schema_version=${context.schema_version}`,
+    `host=${context.host}`,
+    `session_id_hash=${context.session_id_hash}`,
+    `project_root=${JSON.stringify(context.project_root)}`,
+    `plugin_root=${JSON.stringify(context.plugin_root)}`,
+    `runtime_digest=${context.runtime_digest}`,
+    'principal=reviewer-readonly-v1.',
+    'The reviewer must not write, spawn, mutate workflow state, invoke mutating control or MCP tools, or impersonate main.',
+    'grep and glob must name a concrete safe source/docs/test subtree; an omitted path or project/plugin/plugin-data ancestor is denied because it could traverse protected state.',
+  ].join(' ');
+}
+
+function renderEvidenceWorkerContext(contextInput) {
+  const context = validateContext(contextInput);
+  return [
+    '[zensu-evidence-worker-context]',
+    `schema_version=${context.schema_version}`,
+    `host=${context.host}`,
+    `project_root=${JSON.stringify(context.project_root)}`,
+    `runtime_digest=${context.runtime_digest}`,
+    'principal=evidence-worker-v1.',
+    'Only view, grep, and glob are available and every call is confined by a private, agent-bound evidence lease.',
+    'No lease id, plugin-data path, raw session id, private selector, command, mutation, messaging, task, nested-agent, Skill, MCP, Web, or memory capability is available.',
+    'Return exactly one raw schema-valid JSON result for the assigned kind and role.',
+  ].join(' ');
+}
+
+function renderHostContext(contextInput) {
+  const context = validateContext(contextInput);
+  return [
+    '[zensu-host-context]',
+    `schema_version=${context.schema_version}`,
+    `host=${context.host}`,
+    `project_root=${JSON.stringify(context.project_root)}`,
+    `runtime_digest=${context.runtime_digest}`,
+    'principal=host-profile-v1.',
+    'Within Copilot CLI host permissions, a neutral child can use view, grep, glob, create, edit, apply_patch, read-only lsp, web_fetch, web_search, update_todo, task, ask_user and skill. The Zensu capability policy checks protected paths and rejects unknown tools. A named neutral agent may run bash behind an accident guard unless hooks.subagentShell is false; this guard is not a sandbox. An unnamed agent, a zensu-review-* persona and a read-only reviewer hold no shell.',
+    'grep and glob must name a concrete safe subtree; an omitted path or project/plugin/plugin-data ancestor is denied because it could traverse protected state.',
+    'Session selectors are not authority: this neutral agent must not access Session Control or workflow-root state, claim main-v1, or mutate Zensu workflow state.',
+  ].join(' ');
+}
+
+function workflowStateDirectory(projectRootInput) {
+  // Reduced over the segment list rather than destructured: a third segment must
+  // not be silently dropped here while adoptionWorkflowStatePath's spread picks
+  // it up, which is exactly the split the shared constant exists to prevent.
+  return WORKFLOW_STATE_SEGMENTS.reduce(
+    (parent, segment) => ensureDescendantDirectory(parent, path.join(parent, segment)),
+    canonicalDirectory(projectRootInput, 'project root'),
+  );
+}
+
+function resolveWorkflowStateDirectory(options) {
+  if (options.stateDirectory !== undefined) {
+    fail('workflow state directory overrides are unsupported');
+  }
+  return workflowStateDirectory(options.projectRoot);
+}
+
+function workflowStateFile(projectRoot, sessionId) {
+  return path.join(
+    workflowStateDirectory(projectRoot),
+    `${WORKFLOW_STATE_PREFIX}${sessionKey(sessionId)}.json`,
+  );
+}
+
+function validateWorkflowToken(value, label) {
+  requireText(value, label);
+  if (!/^[a-z][a-z0-9_-]{0,63}$/.test(value)) {
+    fail(`${label} has an invalid format`);
+  }
+  return value;
+}
+
+const WORKFLOW_BOOLEAN_EXTENSIONS = [
+  'active',
+  'vanilla',
+  'implComplete',
+  'chainDone',
+  'codeReviewDone',
+  'selfReviewFixed',
+  'workflowActive',
+  'reviewTicketConsumed',
+];
+
+const WORKFLOW_INTEGER_EXTENSIONS = [
+  'reviewRound',
+  'stopBlockCount',
+  'implStopCount',
+  'autopilotAttempt',
+];
+
+function validateWorkflowString(value, label, allowEmpty = false) {
+  if (
+    typeof value !== 'string'
+    || (!allowEmpty && value.length === 0)
+    || /[\u0000-\u001f\u007f]/.test(value)
+  ) {
+    fail(`${label} is invalid`);
+  }
+  return value;
+}
+
+function validateWorkflowExtensions(state) {
+  for (const field of WORKFLOW_BOOLEAN_EXTENSIONS) {
+    if (Object.prototype.hasOwnProperty.call(state, field) && typeof state[field] !== 'boolean') {
+      fail(`workflow extension ${field} must be boolean`);
+    }
+  }
+
+  for (const field of WORKFLOW_INTEGER_EXTENSIONS) {
+    if (
+      Object.prototype.hasOwnProperty.call(state, field)
+      && (!Number.isSafeInteger(state[field]) || state[field] < 0 || state[field] > 1000000)
+    ) {
+      fail(`workflow extension ${field} must be a bounded non-negative integer`);
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(state, 'phase')) {
+    validateWorkflowString(state.phase, 'workflow phase');
+  }
+  if (Object.prototype.hasOwnProperty.call(state, 'step_id')) {
+    validateWorkflowString(state.step_id, 'workflow step_id', true);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(state, 'history')) {
+    if (!Array.isArray(state.history)) fail('workflow history must be an array');
+    for (const [index, entry] of state.history.entries()) {
+      if (
+        !entry
+        || typeof entry !== 'object'
+        || Array.isArray(entry)
+        || (Object.getPrototypeOf(entry) !== Object.prototype && Object.getPrototypeOf(entry) !== null)
+      ) {
+        fail(`workflow history entry ${index} must be an object`);
+      }
+      validateWorkflowString(entry.step, `workflow history entry ${index} step`, true);
+      validateWorkflowString(entry.phase, `workflow history entry ${index} phase`);
+      if (Object.prototype.hasOwnProperty.call(entry, 'ts')) {
+        if (typeof entry.ts !== 'string' || !Number.isFinite(Date.parse(entry.ts))) {
+          fail(`workflow history entry ${index} timestamp is invalid`);
+        }
+      }
+      if (Object.prototype.hasOwnProperty.call(entry, 'reason') && typeof entry.reason !== 'string') {
+        fail(`workflow history entry ${index} reason must be a string`);
+      }
+    }
+  }
+
+  for (const field of ['workflowTools', 'bypasses']) {
+    if (!Object.prototype.hasOwnProperty.call(state, field)) continue;
+    if (!Array.isArray(state[field])) fail(`workflow extension ${field} must be an array`);
+    for (const [index, value] of state[field].entries()) {
+      validateWorkflowString(value, `workflow extension ${field}[${index}]`);
+    }
+  }
+
+  for (const field of [
+    'reviewTicket',
+    'deferredReviewClaim',
+    'autopilotRunId',
+    'autopilotReturnStage',
+    'chainId',
+    'chainOutcome',
+  ]) {
+    if (Object.prototype.hasOwnProperty.call(state, field)) {
+      validateWorkflowString(state[field], `workflow extension ${field}`, true);
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(state, 'reviewRearm')) {
+    const marker = state.reviewRearm;
+    const exactKeys = [
+      'attempt',
+      'chainId',
+      'consumedTicketSha256',
+      'retire',
+      'runId',
+      'schemaVersion',
+      'status',
+    ];
+    if (
+      !marker
+      || typeof marker !== 'object'
+      || Array.isArray(marker)
+      || Object.keys(marker).sort().join(',') !== exactKeys.join(',')
+      || marker.schemaVersion !== 1
+      || marker.status !== 'pending'
+      || !Number.isSafeInteger(marker.attempt)
+      || marker.attempt < 1
+      || marker.attempt > 999
+      || typeof marker.retire !== 'boolean'
+      || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$/.test(marker.runId || '')
+      || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$/.test(marker.chainId || '')
+      || !/^[a-f0-9]{64}$/.test(marker.consumedTicketSha256 || '')
+    ) {
+      fail('workflow extension reviewRearm is invalid');
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(state, 'deferredReviewCancellation')) {
+    const marker = state.deferredReviewCancellation;
+    const keys = [
+      'cancellationId',
+      'claimId',
+      'mode',
+      'origin',
+      'ownerSessionId',
+      'resetBinding',
+      'resultRevision',
+      'schemaVersion',
+      'sourceRevision',
+    ];
+    if (
+      !marker
+      || typeof marker !== 'object'
+      || Array.isArray(marker)
+      || Object.keys(marker).sort().join(',') !== keys.join(',')
+      || marker.schemaVersion !== 1
+      || !/^drc_[A-Za-z0-9_-]+$/.test(marker.cancellationId || '')
+      || marker.cancellationId.length > 96
+      || !/^dc_[A-Za-z0-9_-]+$/.test(marker.claimId || '')
+      || marker.claimId.length > 96
+      || !['release-only', 'reset'].includes(marker.mode)
+      || !['linked', 'unseeded'].includes(marker.origin)
+      || !Number.isSafeInteger(marker.sourceRevision)
+      || marker.sourceRevision < 1
+      || marker.resultRevision !== marker.sourceRevision + 1
+      || state.session_id_hash !== sessionIdHash(marker.ownerSessionId)
+      || !deferredReviewResetBindingIsValid(marker.resetBinding)
+      || (marker.mode === 'release-only' && marker.resetBinding !== null)
+    ) {
+      fail('workflow deferredReviewCancellation marker is invalid');
+    }
+    canonicalControlSessionKey(marker.ownerSessionId, 'cancellation owner');
+  }
+}
+
+function stampWorkflowState(
+  input,
+  sessionId,
+  workflowStateInput,
+  eventInput,
+  updatedAtInput,
+  authoritativePreviousRevision,
+) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    fail('workflow state must be an object');
+  }
+  const workflowState = validateWorkflowToken(workflowStateInput, 'workflow state');
+  const event = validateWorkflowToken(eventInput, 'workflow event');
+  const hash = sessionIdHash(sessionId);
+  if (input.revision !== undefined && (!Number.isSafeInteger(input.revision) || input.revision < 0)) {
+    fail('workflow revision is invalid');
+  }
+  const previousRevision = authoritativePreviousRevision === undefined
+    ? (input.revision || 0)
+    : authoritativePreviousRevision;
+  if (!Number.isSafeInteger(previousRevision) || previousRevision < 0) {
+    fail('workflow revision is invalid');
+  }
+  if (previousRevision === Number.MAX_SAFE_INTEGER) {
+    fail('workflow revision overflow');
+  }
+  const updatedAt = updatedAtInput || nowIso();
+  if (!Number.isFinite(Date.parse(updatedAt))) {
+    fail('updatedAt must be an ISO-compatible timestamp');
+  }
+  const extension = {};
+  for (const [field, value] of Object.entries(input)) {
+    if (!WORKFLOW_RESERVED_FIELDS.has(field)) extension[field] = value;
+  }
+  const next = {
+    ...extension,
+    schema: WORKFLOW_SCHEMA,
+    schema_version: SCHEMA_VERSION,
+    session_id_hash: hash,
+    workflow_state: workflowState,
+    revision: previousRevision + 1,
+    last_event: event,
+    updated_at: updatedAt,
+    actor: 'main-v1',
+  };
+  return validateWorkflowState(next, sessionId);
+}
+
+function validateWorkflowState(state, sessionId) {
+  if (
+    !state
+    || typeof state !== 'object'
+    || Array.isArray(state)
+    || state.schema !== WORKFLOW_SCHEMA
+    || state.schema_version !== SCHEMA_VERSION
+  ) {
+    fail('workflow state schema mismatch');
+  }
+  if (state.session_id_hash !== sessionIdHash(sessionId)) {
+    fail('workflow session hash mismatch');
+  }
+  if (!Number.isSafeInteger(state.revision) || state.revision < 1) {
+    fail('workflow revision is invalid');
+  }
+  validateWorkflowToken(state.workflow_state, 'workflow state');
+  validateWorkflowToken(state.last_event, 'workflow event');
+  if (typeof state.updated_at !== 'string' || !Number.isFinite(Date.parse(state.updated_at))) {
+    fail('workflow updated_at is invalid');
+  }
+  if (state.actor !== 'main-v1') {
+    fail('workflow actor is invalid');
+  }
+  if (Object.prototype.hasOwnProperty.call(state, 'session_id')) {
+    fail('raw session identifier is forbidden in workflow state');
+  }
+  validateWorkflowExtensions(state);
+  return state;
+}
+
+function atomicWriteJson(file, value) {
+  // lstat, never existsSync. existsSync FOLLOWS the link, so it answers false for a
+  // DANGLING symlink and skipped all three guards below for exactly the shape they
+  // exist to catch: the rename then replaced the link and reported a clean write,
+  // destroying the tamper artifact. Only a clean ENOENT is absence; any other errno
+  // means something is at that path that this function must not write over.
+  let existing = null;
+  try {
+    existing = fs.lstatSync(file);
+  } catch (error) {
+    if (!error || error.code !== 'ENOENT') fail(`unreadable state file rejected: ${file}`);
+  }
+  if (existing) {
+    if (existing.isSymbolicLink()) fail('symlink state file rejected');
+    if (!existing.isFile()) fail('non-regular state file rejected');
+    if (existing.nlink > 1) fail('multi-linked state file rejected');
+  }
+  const temporary = path.join(
+    path.dirname(file),
+    `.${path.basename(file)}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`,
+  );
+  const parent = path.dirname(file);
+  const parentBefore = fs.lstatSync(parent);
+  if (parentBefore.isSymbolicLink() || !parentBefore.isDirectory()) {
+    fail(`unsafe state parent directory: ${parent}`);
+  }
+  let descriptor;
+  try {
+    descriptor = fs.openSync(temporary, 'wx', 0o600);
+    fs.writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = undefined;
+    const parentAtCommit = fs.lstatSync(parent);
+    if (
+      parentAtCommit.isSymbolicLink()
+      || !parentAtCommit.isDirectory()
+      || !sameFileIdentity(parentBefore, parentAtCommit)
+    ) {
+      fail(`state parent directory changed before commit: ${file}`);
+    }
+    fs.renameSync(temporary, file);
+    const parentAfter = fs.lstatSync(parent);
+    if (!sameFileIdentity(parentBefore, parentAfter)) {
+      fail(`state parent directory changed during commit: ${file}`);
+    }
+  } finally {
+    if (descriptor !== undefined) {
+      fs.closeSync(descriptor);
+    }
+    try {
+      fs.unlinkSync(temporary);
+    } catch {
+      // The successful rename removes the temporary path.
+    }
+  }
+}
+
+function atomicCreateJson(file, value) {
+  const parent = path.dirname(file);
+  const parentBefore = fs.lstatSync(parent);
+  if (parentBefore.isSymbolicLink() || !parentBefore.isDirectory()) {
+    fail(`unsafe immutable-record parent directory: ${parent}`);
+  }
+  const temporary = path.join(
+    parent,
+    `.${path.basename(file)}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.candidate`,
+  );
+  let descriptor;
+  try {
+    descriptor = fs.openSync(temporary, 'wx', 0o600);
+    fs.writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = undefined;
+    const parentAtCommit = fs.lstatSync(parent);
+    if (!sameFileIdentity(parentBefore, parentAtCommit)) {
+      fail(`immutable-record parent changed before commit: ${file}`);
+    }
+    try {
+      // link(2) is an atomic no-clobber publication on the same filesystem.
+      // Unlike rename(2), it cannot replace a planted symlink or another
+      // session-start writer's already-published immutable record.
+      fs.linkSync(temporary, file);
+    } catch (error) {
+      if (error.code === 'EEXIST') fail(`immutable record already exists: ${file}`);
+      throw error;
+    }
+    fs.unlinkSync(temporary);
+    const parentAfterCommit = fs.lstatSync(parent);
+    if (!sameFileIdentity(parentBefore, parentAfterCommit)) {
+      fail(`immutable-record parent changed during commit: ${file}`);
+    }
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+    try {
+      fs.unlinkSync(temporary);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
+  const final = fs.lstatSync(file);
+  if (!final.isFile() || final.isSymbolicLink() || final.nlink !== 1) {
+    fail(`immutable record final identity is unsafe: ${file}`);
+  }
+}
+
+function workflowStateLockTarget(options) {
+  const key = sessionKey(options.sessionId);
+  const stateDirectory = resolveWorkflowStateDirectory(options);
+  return {
+    key,
+    stateDirectory,
+    file: path.join(stateDirectory, `${WORKFLOW_STATE_PREFIX}${key}.json`),
+  };
+}
+
+function readWorkflowStateUnderLock(target) {
+  if (!fs.existsSync(target.file)) {
+    fail('project-bound workflow baseline is missing');
+  }
+  return validateWorkflowState(readJson(target.file), target.key);
+}
+
+function withWorkflowStateLock(options, callback) {
+  if (typeof callback !== 'function') fail('workflow state lock callback must be a function');
+  const target = workflowStateLockTarget(options);
+  return withFileLock(target.stateDirectory, `state-${target.key}`, () => callback(
+    readWorkflowStateUnderLock(target),
+    target,
+  ));
+}
+
+function commitWorkflowStateUnderLock(target, previous, options, mutation) {
+  const previousRevision = previous.revision;
+  if (
+    options.expectedRevision !== undefined
+    && (!Number.isSafeInteger(options.expectedRevision) || options.expectedRevision !== previousRevision)
+  ) {
+    fail(`stale workflow revision (expected ${options.expectedRevision}, current ${previousRevision})`);
+  }
+  const draft = mutation(JSON.parse(JSON.stringify(previous)));
+  if (!draft || typeof draft !== 'object' || Array.isArray(draft)) {
+    fail('workflow mutation must return an object');
+  }
+  const next = stampWorkflowState(
+    draft,
+    target.key,
+    options.workflowState,
+    options.event,
+    options.updatedAt,
+    previousRevision,
+  );
+  validateWorkflowState(next, target.key);
+  atomicWriteJson(target.file, next);
+  return next;
+}
+
+function mutateWorkflowState(options, mutation) {
+  const actor = options.actor || 'main-v1';
+  if (actor !== 'main-v1') {
+    fail(`principal "${actor}" is denied workflow mutation`);
+  }
+  if (typeof mutation !== 'function') fail('workflow mutation must be a function');
+  validateWorkflowToken(options.workflowState, 'workflow state');
+  validateWorkflowToken(options.event, 'workflow event');
+  return withWorkflowStateLock(options, (previous, target) => (
+    commitWorkflowStateUnderLock(target, previous, options, mutation)
+  ));
+}
+
+// The detailed form reports whether THIS call created the document. Every
+// pre-existing caller wants the document itself and is served by the wrapper
+// below, so the contract they were written against is unchanged; the repair is
+// the one caller that has to tell a creation from a find, because it appends a
+// provenance entry claiming it performed one.
+function initializeWorkflowStateDetailed(options) {
+  const key = sessionKey(options.sessionId);
+  const stateDirectory = workflowStateDirectory(options.projectRoot);
+  const file = path.join(stateDirectory, `${WORKFLOW_STATE_PREFIX}${key}.json`);
+  return withFileLock(stateDirectory, `state-${key}`, () => {
+    // lstat, never existsSync, and for the same reason atomicWriteJson uses it: a
+    // DANGLING symlink is invisible to existsSync, so this re-check was STRICTLY
+    // WEAKER than the classifyWorkflowBaseline verdict it exists to confirm under
+    // the lock — it reported `created: true` for a shape the classifier calls
+    // UNSAFE. Any existing entry, whatever its kind, is NOT a creation.
+    let existing = null;
+    try {
+      existing = fs.lstatSync(file);
+    } catch (error) {
+      if (!error || error.code !== 'ENOENT') {
+        fail(`unreadable workflow state file rejected: ${file}`);
+      }
+    }
+    if (existing) {
+      if (existing.isSymbolicLink() || !existing.isFile() || existing.nlink !== 1) {
+        // Never read through it and never create over it: the outer classifier
+        // already refuses this shape, and rebuilding here would destroy the
+        // evidence the refusal exists to preserve.
+        fail(`unsafe workflow state file rejected: ${file}`);
+      }
+      return { state: validateWorkflowState(readJson(file), key), created: false };
+    }
+    const initial = stampWorkflowState({
+      active: false,
+      vanilla: false,
+      implComplete: false,
+      chainDone: false,
+      codeReviewDone: false,
+      selfReviewFixed: false,
+      workflowActive: false,
+      workflowTools: [],
+      bypasses: [],
+      reviewTicket: '',
+      reviewTicketConsumed: true,
+      reviewRound: 0,
+      stopBlockCount: 0,
+      deferredReviewClaim: '',
+      phase: 'UNINITIALIZED',
+      step_id: '',
+      history: [],
+    }, key, 'idle', 'session-start', undefined, 0);
+    atomicWriteJson(file, initial);
+    return { state: initial, created: true };
+  });
+}
+
+function initializeWorkflowState(options) {
+  return initializeWorkflowStateDetailed(options).state;
+}
+
+function transitionWorkflowState(options) {
+  return mutateWorkflowState(options, (state) => state);
+}
+
+function resetReviewBudget(options) {
+  if (!Number.isSafeInteger(options.expectedRevision) || options.expectedRevision < 1) {
+    fail('review budget reset requires an exact expectedRevision');
+  }
+  return mutateWorkflowState({
+    projectRoot: options.projectRoot,
+    sessionId: options.sessionId,
+    actor: options.actor,
+    expectedRevision: options.expectedRevision,
+    workflowState: 'review_rearmed',
+    event: 'review-budget-reset',
+  }, (state) => {
+    if (state.active !== true || state.implComplete !== true) {
+      fail('review budget reset requires an active completed implementation');
+    }
+    state.reviewRound = 0;
+    state.stopBlockCount = 0;
+    state.chainDone = false;
+    state.codeReviewDone = false;
+    state.selfReviewFixed = false;
+    return state;
+  });
+}
+
+function readWorkflowState(options) {
+  if (options.stateDirectory !== undefined) {
+    fail('workflow state directory overrides are unsupported');
+  }
+  const file = workflowStateFile(options.projectRoot, options.sessionId);
+  return validateWorkflowState(readJson(file), options.sessionId);
+}
+
+const CHAIN_SNAPSHOT_RETURN_STAGES = Object.freeze([
+  'GATES',
+  'CONVERGE',
+  'FIX_FINDINGS',
+  'VALIDATE',
+  'COVER',
+]);
+const CHAIN_SNAPSHOT_OUTCOMES = Object.freeze(['', 'pass', 'no-changes', 'max-rounds']);
+
+function workflowChainSnapshot(state, sessionId) {
+  const natural = (value) => Number.isSafeInteger(value) && value >= 0;
+  const linkId = (value) => typeof value === 'string' && value.length > 0 && value.length <= 128
+    && /^[A-Za-z0-9][A-Za-z0-9_.:-]*$/.test(value);
+  const s = state;
+  const root = s && typeof s === 'object' && !Array.isArray(s) && typeof s.phase === 'string'
+    && Array.isArray(s.history) && Array.isArray(s.bypasses)
+    && typeof s.active === 'boolean' && typeof s.vanilla === 'boolean'
+    && typeof s.implComplete === 'boolean' && typeof s.chainDone === 'boolean'
+    && typeof s.codeReviewDone === 'boolean' && typeof s.selfReviewFixed === 'boolean'
+    && typeof s.reviewTicket === 'string' && typeof s.reviewTicketConsumed === 'boolean'
+    && natural(s.reviewRound) && natural(s.stopBlockCount);
+  if (!root) return null;
+  const values = [s.autopilotRunId, s.autopilotAttempt, s.autopilotReturnStage, s.chainId, s.chainOutcome];
+  const count = values.filter((value) => value !== undefined).length;
+  let autopilot = null;
+  if (count !== 0) {
+    const valid = count === values.length && linkId(s.autopilotRunId)
+      && Number.isInteger(s.autopilotAttempt) && s.autopilotAttempt >= 1 && s.autopilotAttempt <= 999
+      && CHAIN_SNAPSHOT_RETURN_STAGES.includes(s.autopilotReturnStage)
+      && linkId(s.chainId) && CHAIN_SNAPSHOT_OUTCOMES.includes(s.chainOutcome);
+    if (!valid) return null;
+    autopilot = {
+      runId: s.autopilotRunId,
+      attempt: s.autopilotAttempt,
+      returnStage: s.autopilotReturnStage,
+      chainId: s.chainId,
+      outcome: s.chainOutcome,
+    };
+  }
+  return {
+    sessionId,
+    active: s.active,
+    implComplete: s.implComplete,
+    chainDone: s.chainDone,
+    codeReviewDone: s.codeReviewDone,
+    selfReviewFixed: s.selfReviewFixed,
+    vanilla: s.vanilla,
+    stopBlockCount: s.stopBlockCount,
+    autopilot,
+  };
+}
+
+function readWorkflowStateSnapshot(projectRoot, sessionId) {
+  const file = workflowStateFile(projectRoot, sessionId);
+  const snapshot = readRegularFileSnapshot(file);
+  let value;
+  try {
+    value = JSON.parse(snapshot.data.toString('utf8'));
+  } catch {
+    fail(`invalid JSON: ${file}`);
+  }
+  return {
+    file,
+    snapshot,
+    state: validateWorkflowState(value, sessionId),
+  };
+}
+
+function canonicalControlSessionKey(input, label) {
+  const value = requireText(input, label);
+  const key = sessionKey(value);
+  if (value !== key || !/^scv1_[a-f0-9]{64}$/.test(value)) {
+    fail(`${label} must be a canonical Session Control key`);
+  }
+  return key;
+}
+
+function currentCopilotSessionContext(options) {
+  const currentSessionId = canonicalControlSessionKey(
+    options.currentSessionId,
+    'current session id',
+  );
+  const projectRoot = canonicalDirectory(options.projectRoot, 'project root');
+  const pluginRoot = canonicalDirectory(options.pluginRoot, 'plugin root');
+  const runtimeDigest = requireText(options.runtimeDigest, 'runtime digest');
+  if (!HASH_RE.test(runtimeDigest)) fail('runtime digest is invalid');
+
+  const contextFile = path.resolve(requireText(options.currentContextFile, 'current context file'));
+  const contextStat = fs.lstatSync(contextFile);
+  if (
+    !contextStat.isFile()
+    || contextStat.isSymbolicLink()
+    || contextStat.nlink !== 1
+    || fs.realpathSync.native(contextFile) !== contextFile
+  ) {
+    fail('current context file is unsafe');
+  }
+  const recordsDir = canonicalDirectory(path.dirname(contextFile), 'records directory');
+  if (contextFile !== contextRecordFile(recordsDir, currentSessionId)) {
+    fail('current context file does not match the current session');
+  }
+
+  const current = readContext({
+    recordsDir,
+    sessionId: currentSessionId,
+    expectedHost: 'copilot',
+  });
+  const expectedRecordsDir = path.join(current.plugin_data, 'session-control', 'v1', 'records');
+  if (recordsDir !== expectedRecordsDir) {
+    fail('records directory is outside current Copilot plugin data');
+  }
+  // The plugin root is the one field a compatible mid-session upgrade legitimately
+  // moves. The digest pair is NOT relaxed and does not need to be: the caller is
+  // handed the RECORD's own digest (copilot-hook-session-v1.js exports
+  // ZENSU_RUNTIME_DIGEST from binding.context.runtime_digest), so these two stay
+  // equal across an upgrade while pluginRoot is the executing one. Measuring the
+  // executing tree here instead would compare it against a digest the caller
+  // never claimed, and refuse every command in exactly the upgraded session this
+  // rule exists to keep alive.
+  if (
+    current.project_root !== projectRoot
+    || !servesRecordedRuntime(current, pluginRoot, 'copilot')
+    || current.runtime_digest !== runtimeDigest
+    || current.source_revision !== runtimeDigest
+  ) {
+    fail('current context provenance does not match the executing runtime');
+  }
+
+  return {
+    currentSessionId,
+    projectRoot,
+    recordsDir,
+    current,
+  };
+}
+
+function relatedCopilotSessionContexts(options, ownerSessionId) {
+  const binding = currentCopilotSessionContext(options);
+  const ownerKey = canonicalControlSessionKey(ownerSessionId, 'owner session id');
+
+  const owner = readContext({
+    recordsDir: binding.recordsDir,
+    sessionId: ownerKey,
+    expectedHost: 'copilot',
+  });
+  for (const field of [
+    'schema',
+    'schema_version',
+    'host',
+    'project_root',
+    'plugin_root',
+    'plugin_data',
+    'plugin_version',
+    'source_revision',
+    'runtime_digest',
+  ]) {
+    if (owner[field] !== binding.current[field]) {
+      fail(`owner context ${field} does not match current context`);
+    }
+  }
+  if (JSON.stringify(owner.principal_profiles) !== JSON.stringify(binding.current.principal_profiles)) {
+    fail('owner context principal profiles do not match current context');
+  }
+
+  return {
+    ...binding,
+    ownerSessionId: ownerKey,
+    owner,
+  };
+}
+
+function deferredReviewClaimFile(options, projectRoot, allowMissing = false) {
+  const stateDirectory = workflowStateDirectory(projectRoot);
+  const expectedFile = path.join(stateDirectory, 'pending-review.json.claim');
+  const claimFile = path.resolve(requireText(options.claimFile, 'claim file'));
+  if (claimFile !== expectedFile) {
+    fail('deferred-review claim path is invalid');
+  }
+  let claimStat;
+  try {
+    claimStat = fs.lstatSync(claimFile);
+  } catch (error) {
+    if (error.code === 'ENOENT' && allowMissing) return claimFile;
+    if (error.code === 'ENOENT') fail('deferred-review claim is missing');
+    throw error;
+  }
+  if (claimStat.nlink !== 1) {
+    fail('multi-linked deferred-review claim rejected');
+  }
+  if (
+    claimStat.isSymbolicLink()
+    || !claimStat.isFile()
+    || fs.realpathSync.native(claimFile) !== claimFile
+  ) {
+    fail('deferred-review claim path is invalid');
+  }
+  return claimFile;
+}
+
+function deferredReviewResetBindingIsValid(binding) {
+  const keys = ['attempt', 'chainId', 'runId'];
+  return binding === null || (
+    binding
+    && typeof binding === 'object'
+    && !Array.isArray(binding)
+    && Object.keys(binding).sort().join(',') === keys.join(',')
+    && Number.isSafeInteger(binding.attempt)
+    && binding.attempt >= 1
+    && binding.attempt <= 999
+    && /^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$/.test(binding.runId || '')
+    && /^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$/.test(binding.chainId || '')
+  );
+}
+
+function validateDeferredReviewClaimValue(claim) {
+  if (!claim || typeof claim !== 'object' || Array.isArray(claim)) {
+    fail('deferred-review claim must be an object');
+  }
+  if (
+    typeof claim.claimId !== 'string'
+    || !/^dc_[A-Za-z0-9_-]+$/.test(claim.claimId)
+    || claim.claimId.length > 96
+  ) {
+    fail('deferred-review claim id is invalid');
+  }
+  canonicalControlSessionKey(claim.ownerSessionId, 'deferred-review owner');
+  if (!Number.isSafeInteger(claim.ownerPid) || claim.ownerPid <= 0) {
+    fail('deferred-review owner pid is invalid');
+  }
+  if (
+    claim.ownerProcessStartIdentity !== null
+    && (
+      typeof claim.ownerProcessStartIdentity !== 'string'
+      || !LOCK_IDENTITY_RE.test(claim.ownerProcessStartIdentity)
+    )
+  ) {
+    fail('deferred-review owner process identity is invalid');
+  }
+  if (typeof claim.handoffEmitted !== 'boolean') {
+    fail('deferred-review handoff flag is invalid');
+  }
+  if (claim.transfer !== undefined && claim.cancellation !== undefined) {
+    fail('deferred-review cancellation and transfer receipts are mutually exclusive');
+  }
+  if (claim.cancellation !== undefined) {
+    const cancellation = claim.cancellation;
+    const keys = [
+      'cancellationId',
+      'claimId',
+      'clearedOwnerRevision',
+      'mode',
+      'origin',
+      'ownerRevision',
+      'ownerSessionId',
+      'resetBinding',
+      'schemaVersion',
+      'stage',
+    ];
+    const resetBinding = cancellation && cancellation.resetBinding;
+    if (
+      !cancellation
+      || typeof cancellation !== 'object'
+      || Array.isArray(cancellation)
+      || Object.keys(cancellation).sort().join(',') !== keys.join(',')
+      || cancellation.schemaVersion !== 1
+      || !['prepared', 'state-cleared'].includes(cancellation.stage)
+      || !/^drc_[A-Za-z0-9_-]+$/.test(cancellation.cancellationId || '')
+      || cancellation.cancellationId.length > 96
+      || cancellation.claimId !== claim.claimId
+      || cancellation.ownerSessionId !== claim.ownerSessionId
+      || !['release-only', 'reset'].includes(cancellation.mode)
+      || !['linked', 'unseeded'].includes(cancellation.origin)
+      || (cancellation.mode === 'release-only' && cancellation.origin !== 'linked')
+      || (cancellation.origin === 'unseeded' && claim.handoffEmitted !== false)
+      || !Number.isSafeInteger(cancellation.ownerRevision)
+      || cancellation.ownerRevision < 1
+      || (
+        cancellation.stage === 'prepared'
+          ? cancellation.clearedOwnerRevision !== null
+          : cancellation.clearedOwnerRevision !== cancellation.ownerRevision + 1
+      )
+      || !deferredReviewResetBindingIsValid(resetBinding)
+      || (cancellation.mode === 'release-only' && cancellation.resetBinding !== null)
+    ) {
+      fail('deferred-review cancellation receipt is invalid');
+    }
+    canonicalControlSessionKey(cancellation.ownerSessionId, 'cancellation owner');
+  }
+  if (claim.transfer !== undefined) {
+    const transfer = claim.transfer;
+    const keys = [
+      'claimId',
+      'fromOwnerRevision',
+      'fromOwnerSessionId',
+      'retiredOwnerRevision',
+      'schemaVersion',
+      'stage',
+      'toOwnerSessionId',
+    ];
+    if (
+      !transfer
+      || typeof transfer !== 'object'
+      || Array.isArray(transfer)
+      || Object.keys(transfer).sort().join(',') !== keys.sort().join(',')
+      || transfer.schemaVersion !== 1
+      || transfer.claimId !== claim.claimId
+      || !['prepared', 'owner-retired'].includes(transfer.stage)
+      || !Number.isSafeInteger(transfer.fromOwnerRevision)
+      || transfer.fromOwnerRevision < 1
+      || (
+        transfer.stage === 'prepared'
+          ? transfer.retiredOwnerRevision !== null
+          : transfer.retiredOwnerRevision !== transfer.fromOwnerRevision + 1
+      )
+    ) {
+      fail('deferred-review transfer receipt is invalid');
+    }
+    canonicalControlSessionKey(transfer.fromOwnerSessionId, 'transfer source owner');
+    canonicalControlSessionKey(transfer.toOwnerSessionId, 'transfer target owner');
+    if (
+      transfer.fromOwnerSessionId === transfer.toOwnerSessionId
+      || ![transfer.fromOwnerSessionId, transfer.toOwnerSessionId].includes(claim.ownerSessionId)
+    ) {
+      fail('deferred-review transfer receipt ownership is inconsistent');
+    }
+  }
+  return claim;
+}
+
+function readDeferredReviewClaimSnapshot(options, projectRoot) {
+  const claimFile = deferredReviewClaimFile(options, projectRoot);
+  const snapshot = readRegularFileSnapshot(claimFile);
+  let claim;
+  try {
+    claim = JSON.parse(snapshot.data.toString('utf8'));
+  } catch {
+    fail(`invalid JSON: ${claimFile}`);
+  }
+  return {
+    claimFile,
+    snapshot,
+    claim: validateDeferredReviewClaimValue(claim),
+  };
+}
+
+function readDeferredReviewClaim(options, projectRoot) {
+  return readDeferredReviewClaimSnapshot(options, projectRoot).claim;
+}
+
+function withDeferredReviewClaimLock(projectRoot, callback) {
+  if (typeof callback !== 'function') fail('deferred-review claim lock callback must be a function');
+  const stateDirectory = workflowStateDirectory(projectRoot);
+  return withFileLock(stateDirectory, 'deferred-review-claim', callback);
+}
+
+function requireDeferredReviewClaimSnapshot(options, projectRoot, expected, message) {
+  const latest = readDeferredReviewClaimSnapshot(options, projectRoot);
+  if (!sameRegularSnapshot(latest.snapshot, expected.snapshot)) {
+    fail(message);
+  }
+  return latest;
+}
+
+function deferredOwnerProcessIsAlive(claim) {
+  if (!processIsAlive(claim.ownerPid)) return false;
+  if (!claim.ownerProcessStartIdentity) return true;
+  const actual = claim.ownerPid === process.pid
+    ? currentProcessStartIdentity()
+    : processStartIdentity(claim.ownerPid);
+  return actual === null || actual === claim.ownerProcessStartIdentity;
+}
+
+function deferredReviewClaimHeld(claim, claimStale) {
+  if (claimStale === true) return false;
+  return claim.handoffEmitted === true || deferredOwnerProcessIsAlive(claim);
+}
+
+function deferredReviewStateIsIdle(state) {
+  return state.active === false
+    && state.implComplete === false
+    && state.chainDone === false
+    && state.codeReviewDone === false
+    && state.selfReviewFixed === false
+    && state.reviewTicket === ''
+    && state.reviewTicketConsumed === true
+    && state.reviewRound === 0
+    && state.stopBlockCount === 0
+    && state.deferredReviewClaim === '';
+}
+
+function deferredReviewStateCanSeed(state) {
+  return deferredReviewStateIsIdle(state) || state.chainDone === true;
+}
+
+function deferredReviewStateIsRetired(state, transfer) {
+  return state.revision === transfer.fromOwnerRevision + 1
+    && state.last_event === 'deferred-review-transfer'
+    && deferredReviewStateIsIdle(state);
+}
+
+function deferredReviewClaimIsStale(claimSnapshot, ttlHours) {
+  if (!Number.isSafeInteger(ttlHours) || ttlHours < 0 || ttlHours > 8760) {
+    fail('deferred-review ownership ttl is invalid');
+  }
+  if (ttlHours === 0) return false;
+  const claimTimestamp = typeof claimSnapshot.claim.ts === 'string'
+    ? Date.parse(claimSnapshot.claim.ts)
+    : Number.NaN;
+  const timestamp = Number.isFinite(claimTimestamp)
+    ? claimTimestamp
+    : claimSnapshot.snapshot.stat.mtimeMs;
+  return Number.isFinite(timestamp)
+    && Date.now() - timestamp >= ttlHours * 60 * 60 * 1000;
+}
+
+// A contending agentStop hook needs a cheap, mutation-free proof that another
+// session already owns the deferred review. Keep this separate from
+// inspectDeferredReviewOwner(): that recovery API may advance transfer or
+// cancellation receipts. Two descriptor-backed snapshots on each artifact
+// provide one stable overlap without joining the contended Outer lock or
+// introducing a second lock queue.
+function deferredReviewOwnedByOther(options) {
+  const binding = currentCopilotSessionContext(options);
+  const ttlHours = options.ttlHours;
+  if (!Number.isSafeInteger(ttlHours) || ttlHours < 0 || ttlHours > 8760) {
+    fail('deferred-review ownership ttl is invalid');
+  }
+
+  const firstClaim = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+  const claim = firstClaim.claim;
+  if (
+    claim.ownerSessionId === binding.currentSessionId
+    || claim.transfer !== undefined
+    || claim.cancellation !== undefined
+  ) {
+    return false;
+  }
+
+  const contexts = relatedCopilotSessionContexts(options, claim.ownerSessionId);
+  const firstState = readWorkflowStateSnapshot(
+    contexts.projectRoot,
+    contexts.ownerSessionId,
+  );
+  const secondClaim = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+  const secondState = readWorkflowStateSnapshot(
+    contexts.projectRoot,
+    contexts.ownerSessionId,
+  );
+  if (
+    !sameRegularSnapshot(firstClaim.snapshot, secondClaim.snapshot)
+    || !sameRegularSnapshot(firstState.snapshot, secondState.snapshot)
+  ) {
+    return false;
+  }
+
+  const stableClaim = secondClaim.claim;
+  const state = secondState.state;
+  if (
+    stableClaim.ownerSessionId !== contexts.ownerSessionId
+    || stableClaim.transfer !== undefined
+    || stableClaim.cancellation !== undefined
+  ) {
+    return false;
+  }
+
+  const claimStale = deferredReviewClaimIsStale(secondClaim, ttlHours);
+  if (state.deferredReviewClaim !== stableClaim.claimId) {
+    return stableClaim.handoffEmitted === false
+      && deferredReviewStateCanSeed(state)
+      && deferredReviewClaimHeld(stableClaim, claimStale);
+  }
+  if (state.chainDone === true || state.active !== true || state.implComplete !== true) {
+    return false;
+  }
+  return deferredReviewClaimHeld(stableClaim, claimStale);
+}
+
+function cancelStalePreparedDeferredReviewTransfer(options, claim, inspectedState) {
+  const transfer = claim.transfer;
+  if (!transfer || transfer.stage !== 'prepared') {
+    fail('stale deferred-review transfer cancellation requires a prepared receipt');
+  }
+  const projectRoot = canonicalDirectory(options.projectRoot, 'project root');
+  const expected = readDeferredReviewClaimSnapshot(options, projectRoot);
+  if (!sameClaimValue(expected.claim, claim)) {
+    fail('deferred-review claim changed before stale transfer cancellation');
+  }
+  return withDeferredReviewClaimLock(projectRoot, () => (
+    withWorkflowStateLock({
+      projectRoot,
+      sessionId: transfer.fromOwnerSessionId,
+    }, (lockedState) => {
+      if (lockedState.revision !== inspectedState.revision) {
+        fail('source state changed before stale transfer cancellation');
+      }
+      if (deferredReviewStateIsRetired(lockedState, transfer)) {
+        fail('retired deferred-review transfer cannot be cancelled');
+      }
+      const latest = requireDeferredReviewClaimSnapshot(
+        options,
+        projectRoot,
+        expected,
+        'deferred-review claim changed before stale transfer cancellation',
+      );
+      if (!sameClaimValue(latest.claim, claim)) {
+        fail('deferred-review claim changed before stale transfer cancellation');
+      }
+      delete latest.claim.transfer;
+      atomicWriteJson(latest.claimFile, latest.claim);
+      return readDeferredReviewClaim(options, projectRoot);
+    })
+  ));
+}
+
+function inspectDeferredReviewOwner(options) {
+  if (typeof options.claimStale !== 'boolean') fail('claimStale must be boolean');
+  const projectRoot = canonicalDirectory(options.projectRoot, 'project root');
+  const claim = readDeferredReviewClaim(options, projectRoot);
+  const contexts = relatedCopilotSessionContexts(options, claim.ownerSessionId);
+  const state = readWorkflowState({
+    projectRoot: contexts.projectRoot,
+    sessionId: contexts.ownerSessionId,
+  });
+
+  if (claim.cancellation) {
+    const linked = state.deferredReviewClaim === claim.claimId;
+    const cleared = stateHasDeferredReviewCancellation(state, claim.cancellation);
+    const unseededPrepared = stateMatchesPreparedUnseededCancellation(
+      state,
+      claim,
+      claim.cancellation,
+    );
+    const recoverableUnseededReceipt = claim.cancellation.stage === 'prepared'
+      && claim.cancellation.origin === 'unseeded';
+    const coherent = claim.cancellation.stage === 'prepared'
+      ? linked || cleared || unseededPrepared || recoverableUnseededReceipt
+      : cleared;
+    if (!coherent) {
+      fail('deferred-review cancellation state does not match its receipt');
+    }
+    if (cleared) {
+      return { status: 'cancelled', ownerRevision: state.revision, claim };
+    }
+    return { status: 'cancelling', ownerRevision: state.revision, claim };
+  }
+
+  if (claim.transfer) {
+    const transfer = claim.transfer;
+    // A durable receipt is a single-target recovery capability. Other
+    // principals may observe it, but must never continue or steal it.
+    relatedCopilotSessionContexts(options, transfer.fromOwnerSessionId);
+    relatedCopilotSessionContexts(options, transfer.toOwnerSessionId);
+    if (contexts.currentSessionId !== transfer.toOwnerSessionId) {
+      return { status: 'owned', ownerRevision: state.revision, claim };
+    }
+    if (claim.ownerSessionId === transfer.fromOwnerSessionId) {
+      if (
+        transfer.stage === 'prepared'
+        && state.revision === transfer.fromOwnerRevision
+        && state.active === true
+        && state.implComplete === true
+        && state.chainDone === false
+        && state.deferredReviewClaim === claim.claimId
+      ) {
+        return { status: 'transfer', ownerRevision: state.revision, claim };
+      }
+      if (deferredReviewStateIsRetired(state, transfer)) {
+        return { status: 'owner-retired', ownerRevision: state.revision, claim };
+      }
+      if (transfer.stage === 'prepared') {
+        cancelStalePreparedDeferredReviewTransfer(options, claim, state);
+        return inspectDeferredReviewOwner(options);
+      }
+      fail('deferred-review transfer source state does not match its receipt');
+    }
+    if (
+      claim.ownerSessionId !== transfer.toOwnerSessionId
+      || transfer.stage !== 'owner-retired'
+    ) {
+      fail('deferred-review transfer target ownership is invalid');
+    }
+    if (state.deferredReviewClaim === claim.claimId) {
+      if (state.active !== true || state.implComplete !== true || state.chainDone !== false) {
+        fail('deferred-review transfer target state is inconsistent');
+      }
+      return { status: 'current', ownerRevision: state.revision, claim };
+    }
+    if (deferredReviewStateIsIdle(state)) {
+      return { status: 'unseeded', ownerRevision: state.revision, claim };
+    }
+    fail('deferred-review transfer target state does not match its receipt');
+  }
+
+  const exactClaim = state.deferredReviewClaim === claim.claimId;
+  if (!exactClaim) {
+    if (claim.handoffEmitted === true) {
+      return { status: 'cancelled', ownerRevision: state.revision, claim };
+    }
+    if (deferredReviewStateCanSeed(state)) {
+      return { status: 'unseeded', ownerRevision: state.revision, claim };
+    }
+    fail('deferred-review claim does not match its owner workflow state');
+  }
+  if (state.chainDone === true) {
+    return { status: 'done', ownerRevision: state.revision, claim };
+  }
+  if (state.active !== true || state.implComplete !== true) {
+    fail('deferred-review owner workflow state is not transferable');
+  }
+  if (contexts.ownerSessionId === contexts.currentSessionId) {
+    return { status: 'current', ownerRevision: state.revision, claim };
+  }
+  if (deferredReviewClaimHeld(claim, options.claimStale)) {
+    return { status: 'owned', ownerRevision: state.revision, claim };
+  }
+  return { status: 'transfer', ownerRevision: state.revision, claim };
+}
+
+function retireDeferredReviewOwner(options) {
+  const expectedRevision = options.expectedRevision;
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+    fail('expected owner revision is invalid');
+  }
+  const projectRoot = canonicalDirectory(options.projectRoot, 'project root');
+  const expectedClaim = readDeferredReviewClaimSnapshot(options, projectRoot);
+  const claim = expectedClaim.claim;
+  if (
+    !claim.transfer
+    || claim.transfer.stage !== 'prepared'
+    || claim.transfer.claimId !== claim.claimId
+    || claim.transfer.fromOwnerSessionId !== claim.ownerSessionId
+    || claim.transfer.toOwnerSessionId !== options.currentSessionId
+    || claim.transfer.fromOwnerRevision !== expectedRevision
+  ) {
+    fail('prepared transfer receipt does not match retirement request');
+  }
+  const contexts = relatedCopilotSessionContexts(options, claim.ownerSessionId);
+  const current = readWorkflowState({
+    projectRoot: contexts.projectRoot,
+    sessionId: contexts.ownerSessionId,
+  });
+  const alreadyRetired = deferredReviewStateIsRetired(current, claim.transfer);
+  if (alreadyRetired) return current;
+  if (typeof options.claimStale !== 'boolean') fail('claimStale must be boolean');
+  if (deferredReviewClaimHeld(claim, options.claimStale)) {
+    fail('deferred-review owner is still live or its handoff lease is fresh');
+  }
+  if (
+    current.revision !== expectedRevision
+    || current.active !== true
+    || current.implComplete !== true
+    || current.chainDone !== false
+    || current.deferredReviewClaim !== claim.claimId
+  ) {
+    fail('deferred-review owner changed before retirement');
+  }
+  return withDeferredReviewClaimLock(projectRoot, () => (
+    withWorkflowStateLock({
+      projectRoot: contexts.projectRoot,
+      sessionId: contexts.ownerSessionId,
+    }, (state, target) => {
+      if (
+        state.revision !== expectedRevision
+        || state.active !== true
+        || state.implComplete !== true
+        || state.chainDone !== false
+        || state.deferredReviewClaim !== claim.claimId
+      ) {
+        fail('deferred-review owner changed during retirement');
+      }
+      const latest = requireDeferredReviewClaimSnapshot(
+        options,
+        projectRoot,
+        expectedClaim,
+        'deferred-review claim changed during retirement',
+      );
+      if (!sameClaimValue(latest.claim, claim)) {
+        fail('deferred-review claim changed during retirement');
+      }
+      if (deferredReviewClaimHeld(latest.claim, options.claimStale)) {
+        fail('deferred-review owner became live before retirement');
+      }
+      return commitWorkflowStateUnderLock(target, state, {
+        expectedRevision,
+        workflowState: state.workflow_state,
+        event: 'deferred-review-transfer',
+      }, (draft) => {
+        draft.active = false;
+        draft.implComplete = false;
+        draft.chainDone = false;
+        draft.codeReviewDone = false;
+        draft.selfReviewFixed = false;
+        draft.reviewTicket = '';
+        draft.reviewTicketConsumed = true;
+        draft.reviewRound = 0;
+        draft.stopBlockCount = 0;
+        delete draft.implStopCount;
+        draft.deferredReviewClaim = '';
+        return draft;
+      });
+    })
+  ));
+}
+
+function sameClaimValue(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function processStartIdentityForPid(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) {
+    fail('process id is invalid');
+  }
+  return processStartIdentity(pid);
+}
+
+function processStartLowerBoundForPid(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) {
+    fail('process id is invalid');
+  }
+  return processStartLowerBoundMs(pid);
+}
+
+function prepareDeferredReviewTransfer(options) {
+  const inspection = inspectDeferredReviewOwner(options);
+  if (!['transfer', 'owner-retired'].includes(inspection.status)) {
+    fail('deferred-review claim is not eligible for transfer preparation');
+  }
+  const claim = inspection.claim;
+  if (claim.transfer) {
+    if (
+      claim.transfer.toOwnerSessionId !== options.currentSessionId
+      || claim.transfer.fromOwnerRevision !== (
+        inspection.status === 'owner-retired'
+          ? inspection.ownerRevision - 1
+          : inspection.ownerRevision
+      )
+    ) {
+      fail('existing deferred-review transfer receipt does not match recovery');
+    }
+    return claim;
+  }
+  const projectRoot = canonicalDirectory(options.projectRoot, 'project root');
+  const currentSessionId = canonicalControlSessionKey(options.currentSessionId, 'current session id');
+  const expected = readDeferredReviewClaimSnapshot(options, projectRoot);
+  if (!sameClaimValue(expected.claim, claim)) {
+    fail('deferred-review claim changed before transfer preparation');
+  }
+  return withDeferredReviewClaimLock(projectRoot, () => (
+    withWorkflowStateLock({
+      projectRoot,
+      sessionId: claim.ownerSessionId,
+    }, (state) => {
+      if (
+        state.revision !== inspection.ownerRevision
+        || state.active !== true
+        || state.implComplete !== true
+        || state.chainDone !== false
+        || state.deferredReviewClaim !== claim.claimId
+      ) {
+        fail('source state changed before transfer preparation');
+      }
+      const latest = requireDeferredReviewClaimSnapshot(
+        options,
+        projectRoot,
+        expected,
+        'deferred-review claim changed before transfer preparation',
+      );
+      if (!sameClaimValue(latest.claim, claim)) {
+        fail('deferred-review claim changed before transfer preparation');
+      }
+      latest.claim.transfer = {
+        schemaVersion: 1,
+        stage: 'prepared',
+        claimId: latest.claim.claimId,
+        fromOwnerSessionId: latest.claim.ownerSessionId,
+        toOwnerSessionId: currentSessionId,
+        fromOwnerRevision: inspection.ownerRevision,
+        retiredOwnerRevision: null,
+      };
+      atomicWriteJson(latest.claimFile, latest.claim);
+      return readDeferredReviewClaim(options, projectRoot);
+    })
+  ));
+}
+
+function markDeferredReviewOwnerRetired(options) {
+  const expectedRevision = options.expectedRevision;
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+    fail('expected owner revision is invalid');
+  }
+  const inspection = inspectDeferredReviewOwner(options);
+  if (inspection.status !== 'owner-retired') {
+    fail('deferred-review owner retirement is not durable');
+  }
+  const claim = inspection.claim;
+  if (
+    !claim.transfer
+    || claim.transfer.fromOwnerRevision !== expectedRevision
+    || claim.transfer.toOwnerSessionId !== options.currentSessionId
+  ) {
+    fail('deferred-review retirement receipt does not match the request');
+  }
+  if (claim.transfer.stage === 'owner-retired') return claim;
+  const projectRoot = canonicalDirectory(options.projectRoot, 'project root');
+  const expected = readDeferredReviewClaimSnapshot(options, projectRoot);
+  if (!sameClaimValue(expected.claim, claim)) {
+    fail('deferred-review claim changed before retirement acknowledgement');
+  }
+  return withDeferredReviewClaimLock(projectRoot, () => (
+    withWorkflowStateLock({
+      projectRoot,
+      sessionId: claim.transfer.fromOwnerSessionId,
+    }, (state) => {
+      if (
+        state.revision !== inspection.ownerRevision
+        || !deferredReviewStateIsRetired(state, claim.transfer)
+      ) {
+        fail('source state changed before retirement acknowledgement');
+      }
+      const latest = requireDeferredReviewClaimSnapshot(
+        options,
+        projectRoot,
+        expected,
+        'deferred-review claim changed before retirement acknowledgement',
+      );
+      if (!sameClaimValue(latest.claim, claim)) {
+        fail('deferred-review claim changed before retirement acknowledgement');
+      }
+      latest.claim.transfer.stage = 'owner-retired';
+      latest.claim.transfer.retiredOwnerRevision = expectedRevision + 1;
+      atomicWriteJson(latest.claimFile, latest.claim);
+      return readDeferredReviewClaim(options, projectRoot);
+    })
+  ));
+}
+
+function unassignedDeferredReviewClaim(options, projectRoot) {
+  const claimFile = deferredReviewClaimFile(options, projectRoot);
+  const value = JSON.parse(readRegularFile(claimFile).toString('utf8'));
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    fail('pending deferred-review marker must be an object');
+  }
+  const ownershipFields = [
+    'claimId',
+    'ownerSessionId',
+    'ownerPid',
+    'ownerProcessStartIdentity',
+    'handoffEmitted',
+    'transfer',
+    'cancellation',
+  ];
+  if (ownershipFields.some((field) => Object.prototype.hasOwnProperty.call(value, field))) {
+    return null;
+  }
+  if (
+    !Array.isArray(value.files)
+    || value.files.some((file) => typeof file !== 'string' || /[\u0000-\u001f\u007f]/.test(file))
+    || typeof value.summary !== 'string'
+    || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value.summary)
+    || (
+      value.ts !== undefined
+      && (typeof value.ts !== 'string' || !Number.isFinite(Date.parse(value.ts)))
+    )
+  ) {
+    fail('pending deferred-review marker payload is invalid');
+  }
+  return value;
+}
+
+function assignDeferredReviewClaim(options) {
+  const binding = currentCopilotSessionContext(options);
+  const ownerPid = options.ownerPid;
+  if (!Number.isSafeInteger(ownerPid) || ownerPid <= 0) {
+    fail('deferred-review assignee process id is invalid');
+  }
+  if (!processIsAlive(ownerPid)) {
+    fail('deferred-review assignee process is not alive');
+  }
+  if (typeof options.claimStale !== 'boolean') fail('claimStale must be boolean');
+  if (!['none', 'relative', 'wall'].includes(options.logStyle)) {
+    fail('deferred-review log style is invalid');
+  }
+  const claimFile = deferredReviewClaimFile(options, binding.projectRoot);
+  let expectedSnapshot;
+  let expectedValue;
+  let claimId;
+  let unassigned = false;
+  let claim = unassignedDeferredReviewClaim(options, binding.projectRoot);
+  if (claim) {
+    if (options.claimStale) fail('stale unassigned deferred-review marker must not be adopted');
+    unassigned = true;
+    expectedSnapshot = readRegularFileSnapshot(claimFile);
+    try {
+      expectedValue = JSON.parse(expectedSnapshot.data.toString('utf8'));
+    } catch {
+      fail(`invalid JSON: ${claimFile}`);
+    }
+    if (!sameClaimValue(expectedValue, claim)) {
+      fail('deferred-review marker changed before claim assignment');
+    }
+    claimId = `dc_${crypto.randomBytes(16).toString('hex')}`;
+  } else {
+    const inspection = inspectDeferredReviewOwner(options);
+    if (!['unseeded', 'owner-retired'].includes(inspection.status)) {
+      fail('deferred-review claim is not assignable');
+    }
+    claim = inspection.claim;
+    if (claim.transfer) {
+      if (
+        claim.transfer.stage !== 'owner-retired'
+        || claim.transfer.toOwnerSessionId !== binding.currentSessionId
+        || ![
+          claim.transfer.fromOwnerSessionId,
+          claim.transfer.toOwnerSessionId,
+        ].includes(claim.ownerSessionId)
+      ) {
+        fail('deferred-review transfer receipt is not assignable');
+      }
+    } else if (inspection.status !== 'unseeded') {
+      fail('deferred-review transfer receipt is missing');
+    }
+    const expected = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+    if (!sameClaimValue(expected.claim, claim)) {
+      fail('deferred-review claim changed before claim assignment');
+    }
+    expectedSnapshot = expected.snapshot;
+    expectedValue = expected.claim;
+    claimId = claim.claimId;
+  }
+  const targetState = readWorkflowState({
+    projectRoot: binding.projectRoot,
+    sessionId: binding.currentSessionId,
+  });
+  if (!deferredReviewStateCanSeed(targetState)) {
+    fail('deferred-review assignee state cannot begin a new generation');
+  }
+  return withDeferredReviewClaimLock(binding.projectRoot, () => (
+    withWorkflowStateLock({
+      projectRoot: binding.projectRoot,
+      sessionId: binding.currentSessionId,
+    }, (state) => {
+      if (
+        state.revision !== targetState.revision
+        || !deferredReviewStateCanSeed(state)
+      ) {
+        fail('target state changed before claim assignment');
+      }
+      const latestSnapshot = readRegularFileSnapshot(claimFile);
+      if (!sameRegularSnapshot(latestSnapshot, expectedSnapshot)) {
+        fail('deferred-review claim changed before claim assignment');
+      }
+      let latest;
+      try {
+        latest = JSON.parse(latestSnapshot.data.toString('utf8'));
+      } catch {
+        fail(`invalid JSON: ${claimFile}`);
+      }
+      if (!sameClaimValue(latest, expectedValue)) {
+        fail('deferred-review claim changed before claim assignment');
+      }
+      if (!unassigned) validateDeferredReviewClaimValue(latest);
+      latest.claimId = claimId;
+      latest.ownerSessionId = binding.currentSessionId;
+      if (!processIsAlive(ownerPid)) {
+        fail('deferred-review assignee process is not alive before publication');
+      }
+      latest.ownerPid = ownerPid;
+      latest.ownerProcessStartIdentity = processStartIdentity(ownerPid);
+      latest.handoffEmitted = false;
+      if (options.logStyle === 'none') delete latest.ts;
+      else latest.ts = nowIso().replace(/\.\d{3}Z$/, 'Z');
+      validateDeferredReviewClaimValue(latest);
+      atomicWriteJson(claimFile, latest);
+      return readDeferredReviewClaim(options, binding.projectRoot);
+    })
+  ));
+}
+
+function finalizeDeferredReviewTransfer(options) {
+  const binding = currentCopilotSessionContext(options);
+  const expected = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+  const claim = expected.claim;
+  if (!claim.transfer) return claim;
+  if (
+    claim.ownerSessionId !== binding.currentSessionId
+    || claim.transfer.toOwnerSessionId !== binding.currentSessionId
+    || claim.transfer.stage !== 'owner-retired'
+  ) {
+    fail('deferred-review transfer cannot be finalized by this principal');
+  }
+  const targetState = readWorkflowState({
+    projectRoot: binding.projectRoot,
+    sessionId: binding.currentSessionId,
+  });
+  if (
+    targetState.active !== true
+    || targetState.implComplete !== true
+    || targetState.chainDone !== false
+    || targetState.deferredReviewClaim !== claim.claimId
+  ) {
+    fail('deferred-review transfer target was not seeded');
+  }
+  return withDeferredReviewClaimLock(binding.projectRoot, () => (
+    withWorkflowStateLock({
+      projectRoot: binding.projectRoot,
+      sessionId: binding.currentSessionId,
+    }, (state) => {
+      if (
+        state.revision !== targetState.revision
+        || state.active !== true
+        || state.implComplete !== true
+        || state.chainDone !== false
+        || state.deferredReviewClaim !== claim.claimId
+      ) {
+        fail('target state changed before transfer finalization');
+      }
+      const latest = requireDeferredReviewClaimSnapshot(
+        options,
+        binding.projectRoot,
+        expected,
+        'deferred-review claim changed before transfer finalization',
+      );
+      if (!sameClaimValue(latest.claim, claim)) {
+        fail('deferred-review claim changed before transfer finalization');
+      }
+      delete latest.claim.transfer;
+      atomicWriteJson(latest.claimFile, latest.claim);
+      return readDeferredReviewClaim(options, binding.projectRoot);
+    })
+  ));
+}
+
+function acknowledgeDeferredReviewHandoff(options) {
+  const binding = currentCopilotSessionContext(options);
+  const ownerPid = options.ownerPid;
+  if (!Number.isSafeInteger(ownerPid) || ownerPid <= 0) {
+    fail('deferred-review handoff process id is invalid');
+  }
+  if (!processIsAlive(ownerPid)) {
+    fail('deferred-review handoff process is not alive');
+  }
+  if (!['none', 'relative', 'wall'].includes(options.logStyle)) {
+    fail('deferred-review log style is invalid');
+  }
+  const targetState = readWorkflowState({
+    projectRoot: binding.projectRoot,
+    sessionId: binding.currentSessionId,
+  });
+  if (targetState.deferredReviewClaim === '') {
+    return withWorkflowStateLock({
+      projectRoot: binding.projectRoot,
+      sessionId: binding.currentSessionId,
+    }, (state) => {
+      if (
+        state.revision !== targetState.revision
+        || state.deferredReviewClaim !== ''
+      ) {
+        fail('target state changed before handoff acknowledgement');
+      }
+      return null;
+    });
+  }
+  const expected = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+  const claim = expected.claim;
+  if (
+    claim.ownerSessionId !== binding.currentSessionId
+    || claim.claimId !== targetState.deferredReviewClaim
+  ) {
+    fail('deferred-review handoff claim does not match its target state');
+  }
+  if (
+    claim.transfer
+    && (
+      claim.transfer.stage !== 'owner-retired'
+      || claim.transfer.toOwnerSessionId !== binding.currentSessionId
+    )
+  ) {
+    fail('deferred-review transfer cannot be acknowledged by this principal');
+  }
+  return withDeferredReviewClaimLock(binding.projectRoot, () => (
+    withWorkflowStateLock({
+      projectRoot: binding.projectRoot,
+      sessionId: binding.currentSessionId,
+    }, (state) => {
+      if (
+        state.revision !== targetState.revision
+        || state.active !== true
+        || state.implComplete !== true
+        || state.chainDone !== false
+        || state.deferredReviewClaim !== claim.claimId
+      ) {
+        fail('target state changed before handoff acknowledgement');
+      }
+      const latest = requireDeferredReviewClaimSnapshot(
+        options,
+        binding.projectRoot,
+        expected,
+        'deferred-review claim changed before handoff acknowledgement',
+      );
+      if (
+        !sameClaimValue(latest.claim, claim)
+        || latest.claim.ownerSessionId !== binding.currentSessionId
+        || latest.claim.claimId !== state.deferredReviewClaim
+      ) {
+        fail('deferred-review claim changed before handoff acknowledgement');
+      }
+      if (
+        latest.claim.transfer
+        && (
+          latest.claim.transfer.stage !== 'owner-retired'
+          || latest.claim.transfer.toOwnerSessionId !== binding.currentSessionId
+        )
+      ) {
+        fail('deferred-review transfer changed before handoff acknowledgement');
+      }
+      if (!processIsAlive(ownerPid)) {
+        fail('deferred-review handoff process is not alive before publication');
+      }
+      latest.claim.ownerPid = ownerPid;
+      latest.claim.ownerProcessStartIdentity = processStartIdentity(ownerPid);
+      latest.claim.handoffEmitted = true;
+      if (options.logStyle === 'none') delete latest.claim.ts;
+      else latest.claim.ts = nowIso().replace(/\.\d{3}Z$/, 'Z');
+      delete latest.claim.transfer;
+      atomicWriteJson(latest.claimFile, latest.claim);
+      return readDeferredReviewClaim(options, binding.projectRoot);
+    })
+  ));
+}
+
+function deferredReviewCancellationOptions(options) {
+  const mode = options.mode;
+  if (!['release-only', 'reset'].includes(mode)) {
+    fail('deferred-review cancellation mode is invalid');
+  }
+  const resetBinding = options.resetBinding === undefined ? null : options.resetBinding;
+  if (
+    !deferredReviewResetBindingIsValid(resetBinding)
+    || (mode === 'release-only' && resetBinding !== null)
+  ) {
+    fail('deferred-review cancellation reset binding is invalid');
+  }
+  return { mode, resetBinding };
+}
+
+function sameDeferredReviewResetBinding(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function deferredReviewCancellationMarker(receipt) {
+  return {
+    schemaVersion: 1,
+    cancellationId: receipt.cancellationId,
+    claimId: receipt.claimId,
+    ownerSessionId: receipt.ownerSessionId,
+    mode: receipt.mode,
+    origin: receipt.origin,
+    sourceRevision: receipt.ownerRevision,
+    resultRevision: receipt.ownerRevision + 1,
+    resetBinding: receipt.resetBinding,
+  };
+}
+
+function stateHasDeferredReviewCancellation(state, receipt) {
+  return sameClaimValue(
+    state.deferredReviewCancellation,
+    deferredReviewCancellationMarker(receipt),
+  ) && state.deferredReviewClaim === '';
+}
+
+function stateMatchesDeferredReviewResetBinding(state, resetBinding) {
+  const linkKeys = [
+    'autopilotRunId',
+    'autopilotAttempt',
+    'autopilotReturnStage',
+    'chainId',
+    'chainOutcome',
+  ];
+  if (resetBinding === null) {
+    return linkKeys.every((key) => !Object.prototype.hasOwnProperty.call(state, key));
+  }
+  return state.autopilotRunId === resetBinding.runId
+    && state.autopilotAttempt === resetBinding.attempt
+    && state.chainId === resetBinding.chainId;
+}
+
+function stateCanBeginUnseededDeferredReviewReset(state, claim, request) {
+  return request.mode === 'reset'
+    && claim.handoffEmitted === false
+    && state.deferredReviewClaim === ''
+    && deferredReviewStateCanSeed(state)
+    && stateMatchesDeferredReviewResetBinding(state, request.resetBinding);
+}
+
+function stateMatchesPreparedUnseededCancellation(state, claim, receipt) {
+  return receipt.stage === 'prepared'
+    && receipt.mode === 'reset'
+    && receipt.origin === 'unseeded'
+    && receipt.claimId === claim.claimId
+    && receipt.ownerSessionId === claim.ownerSessionId
+    && receipt.ownerRevision === state.revision
+    && claim.handoffEmitted === false
+    && state.deferredReviewClaim === ''
+    && deferredReviewStateCanSeed(state)
+    && stateMatchesDeferredReviewResetBinding(state, receipt.resetBinding);
+}
+
+function claimIsAssignedUnseededTransferTarget(claim, currentSessionId) {
+  return Boolean(claim.transfer)
+    && claim.ownerSessionId === currentSessionId
+    && claim.transfer.stage === 'owner-retired'
+    && claim.transfer.toOwnerSessionId === currentSessionId;
+}
+
+function resetDeferredReviewState(state) {
+  state.active = false;
+  state.implComplete = false;
+  state.chainDone = false;
+  state.codeReviewDone = false;
+  state.selfReviewFixed = false;
+  state.workflowActive = false;
+  state.workflowTools = [];
+  state.vanilla = false;
+  state.bypasses = [];
+  state.reviewTicket = '';
+  state.reviewTicketConsumed = true;
+  state.reviewRound = 0;
+  state.stopBlockCount = 0;
+  state.deferredReviewClaim = '';
+  state.phase = 'UNINITIALIZED';
+  state.step_id = '';
+  state.history = [];
+  delete state.reviewRearm;
+  delete state.implStopCount;
+  delete state.autopilotRunId;
+  delete state.autopilotAttempt;
+  delete state.autopilotReturnStage;
+  delete state.chainId;
+  delete state.chainOutcome;
+  return state;
+}
+
+function cancellationResult(receipt) {
+  return {
+    status: 'cancelled',
+    claimId: receipt.claimId,
+    cancellationId: receipt.cancellationId,
+    mode: receipt.mode,
+    ownerRevision: receipt.ownerRevision,
+    clearedOwnerRevision: receipt.clearedOwnerRevision,
+  };
+}
+
+function supersededCancellationResult(receipt) {
+  return {
+    status: 'superseded',
+    claimId: receipt.claimId,
+    cancellationId: receipt.cancellationId,
+    mode: receipt.mode,
+    ownerRevision: receipt.ownerRevision,
+    clearedOwnerRevision: receipt.ownerRevision,
+  };
+}
+
+function cancelDeferredReviewClaim(options) {
+  const binding = currentCopilotSessionContext(options);
+  const request = deferredReviewCancellationOptions(options);
+  const claimFile = deferredReviewClaimFile(options, binding.projectRoot, true);
+  return withDeferredReviewClaimLock(binding.projectRoot, () => {
+    let claimSnapshot;
+    try {
+      claimSnapshot = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+    } catch (error) {
+      if (!fs.existsSync(claimFile)) {
+        return withWorkflowStateLock({
+          projectRoot: binding.projectRoot,
+          sessionId: binding.currentSessionId,
+        }, (state) => {
+          if (state.deferredReviewClaim !== '') {
+            fail('deferred-review claim artifact is missing for active owner state');
+          }
+          return { status: 'absent', mode: request.mode };
+        });
+      }
+      throw error;
+    }
+    const initialClaim = claimSnapshot.claim;
+    relatedCopilotSessionContexts(options, initialClaim.ownerSessionId);
+    if (
+      !initialClaim.cancellation
+      && initialClaim.ownerSessionId !== binding.currentSessionId
+    ) {
+      fail('only the deferred-review owner may cancel its claim');
+    }
+    const resettableAssignedTransfer = request.mode === 'reset'
+      && claimIsAssignedUnseededTransferTarget(initialClaim, binding.currentSessionId);
+    if (initialClaim.transfer && !resettableAssignedTransfer) {
+      fail('deferred-review transfer must be finalized before cancellation');
+    }
+    if (
+      initialClaim.cancellation
+      && (
+        initialClaim.cancellation.mode !== request.mode
+        || !sameDeferredReviewResetBinding(
+          initialClaim.cancellation.resetBinding,
+          request.resetBinding,
+        )
+      )
+    ) {
+      fail('deferred-review cancellation request does not match its durable receipt');
+    }
+
+    return withWorkflowStateLock({
+      projectRoot: binding.projectRoot,
+      sessionId: initialClaim.ownerSessionId,
+    }, (state, target) => {
+      let latest = requireDeferredReviewClaimSnapshot(
+        options,
+        binding.projectRoot,
+        claimSnapshot,
+        'deferred-review claim changed before cancellation',
+      );
+      if (!sameClaimValue(latest.claim, initialClaim)) {
+        fail('deferred-review claim changed before cancellation');
+      }
+      let receipt = latest.claim.cancellation;
+      if (!receipt) {
+        const linked = state.deferredReviewClaim === latest.claim.claimId;
+        const unseededReset = stateCanBeginUnseededDeferredReviewReset(
+          state,
+          latest.claim,
+          request,
+        );
+        const assignedTransfer = claimIsAssignedUnseededTransferTarget(
+          latest.claim,
+          binding.currentSessionId,
+        );
+        if (latest.claim.transfer && !(unseededReset && assignedTransfer)) {
+          fail('deferred-review transfer must be finalized before cancellation');
+        }
+        if (!linked && !unseededReset) {
+          fail('deferred-review owner state changed before cancellation');
+        }
+        if (request.mode === 'reset' && !stateMatchesDeferredReviewResetBinding(state, request.resetBinding)) {
+          fail('deferred-review reset binding does not match owner state');
+        }
+        receipt = {
+          schemaVersion: 1,
+          stage: 'prepared',
+          cancellationId: `drc_${crypto.randomBytes(16).toString('hex')}`,
+          claimId: latest.claim.claimId,
+          ownerSessionId: latest.claim.ownerSessionId,
+          mode: request.mode,
+          origin: linked ? 'linked' : 'unseeded',
+          ownerRevision: state.revision,
+          clearedOwnerRevision: null,
+          resetBinding: request.resetBinding,
+        };
+        delete latest.claim.transfer;
+        latest.claim.cancellation = receipt;
+        atomicWriteJson(latest.claimFile, latest.claim);
+        latest = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+      }
+
+      if (stateHasDeferredReviewCancellation(state, receipt)) {
+        if (receipt.stage === 'prepared') {
+          receipt.stage = 'state-cleared';
+          receipt.clearedOwnerRevision = receipt.ownerRevision + 1;
+          latest.claim.cancellation = receipt;
+          atomicWriteJson(latest.claimFile, latest.claim);
+          latest = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+        }
+      } else if (
+        receipt.stage === 'prepared'
+        && (
+          (
+            receipt.origin === 'linked'
+            && state.deferredReviewClaim === receipt.claimId
+          )
+          || stateMatchesPreparedUnseededCancellation(state, latest.claim, receipt)
+        )
+      ) {
+        if (request.mode === 'reset' && !stateMatchesDeferredReviewResetBinding(state, request.resetBinding)) {
+          fail('deferred-review reset binding changed before cancellation');
+        }
+        if (
+          state.deferredReviewClaim === receipt.claimId
+          && state.revision !== receipt.ownerRevision
+        ) {
+          receipt.ownerRevision = state.revision;
+          receipt.clearedOwnerRevision = null;
+          latest.claim.cancellation = receipt;
+          atomicWriteJson(latest.claimFile, latest.claim);
+          latest = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+        }
+        const marker = deferredReviewCancellationMarker(receipt);
+        const cleared = commitWorkflowStateUnderLock(target, state, {
+          expectedRevision: receipt.ownerRevision,
+          workflowState: request.mode === 'reset' ? 'idle' : state.workflow_state,
+          event: request.mode === 'reset' ? 'deferred-review-reset' : 'deferred-review-release',
+        }, (draft) => {
+          if (request.mode === 'reset') resetDeferredReviewState(draft);
+          else draft.deferredReviewClaim = '';
+          draft.deferredReviewCancellation = marker;
+          return draft;
+        });
+        if (!stateHasDeferredReviewCancellation(cleared, receipt)) {
+          fail('deferred-review cancellation state receipt was not persisted');
+        }
+        receipt.stage = 'state-cleared';
+        receipt.clearedOwnerRevision = marker.resultRevision;
+        latest.claim.cancellation = receipt;
+        atomicWriteJson(latest.claimFile, latest.claim);
+        latest = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+      } else if (
+        receipt.stage === 'prepared'
+        && receipt.origin === 'unseeded'
+        && latest.claim.handoffEmitted === false
+        && state.revision > receipt.ownerRevision
+        && state.deferredReviewClaim === ''
+      ) {
+        if (!removeRegularFileIfSame(latest.claimFile, latest.snapshot)) {
+          fail('deferred-review claim changed before superseded cancellation removal');
+        }
+        return supersededCancellationResult(receipt);
+      } else {
+        fail('deferred-review cancellation state does not match its receipt');
+      }
+
+      receipt = latest.claim.cancellation;
+      if (
+        !receipt
+        || receipt.stage !== 'state-cleared'
+        || !stateHasDeferredReviewCancellation(
+          readWorkflowStateUnderLock(target),
+          receipt,
+        )
+      ) {
+        fail('deferred-review cancellation did not reach its durable state');
+      }
+      if (!removeRegularFileIfSame(latest.claimFile, latest.snapshot)) {
+        fail('deferred-review claim changed before cancellation removal');
+      }
+      return cancellationResult(receipt);
+    });
+  });
+}
+
+function sameRegularSnapshot(left, right) {
+  return Boolean(left)
+    && Boolean(right)
+    && sameFileIdentity(left.stat, right.stat)
+    && left.stat.size === right.stat.size
+    && left.data.equals(right.data);
+}
+
+function removeRegularFileIfSame(file, snapshot) {
+  const current = readRegularFileSnapshot(file, MAX_JSON_BYTES, true);
+  if (!sameRegularSnapshot(current, snapshot)) return false;
+  const quarantine = path.join(
+    path.dirname(file),
+    `.${path.basename(file)}.${process.pid}.${crypto.randomBytes(24).toString('hex')}.quarantine`,
+  );
+  try {
+    fs.renameSync(file, quarantine);
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+  const moved = readRegularFileSnapshot(quarantine, MAX_JSON_BYTES);
+  if (!sameRegularSnapshot(moved, snapshot)) {
+    try {
+      fs.linkSync(quarantine, file);
+      fs.unlinkSync(quarantine);
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      fail('deferred-review claim replacement race could not be restored safely');
+    }
+    return false;
+  }
+  fs.unlinkSync(quarantine);
+  return true;
+}
+
+function clearTerminalDeferredReviewClaim(options) {
+  const binding = currentCopilotSessionContext(options);
+  const inspection = inspectDeferredReviewOwner(options);
+  if (!['done', 'cancelled'].includes(inspection.status)) {
+    fail('deferred-review claim is not terminal');
+  }
+  if (inspection.status === 'done' && inspection.claim.handoffEmitted !== true) {
+    fail('deferred-review done claim has no durable handoff acknowledgement');
+  }
+  const expected = readDeferredReviewClaimSnapshot(options, binding.projectRoot);
+  if (!sameClaimValue(expected.claim, inspection.claim)) {
+    fail('deferred-review claim changed before terminal removal');
+  }
+  return withDeferredReviewClaimLock(binding.projectRoot, () => (
+    withWorkflowStateLock({
+      projectRoot: binding.projectRoot,
+      sessionId: inspection.claim.ownerSessionId,
+    }, (state, target) => {
+      const terminalStateMatches = inspection.status === 'done'
+        ? state.deferredReviewClaim === inspection.claim.claimId && state.chainDone === true
+        : inspection.claim.cancellation
+          ? stateHasDeferredReviewCancellation(state, inspection.claim.cancellation)
+          : state.deferredReviewClaim !== inspection.claim.claimId
+            && inspection.claim.handoffEmitted === true;
+      if (state.revision !== inspection.ownerRevision || !terminalStateMatches) {
+        fail('owner state changed before terminal removal');
+      }
+      const latest = requireDeferredReviewClaimSnapshot(
+        options,
+        binding.projectRoot,
+        expected,
+        'deferred-review claim changed before terminal removal',
+      );
+      if (!sameClaimValue(latest.claim, inspection.claim)) {
+        fail('deferred-review claim changed before terminal removal');
+      }
+      let resultingOwnerRevision = state.revision;
+      if (inspection.status === 'done') {
+        const cleared = commitWorkflowStateUnderLock(target, state, {
+          expectedRevision: inspection.ownerRevision,
+          workflowState: state.workflow_state,
+          event: 'deferred-review-complete',
+        }, (draft) => {
+          draft.deferredReviewClaim = '';
+          return draft;
+        });
+        resultingOwnerRevision = cleared.revision;
+      }
+      if (!removeRegularFileIfSame(latest.claimFile, latest.snapshot)) {
+        fail('deferred-review claim changed before terminal removal');
+      }
+      return {
+        status: inspection.status,
+        claimId: inspection.claim.claimId,
+        resultingOwnerRevision,
+      };
+    })
+  ));
+}
+
+function sortedObject(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    fail('changedFileHashes must be an object');
+  }
+  const entries = [];
+  for (const key of Object.keys(input).sort()) {
+    const value = input[key];
+    if (typeof value !== 'string' || !HASH_RE.test(value)) {
+      fail(`invalid changed file hash for ${key}`);
+    }
+    entries.push([key, value]);
+  }
+  // Object.fromEntries uses CreateDataProperty, so a legitimate file named
+  // "__proto__" remains an own data property instead of invoking the legacy
+  // Object.prototype setter and disappearing from the attestation.
+  return Object.fromEntries(entries);
+}
+
+function createAttestation(options) {
+  const context = validateContext(options.context);
+  const state = validateWorkflowState(options.state, context.session_id_hash);
+  if (
+    !Array.isArray(options.hookSequence)
+    || options.hookSequence.length === 0
+    || options.hookSequence.some((entry) => typeof entry !== 'string' || entry.trim() === '')
+  ) {
+    fail('hookSequence must be a non-empty array of strings');
+  }
+  if (!Number.isSafeInteger(options.exitCode)) {
+    fail('exitCode must be an integer');
+  }
+  if (Object.prototype.hasOwnProperty.call(options, 'sourceRevision')
+      || Object.prototype.hasOwnProperty.call(options, 'sourceRevisionAuthority')) {
+    fail('sourceRevision/sourceRevisionAuthority overrides are unsupported in attestations');
+  }
+  // `resolved_plugin_root`, `runtime_digest` and `plugin_version` all name the
+  // runtime the session was BOUND to. Once a compatible upgrade may serve that
+  // record they no longer name the runtime that ran, so the attestation states
+  // both. The executing DIGEST is MEASURED here rather than accepted from the
+  // caller — there is no option to supply it — so the pair cannot disagree with
+  // the tree it claims to describe, and an executing root outside the recorded
+  // lineage is refused instead of recorded.
+  //
+  // The root itself IS a caller input, and deliberately so: a wrapper run
+  // installs the runtime under its own target and has to be able to say which
+  // tree ran (evals/session-control/assertions/control-attestation.js compares
+  // both root fields against that target). Self-deriving it from __dirname would
+  // name this module's tree instead and make the field unassertable. It is not
+  // an unchecked input — servesRecordedRuntime below refuses anything that is
+  // not the recorded root or a declared-compatible sibling of it.
+  //
+  // The emitted key set and its ORDER are mirrored by ATTESTATION_FIELDS in
+  // evals/session-control/lib/attestation-common.js, which compares by value AND
+  // by position; every port keeps its own copy. Editing the object below without
+  // that list rejects every attestation this function produces.
+  if (Object.prototype.hasOwnProperty.call(options, 'executingRuntimeDigest')) {
+    fail('executingRuntimeDigest overrides are unsupported in attestations');
+  }
+  const executingPluginRoot = options.executingPluginRoot === undefined
+    ? context.plugin_root
+    : canonicalDirectory(options.executingPluginRoot, 'executingPluginRoot');
+  if (!servesRecordedRuntime(context, executingPluginRoot, context.host)) {
+    fail('executingPluginRoot must share the immutable context runtime lineage');
+  }
+  const executingRuntimeDigest = executingPluginRoot === context.plugin_root
+    ? context.runtime_digest
+    : computeRuntimeDigest(executingPluginRoot, context.host);
+  return {
+    schema: ATTESTATION_SCHEMA,
+    schema_version: SCHEMA_VERSION,
+    host: context.host,
+    session_id_hash: context.session_id_hash,
+    resolved_plugin_root: context.plugin_root,
+    runtime_digest: context.runtime_digest,
+    executing_plugin_root: executingPluginRoot,
+    executing_runtime_digest: executingRuntimeDigest,
+    workflow_state: state.workflow_state,
+    revision: state.revision,
+    hook_sequence: [...options.hookSequence],
+    reviewer_capabilities: options.reviewerCapabilities === context.principal_profiles.reviewer
+      ? options.reviewerCapabilities
+      : fail('reviewerCapabilities must match the immutable reviewer profile'),
+    changed_file_hashes: sortedObject(options.changedFileHashes),
+    cli_version: requireText(options.cliVersion, 'cliVersion'),
+    plugin_version: options.pluginVersion === undefined || options.pluginVersion === context.plugin_version
+      ? context.plugin_version
+      : fail('pluginVersion must match the immutable context'),
+    source_revision: context.source_revision,
+    exit_code: options.exitCode,
+  };
+}
+
+function parseOptions(args) {
+  const options = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (!token.startsWith('--')) {
+      fail(`unexpected argument "${token}"`);
+    }
+    const name = token.slice(2);
+    const value = args[index + 1];
+    if (value === undefined || value.startsWith('--')) {
+      fail(`missing value for --${name}`);
+    }
+    options[name] = value;
+    index += 1;
+  }
+  return options;
+}
+
+function runCli(argv) {
+  const [command, ...rest] = argv;
+  if (command === 'session-key') {
+    if (rest.length !== 1) fail('session-key expects exactly one value');
+    process.stdout.write(`${sessionKey(rest[0])}\n`);
+    return;
+  }
+  const options = parseOptions(rest);
+  if (command === 'runtime-digest') {
+    process.stdout.write(`${computeRuntimeDigest(options['plugin-root'], options.host)}\n`);
+    return;
+  }
+  if (command === 'resolve' || command === 'render-main' || command === 'render-reviewer' || command === 'render-host') {
+    const context = readContext({
+      recordsDir: options['records-dir'],
+      sessionId: options['session-id'],
+      expectedHost: options.host,
+    });
+    if (command === 'resolve') {
+      const field = requireText(options.field, 'field');
+      if (!Object.prototype.hasOwnProperty.call(context, field) || typeof context[field] === 'object') {
+        fail('unsupported context field');
+      }
+      process.stdout.write(`${context[field]}\n`);
+    } else {
+      const rendered = command === 'render-main'
+        ? renderMainContext(context)
+        : command === 'render-reviewer'
+          ? renderReviewerContext(context)
+          : renderHostContext(context);
+      process.stdout.write(`${rendered}\n`);
+    }
+    return;
+  }
+  if (command === 'transition') {
+    const state = transitionWorkflowState({
+      projectRoot: options['project-root'],
+      sessionId: options['session-id'],
+      workflowState: options['workflow-state'],
+      event: options.event,
+      actor: options.actor,
+      expectedRevision: options['expected-revision'] === undefined ? undefined : Number(options['expected-revision']),
+    });
+    process.stdout.write(`${JSON.stringify(state)}\n`);
+    return;
+  }
+  fail('unknown command');
+}
+
+module.exports = {
+  SCHEMA,
+  SCHEMA_VERSION,
+  WORKFLOW_SCHEMA,
+  ATTESTATION_SCHEMA,
+  // The workflow-document LAYOUT, exported so a caller that must judge the file
+  // before this module opens it does not re-spell the path. `workflowStateFile`
+  // is deliberately NOT the export for that job: it reaches
+  // `ensureDescendantDirectory`, so merely asking it for the path CREATES the
+  // directory, which is the opposite of what a read-only pre-check wants.
+  WORKFLOW_STATE_SEGMENTS,
+  WORKFLOW_STATE_PREFIX,
+  sessionIdHash,
+  sessionKey,
+  computeRuntimeDigest,
+  runtimeLineageCompatible,
+  servesRecordedRuntime,
+  executingPluginVersion,
+  buildContext,
+  registerContext,
+  readContext,
+  readOrphanedProjectRootContext,
+  readPrunedPluginRootContext,
+  // Exported for the unit layer alone — no production caller requires it; all
+  // of its call sites are in this file. Without a direct handle its three rules
+  // (the UNSAFE_PATH_CHARACTERS class, path.isAbsolute, and the
+  // path.resolve(value) !== value normalization test) are reachable only through
+  // a full synthetic record fixture, and AGENTS.md already names it a core-half
+  // port obligation, so a port has to be able to pin it cheaply.
+  requireAbsentDirectoryPath,
+  ADOPTION_SAFE_VERSION_RE,
+  ADOPTION_REFUSALS,
+  ADOPTION_HISTORY_PHASE,
+  ADOPTION_HISTORY_REASON_PREFIX,
+  ADOPTION_PROVENANCE,
+  ADOPTION_PAIR_SEPARATOR,
+  formatAdoptionPair,
+  formatAdoptionReason,
+  parseAdoptionReason,
+  adoptableRecord,
+  adoptContext,
+  previewInPlaceRuntimeAdoption,
+  adoptInPlaceRuntimeContext,
+  contextRecordLocation,
+  supersedeContextRecord,
+  // PRODUCTION consumers: hooks/lib/session-auto-adopt-v1.js branches on the two
+  // predicates to tell a concurrent winner (`already-served`) and a crash-resume
+  // conflict from every other refusal. A port that drops them reports every
+  // refusal as unavailable. The constants travel with them for the unit layer.
+  ADOPTION_REFUSED_CODE,
+  SUPERSEDED_EXISTS_CODE,
+  isAdoptionRefusal,
+  isSupersededRecordConflict,
+  supersededRecordName,
+  supersededRecordFile,
+  LOCK_TIMEOUT_CODE,
+  isLockTimeout,
+  // The read-only path helper. Exported because sessionStart needs to ASK where
+  // the document is without creating it — workflowStateFile resolves through
+  // ensureDescendantDirectory and mkdirs every missing component, which is right
+  // for a writer and wrong for a probe.
+  adoptionWorkflowStatePath,
+  BASELINE_STATES,
+  BASELINE_REFUSALS,
+  BASELINE_ALREADY_PRESENT_CODE,
+  BASELINE_NOT_REPAIRABLE_CODE,
+  isBaselineNotRepairable,
+  // PRODUCTION consumers, not test seams — a port that drops either ships a
+  // report and a doctor row calling an undefined function. `baselineUnsafeComponent`
+  // is read by hooks/lib/zensu-doctor-report.js (the own-document row) and by
+  // hooks/lib/session-adopt-report-v1.js (the adopted-with-no-document warning);
+  // `classifyWorkflowBaselineShape` by the same report.
+  baselineUnsafeComponent,
+  classifyWorkflowBaselineShape,
+  // Likewise production, and the one whose absence is SILENT rather than loud:
+  // hooks/lib/session-adopt-report-v1.js and hooks/lib/copilot-session-control-v1.js
+  // both route the benign race through it, and a tree without it reports every
+  // refusal — tamper included — as "nothing to repair" with exit 0. The two
+  // constants below it travel with it for the same reason.
+  isBaselineAlreadyPresent,
+  BASELINE_HISTORY_PHASE,
+  BASELINE_HISTORY_REASON_PREFIX,
+  // ALSO a production consumer, and the comment here used to say the opposite:
+  // hooks/lib/copilot-session-control-v1.js calls it for the sessionStart self-heal
+  // and hooks/lib/zensu-doctor-report.js for the own-document row. A port reading
+  // "for the unit layer alone" would have dropped both. It IS additionally the
+  // handle the unit layer needs, because driving the unsafe/unreadable arms
+  // through workflowBaselineVerdict needs a full synthetic install — so without it
+  // the classification truth table would ship with two arms nothing executes.
+  classifyWorkflowBaseline,
+  workflowBaselineVerdict,
+  repairWorkflowBaseline,
+  // The project-root restore.
+  //
+  // PORT-RELEVANT, stated here because every sibling repair in this family
+  // carries the split and a port works from the roster rather than the prose.
+  // The CORE half is exactly the names below plus EVERY member of
+  // RESTORE_ROOT_REFUSALS — read that set from the object, never from a numeral here,
+  // which is the rule this roster states about its host half and then broke about its
+  // own: the count said six and a seventh member landed. They are host-neutral and read
+  // nothing from the environment, every anchor arriving as an option, with ONE named
+  // exception: `restoreAncestorPermissionsSafe` reads `process.getuid`, and it ABSTAINS
+  // where that is absent rather than refusing, so a host without POSIX identity gets the
+  // previous behaviour instead of a repair that never runs. That helper is not exported
+  // — the ladder is, and driving the ladder is what reaches it — but a port that
+  // re-implements the ladder without it ships a repair with one bound fewer on who may
+  // write the tree it plants in. It is NOT only the names — the writer's
+  // RETURN SHAPE is part of it, and one member of that shape is easy to miss because
+  // no export announces it. `restoreWorkflowProjectRoot` answers `alreadyPresent`,
+  // and the two ways this repair loses the race are BOTH live: a run that created
+  // nothing still THROWS, which `isRestoreRootAlreadyPresent` below classifies, while
+  // a run that planted components and then lost it COMPLETES and reports the race in
+  // that field. Both mechanisms reach the same outcome, so a caller must read the
+  // field rather than take a successful return for work this run performed — a port
+  // that implements the list and not the shape announces RESTORED for a directory
+  // another run created. `RESTORE_HISTORY_RACED_SUFFIX` is the persisted half of the
+  // same fact: it is the only signal in the workflow document that tells a raced entry
+  // from a planted one, which is why a doctor row reads it rather than copying it.
+  // ONE ORDERING fact travels with that shape and is a host obligation rather than a
+  // core one, so a port reading only the name list drops it. This writer DOES call
+  // `repairWorkflowBaseline` — say so plainly, because an earlier wording here said it
+  // never does and a port implementing that ships a writer with no baseline half and a
+  // return three fields short of what two host renderers read. The ordinary path owns
+  // the repair and returns `baseline` / `baselineError` / `baselineNotRepairable`, which
+  // `restoreBaselineRows` and `renderRestoreOutcome` consume. What is asymmetric is the
+  // THROW path: all four `restoreRootAlreadyPresentError` throws fire ABOVE that call, so
+  // on those paths the baseline has NOT been repaired and the CALLER owes it — a port
+  // that returns early on the throw ships an arm reporting success with the workflow
+  // document never rebuilt, which is the state in which the capability gate denies every
+  // tool. The host renderers this roster names are `renderRestoreVerdict`,
+  // `performRestore` and `renderRestoreOutcome`. The single renderer they replaced is
+  // defined nowhere in the tree; R12k forbids its name here, so it is not repeated.
+  // The HOST half carries NO count here on
+  // purpose: the numeral was wrong by one for a round after `restoreRootRealDirectory`
+  // landed, and it went stale again when this roster omitted two obligations the
+  // feature's own pointer paragraph already listed. view the list, never a total.
+  // A port that takes only the core delta gets a writer with no reachable caller and
+  // keeps the wedge: the `--restore-root` argv mode and its ZADOPT_MODE wire, the
+  // report renderer and its exit-code contract, the recognizer's argument list,
+  // the three reserved-phase guard bodies, the doctor row, the agentStop release, the
+  // skill, the `orphaned-project-root` deny scope — in the shell emitter AND in
+  // the capability gate, which spells its own — and `zensu_safe_display_path`
+  // together with every constant it reads, which a port must place where BOTH its
+  // emitter and its agentStop hook can call it (read that set from the function, never
+  // from a count here: this roster forbids a hand-maintained numeral two sentences
+  // above and then carried one for that very set), plus the operator accounts every
+  // surface is mirrored in.
+  // `zensu-codex`, `zensu-kiro` and `zensu-antigravity` were NOT
+  // included in this change; each carries its own recognizer against a different
+  // harness, and the ladder's ancestor rules have to be re-decided against
+  // whatever that host canonicalizes.
+  //
+  // `restoreRootComponentLadder` and
+  // `RESTORE_ALREADY_PRESENT_CODE` are exported for the same reason
+  // classifyWorkflowBaseline is: both refusal arms are unreachable through
+  // restoreRootVerdict from a synthetic install — one needs a symlinked ancestor
+  // under a recorded root, the other needs a directory to appear inside the
+  // TOCTOU window — so without a direct handle the ladder's truth table would
+  // ship with arms nothing executes.
+  RESTORE_ROOT_REFUSALS,
+  RESTORE_HISTORY_PHASE,
+  RESTORE_HISTORY_REASON_PREFIX,
+  RESTORE_HISTORY_RACED_SUFFIX,
+  RESTORE_MAX_MISSING_COMPONENTS,
+  RESTORE_ALREADY_PRESENT_CODE,
+  isRestoreRootAlreadyPresent,
+  restoreRootComponentLadder,
+  restoreAncestorPermissionsSafe,
+  restoreOwnershipUndecidable,
+  restoreRootOwnerSafe,
+  restoreRootRealDirectory,
+  baselineProvenanceUnrecorded,
+  restoreRootVerdict,
+  restoreWorkflowProjectRoot,
+  renderMainContext,
+  renderReviewerContext,
+  renderEvidenceWorkerContext,
+  renderHostContext,
+  stampWorkflowState,
+  initializeWorkflowState,
+  initializeWorkflowStateDetailed,
+  mutateWorkflowState,
+  transitionWorkflowState,
+  resetReviewBudget,
+  readWorkflowState,
+  workflowChainSnapshot,
+  inspectDeferredReviewOwner,
+  deferredReviewOwnedByOther,
+  prepareDeferredReviewTransfer,
+  retireDeferredReviewOwner,
+  markDeferredReviewOwnerRetired,
+  assignDeferredReviewClaim,
+  finalizeDeferredReviewTransfer,
+  acknowledgeDeferredReviewHandoff,
+  cancelDeferredReviewClaim,
+  clearTerminalDeferredReviewClaim,
+  processStartIdentityForPid,
+  processStartLowerBoundForPid,
+  createAttestation,
+  externalProcessLockPath,
+  inspectExternalProcessLock,
+  acquireExternalProcessLock,
+  releaseExternalProcessLock,
+  releaseExternalProcessLockByToken,
+  withFileLock,
+  atomicWriteJson,
+  atomicCreateJson,
+};
+
+if (require.main === module) {
+  try {
+    runCli(process.argv.slice(2));
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  }
+}

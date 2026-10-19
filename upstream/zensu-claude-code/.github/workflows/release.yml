@@ -1,0 +1,1083 @@
+name: Release
+
+# Modeled on the ts-desktop-tauri release pipeline, adapted for a Claude Code
+# plugin: no binary build/sign, and `main` is branch-protected so the version
+# bump lands via a release PR (never a direct push). The org caps the default
+# GITHUB_TOKEN at read for PR *creation*, so CI pushes the release branch and you
+# open the PR from the printed link — release/tag creation only needs the per-job
+# `contents: write` granted below, which works under the org policy.
+#
+# Flow:
+#   1. Dispatch this workflow (Actions -> Release) with a version_type.
+#   2. `prepare-commit` computes the next version, bumps the version files,
+#      generates the CHANGELOG section from the commits since the last tag
+#      (git-cliff), creates the release commit and hands it on as a git bundle.
+#      `prepare-suite` runs the deterministic suite against that exact commit in
+#      parallel shards. `prepare` then records deterministic exact-SHA runtime
+#      evidence, pushes `release/vX.Y.Z` and prints a Compare link.
+#   3. Open the PR from that link, then review + squash-merge it.
+#   4. When the release commit lands on main, `publish-plan` verifies the
+#      release target and decides the gate,
+#      `publish-suite` runs the sharded suite at that exact SHA, and `publish`
+#      tags main HEAD and creates a PUBLISHED GitHub Release whose notes are the
+#      new CHANGELOG section (already reviewed in the bump PR body). The merge only
+#      publishes a catalog entry for an as-yet unavailable immutable ref.
+#      Only successful tag creation makes the new plugin source resolvable;
+#      it runs only after deterministic exact-main-SHA validation.
+#
+# skip_test_gate: an explicit, recorded escape for a release that must ship
+# without waiting for the suite. It removes the ONE thing the pipeline otherwise
+# guarantees — that the exact bytes being tagged were green — so it is opt-in,
+# refuses without a reason, and can never report `gate: "passed"`. What it does
+# NOT relax: the exact-SHA pin, the clean-tree check, the runtime digest, the
+# version/ref invariant, or the evidence artifact. The decision is written into
+# the release commit as a `Release-Test-Gate: skipped` trailer so it reaches the
+# push-triggered publish stage (where `inputs.*` is empty) and so a human sees it in
+# the release PR. Consequence worth stating: any commit whose subject starts with
+# the release prefix AND carries that trailer skips the publish gate, so the
+# protected-PR review is what stands between a hand-written trailer and an
+# unverified tag.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'prepare = cut the release branch; publish = retry publication for the version already on main'
+        required: false
+        default: prepare
+        type: choice
+        options:
+          - prepare
+          - publish
+      version_type:
+        description: 'Version bump type (prepare mode only)'
+        required: false
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: 'Offline dry run: compute version + notes only; no commit or branch push'
+        required: false
+        default: false
+        type: boolean
+      skip_test_gate:
+        description: 'DANGER: ship WITHOUT running the suite. Evidence records gate=skipped, never passed. Requires skip_reason.'
+        required: false
+        default: false
+        type: boolean
+      skip_reason:
+        description: 'Why the test gate is being skipped, on a single line with no leading or trailing whitespace (required when skip_test_gate is true; recorded in the commit, the evidence and the job summary)'
+        required: false
+        default: ''
+        type: string
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-commit:
+    name: Prepare release commit
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'prepare'
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      branch: ${{ steps.release_commit.outputs.branch }}
+      sha: ${{ steps.release_commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Compute next version
+        id: ver
+        env:
+          VERSION_TYPE: ${{ inputs.version_type }}
+        run: |
+          set -euo pipefail
+          LATEST="$(git tag -l 'v*' | sort -V | tail -1)"
+          if [[ ! "$LATEST" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            LATEST="v0.0.0"
+          fi
+          echo "Latest tag: $LATEST"
+          IFS='.' read -r MA MI PA <<< "${LATEST#v}"
+          case "$VERSION_TYPE" in
+            major) MA=$((MA + 1)); MI=0; PA=0 ;;
+            minor) MI=$((MI + 1)); PA=0 ;;
+            patch) PA=$((PA + 1)) ;;
+          esac
+          VER="${MA}.${MI}.${PA}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VER" >> "$GITHUB_OUTPUT"
+          echo "New version: v$VER"
+
+      - name: Bump version files
+        run: |
+          set -euo pipefail
+          VER="${{ steps.ver.outputs.version }}"
+          TAG="${{ steps.ver.outputs.tag }}"
+          # Edit only the version line (format-preserving). jq would rewrite the
+          # whole file in canonical style and reformat e.g. inline arrays.
+          sed -i -E 's/("version"[[:space:]]*:[[:space:]]*")[0-9]+\.[0-9]+\.[0-9]+(")/\1'"$VER"'\2/' .claude-plugin/plugin.json
+          sed -i -E 's/("version"[[:space:]]*:[[:space:]]*")[0-9]+\.[0-9]+\.[0-9]+(")/\1'"$VER"'\2/' .claude-plugin/marketplace.json
+          sed -i -E 's/("ref"[[:space:]]*:[[:space:]]*")v[0-9]+\.[0-9]+\.[0-9]+(")/\1'"$TAG"'\2/' .claude-plugin/marketplace.json
+          sed -i -E "s#version-[0-9]+\.[0-9]+\.[0-9]+-green#version-${VER}-green#" README.md
+          echo "Bumped plugin.json, marketplace.json, README badge -> $VER; marketplace source ref -> $TAG"
+          # Sanity: files stay valid JSON and carry the new version.
+          test "$(jq -r .version .claude-plugin/plugin.json)" = "$VER"
+          test "$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)" = "$VER"
+          test "$(jq -r '.plugins[0].source.source' .claude-plugin/marketplace.json)" = github
+          test "$(jq -r '.plugins[0].source.repo' .claude-plugin/marketplace.json)" = MKITConsulting/zensu-claude-code
+          test "$(jq -r '.plugins[0].source.ref' .claude-plugin/marketplace.json)" = "$TAG"
+
+      - name: Generate CHANGELOG section (git-cliff)
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
+        with:
+          config: cliff.toml
+          args: --unreleased --tag ${{ steps.ver.outputs.tag }}
+        env:
+          OUTPUT: ${{ runner.temp }}/section.md
+
+      - name: Prepend section into CHANGELOG.md
+        run: |
+          set -euo pipefail
+          SECTION="${{ runner.temp }}/section.md"
+          test -s "$SECTION" || { echo "::error::git-cliff produced no section (no conventional commits since the last tag?)"; exit 1; }
+          # Insert the new section directly under the `## [Unreleased]` heading,
+          # leaving every historical section untouched (preserves curated prose
+          # and the changelog-pinning structure tests).
+          awk '
+            FNR == NR { sec = sec $0 "\n"; next }
+            { print }
+            /^## \[Unreleased\]/ && !done { printf "%s", sec; done = 1 }
+          ' "$SECTION" CHANGELOG.md > "${{ runner.temp }}/CHANGELOG.new"
+          mv "${{ runner.temp }}/CHANGELOG.new" CHANGELOG.md
+          echo "----- generated section -----"
+          cat "$SECTION"
+
+      - name: Revalidate generated release and immutable-source invariants
+        run: |
+          set -euo pipefail
+          bash tests/structure/test-version-sync.sh "${{ steps.ver.outputs.version }}"
+          bash tests/structure/test-immutable-marketplace-release.sh
+
+      - name: Dry-run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          {
+            echo "## Dry run — v${{ steps.ver.outputs.version }}"
+            echo ""
+            echo "Offline preview only: no release commit was created and no branch was pushed."
+            echo ""
+            echo '```markdown'
+            cat "${{ runner.temp }}/section.md"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # An escape hatch with no stated reason is an escape hatch nobody can audit
+      # later. Fail before anything is committed or pushed rather than after.
+      - name: Validate test-gate skip request
+        if: ${{ inputs.skip_test_gate }}
+        env:
+          SKIP_REASON: ${{ inputs.skip_reason }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SKIP_REASON//[[:space:]]/}" ]; then
+            echo "::error::skip_test_gate requires a non-empty skip_reason"
+            exit 1
+          fi
+          if [[ "$SKIP_REASON" == *$'\n'* || "$SKIP_REASON" == *$'\r'* ]]; then
+            echo "::error::skip_reason must be a single line"
+            exit 1
+          fi
+          if [[ "$SKIP_REASON" == [[:space:]]* || "$SKIP_REASON" == *[[:space:]] ]]; then
+            echo "::error::skip_reason must not start or end with whitespace"
+            exit 1
+          fi
+          echo "::warning::Test gate will be SKIPPED for this release. Reason: $SKIP_REASON"
+
+      - name: Create release commit
+        id: release_commit
+        if: ${{ !inputs.dry_run }}
+        env:
+          SKIP_TEST_GATE: ${{ inputs.skip_test_gate }}
+          SKIP_REASON: ${{ inputs.skip_reason }}
+        run: |
+          set -euo pipefail
+          BR="release/${{ steps.ver.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BR"
+          git add .claude-plugin/plugin.json .claude-plugin/marketplace.json README.md CHANGELOG.md
+          # The skip decision travels IN the release commit, not only in this run's
+          # inputs. The publish stage is push-triggered by this commit landing on main,
+          # where `inputs.*` is empty, so a trailer is the only carrier that reaches
+          # it. It is also the copy a human reads in the release PR.
+          if [ "$SKIP_TEST_GATE" = "true" ]; then
+            git commit \
+              -m "chore(release): bump version to ${{ steps.ver.outputs.version }}" \
+              -m "Release-Test-Gate: skipped" \
+              -m "Release-Test-Gate-Reason: $SKIP_REASON"
+          else
+            git commit -m "chore(release): bump version to ${{ steps.ver.outputs.version }}"
+          fi
+          RELEASE_SHA="$(git rev-parse HEAD)"
+          test -n "$RELEASE_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          echo "branch=$BR" >> "$GITHUB_OUTPUT"
+          echo "sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Bundle the release commit
+        if: ${{ !inputs.dry_run }}
+        env:
+          RELEASE_BRANCH: ${{ steps.release_commit.outputs.branch }}
+          RELEASE_SHA: ${{ steps.release_commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          BUNDLE_DIR="$RUNNER_TEMP/release-commit"
+          mkdir -p "$BUNDLE_DIR"
+          git bundle create "$BUNDLE_DIR/release.bundle" "refs/heads/$RELEASE_BRANCH" "^$RELEASE_SHA~1"
+          git bundle verify "$BUNDLE_DIR/release.bundle"
+
+      - name: Upload the release commit bundle
+        if: ${{ !inputs.dry_run }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-commit-${{ steps.release_commit.outputs.sha }}
+          path: ${{ runner.temp }}/release-commit/release.bundle
+          if-no-files-found: error
+          retention-days: 7
+
+  prepare-suite:
+    name: Release suite (shard ${{ matrix.shard }})
+    needs: prepare-commit
+    if: ${{ !inputs.dry_run && !inputs.skip_test_gate }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-commit-${{ needs.prepare-commit.outputs.sha }}
+          path: ${{ runner.temp }}/release-commit
+
+      - name: Check out the bundled release commit
+        env:
+          EXPECTED_SHA: ${{ needs.prepare-commit.outputs.sha }}
+          RELEASE_BRANCH: ${{ needs.prepare-commit.outputs.branch }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_BRANCH" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          BUNDLE="$RUNNER_TEMP/release-commit/release.bundle"
+          git bundle verify "$BUNDLE"
+          git fetch --no-tags "$BUNDLE" "refs/heads/$RELEASE_BRANCH"
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_SHA"
+          git checkout --detach "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+      - run: npm ci
+
+      - name: Run this suite shard against the exact release commit
+        env:
+          EXPECTED_SHA: ${{ needs.prepare-commit.outputs.sha }}
+          JOB_INDEX: ${{ strategy.job-index }}
+          JOB_TOTAL: ${{ strategy.job-total }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          bash tests/run-all.sh --ci "--shard=$((JOB_INDEX + 1))/$JOB_TOTAL"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+      - name: Show suite report on failure
+        if: failure()
+        run: |
+          shopt -s nullglob
+          reports=(tests/results/run-all-*.txt)
+          if ((${#reports[@]})); then
+            cat "${reports[@]}"
+          else
+            echo 'No full-suite report was produced; inspect the failed preflight step above.'
+          fi
+
+  prepare:
+    name: Prepare release branch
+    needs: [prepare-commit, prepare-suite]
+    if: >-
+      ${{ !cancelled() && !inputs.dry_run && needs.prepare-commit.result == 'success'
+      && (needs.prepare-suite.result == 'success'
+      || (inputs.skip_test_gate && needs.prepare-suite.result == 'skipped')) }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-commit-${{ needs.prepare-commit.outputs.sha }}
+          path: ${{ runner.temp }}/release-commit
+
+      - name: Check out the gated release commit
+        id: release_commit
+        env:
+          EXPECTED_SHA: ${{ needs.prepare-commit.outputs.sha }}
+          RELEASE_BRANCH: ${{ needs.prepare-commit.outputs.branch }}
+          RELEASE_VERSION: ${{ needs.prepare-commit.outputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_BRANCH" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          BUNDLE="$RUNNER_TEMP/release-commit/release.bundle"
+          git bundle verify "$BUNDLE"
+          git fetch --no-tags "$BUNDLE" "refs/heads/$RELEASE_BRANCH:refs/heads/$RELEASE_BRANCH"
+          git checkout "$RELEASE_BRANCH"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          VER="$(jq -r .version .claude-plugin/plugin.json)"
+          test "$VER" = "$RELEASE_VERSION"
+          test "$RELEASE_BRANCH" = "release/v$VER"
+          {
+            echo "branch=$RELEASE_BRANCH"
+            echo "sha=$EXPECTED_SHA"
+            echo "version=$VER"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Record deterministic exact-commit runtime evidence
+        env:
+          SKIP_TEST_GATE: ${{ inputs.skip_test_gate }}
+          SKIP_REASON: ${{ inputs.skip_reason }}
+          SUITE_RESULT: ${{ needs.prepare-suite.result }}
+        run: |
+          set -euo pipefail
+          EXPECTED_SHA="${{ steps.release_commit.outputs.sha }}"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          # Only the suite run is optional. The exact-SHA pin, the clean-tree
+          # check and the runtime digest still bind the bytes that ship, so a
+          # skipped release is unverified — never unattributed.
+          if [ "$SKIP_TEST_GATE" = "true" ] && [ "$SUITE_RESULT" = skipped ] && [ -n "${SKIP_REASON//[[:space:]]/}" ]; then
+            GATE=skipped
+            GATE_REASON="$SKIP_REASON"
+            echo "::warning::Deterministic release gate SKIPPED — the suite did not run against $EXPECTED_SHA. Reason: $GATE_REASON"
+          elif [ "$SKIP_TEST_GATE" != "true" ] && [ "$SUITE_RESULT" = success ]; then
+            GATE=passed
+            GATE_REASON=""
+          else
+            echo "::error::the release suite result ($SUITE_RESULT) does not match the gate decision (skip_test_gate: $SKIP_TEST_GATE)"
+            exit 1
+          fi
+          EVIDENCE_DIR="$RUNNER_TEMP/deterministic-release-evidence"
+          mkdir -p "$EVIDENCE_DIR"
+          RUNTIME_DIGEST="$(node hooks/lib/session-control-core-v1.js runtime-digest --plugin-root "$GITHUB_WORKSPACE" --host claude)"
+          [[ "$RUNTIME_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          jq -n \
+            --arg source_git_revision "$EXPECTED_SHA" \
+            --arg plugin_version "$(jq -r .version .claude-plugin/plugin.json)" \
+            --arg runtime_digest "$RUNTIME_DIGEST" \
+            --arg gate "$GATE" \
+            --arg gate_skip_reason "$GATE_REASON" \
+            '{schema:"zensu-deterministic-release-evidence-v1", gate:$gate, source_git_revision:$source_git_revision, runtime_digest:$runtime_digest, plugin_version:$plugin_version}
+             + (if $gate == "skipped" then {gate_skip_reason:$gate_skip_reason} else {} end)' \
+            > "$EVIDENCE_DIR/release-gate.json"
+          {
+            echo "### Release test gate"
+            if [ "$GATE" = skipped ]; then
+              echo "**SKIPPED** — the suite did not run against \`$EXPECTED_SHA\`."
+              echo ""
+              echo "Reason: $GATE_REASON"
+            else
+              echo "Passed against \`$EXPECTED_SHA\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+      - name: Upload deterministic created-commit evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: deterministic-release-${{ steps.release_commit.outputs.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/deterministic-release-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Push release branch + print PR link
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          BR="${{ steps.release_commit.outputs.branch }}"
+          test "$(git rev-parse HEAD)" = "${{ steps.release_commit.outputs.sha }}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          # Force-push so re-running for the same version overwrites a stale branch.
+          git push -f origin "$BR"
+          TITLE_ENC="$(printf '%s' 'chore(release): bump version to ${{ steps.release_commit.outputs.version }}' | jq -sRr @uri)"
+          PR_URL="${{ github.server_url }}/${{ github.repository }}/compare/main...${BR}?expand=1&title=${TITLE_ENC}"
+          {
+            echo "## Release v${{ steps.release_commit.outputs.version }} — open the PR"
+            echo ""
+            echo "Branch \`${BR}\` pushed. **Open the release PR:**"
+            echo ""
+            echo "${PR_URL}"
+            echo ""
+            echo "Review + **squash-merge** it → the \`publish\` job tags main and publishes the release."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Open the PR: ${PR_URL}"
+
+  publish-plan:
+    name: Plan release publication
+    # The push trigger is the normal path: the release commit lands on main and
+    # publication follows. The dispatch disjunct is the retry path — a publish
+    # that failed after the bump commit already merged has no second push to ride
+    # on, and re-running the failed run would replay the workflow file from that
+    # commit rather than the fixed one.
+    if: >-
+      (github.event_name == 'push' &&
+       startsWith(github.event.head_commit.message, 'chore(release): bump version to')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    outputs:
+      gate: ${{ steps.gate.outputs.gate }}
+      gate_reason: ${{ steps.gate.outputs.gate_reason }}
+    steps:
+      - name: Reject a publish dispatch outside main
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main || {
+            echo "::error::publish mode may only be dispatched on main"
+            exit 1
+          }
+
+      - name: Validate test-gate skip request
+        if: ${{ inputs.skip_test_gate }}
+        env:
+          SKIP_REASON: ${{ inputs.skip_reason }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SKIP_REASON//[[:space:]]/}" ]; then
+            echo "::error::skip_test_gate requires a non-empty skip_reason"
+            exit 1
+          fi
+          if [[ "$SKIP_REASON" == *$'\n'* || "$SKIP_REASON" == *$'\r'* ]]; then
+            echo "::error::skip_reason must be a single line"
+            exit 1
+          fi
+          if [[ "$SKIP_REASON" == [[:space:]]* || "$SKIP_REASON" == *[[:space:]] ]]; then
+            echo "::error::skip_reason must not start or end with whitespace"
+            exit 1
+          fi
+          echo "::warning::Test gate will be SKIPPED for this release. Reason: $SKIP_REASON"
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require repository Immutable Releases before deterministic validation
+        env:
+          GH_TOKEN: ${{ secrets.IMMUTABLE_RELEASES_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::IMMUTABLE_RELEASES_ADMIN_TOKEN with read access to repository settings is required"
+            exit 1
+          fi
+          SETTING="$(gh api -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/$GITHUB_REPOSITORY/immutable-releases")"
+          printf '%s' "$SETTING" | jq -e '.enabled == true' >/dev/null || {
+            echo "::error::GitHub Immutable Releases must be enabled before publishing a marketplace tag"
+            exit 1
+          }
+
+      - name: Verify immutable marketplace release target before the suite
+        run: |
+          set -euo pipefail
+          VER="$(jq -r '.version' .claude-plugin/plugin.json)"
+          TAG="v$VER"
+          [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)" = "$VER"
+          test "$(jq -r '.plugins[0].source.source' .claude-plugin/marketplace.json)" = github
+          test "$(jq -r '.plugins[0].source.repo' .claude-plugin/marketplace.json)" = MKITConsulting/zensu-claude-code
+          test "$(jq -r '.plugins[0].source.ref' .claude-plugin/marketplace.json)" = "$TAG"
+          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+            TAG_SHA="$(git rev-list -n 1 "$TAG")"
+            if [ "$TAG_SHA" != "${{ github.sha }}" ]; then
+              echo "::error::$TAG already exists at $TAG_SHA, not exact main SHA ${{ github.sha }}"
+              exit 1
+            fi
+          fi
+
+      - name: Decide the exact-main-SHA gate
+        id: gate
+        env:
+          SKIP_TEST_GATE: ${{ inputs.skip_test_gate }}
+          SKIP_REASON: ${{ inputs.skip_reason }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          # This job is normally push-triggered, where `inputs.*` is empty, so the
+          # skip decision is read back from the release commit's own trailer — the
+          # same text a reviewer saw in the release PR. A dispatched publish retry
+          # may also pass the input directly. Absent both, the gate runs: the skip
+          # is opt-in on every path.
+          COMMIT_MSG="$(git log -1 --format=%B HEAD)"
+          SKIP_TRAILER=false
+          printf '%s\n' "$COMMIT_MSG" | grep -qE '^Release-Test-Gate:[[:space:]]*skipped[[:space:]]*$' && SKIP_TRAILER=true
+          TRAILER_REASON="$(printf '%s\n' "$COMMIT_MSG" | sed -n 's/^Release-Test-Gate-Reason:[[:space:]]*//p' | head -1)"
+          GATE_REASON=""
+          if [ "$SKIP_TRAILER" = true ] && [ -n "${TRAILER_REASON//[[:space:]]/}" ]; then
+            GATE=skipped
+            GATE_REASON="$TRAILER_REASON"
+            if [ "$SKIP_TEST_GATE" = "true" ] && [ "$SKIP_REASON" != "$GATE_REASON" ]; then
+              echo "::notice::the release commit's Release-Test-Gate-Reason is recorded instead of the dispatched skip_reason"
+            fi
+          elif [ "$SKIP_TRAILER" = true ] && [ "${{ github.event_name }}" != workflow_dispatch ]; then
+            echo "::error::the release commit skips the test gate without a Release-Test-Gate-Reason"
+            exit 1
+          elif [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            if [ "$SKIP_TRAILER" = true ]; then
+              echo "::notice::the release commit's Release-Test-Gate trailer carries no Release-Test-Gate-Reason, so this dispatch decides the gate"
+            fi
+            if [ "$SKIP_TEST_GATE" = "true" ]; then
+              GATE=skipped
+              GATE_REASON="$SKIP_REASON"
+            else
+              GATE=passed
+            fi
+          else
+            GATE=passed
+          fi
+          if [ "$GATE" = skipped ]; then
+            echo "gate=skipped" >> "$GITHUB_OUTPUT"
+          else
+            echo "gate=run" >> "$GITHUB_OUTPUT"
+          fi
+          echo "gate_reason=$GATE_REASON" >> "$GITHUB_OUTPUT"
+
+  publish-suite:
+    name: Publish suite (shard ${{ matrix.shard }})
+    needs: publish-plan
+    if: needs.publish-plan.outputs.gate == 'run'
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run this suite shard against the exact main SHA
+        env:
+          JOB_INDEX: ${{ strategy.job-index }}
+          JOB_TOTAL: ${{ strategy.job-total }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          bash tests/run-all.sh --ci "--shard=$((JOB_INDEX + 1))/$JOB_TOTAL"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+      - name: Show suite report on failure
+        if: failure()
+        run: |
+          shopt -s nullglob
+          reports=(tests/results/run-all-*.txt)
+          if ((${#reports[@]})); then
+            cat "${reports[@]}"
+          else
+            echo 'No full-suite report was produced; inspect the failed preflight step above.'
+          fi
+
+  publish:
+    name: Publish release
+    needs: [publish-plan, publish-suite]
+    if: >-
+      ${{ !cancelled() && needs.publish-plan.result == 'success'
+      && ((needs.publish-plan.outputs.gate == 'run' && needs.publish-suite.result == 'success')
+      || (needs.publish-plan.outputs.gate == 'skipped' && needs.publish-suite.result == 'skipped')) }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+
+      - name: Verify immutable marketplace release target
+        id: v
+        run: |
+          set -euo pipefail
+          VER="$(jq -r '.version' .claude-plugin/plugin.json)"
+          TAG="v$VER"
+          [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)" = "$VER"
+          test "$(jq -r '.plugins[0].source.source' .claude-plugin/marketplace.json)" = github
+          test "$(jq -r '.plugins[0].source.repo' .claude-plugin/marketplace.json)" = MKITConsulting/zensu-claude-code
+          test "$(jq -r '.plugins[0].source.ref' .claude-plugin/marketplace.json)" = "$TAG"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+            TAG_SHA="$(git rev-list -n 1 "$TAG")"
+            if [ "$TAG_SHA" != "${{ github.sha }}" ]; then
+              echo "::error::$TAG already exists at $TAG_SHA, not exact main SHA ${{ github.sha }}"
+              exit 1
+            fi
+          fi
+
+      - name: Deterministic exact-main-SHA gate
+        env:
+          GATE_DECISION: ${{ needs.publish-plan.outputs.gate }}
+          GATE_REASON: ${{ needs.publish-plan.outputs.gate_reason }}
+          SUITE_RESULT: ${{ needs.publish-suite.result }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          if [ "$GATE_DECISION" = skipped ] && [ "$SUITE_RESULT" = skipped ] && [ -n "${GATE_REASON//[[:space:]]/}" ]; then
+            GATE=skipped
+            echo "::warning::Deterministic publish gate SKIPPED — the suite did not run against ${{ github.sha }}. Reason: $GATE_REASON"
+          elif [ "$GATE_DECISION" = run ] && [ "$SUITE_RESULT" = success ]; then
+            GATE=passed
+            GATE_REASON=""
+          else
+            echo "::error::the publish suite result ($SUITE_RESULT) does not match the planned gate ($GATE_DECISION)"
+            exit 1
+          fi
+          EVIDENCE_DIR="$RUNNER_TEMP/deterministic-publish-evidence"
+          mkdir -p "$EVIDENCE_DIR"
+          RUNTIME_DIGEST="$(node hooks/lib/session-control-core-v1.js runtime-digest --plugin-root "$GITHUB_WORKSPACE" --host claude)"
+          [[ "$RUNTIME_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          jq -n \
+            --arg source_git_revision "${{ github.sha }}" \
+            --arg plugin_version "$(jq -r .version .claude-plugin/plugin.json)" \
+            --arg runtime_digest "$RUNTIME_DIGEST" \
+            --arg gate "$GATE" \
+            --arg gate_skip_reason "$GATE_REASON" \
+            '{schema:"zensu-deterministic-release-evidence-v1", gate:$gate, source_git_revision:$source_git_revision, runtime_digest:$runtime_digest, plugin_version:$plugin_version}
+             + (if $gate == "skipped" then {gate_skip_reason:$gate_skip_reason} else {} end)' \
+            > "$EVIDENCE_DIR/publish-gate.json"
+          {
+            echo "### Publish test gate"
+            if [ "$GATE" = skipped ]; then
+              echo "**SKIPPED** — the suite did not run against \`${{ github.sha }}\`."
+              echo ""
+              echo "Reason: $GATE_REASON"
+            else
+              echo "Passed against \`${{ github.sha }}\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+      - name: Upload deterministic exact-main-SHA evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: deterministic-publish-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/deterministic-publish-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Extract release notes from CHANGELOG
+        run: |
+          set -euo pipefail
+          VER="${{ steps.v.outputs.version }}"
+          awk -v ver="$VER" '
+            $0 ~ "^## \\[" ver "\\]" { f = 1; next }
+            f && /^## \[/ { f = 0 }
+            f { print }
+          ' CHANGELOG.md > "${{ runner.temp }}/notes.md"
+          if [ ! -s "${{ runner.temp }}/notes.md" ]; then
+            echo "Release v$VER" > "${{ runner.temp }}/notes.md"
+          fi
+
+      - name: Package plugin source
+        run: git archive --format=zip -o "zensu-claude-code-v${{ steps.v.outputs.version }}.zip" HEAD
+
+      - name: Recheck Immutable Releases immediately before publish
+        env:
+          GH_TOKEN: ${{ secrets.IMMUTABLE_RELEASES_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::IMMUTABLE_RELEASES_ADMIN_TOKEN is required for the final settings check"
+            exit 1
+          fi
+          gh api -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/$GITHUB_REPOSITORY/immutable-releases" \
+            --jq '.enabled' | grep -qx true || {
+              echo "::error::GitHub Immutable Releases was disabled before publish"
+              exit 1
+            }
+
+      - name: Draft, attach, publish, and verify immutable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VER="${{ steps.v.outputs.version }}"
+          TAG="${{ steps.v.outputs.tag }}"
+          ASSET="zensu-claude-code-v${VER}.zip"
+          EXPECTED_DIGEST="sha256:$(sha256sum "$ASSET" | awk '{print $1}')"
+          # Dedicate fd 3 to workflow annotations, bound to the step's real stdout
+          # before any redirect exists. Writing them on fd 1 made them collateral
+          # of whatever a call site did with the wrapped command's output, which is
+          # how a trailing `>/dev/null` on a run_step invocation discarded the
+          # annotation at both gh api sites. On fd 3 a caller's redirect cannot
+          # reach them at all, so the property holds by construction rather than by
+          # a convention three separate checks have to police.
+          exec 3>&1
+          NOTES_FILE="${{ runner.temp }}/notes.md"
+          METADATA_FILE="${{ runner.temp }}/release-metadata.json"
+
+          # /releases/tags/{tag} resolves PUBLISHED releases only: a draft carries
+          # no git tag and 404s there. That single fact breaks the read-back after
+          # `gh release create --draft` AND hides an existing draft from the retry
+          # branch below, so a rerun would create a second draft instead of
+          # adopting the first. The list endpoint returns drafts to a token with
+          # push access, so resolve the id there and address the release by id.
+          # That rule governs the REST reads and the publish PATCH. It does NOT
+          # govern `gh release create` and `gh release upload`, which still resolve
+          # by tag because gh exposes no by-id form for them — an accepted
+          # narrowing, not an unconverted site. `commits/$TAG` in verify_exact_tag
+          # is by-tag on purpose: resolving the git tag is what it is for.
+          resolve_release_id() {
+            gh api --paginate -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/$GITHUB_REPOSITORY/releases" \
+              --jq "map(select(.tag_name == \"$TAG\")) | .[0].id // empty"
+          }
+          # TWO failure causes, TWO statuses, and conflating them is not cosmetic:
+          # the not-found path emits no stderr at all (`.[0].id // empty` plus the
+          # emptiness test below), so a single status made a transient list failure
+          # read as "no release carries this tag" and sent the caller on to create a
+          # SECOND draft against a tag that may already carry one.
+          #   1 = no release carries this tag
+          #   2 = the API call itself failed
+          release_json() {
+            local id
+            id="$(resolve_release_id)" || return 2
+            id="${id%%$'\n'*}"
+            [ -n "$id" ] || return 1
+            gh api -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/$GITHUB_REPOSITORY/releases/$id" || return 2
+          }
+          # A bare command in this step dies under `set -euo pipefail` with no
+          # annotation and no stderr in the job log. Release run 33397732337
+          # produced exactly one line of output — the draft release URL — before
+          # exiting 1, which left the draft at 0 assets, stranded the version as an
+          # untagged draft, and made the cause unrecoverable after the fact. A
+          # retry of the same unchanged code then succeeded, so the failure was
+          # transient; this wrapper does not address whatever that transient cause
+          # was, it makes the next one nameable. Route every otherwise-unguarded
+          # command through it: the annotation names the operation and carries the
+          # first stderr line, and the full stderr still reaches the job log.
+          # Use `--quiet` rather than a redirect on the invocation. A trailing
+          # `>/dev/null` binds to the run_step SIMPLE COMMAND rather than to "$@",
+          # so it suppresses the whole function; `--quiet` applies the sink to the
+          # wrapped command alone. That used to be a correctness rule, because the
+          # annotation shared fd 1 with the payload and such a redirect discarded it
+          # — measured, and it shipped that way for one review round at both gh api
+          # sites. Since the annotation moved to fd 3 it is a noise rule instead: a
+          # caller's redirect can no longer reach the report, only the payload.
+          # Known bound: the wrapper buffers stderr and replays it after the command
+          # returns, so a step killed by cancellation or the job timeout yields no
+          # stderr at all, where an unwrapped command would have streamed it live.
+          run_step() {
+            local quiet=0
+            if [ "${1:-}" = --quiet ]; then quiet=1; shift; fi
+            [ "$#" -ge 2 ] || {
+              echo "::error::run_step called without a label and a command" >&3
+              return 2
+            }
+            local label="$1"; shift
+            local err_file rc=0 first
+            err_file="$(mktemp "${RUNNER_TEMP:-/tmp}/release-run-step.XXXXXX")"
+            if [ "$quiet" -eq 1 ]; then
+              "$@" >/dev/null 2>"$err_file" || rc=$?
+            else
+              "$@" 2>"$err_file" || rc=$?
+            fi
+            if [ "$rc" -ne 0 ]; then
+              first="$(head -1 "$err_file" | tr -d '\r')"
+              echo "::error::${label} failed (exit ${rc}): ${first:-no stderr output}" >&3
+              printf '%s\n' "--- stderr of: $* ---" >&2
+            fi
+            cat "$err_file" >&2
+            rm -f "$err_file"
+            return "$rc"
+          }
+          # A release created moments ago is not guaranteed to be visible on the
+          # LIST endpoint yet, and `release_json` resolves the id from that list
+          # because a draft carries no tag to look up. A bare
+          # `RELEASE="$(release_json)"` therefore fails under `set -e` with NO
+          # message at all — which is exactly how v0.18.0 stranded as an untagged
+          # draft: the log held the draft URL, then `exit 1`, and the cause had to
+          # be reconstructed from timestamps. Every read-back after a mutation
+          # goes through this bounded retry instead.
+          release_json_retry() {
+            local what="$1" attempt out
+            for attempt in $(seq 1 10); do
+              if out="$(release_json 2>/dev/null)" && [ -n "$out" ]; then
+                printf '%s' "$out"
+                return 0
+              fi
+              sleep 2
+            done
+            echo "::error::could not read back the release after $what (10 attempts over ~20s); the release list never returned $TAG" >&3
+            return 1
+          }
+          verify_asset() {
+            printf '%s' "$1" | jq -e --arg name "$ASSET" --arg digest "$EXPECTED_DIGEST" '
+              (.assets | length) == 1
+              and .assets[0].name == $name
+              and .assets[0].state == "uploaded"
+              and .assets[0].digest == $digest
+            ' >/dev/null
+          }
+          # Capture before comparing. A failed read used to yield an empty string,
+          # which compared unequal and made every call site assert that the tag
+          # resolves ELSEWHERE — a positive claim the code had not established.
+          #   1 = the tag resolves to a different commit
+          #   2 = the commit could not be read at all
+          verify_exact_tag() {
+            local tag_sha
+            tag_sha="$(gh api -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)" || return 2
+            [ -n "$tag_sha" ] || return 2
+            test "$tag_sha" = "${{ github.sha }}"
+          }
+          verify_metadata() {
+            local release_json="$1" expected_draft="$2" expected_immutable="$3"
+            printf '%s' "$release_json" | jq -e \
+              --arg tag "$TAG" \
+              --arg sha "${{ github.sha }}" \
+              --arg title "$TAG" \
+              --argjson draft "$expected_draft" \
+              --argjson immutable "$expected_immutable" \
+              --rawfile body "$NOTES_FILE" '
+                .draft == $draft
+                and .immutable == $immutable
+                and .prerelease == false
+                and .tag_name == $tag
+                and .target_commitish == $sha
+                and .name == $title
+                and .body == $body
+              ' >/dev/null
+          }
+          normalize_draft_metadata() {
+            local release_json="$1" release_id
+            release_id="$(printf '%s' "$release_json" | jq -er '.id | select(type == "number")')" || {
+              echo "::error::draft release object for $TAG carries no release id; refusing to normalize"
+              return 1
+            }
+            jq -n \
+              --arg tag "$TAG" \
+              --arg sha "${{ github.sha }}" \
+              --arg title "$TAG" \
+              --rawfile body "$NOTES_FILE" \
+              '{tag_name:$tag,target_commitish:$sha,name:$title,body:$body,draft:true,prerelease:false}' \
+              > "$METADATA_FILE"
+            run_step --quiet "draft metadata normalization for $TAG (id $release_id)" \
+              gh api --method PATCH \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+              --input "$METADATA_FILE"
+          }
+
+          RELEASE_STATUS=0
+          RELEASE="$(release_json)" || RELEASE_STATUS=$?
+          if [ "$RELEASE_STATUS" -eq 2 ]; then
+            echo "::error::could not read the release list for $TAG; refusing to create a second draft"
+            exit 1
+          fi
+          if [ "$RELEASE_STATUS" -eq 0 ]; then
+            if printf '%s' "$RELEASE" | jq -e '.draft == false' >/dev/null; then
+              verify_metadata "$RELEASE" false true || {
+                echo "::error::existing published release metadata is not the exact immutable contract; refusing repair"
+                exit 1
+              }
+              verify_exact_tag || {
+                case "$?" in
+                  2) echo "::error::could not resolve $TAG to a commit" ;;
+                  *) echo "::error::$TAG resolves to a different commit than the exact main SHA" ;;
+                esac
+                exit 1
+              }
+              verify_asset "$RELEASE" || {
+                echo "::error::existing immutable release asset is incomplete or has the wrong digest"
+                exit 1
+              }
+              echo "$TAG is already published, immutable, SHA-bound, and carries exactly the expected asset."
+              exit 0
+            fi
+            printf '%s' "$RELEASE" | jq -e '
+              .draft == true and .immutable == false and (.assets | length) <= 1
+            ' >/dev/null || {
+              echo "::error::existing draft release is not a mutable single-asset retry candidate"
+              exit 1
+            }
+            if [ "$(printf '%s' "$RELEASE" | jq '.assets | length')" -eq 1 ]; then
+              verify_asset "$RELEASE" || {
+                echo "::error::existing draft asset is incomplete or has the wrong digest"
+                exit 1
+              }
+            else
+              run_step "asset upload to the existing draft $TAG" \
+                gh release upload "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY"
+            fi
+          else
+            run_step "draft release creation for $TAG" \
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --draft --title "$TAG" --target "${{ github.sha }}" \
+              --notes-file "${{ runner.temp }}/notes.md"
+            RELEASE="$(release_json_retry "draft creation")"
+            printf '%s' "$RELEASE" | jq -e '
+              .draft == true and .immutable == false and (.assets | length) == 0
+            ' >/dev/null || {
+              echo "::error::new draft release is not a mutable empty draft"
+              exit 1
+            }
+            run_step "asset upload to the new draft $TAG" \
+              gh release upload "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY"
+          fi
+
+          RELEASE="$(release_json_retry "asset upload")"
+          normalize_draft_metadata "$RELEASE"
+          RELEASE="$(release_json_retry "metadata normalization")"
+          verify_metadata "$RELEASE" true false || {
+            echo "::error::draft tag/target/prerelease/title/body metadata differs immediately before publish"
+            exit 1
+          }
+          verify_asset "$RELEASE" || {
+            echo "::error::draft asset for $TAG is incomplete or has the wrong digest immediately before publish"
+            exit 1
+          }
+          # `gh release edit` selects the release by TAG and a draft carries no git
+          # tag, which is the same published-only addressing this step already
+          # avoids for its REST reads. No gh version is named here on purpose: this
+          # step no longer calls that sub-command, and the workflow pins no gh
+          # build, so a version in this comment would be an unverifiable claim
+          # about whatever the runner image happens to ship.
+          # The id is already inside the draft object just verified, so publish
+          # through the REST object directly and keep tag resolution out of the one
+          # call that flips the release live. This removes a resolution dependency;
+          # it is NOT a fix for the transient failure described above, whose cause
+          # was never established.
+          PUBLISH_ID="$(printf '%s' "$RELEASE" | jq -er '.id | select(type == "number")')" || {
+            echo "::error::verified draft carries no release id; refusing to publish"
+            exit 1
+          }
+          run_step --quiet "publishing draft release $TAG (id $PUBLISH_ID)" \
+            gh api --method PATCH -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/$GITHUB_REPOSITORY/releases/$PUBLISH_ID" \
+            -F draft=false
+
+          PUBLISHED=""
+          for ATTEMPT in $(seq 1 10); do
+            # Bare, but deliberately so: this IS the retry loop, and a read that
+            # fails here must cost one attempt rather than kill the step.
+            CANDIDATE="$(release_json 2>/dev/null || true)"
+            if verify_metadata "$CANDIDATE" false true && verify_asset "$CANDIDATE"; then
+              PUBLISHED="$CANDIDATE"
+              break
+            fi
+            if [ "$ATTEMPT" -eq 10 ]; then
+              echo "::error::published release did not become immutable with the expected asset digest"
+              exit 1
+            fi
+            sleep 2
+          done
+          verify_exact_tag || {
+            case "$?" in
+              2) echo "::error::could not resolve $TAG to a commit after publishing" ;;
+              *) echo "::error::published $TAG resolves to a different commit than the exact main SHA" ;;
+            esac
+            exit 1
+          }
+          # Re-READ rather than re-check. `verify_asset "$PUBLISHED"` re-derived the
+          # same answer from the same string the poll loop had just accepted, so it
+          # asserted nothing; this observes state taken after the tag exists.
+          FINAL="$(release_json_retry "publication")"
+          verify_asset "$FINAL" || {
+            echo "::error::published asset for $TAG is incomplete or has the wrong digest on a fresh read"
+            exit 1
+          }

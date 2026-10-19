@@ -1,0 +1,1637 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Upgrade notes
+
+- **session-trail linked sessions**: a takeover now continues the old session's open linked
+  sessions, the sessions it started in Claude Desktop. Both briefs list them under *Linked
+  sessions*, read from the records in the old session's Claude Desktop folder, each with its kind,
+  whether it is started and why not, and the `start_session` call that starts it; `takeover --json`
+  carries them as `linkedSessions`. The plan confirmation names them, and after the yes the session
+  that takes over starts each side and task-chip session in that same turn, at most eight per
+  takeover, so that Claude links it to the new session. Each started session takes its old
+  counterpart over and confirms its own plan with its own user. A user fork starts only when the
+  user names it; a side question (`btw`), a session over SSH, a detached session and one that a
+  confirmed lineage edge already continues stay behind. The briefs also quote the newest eight
+  reports the linked sessions queued that the old session never read (*Reports not yet read*,
+  `unreadReports` under `--json`). `skills/session-trail/handover-contract.json` declares the
+  capability as `linkedSessions` with the lineage ledger's directory and schema, and leaves
+  `takeover.contract` at 1, so every current Zensu Session Hub keeps accepting the plugin.
+
+## [0.27.0] - 2026-10-17
+
+### Added
+
+- **hooks**: Send each prompt contract in full once per context generation (#419)
+- **review**: Add an independent second judge run and two cross-cutting reviewer rules (#457)
+- **verify-feature**: Verify every kind of application through nine drivers (#383)
+- **capability**: Grant named neutral subagents a guarded Bash inside the allowlist (#446)
+
+### Changed
+
+- **clock-shift**: Put the five allowlisted file-time tests on one clock (#462)
+- **external-review**: Set the recent staged copy's mtime from the injected clock (#461)
+- **structure**: Let one registry own every unit file's declared facts (#460)
+- **pulse**: State that Pulse never records error messages (#438)
+- **windows**: Move versioned-plugin-upgrade to the front of windows-shard-7 (#451)
+- Correct the Windows shell support statement (#447)
+- Fix the Windows shell-guard cases and TL8's negative delta (#448)
+- **session-control**: Raise the run.sh floor to the measured win32 count (#444)
+- **session-trail**: Resolve id selectors without indexing every transcript (#443)
+- **session-trail**: Correct the oneLine comments that predate its boundText delegation (#441)
+- **session-trail**: Correct what takeover --json adds over the brief (#442)
+- **work-order**: Skip the work-order suites on native Windows (#437)
+- **changelog**: List #430 and #436 in the 0.26.0 notes (#440)
+
+### Fixed
+
+- **hooks**: Close the review-handoff, gate-timeout, banner and guidance gaps (#409)
+- **external-review**: Stage the review template inside the working directory (#454)
+- **capability**: Refuse quoted helper paths and detached tmux or screen sessions (#456)
+- **edit-landing**: Place a <project>-redacted claim like its absolute spelling (#455)
+- **hooks**: Read the hook payload from stdin in five hooks (#450)
+- **session-trail**: Resolve a forked session's worktree and branch from its own records (#445)
+- **session-control**: Hold a kernel-exclusive holder marker for win32 lock liveness (#433)
+- **session-trail**: Stop index rewrites, fsmonitor hooks and diff drivers in the source worktree (#439)
+
+### Upgrade notes
+
+- **subagent shell**: a neutral subagent that reports an `agent_type` (`Explore`,
+  `general-purpose`, and a workflow agent when it reports one, which no live run has measured
+  yet) may now run `Bash` behind an accident guard, so a workflow's workers can build and run
+  tests themselves. `Bash` is the only tool this adds: `Monitor`, the five other shell tool names
+  and every command-executing MCP tool stay outside the capability gate's allowlist. A subagent
+  that reports no `agent_type`, a `zensu-review-*` persona and a read-only Zensu agent hold no
+  shell. The guard parses the command as shell and refuses one that names the plugin's private
+  data, the installed plugin, the session record, a Zensu config file or a `.zensu` directory, or
+  that runs a Zensu session or workflow helper, reads or sets a Session Control selector variable,
+  prints the environment, runs a destructive git operation or `claude plugin`, removes or moves
+  the project root, starts a background shell (a detached `tmux` or `screen` session included)
+  or asks to leave the host sandbox. It prevents
+  accidents and is not a sandbox. Because it refuses the Zensu helpers, a worker still cannot
+  record Zensu workflow state. A neutral subagent can no longer edit a Zensu config layer, and a
+  subagent can no longer pass a `zensu` CLI mutation through the inline `ZENSU_MCP_GATE=off`
+  prefix. `"subagentShell": false` restores the previous deny of `Bash` when it sits in a config
+  file the gate consults (the `ZENSU_CONFIG` file alone while that variable is set, otherwise the
+  global file and the project overlay), and so does a consulted config file that cannot be read.
+  While `ZENSU_CONFIG` is set, a `false` in the global file or the project overlay is not read.
+- **CLI write-gate**: the gate now also reads a Bash command with the accident guard's shell model,
+  on the main thread too, and gates every invocation that model or its token scan finds. A `zensu`
+  mutation behind a wrapper (`timeout`, `nice -n`, `env -i`, `xargs`), in a loop or `if` body, in
+  a `bash -c` body, a heredoc a shell reads, `eval` or a command substitution inside a parameter
+  expansion is now gated like a plain one, and every command the token scan denied before is still
+  denied.
+
+## [0.26.0] - 2026-10-12
+
+### Added
+
+- **work-order**: Run Zensu work orders as the reference harness (#428)
+- **session-trail**: Write a receipt for the Session Hub's takeover command (#427)
+- **session-trail**: Carry open task chips over on every takeover (#426)
+- **review**: Import a template workflow review on the first review (#420)
+- **verify-feature**: Approve remote origins at the permission prompt (#412)
+- **tdd**: Split the tdd skill into a router and references (#391)
+- **skills**: Budget skill text and split session-trail into references (#390)
+
+### Changed
+
+- **verify-feature**: Remove the bundled Zensu monorepo adapter (#430)
+- **work-order**: Name zensu-cli 0.8.0 as the first CLI with zensu work (#432)
+- **changelog**: Add the upgrade note for the neutral-subagent tool allowlist (#431)
+- **tests**: File the session-hub-receipt suite in the suite overview (#429)
+- **ci**: Run the eval-harness unit files in a CI suite (#418)
+- **ci**: Run the unit suites daily on a shifted clock (#386)
+- Correct review-guarantee and principal claims (#415)
+- Keep every command run with the main thread in subagent guidance (#411)
+- **stop**: Link L13 and L17d through the Node helpers (#373)
+- **windows**: Make the structure fixtures hold on Git Bash (#407)
+- **evals**: Fit the Windows offline shards into their time budgets (#406)
+- **profile**: Canonicalize and bound the Windows profile sandbox (#405)
+- **structure**: Read unit-file floors from the suite overview (#393)
+
+### Fixed
+
+- **session-trail**: Drop the takeover brief's dead owning-instance line (#436)
+- **verify-feature**: Wait for PostgreSQL and drop the fixed metrics port in the monorepo adapter (#385)
+- **verify-feature**: Keep the monorepo backend's blob store inside the run directory (#425)
+- **chain**: Refuse --tdd-complete when git cannot list the changes (#423)
+- **chain**: Refuse the unqualified terminus when git refuses the repository (#421)
+- **chain**: Count changes before a minted self-review ticket closes a chain (#422)
+- **hooks**: Name no main-thread remedy in a deny a subagent reads (#413)
+- **review**: Describe the configured review panel instead of five aspects (#417)
+- **chain**: Refuse an unqualified --code-review-done on a changed tree (#414)
+- **stop**: Count blocked Stops at the cap and correct the Stop-guard docs (#416)
+- **skills**: Drop the session-id rebind from the review-evidence lease commands (#394)
+- **reviewer-capability**: Align the gauntlet critic packet, docs and C39 with the allowlist (#410)
+- **session-trail**: Ask one plan confirmation per takeover (#408)
+- **verify**: Compare the consent memory directory in native separators (#404)
+- **windows**: Accept a state directory whose mode Git Bash cannot set (#403)
+- **session**: Name a Windows project root in the Stop and deny diagnostics (#402)
+- **windows**: Refuse a symlinked state file where O_NOFOLLOW is missing (#401)
+- **log**: Canonicalize both sides of the truncate anchor natively (#400)
+- **reanchor**: Judge a Windows root on the spelling the shell pastes (#399)
+- **deps**: Close all 33 open Dependabot advisories in the eval tooling (#398)
+- **verify-feature**: Correct the network-only accounts and their eval grading (#397)
+- **redact**: Redact Claude Code's dash-encoded home and project paths (#396)
+- **hooks**: Answer harness prompts with only the user-visible directives (#389)
+- **skills**: Shrink the gauntlet-loop body back under its budget entry (#395)
+- **reviewer-capability**: Confine neutral subagents to a tool allowlist (#387)
+- **hooks**: Keep the plan-approval directive inline and decision-first (#388)
+
+### Upgrade notes
+
+- **verify-feature**: a remote HTTPS origin no longer needs `ZENSU_VERIFY_NAVIGATION_POLICY_V1`.
+  In a session that can show the permission prompt (Manual, Accept edits, Plan or Auto),
+  `/zensu:verify-feature --mode=remote` asks for each remote origin at every browser start; under
+  bypass permissions or `dontAsk` the gate still denies it and names the remedy. A navigation
+  policy now pre-approves its targets in every permission mode instead of switching consent off:
+  where a prompt can be shown, every other origin is asked, and `--check-policy` prints `consent`
+  for it instead of refusing with `navigation policy mode does not match`; where the session
+  cannot show the prompt, the policy stays the whole allowlist, and an origin of the other kind
+  than the policy's is denied with `origin is not of the kind the navigation policy names`. A
+  script that took exit `0` of `--check-policy` as proof of a policy must read `policy` on stdout
+  instead; when a present policy leaves an origin to the prompt, `--check-policy` and the
+  run-config write also print a note on stderr. **Unattended runs:** the gate cannot tell a person
+  from a program that answers the prompt, so a headless run, an SDK host or a
+  `--permission-prompt-tool` that answers it in one of those four modes decides every origin the
+  policy does not name, and how the host resolves the prompt there was not measured. Run such a
+  session under `dontAsk` or bypass permissions, with a policy that names every origin it needs.
+  Under a policy in a session that can show the prompt, a recorded loopback origin now skips its
+  prompt, as it always did without one. A run config whose remote hostname carries no resolver
+  pin, and any origin whose host is a pattern such as `https://*.example.com`, is refused.
+- **external review import**: a new `PostToolUse` hook on the `Workflow` tool records each
+  workflow the main thread launches in the plugin's private data store. When the change is
+  reviewed by a workflow that runs the plugin's template `templates/workflows/zensu-review-v1.js`
+  (under Ultracode, for example), the first `/zensu:tdd` review imports its findings instead of
+  running the aspect panel. The template's finders and refuters run as `zensu:review-aspect`,
+  confined to the read-only reviewer profile like the panel; the capability gate now lets the
+  read-only reviewers and the planning agent return a workflow result through
+  `StructuredOutput`. The result is read from the workflow's own run record, must be the
+  template's `zensu-review-result/v1` from a launch after the last edit whose arguments named
+  every changed file, and must name the current tree, and its agent counts are checked against
+  the workflow's run journal. A failed or missing agent marks the import
+  degraded instead of hiding it, and a lens whose finder failed gets its own
+  `zensu:review-aspect`. Any other workflow's result is not imported, so the panel runs as
+  before. The judge always runs on an import and names the files and perspectives it left
+  uncovered, and only those get a targeted `zensu:review-aspect`. Before the first review, the
+  Stop guard releases up to three Stops in a row while a workflow still runs, then blocks until
+  it ends. The import needs the judge, so `"reviewJudge": false` turns it off as well;
+  `"externalReviewImport": false` restores the previous behavior.
+- **subagents**: a subagent that is not one of the plugin's own agents, such as `Explore`,
+  `general-purpose` or another plugin's agent, may now call only an allowlist of tools instead
+  of every tool outside a short denylist: `Read`, `Grep`, `Glob`, `Edit`, `Write`, `MultiEdit`,
+  `NotebookEdit`, `apply_patch`, `LSP`, `WebFetch`, `WebSearch`, `ToolSearch`, `TodoWrite`,
+  `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate`, `Agent`, `SendMessage`, `AskUserQuestion`,
+  `StructuredOutput`, `ReportFindings` and `SubagentHandback`, the two Context7 documentation
+  tools, and the read-only Zensu MCP tools. Every other tool is denied, MCP tools included: a
+  subagent that drove a browser, a terminal, context-mode, the desktop session tools, `Skill`,
+  `TaskStop` or `Monitor` is now refused and reports back to the main thread, so run such work
+  in the main thread. An MCP tool whose name carries a command word (`exec`, `execute`, `run`,
+  `shell`, `terminal`, `command` or `code`, as in `ctx_execute` or `run_in_terminal`) gets the
+  same deny as `Bash`. A host tool that a later Claude Code version adds or renames stays
+  denied until the allowlist names it.
+
+## [0.25.0] - 2026-10-06
+
+### Added
+
+- **review**: Fix only critical findings in the loop by default (#381)
+
+### Changed
+
+- **release**: Run the release gate as parallel shards (#382)
+- **ci**: Re-budget the Windows lifecycle contract cap (#379)
+
+### Upgrade notes
+
+- **review loop**: the `/zensu:tdd` auto-fix loop now fixes only CRITICAL findings by default
+  (`hooks.autoFixSeverity: critical`). Every IMPORTANT finding is parked, and `/zensu:self-review`
+  fixes it once at the end of the chain; `"autoFixSeverity": "important"` restores the routing of
+  0.24.0, and `hooks.autoFixIncludeSuggestions: true` still routes every severity. The loop allows
+  two fix rounds by default (`hooks.autoFixMaxRounds`, 1 in 0.24.0), so the Stop chain guard
+  releases after 5 nudges instead of 4.
+
+## [0.24.0] - 2026-10-04
+
+### Added
+
+- **review**: Lean review loop by default (#372)
+- **source-write-gate**: Make the Bash source-write gate opt-in (#368)
+- **verify-feature**: Add network-only origins to the navigation policy (#367)
+- **doctor**: Show who holds the Autopilot project lease (#360)
+- **session-control**: Let the chain skills follow a re-anchored session (#354)
+- **worktree-keep**: Keep the marker while a nested repository remains (#356)
+- **session-trail**: Release the old session's keep protection after a takeover (#355)
+
+### Changed
+
+- **stop**: Link the latency memo fixtures through Node (#371)
+- **release**: Pin the run-block scan's boundary cases (#369)
+- **requirements-gate**: Refuse an unresolved receipt path instead of writing into the cwd (#314)
+- **stop**: Resolve the project root and session key once per Stop run (#366)
+- **windows**: Move deferred-lease-refresh to the front of windows-shard-9 (#363)
+- **multi-repo**: Re-point stale line citations by content (#361)
+- **ci**: Keep the Stop deadline out of the deferred-claim suite and raise the shard-5 handoff cap (#358)
+
+### Fixed
+
+- **tests**: Keep the lock-owner report's PowerShell probe off module auto-loading (#378)
+- **tests**: Import the Windows job helper's one module by path (#377)
+- **tests**: Fire the nested-tree timeout only after the grandchild exists (#374)
+- **edit-landing**: Check the raw --session key through the shared predicate (#376)
+- **skills**: Keep argument placeholders out of skill shell snippets (#375)
+- **autopilot**: Keep a lease fault apart from no-run in the Stop reconcile and the workspace read (#357)
+- **stop**: Route the denial-note key check through one canonical predicate (#370)
+- **evidence-run**: Fingerprint the nested work tree a test run reaches (#362)
+- **tests**: Read npm-dependent structure suites from the suite manifest (#359)
+- **session-control**: Stop a reused Windows PID from wedging a lock (#364)
+- **session-control**: End the withFileLock livelock behind two Windows CI hangs (#365)
+- **autopilot**: Stop reading a held Autopilot lease as no active run (#352)
+
+### Upgrade notes
+
+- **verify-feature**: a navigation policy may now list, beside its targets, up to 8
+  `networkOnlyOrigins` — a REST API, an OIDC issuer, a token endpoint — that the application's
+  pages may request but no navigation command may open, and nothing on them counts as evidence.
+  Declare them in the recipe under `validate.networkOnly` too. A policy without the key is
+  unchanged. An installation older than this one refuses a policy that carries the key, so
+  launch every session that reads it on this version. Consent mode has no network-only class: a
+  loopback API origin is still passed as an ordinary origin, and a non-loopback one needs the
+  launch-time policy.
+- **verify-feature**: every origin in a navigation policy must now name its host exactly, as an
+  IP literal or a hostname of `a-z`, `0-9`, `.`, `-` and `_`. A target such as
+  `https://*.example.com` was accepted before and acted as a browser-side wildcard; a policy
+  carrying one is now invalid and denies every navigation until the hostname is spelled out.
+- **verify-feature**: the run-config helper takes `--network-only-origin <origin>`, counted with
+  `--origin` toward the bound of 8, and the preflight takes the operand `network-only`:
+  `verify-browser-config.js --check-policy <local|remote> <origin> <declared-safe|network-only>`.
+
+## [0.23.0] - 2026-09-30
+
+### Added
+
+- **evidence**: Run full suites in the verified CI pipeline instead of locally (#350)
+- **session-control**: Adopt a compatible-schema record automatically across a lineage break (#343)
+- **tdd**: Verify every acceptance criterion live before a chain can close (#345)
+- **pr-fix-findings**: Follow the session's TDD mode instead of forcing strict (#342)
+- **verify-feature**: Make the origin the evidence boundary and retire the route gate (#340)
+- **verify-feature**: Admit localhost in the playwright-cli consent gate (#339)
+
+### Changed
+
+- **windows-ci**: Split the stop-enforcer routing suite across two shards (#341)
+
+### Fixed
+
+- **stop**: Exit early when nothing is armed and bound the hook with a deadline (#348)
+- **verify-feature**: Repair monorepo adapter boot, Vite binding and down (#349)
+- **session-control**: Stop a reused Windows PID from holding a deferred-review claim (#346)
+- **redact**: Skip artifacts git reports unchanged in the sweep (#351)
+- **release**: Pass dispatch inputs to run steps through env (#344)
+- **release**: Retry the publish read-back and stop failing without a message (#243)
+
+### Upgrade notes
+
+- **verify-feature**: the browser consent gate no longer checks routes. An origin approved at the
+  consent prompt, or named as a target of `ZENSU_VERIFY_NAVIGATION_POLICY_V1`, now covers every
+  page on it at any path, so pages whose path carries identifiers minted on every run can be
+  verified. A policy's `routes` list and a recipe's `validate.evidenceSafety.routes` are no
+  longer read: a policy that still carries a well-formed `routes` list stays valid, and the list
+  narrows nothing. If you relied on it to keep the browser away from part of an origin, that
+  restriction is gone, so approve only origins whose every page the model may see.
+- **verify-feature**: the run-config preflight takes the origin only,
+  `verify-browser-config.js --check-policy <local|remote> <origin> declared-safe`; a call that
+  still passes a route operand is refused with that usage line.
+- **tdd**: a standalone `/zensu:tdd` chain now closes only when every active `AC-###`
+  criterion of its plan was verified live on the tree that ships. Phase 6 step 6d runs
+  `/zensu:verify-feature --chain`, and `--chain-done` refuses while a criterion lacks a
+  `pass`. Set `evidence.acceptanceGate` to `advisory` in `.zensu/config.json` to disclose
+  the verdict instead of refusing, or run one terminus with `ZENSU_ACCEPTANCE_GATE=off`,
+  which the bypass ledger records. Autopilot-bound chains are not gated: their VALIDATE
+  stage verifies every criterion unless the run was started with `--no-validate`, and the
+  terminus line says which. A max-rounds close with `hooks.selfReview` off is not gated
+  either, as for the full suite, and its summary shows acceptance as not checked.
+- **redact**: the artifact sweep no longer rewrites a committed `.zensu` plan or log that a
+  checkout merely refreshed, so a fresh worktree stays clean. A stray path-only diff that an
+  earlier release left in such a file can now be discarded with `git restore <file>` and stays
+  discarded; before this fix the next tool call redacted the restored file again. The sweep asks
+  git which artifacts changed, so outside a git repository, or when `git` fails or times out, it
+  sweeps every recent artifact as before and says so on stderr.
+- **chain-enforcer**: the `Stop` hook now has a whole-hook deadline of 45 s. Checks that have
+  not finished by then are stopped: a decision they already wrote stands, and otherwise the
+  Stop is released with a stderr notice that no completion was proven. The next Stop
+  evaluates again, and the release is not recorded in the bypass ledger. Set
+  `ZENSU_STOP_DEADLINE_SECONDS` in the Claude Code environment to move the bound between 10 s
+  and 75 s; the `Stop` registration carries a 90 s host `timeout` above that ceiling. A Stop
+  with no armed review chain, no Autopilot run and no queued review now returns right after
+  the session bind instead of running every check.
+
+## [0.22.0] - 2026-09-28
+
+### Added
+
+- **tdd**: Run the full suite through a plugin-owned evidence runner and drop the Bash witness (#335)
+- **session-control**: Restore a vanished recorded project root (#312)
+- **review**: Converge the tdd auto-fix loop with a findings ledger and severity rubric (#325)
+- **worktree-keep**: Keep a live session's worktree out of the desktop pool (#318)
+- **pr-team-review**: Publish standalone reviews without asking first (#332)
+- **delivery-route**: Make the delivery-route answer session-sticky (#324)
+- **verify-feature**: Drive the browser through playwright-cli and drop the bundled MCP server (#319)
+- **pr-team-review**: Publish a verdict-first review layout (#322)
+- **autopilot**: Adopt a durable run across a session-id change (#300)
+- **multi-repo**: Detect and refuse cross-repository chains (stage 1) (#311)
+- **session-trail**: Offer a worktree move alternative on the present leg (#313)
+
+### Changed
+
+- **redact**: Remove the witness special cases left after the evidence runner (#337)
+- **reviewer-capability**: Pin the read-only allowlist and sweep host tool names (#333)
+- **reviewer-capability**: Pin that a reviewer or PLM handback stays denied on a bind failure (#334)
+- **session-trail**: Pin the one-session collapse on the PR, worktree and partial tiers (#330)
+- **verify-feature**: Align docs and rules with the playwright-cli consent gate (#329)
+- **deps**: Clear the eight open Dependabot alerts in dev tooling (#316)
+- Split CLAUDE.md into path-scoped rules and unpin its prose (#321)
+- **multi-repo**: Decide the codeRoots carrier and state its preconditions (#317)
+
+### Fixed
+
+- **owned-process**: Report 128 plus the real signal number (#336)
+- **eval**: Match plan-approval TUI phrases across escape-drawn spaces (#326)
+- **reviewer-capability**: Admit the host's SubagentHandback report tool (#331)
+- **vcs**: Surface forge CLI errors from the review publish paths (#328)
+- **session-trail**: Keep selectors off the invoking session and age sessions from turn records (#327)
+- **edit-landing**: Anchor the claim grammar and accept every dash spelling (#323)
+- **pr-team-review**: Read persona triggers as criteria, not closed file lists (#315)
+- **session-trail**: Honor queue remove operations in depth and prompt listing (#320)
+- **verify-feature**: Close the declared-safe argument hole in the transcript grader (#310)
+- **evidence**: Match witness claims that carry escaped quotes (#309)
+- **verify-feature**: Give the browser broker a unique MCP server key (#308)
+
+### Upgrade notes
+
+- **verify-feature**: `/zensu:verify-feature` now drives the browser through `playwright-cli`,
+  which you install once: `npm install -g @playwright/cli@0.1.21`. That is the version the
+  browser consent gate was measured against, and the run-config helper refuses to start a run
+  on any other. `brew install playwright-cli` is unpinned: it installs whichever version
+  Homebrew ships.
+- **verify-feature**: the plugin no longer ships a Playwright MCP server, so permission rules
+  for `mcp__plugin_zensu_playwright__…` or `mcp__plugin_zensu_zensu-browser__…` match nothing.
+  Delete an `allow` rule written for them, which grants nothing now; re-spell a `deny` or `ask`
+  rule for the Bash command, for example `Bash(playwright-cli:*)`, because until then it
+  restricts nothing.
+
+## [0.21.1] - 2026-09-15
+
+### Added
+
+- **review-chain**: Scope auto-fix rounds to their delta and activate aspects (#306)
+
+## [0.21.0] - 2026-09-14
+
+### Added
+
+- **session-trail**: Render the destination rule and carry-over recipe on adopt (#302)
+- **verify-feature**: Drive browser verification without a parent-environment policy (#296)
+- **autopilot**: Make a durable run's hold visible before it refuses you (#298)
+- **plan-gate**: Ask which delivery route an approved plan takes (#295)
+- **session-control**: Name and adopt a session whose recorded installation was pruned (#292)
+- **zen-mode**: Bind the chain-progress anchor to the real Zensu chain state (#285)
+- **review**: Colour-code the chain-end summary and PR-body status cells (#286)
+- **session-trail**: Continue a takeover inside the caller's own anchor (#282)
+- **doctor**: Count implementing-phase turns and warn on an unreviewed own chain (#278)
+
+### Changed
+
+- **deferred-review-claim**: Make the C7 and C6b failure messages diagnosable (#293)
+- **session-trail**: Pin the continuation --json payload across every reachable state (#289)
+- **verify-feature**: Add a standalone how-to for the navigation policy and runtime recipe (#288)
+
+### Fixed
+
+- **session-control**: Keep a bound session's tools when its working directory vanishes (#304)
+- **tests**: Read node's summary without assuming a single-byte prefix (#301)
+- **hooks**: Match the review delegate on Task as well as Agent (#299)
+- **verify-feature**: Anchor the marker sweep and own the writer's refusal vocabulary (#303)
+- **session-control**: Adopt a session whose recorded project root is gone (#272)
+- **doctor**: Repair the bash 3.2 parse error that reports a bound session as unbound (#297)
+- **session-control**: Repair a workflow baseline that vanished under a served record (#283)
+- **witness**: Record Bash calls the host never reports back (#291)
+- **deps**: Raise the fast-uri floor past two advisories (#290)
+- **release**: Make every failure in the publish step nameable (#287)
+- **release**: Make the publish step's failures diagnosable (#284)
+
+## [0.20.0] - 2026-08-31
+
+### Added
+
+- **gates**: Deny file-tool writes into the plugin data store (#279)
+- **zen-mode**: Anchor multi-turn work with a chain-progress line (#276)
+- **review-chain**: State the review-spawn scope in the resume and fix-round directives (#277)
+- **session-trail**: Route every takeover into the taker's own worktree (#275)
+- **permissions**: Admit Zensu's own confined reviewer spawns before the classifier (#271)
+- **doctor**: Report a chain stranded by a session fork (#270)
+- **tdd**: Scope the Phase 5 checkpoint to the completed phase's tests (#269)
+- **session-trail**: Record every takeover as a lineage edge (#268)
+- **artifacts**: Make .zensu plans and logs publication-safe at write time (#255)
+
+### Changed
+
+- **doctor**: Record the own-chain implementing gap and its counter fix (#273)
+
+### Fixed
+
+- **session-control**: Close three gaps in the adoption report's display guard (#280)
+- **autopilot**: Release a Stop a foreign run holds with no review queued (#274)
+- **session-trail**: Never continue in a worktree an archivable session owns (#266)
+
+### Added
+
+- **artifacts**: Publication-safe `.zensu/` plans and logs. Consuming repos commit
+  `.zensu/plans/{ts}_tdd-{slug}.md` and `.zensu/logs/{ts}_tdd-{slug}.log` as an audit
+  trail and may later open-source the repository. A scan of ~27k committed log lines
+  across four such repos found **no credential values** and ~436 lines carrying an
+  absolute developer path (`/Users/<name>/…`), almost all inside the `cmd="…"` field of
+  a CHECKPOINT/AUDIT line — that field quotes a shell command verbatim, and those
+  commands routinely begin `cd "/Users/<name>/IdeaProjects/<product>/<repo>/.claude/worktrees/<name>"`.
+  New `hooks/lib/zensu-artifact-redact-v1.js` is the single source of truth and applies
+  three rules **in this order**: project root(s) → `<project>`, `$HOME` → `~`, residual
+  `/Users/<seg>` / `/home/<seg>` / `/root` → `<home>`. Rule 1 must precede rule 2
+  because the project root is normally nested under `$HOME`; the residual rule is what
+  makes the guarantee checkable ("no `/Users/` in the file") rather than best-effort.
+  **Every rule is bounded on both sides** — without the right bound `/homework` becomes
+  `<home>work`, without the left one the rules fire inside `src/home/index.ts` — and the
+  segment class excludes quotes, because eating the closing `"` of a `cmd="…"` field
+  desynchronizes the claim from its witness entry and produces the exact `EVIDENCE GAP`
+  the design exists to prevent. Secret **names** are deliberately NOT redacted: a name
+  grants no access, this repo's own workflows carry `secrets.GITHUB_TOKEN` in public,
+  and redacting names would only make the audit trail harder to read; credential
+  **values** remain the job of `hooks/pre-write-secret-scan.sh`.
+  **There was no writer-side chokepoint to add a filter to**, which is the part of this
+  change that is not obvious: `zensu-log.sh` only ever returned the timestamp PREFIX and
+  the model appended the line itself with `printf … >> {log}`, while the plan is written
+  with the Write tool. Three writers now exist. `zensu-log.sh append --log <file>
+  --message <text> [--start <epoch>] [--truncate]` is the narrative-log writer and
+  replaces that recipe in `skills/tdd/SKILL.md` and `docs/tdd-manager-workflow.md`; it
+  deliberately carries no leading `--` so it never selects the Session Control binding
+  case, and it is **contained**: the destination must resolve to a real
+  `<root>/.zensu/{plans,logs}/<file>` or the verb refuses. That containment is not
+  hygiene — without it the verb performs exactly the write rules (A)/(B) of the
+  source-write gate exist to judge, while carrying none of the redirect/tee/heredoc
+  tokens that make a command parseable as a channel, so no Bash gate could see it.
+  The line is WRITTEN by the module too, not by a shell redirect: a `>>` names a path
+  and follows what it finds, and `[ -L ]` is blind to a hard link, so one planted in
+  `.zensu/logs/` turned the verb into an append/truncate primitive on any file on the
+  same filesystem. `writeArtifactLine` opens with `O_NOFOLLOW`, judges the descriptor
+  (`isFile`, `nlink === 1`, and the expected dev/ino re-derived from the canonical
+  parent), keeps `O_TRUNC` out of the open flags so the `nlink` check can still refuse,
+  and refuses any bucket but `logs` and any name starting with `witness-` — so
+  the log verb can never destroy a committed plan or the evidence the crosscheck
+  matches against. The destructive `mode: 'replace'` does not truncate in place at all:
+  it validates through a read-only descriptor, writes an `O_EXCL` temp, `fsync`s and
+  renames, so a failed write leaves the previous bytes addressable.
+  `hooks/post-bash-witness.sh` redacts the witness `cmd` — **not** for the witness's own
+  sake — it is gitignored in THIS repo only, and a consuming repo must add `.zensu/state/` and `.zensu/logs/witness-*.log` itself — but because
+  `zensu-evidence-crosscheck.js` matches a claim against a witness entry by EQUALITY.
+  Its `tail` is deliberately left raw: nothing compares it, its only reader is the
+  failure-marker scan, and redaction there is purely subtractive, so a `failed` token
+  inside an absolute path would vanish and an `EVIDENCE CONTRADICTION` would downgrade
+  to `verified`. Both writers pass BOTH candidate project roots, since they derive the
+  root from different authorities and must substitute identically.
+  New PostToolUse hook `hooks/post-artifact-redact.sh` is the net under both: BOTH
+  registered matchers sweep the artifacts modified in the last 5 minutes — which catches
+  a hand-rolled `printf >>` and a subagent-written artifact. In the steady state that
+  window also keeps the hundreds of tracked plans a consuming repo can hold out of the
+  read set, but the window is NOT what bounds the sweep and this note no longer implies
+  it is: a `git checkout` refreshes every tracked artifact mtime at once and puts all of
+  them inside it. `SWEEP_MAX_TARGETS` (25 per invocation, newest mtime first) is the
+  bound, and an mtime is not knowable without a stat, so the enumeration was never
+  bounded by the window either. The write matchers
+  additionally redact the tool's own `file_path`, which is the only way an artifact
+  outside that window is reached. A `witness-` prefixed name is excluded in the
+  `logs` bucket only — where the witness actually lives; the same name under
+  `.zensu/plans/` is an ordinary plan and is redacted like one. A refusal names
+  whether the target was swept or written. Every path exits 0 — a
+  PostToolUse hook cannot un-run the call it follows — but no refusal is silent: an
+  artifact left un-redacted (too large, hard-linked, unreadable) is reported on stderr,
+  because shipping one with `/Users/<name>/…` intact and nothing recording it is the
+  worst outcome the hook can produce.
+  **Containment is canonicalized, and the comparison shape matters.** `redactFile`
+  refuses a symlinked, non-regular or hard-linked target, opens read-only with
+  `O_NOFOLLOW` and judges the DESCRIPTOR rather than the path (so the refusal cannot be
+  raced), refuses a non-UTF-8 artifact rather than rewriting its bytes lossily, writes
+  through an `O_EXCL` temp with `fsync` before the rename, and abandons the rename when
+  the artifact changed underneath it rather than destroying a concurrently appended
+  line. The directory check compares the canonical parent against the canonical root's
+  own join — comparing two realpaths of the same lexical path resolves both through the
+  same symlink and proves nothing, which is how a `.zensu/logs -> /var/log` link would
+  otherwise have carried the rewrite out of the project. A no-op redaction writes
+  nothing at all, so an unchanged artifact keeps its inode and a `tail -f` keeps
+  following.
+  Artifacts are now **English-only**: `templates/tdd-plan.md` and `skills/tdd/SKILL.md`
+  Phase 2 state it, and the `CLAUDE.md` carve-out that exempted `.zensu/plans` and
+  `.zensu/logs` from the repo's English-only rule is removed — a German plan written in a
+  German session would otherwise land in someone else's public history. `CLAUDE.md` also
+  gains an `## Artifact Path Redaction` section naming every coupled site and the
+  core/host split for the ports.
+  **One protection narrows, and it is disclosed rather than glossed.** The old recipe
+  wrote the log with `printf … >> {log}`, which `hooks/lib/bash-source-write-parse.js`
+  reports as a write channel, so `hooks/pre-write-secret-scan.sh` scanned the command
+  text — including the log message — against `hooks/lib/secret-patterns.js`. The
+  `append` verb carries no redirect, so that incidental scan no longer fires on a log
+  line. It was never a DESIGNED protection, but the reason an earlier revision of this entry
+  gave was wrong: `hooks/lib/secret-scan-decide.js` has no extension filter at all — it
+  scans the whole command text whenever a channel is present — so the old redirect form
+  genuinely was scanned and the loss is real rather than incidental, across both artifact
+  buckets. What makes it acceptable is that the gate declares itself not a security
+  boundary, that the ~27k-line scan found no credential values in any committed artifact,
+  and that the scan still covers every non-`pathExempt` Edit/Write/MultiEdit payload and
+  every real Bash write channel, and teaching the
+  shared parser a new channel form would pull rules (A)/(B)/(C) onto it as well — which
+  is why the verb enforces its own containment instead. Recorded here so the trade is
+  visible. The control is then RESTORED at the new chokepoint: `append` runs the same
+  curated rules over the message before writing and REFUSES on a match — a credential
+  value is not a location, and redacting one silently would hide it from whoever has to
+  rotate it — honouring `ZENSU_SECRET_SCAN=off` so a false positive is not a wedge. What
+  is genuinely gone is only the incidental coverage of the surrounding shell command.
+  **Bounds, stated rather than implied:** the rule is textual, so a path spelled through
+  a symlink or an alias matching no known root is not caught (macOS's `/private/{tmp,var}`
+  is the one alias pair handled by hand); a git repository root ABOVE the project root is
+  covered only insofar as `$HOME` covers it; artifacts from earlier runs are out of reach
+  by design; the `msysSpelling` inverse is a hand-copy validated by round-tripping through
+  `msysDrivePrefix`, so a change to that shared rule silently drops the MSYS spelling; and
+  nothing here recognizes a customer name or an internal hostname, which is why the
+  authoring rules ship alongside the redactor. Email addresses and internal URLs are NOT
+  redacted.
+  Pinned by new `tests/structure/test-artifact-redaction.sh`. The suite was
+  written first, and its first 19 checks measured 1 PASS / 18 FAIL against the pre-change
+  tree — so its sensitivity is proven rather than assumed: **1 PASS / 18 FAIL is the RED
+  reading of those first 19 checks, never a count of the shipped suite.** The suite as
+  shipped is **100 checks**, grown across the review rounds, the PR #255 team review and the
+  terminal self-review round. Its shape answers two ways a pin like this
+  goes vacuous: every "carries no `/Users/`" arm is paired with a content assertion, since
+  an emptied artifact satisfies the absence check; and every guard check asserts the exit
+  status AND that the on-disk shape the guard protects still holds, since a writer that
+  never wrote for an unrelated reason satisfies a naive refusal check. A skipped check is
+  counted separately and never as a PASS. `test-windows-portability-guards.sh` gains the
+  module in its secure-open inventory, whose other pins are per-file and therefore blind
+  to a new file.
+  **Release note:** this adds a registered hook and a new PostToolUse matcher group.
+  `CLAUDE.md`'s runtime-lineage breaking list names only *removing or renaming* a hook, or
+  changing a matcher, so `minor` here is a **conservative choice, not a consequence of that
+  rule**: no persisted shape moved. It errs in the safe direction — an over-cautious bump
+  costs a lineage break, it never ships a compatibility claim the code cannot honour.
+
+## [0.19.0] - 2026-08-25
+
+### Added
+
+- **session-trail**: Disclose the write anchor and route a commit-producing takeover (#259)
+- **hooks**: Remind every process to offer the best long-term solution first (#238)
+- **pilot**: Standard Acceptance Criteria table in every plugin-opened PR body (#265)
+- **doctor**: Report reviewer-spawn permission exposure before a chain wedges (#253)
+- **autopilot**: Scope durable runs per owner session and per workspace (#256)
+- **pr-team-review**: Broaden the security persona trigger to content signals (#260)
+- **skills**: Add the gauntlet-loop adversarial refinement skill (#249)
+- **gates**: Refuse completion when the plan carries no Requirements table (#254)
+
+### Changed
+
+- **multi-repo**: Answer open question 7 against the shipped occupancy predicate (#264)
+- **multi-repo**: Specify anchor-plus-code-roots chains (#258)
+
+### Fixed
+
+- **session-control**: Stop judging adoption on the caller's project dir (#252)
+- **pr-fix-findings**: Close the mid-run stop channel in standalone runs (#263)
+- **chain-enforcer**: Pin the host-refused reviewer spawn against a real capture (#261)
+- **bypass-ledger**: Close the disclosure gaps and own the read ladder once (#257)
+
+## [0.18.2] - 2026-08-19
+
+### Added
+
+- **chain-enforcer**: Diagnose a host-refused reviewer spawn (#233)
+
+### Fixed
+
+- **tests**: Scope the recognizer fixture guard to the values that enter a command (#248)
+
+## [0.18.1] - 2026-08-18
+
+### Added
+
+- **session-trail**: Make a takeover impossible to refuse (#245)
+
+### Fixed
+
+- **session-control**: Rescue a session across a runtime-lineage break (#244)
+
+## [0.18.0] - 2026-08-16
+
+### Added
+
+- **session-trail**: Add cross-instance session tracking skill (#239)
+- **tdd**: Situational TDD mode — strict by default for pr-fix-findings, plus a session toggle (#236)
+- **session-control**: Bind a session across a compatible plugin upgrade (#235)
+- **session-control**: Let a compatible plugin upgrade keep serving a live session (#234)
+- **summary**: Render the CHAIN-END SUMMARY as tables instead of prose (#232)
+
+### Changed
+
+- **readme**: Document the HTTPS fallback for a failed plugin install (#237)
+- **pr-team-review**: Route out-of-diff findings to overall_notes (#231)
+
+### Fixed
+
+- **release**: Unbreak the skill counters and add an auditable test-gate skip (#241)
+- **converge**: Carry the chain-end offer into every carrier that renders a report (#240)
+
+## [0.17.3] - 2026-08-13
+
+### Added
+
+- **doctor**: Keep /zensu:doctor reachable when a plugin update wedges the session (#229)
+
+## [0.17.2] - 2026-08-10
+
+### Added
+
+- **evidence**: Enforce the witness cross-check in code and close the persona carrier gap (#215)
+- **gate**: Deny working-tree-mutating git commands aimed outside the session root (#210)
+- **review**: Verify fan-out findings before they route (#204)
+- **zen-mode**: Turn the focused response mode on by default (#206)
+
+### Changed
+
+- **ci**: Rebalance the Windows contract profiles by measured runtime (#218)
+- **ci**: Shard the deterministic suite and cancel superseded PR runs (#216)
+- **tests**: Add static full test suite overview (#214)
+- **skills**: Align CLI command forms with zensu 0.5.3 (#209)
+
+### Fixed
+
+- **session-control**: Release a session whose recorded project root is gone (#211)
+- **gate**: Normalize the MSYS path namespace so Windows stops denying its own worktree (#213)
+- **tests**: Unbind two suites from state they cannot control (#207)
+- **tests**: Realign two stale assertions with the contracts they guard (#205)
+
+### Added
+
+- **evidence discipline**: The witness cross-check is now a library,
+  `hooks/lib/zensu-evidence-crosscheck.js`, instead of a prose recipe.
+  `/zensu:tdd` Phase 6 used to tell the model to verify each `AUDIT — cmd="X"`
+  claim by running `grep -F -q 'cmd="X"'` against the witness log, then scan the
+  tail by hand. That recipe is not known to be wrong on its own — the witness
+  JSON-encodes each recorded command, and the escaping defeats the obvious
+  attack where the `printf` that wrote a claim corroborates it. What failed, in
+  a real session, was the execution: carried out by hand, every claim came back
+  `verified`, and that verdict reached a human before anyone noticed nothing had
+  been established. A check re-derived from prose each run has no failure mode
+  anyone can test and no exit code any gate can consume.
+
+  The library decodes the witness format properly (JSON-decoded `cmd`/`tail`,
+  optional timestamp prefix), refuses to let a witness entry that is itself a
+  log write corroborate anything, matches on equality rather than containment,
+  scans only the decoded `tail` and `interrupted` flag for contradictions, and
+  fails closed when the witness log is missing. A claimed pass is contradicted
+  only when every matching run failed, so a fix-and-rerun cycle is not a false
+  alarm. Exit 0 only when every claim is verified and none is contradicted.
+  `tests/structure/test-evidence-crosscheck.sh` and its `node --test` unit suite
+  pin each property against fixtures.
+
+- **evidence discipline**: The cross-check now also runs at the chain terminus.
+  `/zensu:self-review` executes the same library before rendering its final
+  report and carries the verdict — every `EVIDENCE GAP` / `EVIDENCE
+  CONTRADICTION` line verbatim — into that report, so a fabricated test result
+  cannot reach the user through the last thing the chain says. A chain that
+  never armed a witness reports `no evidence claims to cross-check`, a clean
+  state rather than a failure.
+
+- **evidence discipline**: Repo-custom review personas
+  (`.claude/agents/zensu-review-*.md`) now carry the rule in their spawn prompt.
+  Those files are repo-authored, so no plugin-side carrier reaches them.
+  `/zensu:pr-team-review` and `/zensu:plan-review` were already covered — they
+  spawn custom seats as confined plugin workers — but `/zensu:tdd` spawns them
+  under their own `subagent_type`, leaving the `SubagentStart` hook as the only
+  carrier. Its fan-out now prepends the canonical block, read from
+  `docs/evidence-discipline.md` at run time rather than duplicated, and
+  `tests/structure/test-evidence-discipline.sh` pins that path plus the premise
+  that keeps the other two skills safe.
+
+### Fixed
+
+- **docs**: The README's Evidence Discipline section claimed 28 prompt
+  carriers; there are 29 (6 agents + 23 skills).
+
+### Session Control upgrade note
+
+Session Control binds each session to the exact plugin bytes it started with.
+That still requires every published plugin change to use a new SemVer version
+and distinct immutable tag/cache path. After a versioned upgrade,
+already-running Claude Code sessions keep using their previous plugin root;
+start a fresh session to pick up the new Session Control runtime. Do not
+overwrite an existing cache version or run `/reload-plugins` in a session that
+must keep working on the old runtime. The retired `~/.zensu/plugin-root`
+locator is no longer consulted or updated. It may be deleted once no older
+session still needs that path; the plugin never deletes it automatically.
+
+## [0.17.1] - 2026-08-07
+
+### Fixed
+
+- **session-control**: A forked Claude Code session could not bind at all, so
+  every stateful Zensu tool failed closed for its whole lifetime. Claude Code
+  emits five SessionStart lifecycle sources — `startup`, `clear`, `fork`,
+  `resume`, `compact` — and the adapter only classified four. A `fork` payload
+  hit `SessionStart source is unavailable or unsupported`, the hook exited
+  non-zero, no private Session Control record was ever written, and from then
+  on every helper and gate rendered `Blocked: the immutable Zensu session
+  binding is unavailable or invalid`. `/zensu:zen-mode`, `/zensu:tdd`, the
+  write-gate and the chain enforcer were all unusable in that session, and the
+  only escape was starting over.
+
+  Three changes, all in `hooks/lib/claude-session-control-v1.js`:
+
+  - `fork` is classified fresh. A fork mints a NEW host session id for a copied
+    conversation, so its record can never already exist; it is registered
+    exactly like a cold start.
+  - A SessionStart whose private record is missing now registers one instead of
+    failing, whatever its source claims. This also covers a `resume` after the
+    plugin data directory was pruned and a continuation across a plugin upgrade
+    (`context runtime digest mismatch` / `context plugin version mismatch`),
+    both of which previously bricked the session permanently. It grants nothing
+    a plain `startup` would not — a fresh project anchor plus a baseline
+    workflow document.
+  - An unknown-but-well-formed source is no longer rejected. Refusing it writes
+    no record, and no record fails every stateful hook closed rather than
+    merely leaving one ungated, so the next lifecycle source Claude Code adds
+    cannot repeat this outage. A missing, blank, over-long or control-character
+    source is still rejected.
+
+  The rebind guard is unchanged in substance: a known-fresh source arriving for
+  an existing record must still match that record's project root
+  (`fresh SessionStart cwd does not match the existing session project`). Only
+  a source this build does not know is exempt, because it may well be a
+  continuation reporting a descendant or detached-worktree cwd.
+
+  Deliberately NOT inherited: a fork starts with its own baseline workflow
+  document — no armed TDD chain, no review round, no zen-mode marker. The
+  SessionStart payload carries no parent session id (`session_id`,
+  `transcript_path`, `cwd`, `prompt_id`, `permission_mode`, `agent_id`,
+  `agent_type`, `effort`, `source`, `model`, `session_title`), so the parent
+  cannot be identified at all. Forking mid-chain therefore leaves the wedged
+  chain behind in the parent session rather than carrying it across.
+
+- **session-control**: The fail-closed PreToolUse denial now names the actual
+  cause (`this session has no Session Control record`) and points at
+  `/zensu:doctor` instead of only telling the user to start over.
+
+- **session-control**: The fail-closed denial above tells the user to run
+  `/zensu:doctor` — and in the one state it describes, that pointer was a dead
+  end. A session with no Session Control record has no binding, and
+  `/zensu:doctor` runs through Bash, so `pre-reviewer-capability-gate.sh`
+  (matcher `.*`, every tool), `pre-write-secret-scan.sh` and
+  `pre-bash-source-write-gate.sh` (both matcher `Bash`) each denied it before
+  inspecting what was being asked, while `stop-chain-enforcer.sh` blocked the
+  Stop on top so the turn could not even end. On the secret-scan hook not even
+  `secretScan:false` or `ZENSU_SECRET_SCAN=off` could reach far enough to
+  release it. Registering a record on any source (above) removes the common way
+  into that state, but not the state itself: when `SessionStart` cannot write a
+  record at all — an unwritable plugin-data store, a hook that never ran — the
+  session still lands there, and the diagnostic was still unreachable.
+
+  One shared predicate now decides that single state. `unregisteredSession`
+  (`hooks/lib/claude-hook-session-v1.js`, with an `unregistered` argv mode and
+  the shell wrapper `zensu_session_unregistered`) is true **only** on a clean
+  `ENOENT` of the records directory or the record file. A record that exists and
+  disagrees — runtime digest drift, a foreign plugin root, plugin data, or
+  project root, tampering — and any unreadable or ambiguous state stay false and
+  keep failing every gate closed.
+
+  In that one state, and for the **interactive thread only** — every reviewer,
+  evidence worker and neutral child stays fail-closed at all three gates, each
+  checking the principal itself rather than relying on the capability gate
+  alone: the capability gate returns the main thread to the capabilities it had
+  before Session Control existed; the secret scan falls through to the
+  **ordinary** scan decision, which reads only the payload and so needs no
+  binding, keeping a real secret caught on every channel and `Edit`/`Write`
+  content scanned rather than blanket-denied; the source-write gate keeps its
+  write rules, pinning `CLAUDE_PROJECT_DIR` explicitly rather than letting a
+  model-influenced payload `cwd` become the project authority, and honoring the
+  parser's exit status so a parser that cannot run denies instead of allowing
+  unchecked; and `stop-chain-enforcer.sh` releases, because a session with no
+  record has no workflow document and therefore no review chain or Autopilot run
+  to enforce — blocking it would leave the user with tools but no way to end a
+  turn. The Stop block and the shared deny message no longer rank a guess: they
+  name the no-record state and the disagreeing-record state separately, and each
+  says which of them `/zensu:doctor` can actually help with.
+
+  What the relaxed session is **not** is a working session: the TDD phase gate
+  still denies every `Edit`/`Write`, there is no review chain, no Autopilot, and
+  no subagents. It is a session you can read a diagnosis in. `README.md` gains an
+  authoritative per-gate table under "Unbindable sessions".
+
+### Session Control upgrade note
+
+Session Control binds each session to the exact plugin bytes it started with.
+That still requires every published plugin change to use a new SemVer version
+and distinct immutable tag/cache path. After a versioned upgrade,
+already-running Claude Code sessions keep using their previous plugin root;
+start a fresh session to pick up the new Session Control runtime. Do not
+overwrite an existing cache version or run `/reload-plugins` in a session that
+must keep working on the old runtime. The retired `~/.zensu/plugin-root`
+locator is no longer consulted or updated. It may be deleted once no older
+session still needs that path; the plugin never deletes it automatically.
+
+## [0.17.0] - 2026-08-07
+
+### Added
+
+- **zen-mode**: Focused low-noise response mode, with a live reaction eval (#197)
+- **rules**: Carry a plugin-wide evidence discipline into every process (#196)
+- **chain**: Diagnose review-chain shapes and add a guarded escape hatch (#191)
+- **tdd**: Add the Phase 6 Edit Landing Audit (#189)
+- **review**: Repo-custom reviewer roles for team reviews (#180)
+
+### Changed
+
+- Keep Promptfoo evaluations local-only (#190)
+- Sync README + marketplace description to the 0.16.0 feature state (#176)
+
+### Fixed
+
+- **autopilot**: Read the approved plan safely and name why a plan gate blocks (#195)
+- **tests**: Classify test-chain-recover to unbreak the suite runner (#194)
+- **deps**: Clear every open Dependabot alert via version-floor overrides (#193)
+- **deps**: Raise undici to 7.29.0 to clear five high-severity advisories (#192)
+- **log**: Name the cause when a state verb fails (#187)
+- **session-control**: Validate versioned Claude upgrades (#182)
+- **deps**: Clear all open Dependabot alerts via promptfoo 0.121.20 + overrides (#188)
+- **hooks**: Bind the post-review outer read to the recorded project root (#186)
+- **hooks**: Make the Zensu Stop block legible, verifiable and escapable (#183)
+- Bind plugin root to Claude sessions (#172)
+- **evals**: Quote OPTIONS_JSON default so a provided argv[2] survives intact
+
+### Added
+
+- **docs**: A plugin-wide **evidence discipline** — one rule, reaching every process, that an agent may state only what it has actually observed. `docs/evidence-discipline.md` is the single source of truth (no unobserved assertion; cite the observation; mark the unverifiable as unverified; settle assumptions before acting; never invent an identifier; never restate a result this session did not produce) and lives under `docs/` so the Session Control runtime digest covers it. Three deliberately redundant carriers deliver it: the new `hooks/session-start-evidence-discipline.sh`, which injects the canonical block — read from that file at run time, never duplicated — as `additionalContext` on BOTH `SessionStart` (every source, including `resume`/`compact`) and `SubagentStart` (every child), reading no config and honoring no opt-out flag while failing silent on anything it does not understand; plus all six `agents/*.md` and all 22 `skills/*/SKILL.md`, which carry the block verbatim. The block deliberately names no file: a `reviewer-readonly-v1` subagent resolves paths against the project root, so a pointer could only resolve into the repository under review and let a hostile repo substitute its own "rule". `tests/structure/test-evidence-discipline.sh` pins all three carriers and fails when a newly added agent or skill omits the block, with its own anti-vacuity fixtures so the carrier check cannot degrade into a silent pass.
+- **zen-mode**: New `/zensu:zen-mode` skill — a focused, low-noise response mode for working at reduced capacity. It keeps every bit of technical substance and removes only presentation noise: each answer opens with a one-line recap of what just happened, states the result in the first sentence, stays near eight lines, withholds trade-offs and alternatives until asked, glosses jargon, asks at most one question per turn, anchors multi-step work with `Step N of M`, and ends with exactly one next step. Because a skill is loaded once and fades after a handful of turns — which a low-capacity user is the least likely to notice — the contract is re-injected on every prompt by the new `user-prompt-zen-mode.sh` (UserPromptSubmit, flag `hooks.zenMode`, default on) while the session carries a marker written by `hooks/lib/zensu-zen-mode.sh --on`. Two properties are deliberate: the mode **overrides** any other compressed or telegraphic style mode for its duration, since sentence fragments shift reconstruction work onto exactly the reader who cannot spare it; and security warnings, irreversible or destructive actions, and credential handling are never compressed. Deactivation is performed by the hook rather than the model — a prompt carrying `zen off` / `zen-mode off` / `turn off zen` / `stop zen`, or consisting solely of `normal mode`, drops the marker directly, so the off-switch survives model drift, and only deactivation can misfire because activation is always explicit. Because those literals are English while the mode itself answers in the user's language, the injected contract also instructs the model to run `--off` itself on any other wording or language, so no one can be stranded in the mode by phrasing. The marker is keyed by the resolved Session Control key and rooted at `zensu_resolve_project_dir` (not the host-native `ZENSU_PROJECT_ROOT`, a different namespace on Git Bash), symlinked markers are refused on both sides, and the state directory is created `0700`; a fresh session therefore starts with the mode off and a sibling session in the same project is unaffected. The hook is a no-op without a marker, for non-main principals, and under `zenMode:false`, and every path after the plugin-root identity check exits 0 so it never blocks a prompt.
+- **zen-mode**: `evals/zen-mode-reaction/` — a local-only Promptfoo suite grading how the model actually REACTS to the injected contract, which for a pure behaviour feature is the only thing the deterministic suite cannot reach. Three scenarios: ordinary contract compliance, precedence while a telegraphic compression mode is active at the same time, and the never-compress carve-out under a destructive irreversible request (the irreversibility must be stated, the confirmation question must survive the one-question cap, the answer must not be clamped to a one-liner, and the model must not claim to have executed the drop). Because a fresh `claude --print` session carries no marker, each scenario embeds the hook's `additionalContext` as a copy — and `tests/structure/test-promptfoo-zen-mode.sh` re-derives that directive from the hook and fails if any copy has drifted, so the suite can never grade wording no user receives. That shape pin is deterministic, offline, and classified local-only; the live run costs API credits and is never a CI gate.
+- **tdd**: The Edit Landing Audit moves from prose to an executable library, and from an obligation to a gate. `hooks/lib/zensu-edit-landing.sh` now performs Phase 6 step 5b — claim extraction, repo-root-relative normalization, the project-anchored change set, unborn HEAD, the mid-run-commit baseline range, the `git check-ignore` exemption proof, UNVERIFIED for legacy or malformed entries, and PENDING PREDICATE for a file that was already dirty when the round began — and writes a receipt. `--tdd-complete` REFUSES without that receipt, in the shape of the existing `--chain-done` dirty-tree refusal, with `ZENSU_EDIT_LANDING_GATE=off` as the documented escape. `skills/tdd/SKILL.md` step 5b shrinks to the invocation plus the react-to-verdict rules, so the recipe is unit-tested instead of re-derived from prose on every run.
+- **tdd**: Phase 6 **Edit Landing Audit** — every file a step claimed to edit (`IMPL completed — files:` / `WIRED — files:`) is cross-checked against the repo-root-anchored union (`TOP` resolved via `git rev-parse --show-toplevel`) of `git -C "$TOP" diff --name-only HEAD` and `git -C "$TOP" ls-files --others --exclude-standard`, and an unverified claim raises `EDIT NOT LANDED`, marks Phase 6 incomplete, and is carried into the CHAIN-END SUMMARY. A mechanical or bulk replacement that matched nothing leaves no diff, so it never reaches a reviewer and the green suite reads as false confirmation; the audit runs in strict AND vanilla mode and re-runs on every review-fix round. Phase 4 gains the matching rule that such a replacement is confirmed by re-reading the target predicate, never by a test run, and the logging contract's `IMPL` and `WIRED` forms are now typed as repo-root-relative path lists with any commentary after a ` | ` separator, so the audit reads exactly the files a step claimed.
+- **chain**: Read-only chain diagnosis and a guarded escape hatch — `zensu-log.sh --chain-status` classifies the current session's review chain into one shape (plus the supported next command, the Autopilot linkage, the rearm-receipt verdict and a durable `recoveries` count), and `zensu-log.sh --chain-recover`, surfaced as the new `/zensu:recover-chain` skill, repairs the single shape no supported command can leave: a pending `reviewRearm` receipt that disagrees with its own workflow document, which makes `--review-ticket` refuse permanently. The repair drops that receipt and records its own history entry in one revision-bumping transaction, under the same lease every ticket writer takes, and never writes a terminal flag, a budget, the ticket slot or an Autopilot link field. `/zensu:doctor` reports every chain's shape and raises wedged and dead-end chains; the Stop enforcer, `/zensu:tdd` Phase 6, `/zensu:reset-review-limit` and `/zensu:zensu-help` route into the diagnosis. Classification lives in `hooks/lib/chain-recovery-v1.js`, which the ticket issuer and the rearm writer now share so the receipt predicate has one definition.
+- **review**: Repo-custom reviewer seats for `/zensu:pr-team-review` + `/zensu:plan-review` via `.claude/agents/zensu-review-*.md` — the activation-glob persona convention `/zensu:tdd` already consumes, now discovered per-repo and cast as first-class `(repo-custom)` seats. PR review discovers from the base checkout (`$REPO/.claude/agents`), never the untrusted PR head; both team-review skills inject the JSON output contract at spawn so one persona file serves all three flows. Opt out of PR-review discovery with `--no-custom-roles`.
+
+### Changed
+
+- **CI**: Keep every Promptfoo and live-model evaluation local-only. Pull
+  requests, scheduled Windows safety, and release workflows now run only
+  deterministic non-Promptfoo contracts; release publication remains guarded
+  by exact-SHA, clean-tree, runtime-digest, version/ref, asset-digest, and
+  Immutable Releases checks.
+- **runtime**: Replace transcript/PPID/fallback identity discovery with Session
+  Control v1. Fresh sessions bind the exact executed plugin, project, source
+  revision, runtime digest, and domain-separated session hash under
+  `CLAUDE_PLUGIN_DATA`; SubagentStart reuses the immutable parent context.
+- **model helper binding**: Use Claude's native `${CLAUDE_PLUGIN_ROOT}` and
+  `${CLAUDE_PLUGIN_DATA}` substitution in top-level Skill/Agent content, then
+  validate the host-exposed `CLAUDE_CODE_SESSION_ID` against the private record
+  inside each stateful helper process. SessionStart no longer reads or writes
+  `CLAUDE_ENV_FILE`, and plugin-private selectors are never exported to the
+  shared main/subagent Bash environment. Supporting files loaded through
+  `Read` receive a concrete root from their parent Skill because native
+  substitution is not recursively applied to loaded Markdown.
+- **reviewers**: Enforce `reviewer-readonly-v1` from the trusted hook
+  `agent_type`. Reviewer agents cannot write, mutate workflow state, run free
+  shell or control commands, spawn nested agents, or impersonate the main
+  thread.
+- **plan and PR review workers**: Replace broad review children and agent-team
+  coordination with exact `zensu:plan-review-worker` and
+  `zensu:pr-review-worker` identities. The main thread registers one private,
+  immutable exact-file/safe-subtree lease, workers use only
+  `Read`/`Grep`/`Glob`, and `SubagentStop` captures one raw JSON object whose
+  `kind`, role, schema, size, and host worker id are validated before the main
+  thread materializes it. Leased paths are canonicalized and revalidated on
+  every call so symlink or TOCTOU replacement fails closed; the lease closes on
+  success and failure. PR leases additionally bind an unquoted name-status
+  manifest so ambiguous escaped paths and findings outside the changed-path set
+  fail closed. Large PRs receive role/area evidence shards rather than a
+  mandatory monolithic full diff. Standalone PR publication now requires an
+  explicit approval after the final preview, while delegated publication stays
+  unattended.
+- **neutral command boundary**: Deny every shell/command tool for
+  `host-profile-v1` children. A command-text denylist cannot confine arbitrary
+  code because environment enumeration, expansion, aliases, and interpreters
+  can reconstruct protected selectors and paths after `PreToolUse`; neutral
+  children retain only their host-granted non-command tools.
+- **protected traversal boundary**: Treat `Grep`/`Glob` roots bidirectionally.
+  A direct protected path, an ancestor that could recursively expose protected
+  descendants, an omitted path whose effective `cwd` is such an ancestor, and
+  escaping path filters all deny for reviewer, PLM, and neutral principals;
+  content regexes and concrete safe source/docs/test subtrees remain available.
+- **evals**: Add pinned local Promptfoo contract, live, concurrency, and
+  adversarial validation with wrapper-owned control attestations. Local
+  operator runs use Claude Code 2.1.221 to install `zensu@zensu` into an isolated user cache,
+  verify source/cache runtime identity, launch without `--plugin-dir`, prove
+  inherited normal/reviewer subagent context, and synchronize 12 processes as
+  three real four-way barrier generations. Upgrade by starting a new Claude
+  Code session; legacy identity artifacts are intentionally ignored.
+- **mcp runtime**: Materialize the pinned Playwright npm graph with `npm ci` in
+  a private OS-temporary generation for every server start and browser
+  installation. Concurrent servers never share `node_modules`; existing
+  plugin-root executables, dependency trees, and self-authored hash stamps are
+  ignored. The launcher has no production test passthrough, scrubs ambient API,
+  SCM, cloud, and package-registry credentials at both child boundaries,
+  forwards signals, waits for its runtime child, cleans the generation on exit,
+  and retains npm's normal SRI-checked content cache.
+- **review state**: Store the auto-fix `reviewRound` and Stop-hook `stopBlockCount`
+  budgets as bounded fields in the same validated, revisioned Session Control
+  workflow document as the TDD FSM. All increments and resets now use the
+  per-session CAS transaction; independent `rounds-*.json` and `*.stopblocks`
+  files, location overrides, scans, and deletion-based resets are retired.
+- **release provenance**: Pin the production Claude marketplace source to the
+  immutable `v<plugin version>` GitHub ref. Feature and release-PR merges no
+  longer activate unvalidated main-branch bytes: publish repeats the complete
+  deterministic non-Promptfoo gate at the exact clean main SHA, records the
+  source runtime digest, uploads SHA-bound evidence, and only then creates the
+  tag that makes the new source resolvable. Local checkout evals retain real
+  `marketplace add` / `plugin install` registry behavior by
+  installing a private clean local clone through an ephemeral `./plugin`
+  marketplace fixture, never `--plugin-dir` or the mutable source worktree.
+
+### Fixed
+
+- **tests**: Register `tests/structure/test-chain-recover.sh` in the runner's
+  suite-classification inventory. It was added without a classification, and
+  `tests/run-all.sh` validates that every `tests/structure/test-*.sh` on disk is
+  classified before it runs anything — so the whole runner aborted with
+  `suite classification inventory is incomplete; refusing execution` and not a
+  single suite executed.
+- **hook context**: Rebind every non-SessionStart hook from the trusted
+  `session_id` and private `CLAUDE_PLUGIN_DATA` record, independently of model
+  Bash state. The all-tool capability gate now fails closed with Claude's
+  blocking exit code when its runtime cannot execute.
+- **session continuation**: Require explicit SessionStart lifecycle sources.
+  `resume`/`compact` now reuse an existing immutable project record after
+  `CwdChanged` and cannot recreate a deleted record; `startup`/`clear` cannot
+  reuse one session id across projects. Autopilot recovery also resolves
+  continuation state exclusively from that record, never from mutable payload
+  `cwd`, and remains silent when the binding cannot be authenticated.
+- **safe plugin upgrades**: Require every published plugin change to use a new
+  SemVer version and distinct immutable tag/cache path. Claude Code keeps an
+  already-running session on its previous plugin root while fresh sessions use
+  the new version; Claude retains orphaned previous-version roots for about 14
+  days for concurrent sessions, but those roots remain ephemeral. Overwriting
+  an already-loaded cache directory or invoking
+  `/reload-plugins` is an explicit session migration and is not supported for
+  this Session Control transition.
+- **upgrade evidence**: Prove the pinned previous release is an ancestor of the
+  candidate SHA, and prepare every paid Ubuntu 24.04 gate with verified
+  `bubblewrap`/`socat`, documented AppArmor handling, and functional sandbox
+  namespace probes before Claude starts.
+- **contained upgrade authority**: Make real upgrade evidence Linux-only and
+  split authentication from candidate execution. A plugin-free, tool-free
+  Claude canary receives the one explicit API/OAuth credential inside an outer
+  `bubblewrap`; its environment arguments cross Bubblewrap's `--args` file
+  descriptor 3 instead of the process argument vector. Operator-supplied
+  Anthropic base URLs, proxies, and TLS trust overrides are rejected. The old
+  and candidate lifecycles receive only a random dummy credential and the
+  evaluator-created loopback model URL, while their hooks run in a nested
+  namespace with evaluator-bound `CLAUDE_PLUGIN_DATA` and
+  `CLAUDE_PROJECT_DIR`. The former macOS Keychain/`--plugin-dir`
+  existing-login procedure is removed; only a hermetic fake existing-login
+  profile remains for non-authoritative deterministic tests.
+- **active plugin-root evidence**: Treat Claude's bounded `.in_use/<pid>` file
+  as a host-owned lifecycle marker rather than plugin payload drift, while
+  requiring the exact live process marker and its cleanup. Every other runtime
+  byte remains immutable across the side-by-side upgrade.
+- **Claude stream lifecycle evidence**: Match Claude 2.1.217's one
+  `system/init` record per streamed turn while still requiring a single stable
+  process PID and session ID across all three old-runtime turns.
+- **Claude Bash probe compatibility**: Accept Claude 2.1.217's optional bounded
+  `description` display metadata while keeping the command byte-exact and
+  rejecting every other input key, including background and unsandboxed flags.
+- **local plugin-data evidence**: Discover the one real Session Control record
+  produced by `--plugin-dir`, require its data root to be a direct child of the
+  isolated plugin-data parent, and bind the context to it. Authoritative
+  installed-plugin runs still require the canonical marketplace data id.
+- **subagents**: Recognize plugin-scoped reviewer and PLM identities, keep the
+  PLM and exact reviewers on the `Read`/`Grep`/`Glob` profile, preserve
+  non-command host-granted tools and external detached-worktree `cwd` changes
+  for ordinary neutral children, and deny all command-execution aliases. Neutral
+  children can no longer borrow an active main-thread window for mutating Zensu
+  operations or modify the installed plugin/private plugin-data roots through
+  file tools, symlink aliases, case aliases, or multiply linked files.
+- **top-level agents**: Classify Claude's documented `SessionStart.agent_type`
+  for `claude --agent` with the same fail-closed rules as PreToolUse. Exact
+  reviewers remain read-only, PLM/unknown/partial identities remain neutral,
+  and only a payload with neither agent field receives `main-v1`.
+- **eval evidence**: Make Promptfoo child proofs causal and exclusive. L03/L04
+  now reject extra root spawns, result-before-use, batched calls, duplicate ids,
+  dirty Git status, and duplicate attestation markers; the offline wrapper
+  derives marker paths and Bash principals from the actual hook context. C39
+  executes all command-tool aliases plus environment-enumeration, obfuscation,
+  selector, and native helper/binder denial paths;
+  C40 executes the skill-rendered per-call binding, proves ambient private
+  selectors are ignored, rejects foreign raw ids and discoverable derived
+  record keys as host session ids, and pins `CLAUDE_ENV_FILE` byte identity.
+- **isolation**: Stop reading or rewriting the legacy shared plugin-root
+  locator, which could be clobbered by another host, plugin version, or
+  worktree while a session was still active.
+
+  After a versioned upgrade, already-running Claude Code sessions keep using
+  their previous plugin root; start a fresh session to use the new Session
+  Control runtime. Do not overwrite an existing cache version or run
+  `/reload-plugins` in a session that must keep working on the old runtime. The
+  retired `~/.zensu/plugin-root` locator is no longer consulted or updated. It
+  may be deleted once no older session still needs that path; the plugin never
+  deletes it automatically.
+
+## [0.16.1] - 2026-07-16
+
+### Added
+
+- **autopilot**: Persist durable orchestration state (#174)
+
+### Fixed
+
+- **autopilot**: Reconcile remote review publication (#175)
+- **autopilot**: Isolate review chain state (#173)
+
+## [0.16.0] - 2026-07-14
+
+### Added
+
+- **verify**: Add `/zensu:verify-feature` live worktree/preview verification with a pinned, integrity-locked, credential-blind Playwright MCP configuration (#170)
+- **evals**: Add live Promptfoo E2E coverage for `/zensu:verify-feature`, including an isolated browser fixture and unsafe remote URL rejection (#170)
+- **doctor**: Report the forge CLI per detected provider via the VCS driver (#164)
+- **pilot**: Add /zensu:pilot guided pipeline conductor skill (#163)
+
+### Changed
+
+- **readme**: Backfill missing skill rows (#167)
+
+### Fixed
+
+- **vcs**: Pin the forge probe to a validated IP (close IP-encoding + rebinding SSRF) (#169)
+- **vcs**: Make the probe loopback denylist case- and trailing-dot-insensitive (#168)
+- **vcs**: Exclude `@` from the host capture to close a userinfo-authority SSRF (#166)
+- **tdd**: Re-arm review-chain Stop backstop for every session chain (#165)
+
+## [0.15.0] - 2026-07-12
+
+### Added
+
+- **vcs**: Wire autopilot to VCS driver for GitHub + GitLab (phase 4)
+- **vcs**: Wire pr-team-review to VCS driver for GitHub + GitLab (phase 3)
+- **vcs**: Wire pr-fix-findings to VCS driver for GitHub + GitLab (phase 2)
+- **vcs**: Add forge-detection helper (VCS driver phase 1)
+
+## [0.14.0] - 2026-07-11
+
+### Added
+
+- **skills**: /zensu:doctor read-only setup diagnostics
+- **skills**: Additive-only repo overlays for tdd, cover, pr-team-review
+- **templates**: Artifact templates with repo override
+- **tdd**: Activation triggers + repo-local review personas
+- **pr-team-review**: Pre-publish inline-comment anchor validation
+- **hooks**: Bypass ledger — visible gate opt-outs
+- **skills**: Converge flow-back audit skill
+- **agents,tdd**: Review-judge second-pass stage in the review chain
+- **hooks**: Secret-scan gate for writes and raw bash writes
+- **tdd,autopilot**: Stable requirement IDs with end-to-end traceability
+
+### Changed
+
+- **pending-review**: Cover the ts-absent mtime-fallback branch
+
+### Fixed
+
+- **review**: Address team-review findings (1 P1, 4 P2, 5 P3)
+- **tests**: Make test-doctor state-not-writable check portable
+- **tdd**: Compress skill under the 430-line cap after main merge
+
+### Notes
+
+- **Upgrade note — `secretScan` is a new PreToolUse gate that ships default-ON.**
+  It scans file-write payloads (and Bash write channels) for provider secret
+  patterns plus a Shannon-entropy heuristic and **denies** on a match. Legitimate
+  high-entropy writes outside `test(s)/`/`spec(s)/`/`fixtures/`/`*.example.*`
+  paths may be flagged; add the inline `zensu-secret-allow` marker, write under a
+  test/example path, bypass a one-off with `ZENSU_SECRET_SCAN=off`, or disable
+  entirely with `hooks.secretScan: false`.
+
+## [0.13.3] - 2026-07-07
+
+### Added
+
+- **skills**: Add wargame execution-planner skill (#155)
+
+## [0.13.2] - 2026-07-07
+
+### Changed
+
+- **skills**: Add frontmatter descriptions and [Zensu] prefix (#152)
+
+## [0.13.1] - 2026-07-07
+
+### Added
+
+- **setup**: Add /zensu:setup interactive configuration skill (#150)
+
+## [0.13.0] - 2026-07-06
+
+### Added
+
+- **pr-team-review**: Render Test Coverage as compact status table (#146)
+
+## [0.12.0] - 2026-07-05
+
+### Added
+
+- **pr-team-review**: Expand reviewer pool 15→25 + always-on core + challenge round (#143)
+
+## [0.11.1] - 2026-07-05
+
+### Fixed
+
+- **hooks**: Recover CLAUDE_PROJECT_DIR from active transcript for non-hook Bash state verbs (#142)
+
+### Fixed
+
+- **hooks**: Recover `CLAUDE_PROJECT_DIR` from the active session transcript for non-hook Bash state verbs (`zensu-log.sh --chain-done`, `--tdd-*`, `--phase`, …). Claude Code sets `CLAUDE_PROJECT_DIR` only for hooks, so inside a git worktree these Bash calls anchored their chain-state to the wrong directory/session and the Stop-hook review chain deadlocked. A new cwd-independent `hooks/lib/resolve-project-dir.js` reads the launch/project dir from the active transcript's `cwd` at one choke point, realigning writers with the enforcer. No behavior change when `CLAUDE_PROJECT_DIR` is already set.
+
+## [0.11.0] - 2026-07-04
+
+### Added
+
+- **pr-team-review**: Always emit test-coverage evaluation flagging uncovered files/paths (#140)
+- **skills**: Add /zensu:cover durable fullstack test generator (#138)
+- **ghost-scan**: Multi-component scope gate + cross-component deep journey pass (Phase 5b) (#139)
+
+### Changed
+
+- **readme**: Add Updating section with plugin upgrade commands (#137)
+
+## [0.10.0] - 2026-06-30
+
+### Added
+
+- **skills**: Add /zensu:autopilot end-to-end autonomous build skill (#135)
+
+## [0.9.2] - 2026-06-29
+
+### Added
+
+- **hooks**: Add PreToolUse(Bash) source-write integrity gate (#130)
+- **hooks**: Inject zensu CLI auth-recovery directive in session primer (#131)
+
+### Changed
+
+- **e2e**: Add source-write-gate end-to-end suite (#133)
+- **ghost-scan**: Reframe security-review next-step as deep follow-up (#132)
+
+### Added
+
+- **gate**: Add `pre-bash-source-write-gate.sh` — a PreToolUse(Bash) source-write integrity gate. Denies raw shell writes (`>`/`>>`, `tee`, `sed -i`, `dd of=`, `cat > f <<EOF`) that overwrite an existing git-tracked source file (A) or escape the session worktree into a sibling/main checkout (B, with `cd`-aware path resolution). Carve-outs: new files inside the project, gitignored/untracked files, non-source extensions, temp roots. Convention-nudge that closes the Bash-write blind spot of the Edit/Write gate; bypass via inline `ZENSU_BASH_WRITE_GATE=off` / `hooks.bashWriteGate:false`
+
+## [0.9.1] - 2026-06-26
+
+### Added
+
+- **skills**: Add pr-fix-findings skill (#127)
+- **implement**: Load feature mocks and design context in Step 1 (#123)
+- **gate**: Classify view_feature MCP tool as read (#122)
+
+### Changed
+
+- **e2e-plm**: Sync ghost-scan ideal captures with current pattern (#125)
+- **implement**: Run --workflow-end after Step 8, not stale Step 6 (#124)
+- Show vanilla mode in the workflow diagram (#126)
+
+### Fixed
+
+- **hooks**: Narrow zensu CLI write-gate to its threat model (#128)
+- **tdd**: Drop unflippable plan checkboxes; Status column is sole completion tracker (#121)
+
+### Changed
+
+- **hooks**: Narrow the `zensu` CLI write-gate to its actual threat model — a low-context agent writing to the real tracked product. It no longer fires on reads or `--help`/`-h`, honors an inline `ZENSU_MCP_GATE=off` command prefix (previously only a session env), and skips writes whose target backend (`--api-url` flag / `ZENSU_API_URL` env) is localhost (a throwaway dev/test DB). Fixes false-positive denials on `--help` and on local dev/test seeding.
+
+## [0.9.0] - 2026-06-18
+
+### Added
+
+- **cli**: Re-home plugin from MCP tools to the typed zensu CLI (#117)
+
+## [0.8.7] - 2026-06-18
+
+### Added
+
+- **hooks**: Make review chain subagent-aware for Claude Code Workflows (#118)
+
+## [0.8.6] - 2026-06-15
+
+### Added
+
+- **tdd**: Default tddImplementation to false (vanilla mode) (#115)
+
+## [0.8.5] - 2026-06-12
+
+### Added
+
+- **tdd**: Add vanilla implementation mode via hooks.tddImplementation (#112)
+- **skills**: Prepend mandatory TDD command protocol to skill and primer (#110)
+- **hooks**: Per-turn TDD reminder for direct implementation requests (#107)
+- **gate**: Default-deny MCP write-gate with per-skill tool scoping (#105)
+- **pr-team-review**: Bundle multi-agent PR review skill into the plugin (#101)
+
+### Changed
+
+- **ids**: Adopt KEY-N feature id wording and normalize e2e fixture ids (#111)
+- Document MCP tool-classification maintenance in CLAUDE.md (#106)
+- Cross-platform (Windows/Linux) test matrix + LF normalization (#102)
+
+### Fixed
+
+- **session**: Resolve session id via transcript helper, drop agent-era PPID cache (#113)
+- **ghost-scan**: Mint v1 baseline server-side, drop client-side Phase 5b (#109)
+- **ci**: LF-lock all text files, not just sh/js/json (#104)
+- **zensu-plm**: Document create_product required args + snake_case MCP arg rule (#103)
+
+### Added
+
+- **pr-team-review**: Multi-agent GitHub PR review skill — scouts an existing PR, auto-casts a tailored reviewer team from a 14-persona pool, fetches the PR into an isolated git worktree, spawns the reviewers in parallel, debates, and publishes one consolidated GitHub review (inline comments + body) via `gh api`
+
+### Changed
+
+- **`/zensu:ghost-scan` — the v1 build-out baseline revision is now minted server-side by `ghost_apply`, not client-side.** Since 0.7.1 the skill ran a Phase 5b that called `create_revision` per newly created feature to seat it at a v1 "Discovered baseline". Once the backend mints that baseline itself (zensu-monorepo #266), the client-side call hits the revision state machine's precondition — `create_revision` requires the previous revision to be `released`/`superseded`, but the backend baseline is `planned` — and **400s on every discovered feature**. Removed Phase 5b from `skills/ghost-scan/SKILL.md` (replaced with a server-side note), dropped agent workflow step 8 and Important Rule #12 from `agents/zensu-plm.md` (renumbered the snake_case rule 13→12), trimmed the `create_revision` reference from the skill's workflow-gate tool list and the MCP-tools table, and softened the hybrid / decision-rule "seated at a v1 baseline" copy. The general revisions/fan-out concept and the `create_revision` tool (still used at implement-time) are unchanged. **Release coupling:** ship this with or after the zensu-monorepo #266 deploy — a backend predating #266 simply produces no baseline (harmless), but a backend WITH #266 plus a plugin still running Phase 5b errors on every apply. Behavioral guard: `tests/e2e-plm/expected/ghost-scan.pattern` gains a `!create_revision` negative assert; `tests/structure/test-ghost-scan-test-detection.sh` P28–P29 pin the removal.
+
+### Fixed
+
+- **Session id is now resolved file-lessly — main-thread `/zensu:tdd` writes key on the real session UUID instead of scattering across `fallback_<PPID>_<hash>` buckets that blinded the TDD phase-gate.** Two components need the session id: hooks already receive it on stdin and use it directly; main-thread skill `zensu-log.sh --phase …` calls have no stdin and *derive* it from the session transcript via `hooks/lib/resolve-session-id.js`. That helper anchored the `~/.claude/projects/<subdir>` lookup on `process.cwd()`, which breaks whenever a phase write runs from a worktree or a subdirectory (wrong subdir → no `.jsonl` → empty), so the skill fell back to a volatile `fallback_<PPID>_<hash>` key while the hooks kept reading the real UUID — a single session's phases scattered across multiple state files and the gate could not see the prior phase. The helper now anchors on `git rev-parse --show-toplevel` (worktree-correct) when `CLAUDE_PROJECT_DIR` is unset (the git call is `timeout`/`maxBuffer`-bounded), so main-thread resolution returns the real UUID from any cwd. The agent-era PPID-keyed cache file — which never helped because each writer recomputed a different `${PPID}_${hash}` key — is removed entirely: `hooks/session-start-capture-sid.sh` and its `SessionStart` registration are deleted, and the Tier-3 cache block in `hooks/lib/zensu-session.sh` `zensu_resolve_session_id()` is dropped (resolution is now `from_json → transcript helper → fallback_<key>`). Regression coverage: new `G1` git-toplevel and `G2` timeout-bound cases in `tests/structure/test-resolve-session-id.sh` and a cache-ignored case in `tests/structure/test-session-id-fallback.sh`; obsolete `tests/structure/test-session-start-capture-sid.sh` removed. Docs updated (`README.md` Hooks 13→12, `docs/tdd-manager-workflow.md` state diagram + resolution prose + a file-less-resolution limitations note).
+
+## [0.8.4] - 2026-06-08
+
+### Added
+
+- **summary**: Narrative CHAIN-END SUMMARY with TL;DR last (#99)
+- **mcp-gate**: Block freelance main-thread Zensu structural writes (default-on) (#98)
+
+### Fixed
+
+- **intent-router**: Front-load ask-first triage, forbid explore/ground-first deferral (#97)
+
+## [0.8.3] - 2026-06-07
+
+### Fixed
+
+- **config**: Deep-merge project config over global instead of first-match shadowing (#95)
+- **context-nudge**: Nudge only on a provable context window (#94)
+
+## [0.8.2] - 2026-06-07
+
+### Added
+
+- **hooks**: Add UserPromptSubmit intent-router for product-planning prompts (#92)
+- **chain-summary**: List every review round in Auto-fix History (#91)
+
+### Changed
+
+- **release**: Publish the release on merge instead of as a draft (#89)
+
+### Fixed
+
+- **ghost-scan**: Classify by data sensitivity, never default to internal (#90)
+
+## [0.8.1] - 2026-06-06
+
+### Changed
+
+- **release**: Push release branch instead of opening the PR (no org write needed) (#85)
+- **release**: Add draft-first release pipeline (git-cliff + release PR) (#83)
+
+### Fixed
+
+- **release**: Bump version files with format-preserving sed, not jq (#87)
+- **ci**: Make the deterministic test suite Linux-portable (#84)
+
+## [0.8.0] - 2026-06-05
+
+### Added
+- **`user-prompt-context-nudge.sh` — proactive `/compact` proposal at a configurable context threshold (default 50%).** A new `UserPromptSubmit` hook addresses the gap that Claude Code exposes no context-threshold hook event and no user-settable auto-compaction threshold, so there was no way to have the main thread *suggest* compaction before the window filled. On each user prompt the hook tail-reads (bounded to the last 256 KB) the session transcript's most recent `usage` block, computes occupancy as `input_tokens + cache_read_input_tokens + cache_creation_input_tokens` ÷ context size, and once usage reaches the threshold injects a model-facing `hookSpecificOutput.additionalContext` reminder so the **main-thread** agent proactively proposes `/compact` to the user. It never triggers compaction itself (only the user can) and is fail-open — missing `node`/`transcript_path`, sub-threshold usage, or any parse error exits 0 silently and never blocks the prompt. A per-session state file at `${CLAUDE_PROJECT_DIR:-.}/.zensu/state/context-nudge-<sid>.txt` records the last 10%-band that fired so the reminder repeats once per band climb (50→60→70…) rather than every prompt, and re-arms after a compaction shrinks the context back down. Configured under a dedicated top-level `context` node of `.zensu/config.json` (not `hooks`): `context.compactionNudge` (enable, default `true`), `context.nudgeThreshold` (default `50`, range `1..99`) and the optional `context.windowSize` (range `1000..100000000`); the latter is unset by default — because hooks are not handed the real context-window size, the occupancy denominator auto-tiers to 200k or 1M from observed usage (occupancy can never exceed the true window, so anything past 200k is a 1M-context session), and `context.windowSize` overrides it for accurate early-session percentages. All settings resolve through the existing env → project-local `.zensu/config.json` → global `~/.zensu/config.json` order, so the nudge is disablable per-project or globally. The transcript read takes the most recent **non-zero** usage block — real Claude Code transcripts can end with a trailing all-zero `usage` record (e.g. a stop/summary line) that would otherwise mask the true occupancy. Adds `zensu_context_nudge_enabled` / `zensu_context_nudge_threshold` / `zensu_context_window_size` accessors to `hooks/lib/zensu-config.sh`, registers the hook in `hooks/hooks.json`, seeds the `context` node in `config.example.json`, and documents the hook + settings in `README.md` (Hooks table bumped 9→10, Hook Opt-Out table) and `skills/zensu-help/SKILL.md`. Pinned by `tests/structure/test-context-nudge-hook.sh` (18 deterministic checks incl. auto-tier + zero-usage skip) and the live `tests/e2e-context-nudge/` suite, which drives a real `claude --print` run and asserts the hook reads the genuine session-transcript format fail-open (wired into `tests/run-all.sh --live`/`--self-check`).
+
+## [0.7.1] - 2026-06-05
+
+### Added
+- **Project-context planning triage (greenfield / brownfield / hybrid) + per-feature build-out stages seeded at discovery.** The `zensu-plm` agent routed to `/zensu:bootstrap` vs `/zensu:ghost-scan` only when the user explicitly said "here's a plan" or "scan my repo" — for an ambiguous project (an existing codebase that *also* ships a forward-looking plan doc) it guessed, and there was no path capturing *both* the already-built features and the plan's not-yet-built ones. Separately, a feature's build-out stage is a **Revision** (`create_revision`, auto-versioned v1, v2, …), but `ghost_apply` created none — ghost-discovered features landed with an empty history and no Stage 1 to grow from (revisions were only ever created in the `/zensu:implement` flow). This release: (1) adds a **project-context triage** to `agents/zensu-plm.md` Decision Rules — the agent asks three discriminating questions (code already built? plan/vision doc present? if both, does the plan describe not-yet-built items?) and routes greenfield→bootstrap, brownfield→ghost-scan, or **hybrid**→ghost-scan then `create_feature(status=planned)` for the remainder (no new skill), plus a matching hybrid workflow pattern; (2) adds a **Phase 5b "Baseline Revision"** step to `skills/ghost-scan/SKILL.md` (mirrored by agent workflow step 8 + Important Rule #12) that seats each newly created feature at a v1 baseline revision built from the scan's own data (`scope_summary`/`scope_details`/`estimated_effort`/`coverage_target`), skipping enriched features that already carry history; (3) documents the **fan-out model** — revisions are a feature's build-out *stages over time*, subfeatures (`add_subfeature`) its structural *parts*, both distinct from the product-level roadmap — in the agent Core Concepts and the `/zensu:zensu-help` glossary (enriched `Revision` entry, new `Subfeature` entry, triage in Three Layers + a Topic Routing row); and (4) adds a **Hybrid (Existing Codebase + Forward Plan)** workflow to `README.md` plus a build-out-baseline note on Layer 1 and the Existing Codebase flow. `skills/bootstrap/SKILL.md` gains greenfield framing, brownfield/hybrid cross-references, and a note that bootstrapped features start `planned` with no v1 baseline (they get one at implement-time). Guidance-only — no runtime/tool changes. Deferred to a separate zensu-monorepo follow-up: product-level roadmap/Gantt wiring (`create_roadmap`/`create_milestone`) and a backend gap where bulk `ghost_apply`/`apply_bootstrap` + `update_feature` cannot set status (so built features sit at `planned`) and `ghost_apply` could mint the v1 baseline natively.
+
+## [0.7.0] - 2026-06-05
+
+### Changed
+- **Plan approval now ASKS whether to run the TDD flow instead of silently auto-triggering it.** `hooks/plan-approved-delegate.sh` previously injected a directive whose hard contract was "your VERY NEXT TOOL CALL must be `Skill skill='zensu:tdd'`" for every code-bearing plan — so a user who did not always want strict RED→GREEN TDD had only two blunt opt-outs: the persistent global `hooks.autoTdd:false` (all-or-nothing) or remembering to type an undiscoverable negation phrase (`kein tdd`) into the approval message. The directive is rewritten so that, by default (`autoTdd` enabled), the main agent's first action after approval is the `AskUserQuestion` tool — "Run the strict TDD flow for this plan?" with `Yes — TDD flow` / `No — implement directly` — and it then runs `/zensu:tdd` in the main thread on yes or implements directly (phase-gate never armed) on no. Three fast-paths still skip the question: doc-only plans, an explicit TDD preference already in the approval message (negation **or** a new affirmation set — `use tdd` / `mit tdd` / `tdd bitte`), and non-interactive Auto Mode / headless runs (no human to answer → default to running TDD, avoiding a deadlock). `hooks.autoTdd:false` is unchanged — it still suppresses the hook entirely (no question, implement directly). The SessionStart user banner (`hooks/session-start-banner.sh`) and agent primer (`hooks/session-start-primer.sh`) and the `README.md` agent-flow diagram, skills/hooks tables, and `autoTdd` opt-out row are updated to describe the ask-first behavior. Pinned by `tests/structure/test-plan-approved-delegate.sh` (new D8 asserts the directive routes through `AskUserQuestion`; D3/D4/D5/D6/D7 unchanged) and the interactive `evals/plan-approval-hook` harness now answers the prompt.
+- Docs polish: the `README.md` brownfield quick-start and the `/zensu:zensu-help` planning overview now state that `/zensu:ghost-scan` produces user journeys and linked docs via a multi-agent fan-out — not just features — aligning the high-level copy with the 0.6.8 skill behavior.
+
+## [0.6.8] - 2026-06-05
+
+### Added
+- **`/zensu:ghost-scan` — multi-perspective fan-out, user-journey discovery, and first-class docs.** The skill ran a single-pass heuristic walk in the main thread and missed features that span modules or are only legible from entry points, tests, data models, or docs; it never produced user journeys (so brownfield imports could not satisfy the journey-health release gate); and it treated `detectedDocFiles` as a second-class bonus — the same empty-by-omission trap that dropped ~600 tests before 0.6.5. `skills/ghost-scan/SKILL.md` now: (1) keeps the Phase 2 walk as a **seed** and adds **Phase 2b**, a read-only `Explore` fan-out spawned in one parallel batch with an adaptive lens count (cap 12: `<150` files → ~4 lenses, `150–500` → ~8, `>500` → up to 12; core lenses domain-boundary, test-mapper, journey-analyst, docs-coverage always cast), consolidated in the main thread with a no-silent-caps log — the house pattern from `/zensu:plan-review` and `/zensu:tdd` Phase 6; (2) adds **Phase 5 Journey Discovery & Creation** after apply, mapping drafted journeys to real feature IDs and creating them via `create_user_journey` → `create_journey_step` → `analyze_journey_health` (mirrors `/zensu:bootstrap` Step 2), plus a Phase 1 `list_journeys` dedup load; and (3) promotes docs to first-class — a co-location glob (step 7), a "Doc-file completeness" quality rule mirroring the test-file rule, a pre-submit self-check that sums `detectedTestFiles` **and** `detectedDocFiles`, a Phase 4 "Scan the Docs column" review flag, and a Phase 6 doc-gap report that recommends `/zensu:implement` for features with zero docs (ghost-scan links existing docs, never generates new ones). `agents/zensu-plm.md` mirrors all three in the ghost-scan workflow steps and a new Important Rule #11. The e2e behavioral-contract pattern (`tests/e2e-plm/expected/ghost-scan.pattern`) and prompt (`tests/e2e-plm/prompts/ghost-scan.txt`) gain lenient journey/docs/fan-out assertions. Pinned by `tests/structure/test-ghost-scan-test-detection.sh` (P14–P26).
+
+## [0.6.7] - 2026-06-04
+
+### Added
+- Zensu logo at the top of `README.md`, linked to the homepage (`https://zensu.dev`); asset committed at `assets/zensu-logo.svg`.
+
+### Changed
+- **`.zensu/plans/` and `.zensu/logs/` are no longer tracked — the per-run TDD audit trail is now local-only, ahead of making the repository public.** These 144 files were ephemeral dogfooding output of running the plugin on itself (German-language prior-round plans/logs carrying developer-machine absolute paths like `/Users/<name>/...`); shipping them publicly added repo noise and personal-path leakage with no consumer value (no test or runtime path reads the *committed* historical files — `agents/code-reviewer.md` and the evals read whatever the live session writes at runtime). `.gitignore` now blanket-ignores `.zensu/*` and re-includes only the durable `.zensu/config.json`; `git rm --cached` drops the existing tracked plans/logs from `HEAD` (history is preserved, not rewritten). `tests/structure/test-gitignore-zensu.sh` is inverted to pin the new contract (plans + narrative + witness logs all ignored; `config.json` tracked). The `CLAUDE.md` Language section is updated — the German-exemption note for "immutable audit trail" files is replaced by "runtime, gitignored, never committed; every tracked file must be English-only."
+
+### Fixed
+- **Install instructions omitted the required `claude plugin marketplace add` step.** `README.md` and `CONTRIBUTING.md` advertised only `claude plugin install zensu --scope project`; with the `zensu` marketplace not yet registered, that command cannot resolve the plugin. Both now prepend the marketplace-add step (GitHub slug `MKITConsulting/zensu-claude-code` in README, local clone path `.` in CONTRIBUTING for local-dev eval).
+- **`tests/e2e/test-runner.sh` — hardcoded absolute `cp` path from a non-existent worktree broke the `false-test-claim` pattern test for every other machine.** Line 256 copied the fixture from `/Users/<name>/.../worktrees/quirky-black-840860/tests/e2e/expected/false-test-claim.pattern` — a dead per-session worktree that exists only on the original author's disk — so the test failed (or silently skipped) anywhere else. Replaced with the script-relative `"$TEST_DIR/expected/false-test-claim.pattern"` (the file is tracked at that path). Also genericized a developer-machine absolute path in `tests/structure/test-resolve-session-id.sh` (`/Users/<name>/...` → `/Users/foo/...`) to match the synthetic-path convention the rest of that file already uses; the regression value (dotted `dev.zensu` segment → dash sanitization) is unchanged.
+- **`.claude-plugin/marketplace.json` owner email aligned with `plugin.json`.** The marketplace manifest advertised `contact@zensu.dev` while the plugin manifest, README, and CODE_OF_CONDUCT all use `hello@zensu.dev`; standardized to `hello@zensu.dev`.
+- **English-only violation in a tracked test fixture.** `evals/tdd-manager-pretool/test-projects/react-go-fullstack/CLAUDE.md` contained German (`Test-Projekt`, `Komplett:`); corrected to English.
+
+## [0.6.6] - 2026-06-03
+
+### Fixed
+- **Witness `exit=?` was permanent for every command, silently degrading the Phase-6 anti-hallucination cross-check; restored the stdout `tail=` evidence channel and corrected the false exit-code contract.** Claude Code's Bash `tool_response` carries no `exit_code` field (only `stdout`/`stderr`/`interrupted`/`isImage`), so `hooks/post-bash-witness.sh` reading `tool_response.exit_code` always fell through to `?` — not the rare "missing tool_response" fallback the prior CHANGELOG and `skills/tdd/SKILL.md` claimed. The Phase-6 audit therefore only ever grep-matched `cmd="X"`, never corroborating that a claimed-passing run actually passed. The witness now records `tail=` (JSON-escaped last 200 chars of stdout) and `interrupted=` again — both were dropped in `0f9fc9a` as a side effect of the bash-3.2 field-split repair, not because the data was unwanted — using the same bash-3.2-safe newline-delimited read (now 5 fields; `JSON.stringify(tail)` keeps the whole record on one physical line, so multiline stdout cannot desync the parse). `skills/tdd/SKILL.md` Phase 5/6 now states the corrected contract (witness `exit=` is `?`; corroborate by `cmd=` + `tail=`, **not by exit code**) and adds a result-corroboration step that scans the **field-scoped `tail=` value** (the substring after ` tail=` up to ` interrupted=`, never the whole line — so a `cmd=` containing `error`/`fail` cannot trip a false positive) and emits `EVIDENCE CONTRADICTION — cmd="X" claimed PASS but witness tail shows <marker>` when a claimed pass is contradicted by the captured tail. Regression coverage: `tests/structure/test-post-bash-witness.sh` H10–H15/H13b (production-shaped no-`exit_code` payload → `exit=? tail=…`; multiline tail stays on one physical line when the hook runs under `/bin/sh` Apple bash 3.2; 200-char truncation, positive `interrupted=true`, and `tail=` double-quote round-trip; test feeds hardened `echo`→`printf '%s\n'` so backslash/newline payloads survive bash-3.2 `echo`), `tests/structure/test-tdd-full-cycle.sh` W1/W1b, `tests/structure/test-tdd-manager-patches.sh` R16-P1/P2, and `tests/e2e-tdd/run.sh` step 7. Validated end-to-end against a live `/zensu:tdd` cycle: the nested RED run recorded `tail="…ℹ pass 0 ℹ fail 1…"` and its GREEN run `tail="…ℹ pass 3 ℹ fail 0…"`, both under `exit=?` — exactly the result corroboration the fix restores. `docs/tdd-manager-workflow.md` witness format gains `interrupted=`, an `exit=?` reality note, and a stdout-only tail caveat.
+
+### Added
+- **`skills/tdd/SKILL.md` — Principle 2 Cross-Layer Value Flow Pairing rule.** New mandatory pairing: when a Feature/Bug-Fix step routes a NEW value, field, payload key, or query parameter through an UNCHANGED adjacent layer (e.g. a frontend payload field consumed by an existing backend persistence command, a new column written by an existing repository call, a new query parameter read by an existing HTTP handler), the plan MUST include a paired Characterization step `[G]` in the unchanged layer that runs BEFORE the originating step and asserts the value at the unchanged layer's OWN seam (DB row, response body, persisted file, returned struct) — never at a caller-side mock. Closes the silent-contract-regression gap where a caller-side mock (e.g. an `onUpdate` spy in a UI test) certifies the wire but the unchanged consumer's contract handling is never asserted, so a regression that drops the value silently passes the per-step RED→GREEN AND the Phase-5 full-suite safety net (nothing to regress when no assertion ever existed). Trigger detection lives in Phase 1 step 6 (planning); a new `## Cross-Layer Value Flow Pairings` table in the Phase 2 plan template records the pairings; audit enforcement in new Phase 6 step 6b verifies the pairing exists, runs before the originating step (mtime check), asserts at the unchanged layer's seam (not a mock), and grep-detects added field/payload literals that lack a paired characterization. A new rationalization counter under Principle 1 (`"Backend code didn't change, no test needed"`) calls out the most common bypass thought.
+- **Code-grounded documentation guidance — new `docs/documentation-guide.md`, reinforced across `agents/zensu-plm.md`, `skills/implement/SKILL.md`, and `skills/ghost-scan/SKILL.md`.** Doc/wiki generation was producing generic "metadata dumps": `get_doc_generation_context` returns a context *map* (feature title/description, `detectedSourceFiles` paths, security posture, symbols), and agents were condensing that metadata straight into `## Purpose / ## Source files / ## Security / ## Notes` wiki pages **without ever reading the named source** — yielding a reformatted feature record rather than documentation. The root cause was guidance-only: the plugin declared the `doc_type` enum (`skills/implement/SKILL.md` Step 6) and listed the wiki tools (`agents/zensu-plm.md`) but never said what a doc is, which types exist, or how to author one — and the actual doc-writing was done by `zensu-plm` agent instances with no governing workflow. The fix adds (1) `docs/documentation-guide.md` — the single source of truth: what a code-grounded doc is, the forbidden metadata-dump anti-pattern, the 8 canonical doc types (`user_facing`, `api_reference`, `tutorial`, `adr`, `release_notes`, `internal`, `migration_guide`, `overview`) with audience + per-type focus mirrored verbatim from the backend generator, a read-source-first procedure (`get_doc_generation_context` = map → read the real source = territory → author → publish), a tool reference, and a quality checklist; (2) a new `zensu-plm` Important Rule 10 ("Documentation is code-grounded, never a metadata dump") plus a "When the user wants documentation" workflow pattern, a matching Decision Rule, and a corrected `get_doc_generation_context` tool blurb (it is a context map, not a doc generator); (3) a rewritten `implement` Step 6 that reads the Step-5 source files, authors grounded in real signatures/endpoints, publishes via `create_wiki_page`, then `link_docs` (doc-type list extended to the canonical 8 with `overview`); (4) a `ghost-scan` note that `detectedDocFiles` links *existing* docs only and authoring new docs follows the guide. Context: the rich `POST /api/features/{id}/docs/generate` streaming-LLM path is frontend-only (not MCP-reachable), so agents self-author from real source — which can exceed it, since full source beats the backend's symbol-only context. The skill/agent references use an explicit **Read `docs/documentation-guide.md`** imperative (not a soft "see"/"follow" pointer) so the guide is actually loaded before authoring, and `skills/zensu-help/SKILL.md` Topic Routing surfaces it for documentation Q&A. Pinned by `tests/structure/test-doc-generation-guidance.sh` (17 assertions).
+- **`agents/zensu-plm.md` — Knowledge (Second-Brain) MCP tools surfaced for proactive use.** The Zensu backend shipped three retrieval-only knowledge tools — `search_knowledge` (hybrid semantic + keyword search over the org's knowledge pool, returning ranked passages with provenance), `get_knowledge_item`, and `list_knowledge_sources` — already live and dynamically discoverable through the hosted MCP server (`https://mcp.zensu.dev/mcp`), so nothing was *wired*; the gap was guidance: the agent never reached for them. The `zensu-plm` agent now lists the three tools under a new `### Knowledge (Second-Brain)` category (tool count 60 → 63), gains a Decision Rule to `search_knowledge` before planning or implementing a feature (and when asked what the org already knows about a topic), and a new Important Rule #9 making it explicit that work should be grounded in existing org knowledge and that knowledge tools are **retrieval-only** — they return evidence passages with provenance, never a generated answer, so the agent must synthesize and cite the provenance itself. The `/zensu:implement` skill Step 1 gains a matching `search_knowledge` sub-step. Feature reference: zensu-monorepo `docs/knowledge/KNOWLEDGE.md`.
+
+## [0.6.5] - 2026-06-03
+
+### Changed
+- **Ghost-scan guidance now treats test-file detection as a gated, first-class step — agents were calling `ghost_scan` with `detectedTestFiles: []` and silently dropping every test→feature link (a real scan left ~600 discovered tests unlinked).** The root cause was guidance-only: `skills/ghost-scan/SKILL.md` listed test-file *patterns* in Phase 2 but never named the `detectedTestFiles` array agents must populate, gated source files ("Minimum 3 source files") while leaving tests as a mere confidence bonus (+0.3), and gave no per-candidate detection mechanic — so the array defaulted to empty and `ghost_apply` (which links exactly what it is passed) linked zero tests. The skill now (1) names all three detection arrays in Phase 2 and adds a co-location directive — tests live in each candidate's source dirs, so glob the test patterns there plus sibling `test/`, `tests/`, `__tests__/`, `spec/`, `specs/`; (2) adds a Candidate Quality Rule for test completeness mirroring the source-file rule (an empty `detectedTestFiles` is valid only after a glob confirms genuinely zero); (3) shows the explicit candidate JSON shape in Phase 3 plus a pre-submit self-check (repo surfaced tests but the cross-candidate `detectedTestFiles` sum is 0 → STOP and re-glob); (4) tells Phase 4 review to flag an all-zero Tests column; and (5) documents the cheap backfill path for a scan that already created features without tests — re-scan reusing the existing slugs + `ghost_apply enrich_existing=true` attaches tests to the existing features by slug (no duplicates, ~2 calls per module instead of one `link_test` per test). `agents/zensu-plm.md` gets the matching reinforcement: the ghost-scan workflow step 2 now requires populating `detectedTestFiles`, and a new Important Rule #8 makes tests first-class scan data with the same backfill guidance. Pinned by `tests/structure/test-ghost-scan-test-detection.sh`.
+
+### Fixed
+- **README "API Key (CI/CD)" section now documents the working headless-auth setup.** The section told CI/CD users to `export ZENSU_API_KEY=zsk_...` and stop there, but the bundled `.mcp.json` carries no `Authorization` header and nothing wires the env var into one — so the exported key was never sent, and headless auth failed (`invalid api key` / 401) while Claude Code fell back to an OAuth flow that has no browser in CI. Interactive users were never affected: the missing header is precisely what lets the OAuth browser login run, and that path works (`claude mcp list` shows `plugin:zensu:zensu … ✓ Connected`). The section now instructs registering a user-scope MCP entry that forwards the key as `Authorization: Bearer ${ZENSU_API_KEY}` (`claude mcp add zensu … --header … --scope user`), mirroring the existing Self-hosting pattern and the 0.5.0 decision to keep `.mcp.json` free of environment-variable magic; the precedence and secret-on-disk trade-offs (double- vs single-quoted header) are spelled out. The Environment Variables table row and the "Invalid API key" troubleshooting row gain cross-references to the corrected section. Docs-only; no runtime change.
+
+## [0.6.4] - 2026-06-02
+
+### Added
+- **`/zensu:plan-review` — multi-agent plan revalidation before implementation (`skills/plan-review/SKILL.md`).** A new skill that takes an implementation/design plan and revalidates it with a tailored reviewer team spawned via `TeamCreate` — **before** any code is written. It scouts the plan's scope, dynamically casts N reviewer personas (default 6, clamp 3–10; N is also parsed from natural language such as "6-agent team") from a 12-persona **stack-agnostic** pool — `requirements-completeness`, `feasibility-soundness`, `testing-tdd`, and `devils-advocate` as the always-cast core 4, plus `architecture-fit`, `security-privacy`, `data-persistence`, `risk-rollout`, `scope-sequencing`, `integration-impact`, `performance-scale`, and `frontend-ux` by trigger match — spawns them in one parallel background batch as **read-only** validators (each verifies the plan against the real codebase and writes a single JSON verdict to an `mktemp -d` working dir), then consolidates a convergence map into ONE report with a `GO` / `GO-WITH-CHANGES` / `REVISE` / `NO-GO` verdict plus concrete plan amendments. It is a self-contained single-file skill: the lead injects each persona's focus and output schema directly into the spawn prompts, so no bundled reference files are needed and nothing resolves a user-space path. Advisory only — it writes no code, never approves the plan, and triggers no TDD gate. Registered in `.claude-plugin/plugin.json` (version synced to 0.6.4 across `plugin.json` + `marketplace.json` + the README badge); the README Skills section is updated to (10). Pinned by `tests/structure/test-plan-review-skill.sh` (title convention, orchestration essentials, English-only + stack-agnostic guards, plugin.json registration, cross-file version sync, namespaced command refs, `mktemp -d` working dir).
+
+## [0.6.3] - 2026-06-02
+
+### Changed
+- **`agents/zensu-plm.md` inherits the full main-thread toolset.** Dropped the `tools: Read, Bash` frontmatter line so the orchestrator no longer runs under a restricted whitelist — it now inherits whatever tools the main thread has, matching how an agent with no `tools:` field behaves. This reverses the `0.3.17` reduction (which trimmed the list to `Read, Bash` to silence the agent inspector's `⚠ Unrecognized: Grep, Glob` warning); removing the list entirely sidesteps that warning without pinning the toolset. The e2e behavioral-contract pattern comments in `tests/e2e-plm/expected/*.pattern` and `tests/e2e-plm/README.md` had their `agents/zensu-plm.md:NNN` line references decremented by 1 to track the deleted line.
+
+## [0.6.2] - 2026-06-01
+
+### Fixed
+- **Witness log corruption under Apple bash 3.2 (`hooks/post-bash-witness.sh`).** The `#!/bin/bash` shebang resolves to macOS's system bash 3.2.57 (also what `/bin/sh` is), which does NOT honor `IFS=$'\x01' read <<<` — it collapsed every field into `cmd`, leaving `exit=` empty and bleeding the session id into the command on every line. The parse now writes node's fields as newline-delimited records to a temp file and reads them with plain `read` (works identically under bash 3.2, bash 5, and dash). Pinned by `tests/structure/test-post-bash-witness.sh` P12-H10 (invokes the hook under `/bin/sh`).
+
+### Changed
+- **Witness line drops the `tail=` field (`hooks/post-bash-witness.sh`).** The Phase 6 cross-check only greps `cmd=`; the last-200-char stdout tail was pure verbosity. Lines are now `[ts] BASH cmd=… exit=…`.
+- **`.zensu/` paths bypass the TDD phase-gate (`hooks/pre-edit-tdd-reminder.sh`).** Plan + log artifacts carry no production code, so they are editable during any TDD phase. This lets `/zensu:tdd` Phase 2 write the plan with the **Write tool** instead of a Bash heredoc — keeping the full plan body out of the witness log (`skills/tdd/SKILL.md` updated). A `..` traversal guard keeps paths that merely contain `/.zensu/` but escape it (e.g. `…/.zensu/../src/x.ts`) gated. Pinned by `tests/structure/test-pre-edit-hook-mirror.sh` C8/C9 and `test-tdd-manager-patches.sh` MT5.
+
+### Internal
+- Repaired stale activation seeding in `tests/structure/test-post-bash-witness.sh` and `test-pre-edit-hook-mirror.sh`: both still seeded the obsolete `CLAUDE_AGENT_TYPE=zensu:tdd-manager` scoping (dead since the 0.4.0 chain-state migration) and had been red; they now seed the chain-state `active` flag.
+
+## [0.6.1] - 2026-06-01
+
+### Changed
+- **`/zensu:tdd` task tracking hardened from soft prose to a mandatory contract — the main agent was skipping `TaskCreate`/`TaskUpdate`, leaving the user without the live progress dashboard the skill promised.** Tasks were the only one of the skill's status channels with no enforcement backstop: the narrative log is cross-checked by the Bash witness, every edit is gated by the PreToolUse phase-gate, and the review chain is guaranteed by the Stop hook — but `TaskCreate`/`TaskUpdate` were a single soft line in Principle 3, so the model routinely treated them as optional and dropped them. The 0.4.0 main-thread migration compounded this by losing the task-count assertion the old subagent baseline carried (`evals/tdd-manager/promptfooconfig.yaml` scored `TaskCreate` calls at weight 3; the ported `evals/tdd-manager-pretool` suite shipped with no task assertion), so nothing measured the regression either. Per a deliberate design call this is fixed with **prose + eval only, no new runtime machinery** — tasks are the user's progress dashboard (a UX affordance), not a correctness invariant like "no IMPL before a failing RED", so a hard Stop-gate or a runtime task-witness hook would be disproportionate and would cheapen the review-chain gate it reused. `skills/tdd/SKILL.md` gains a `### Per-Step Task Contract (MANDATORY)` block mirroring the existing Per-Step Logging Contract (each step's `[test]`/`[impl]`/`[verify]` tasks must be created in Phase 3 and flipped `in_progress` → `completed` in lockstep with RED/IMPL/GREEN; a Phase 4 cycle with no corresponding `in_progress` task is a discipline violation of the same class as a missing log entry), a new rationalization counter (*"Tasks are just UI noise — the log already tracks progress"* → LIE), Principle 3 channel 2 promoted to **Tasks (MANDATORY)**, a reinforced Phase 0 `ToolSearch` load, and a gated Phase 3 ("Do NOT enter Phase 4 until every step has its tasks"). The lost measurement is restored in `evals/tdd-manager-pretool/scenarios/{01-happy-frontend,02-happy-backend}.yaml`: a JS assertion counts the wrapper-rendered `[tool_use: TaskCreate]` transcript lines (`pass` at `>=1`, full score at 3) — no provider `toolCalls` metadata and no runtime witness needed, since `scripts/claude-promptfoo-wrapper.sh` already surfaces every tool call as `[tool_use: <name>] input=…`. Pinned by new asserts MT6/MT7 in `tests/structure/test-tdd-manager-patches.sh`. Two ancillary fixes ride along: `tests/structure/test-self-review-skill.sh` now derives its expected version from `plugin.json` (was a hard-coded literal that re-broke on every release bump), and `evals/tdd-manager-pretool/README.md` was translated from German to English per the repo's English-only convention.
+
+## [0.6.0] - 2026-06-01
+
+### Added
+- **Parallel review fan-out in the `/zensu:tdd` post-implementation review chain.** Phase 6.10 previously spawned a single `zensu:code-reviewer` subagent that walked its five specialist perspectives (conventions, bugs, architecture, tests, security) sequentially — the slowest part of the chain. It now fans them out to five read-only `zensu:review-aspect` subagents spawned in ONE parallel batch (the single sanctioned exception to the skill's "no parallel tool batches" rule, carved out explicitly in `skills/tdd/SKILL.md`) and merges their `## Aspect:` findings in the main thread (deduplicate by `file:line`, sort CRITICAL → IMPORTANT → SUGGESTION). A new `agents/review-aspect.md` defines the single-perspective reviewer: `tools: Read, Grep, Glob, Bash` with Bash prose-restricted to `git diff HEAD -- <file>` and a hard prohibition on build/test execution, so the five parallel reviewers never re-run the suite — it already ran once in the Phase 6 audit. The merged findings re-enter the existing hook machinery unchanged through a thin **fan-out consume mode** added to `agents/code-reviewer.md`: when its spawn prompt carries the marker `PRE-MERGED FINDINGS (fan-out)`, the reviewer skips its Phases 1-4 (no re-read, no build, no test) and emits the consolidated report from the supplied pre-merged findings. Because that single `zensu:code-reviewer` completion is the only event `hooks/post-review-tdd-delegate.sh` keys on (the hook reads no findings content), the round counter, `autoFixMaxRounds` auto-fix loop, `stop-chain-enforcer.sh` Stop-hook guarantee, and `/zensu:self-review` hand-off are all byte-for-byte unchanged. Auto-fix rounds re-run the fan-out (re-fan-out → re-merge → thin spawn), one reviewer completion per round, so round-counter semantics are identical. `review-aspect` is registered in `.claude-plugin/plugin.json`; the README Agents section is updated to (3). Pinned by `tests/structure/test-review-aspect-agent.sh` and `tests/structure/test-tdd-skill-review-fanout.sh`.
+
+## [0.5.0] - 2026-06-01
+
+### Added
+- **`/zensu:self-review` — terminal self-reflection stage of the post-implementation review chain.** Ported from the user-level `/reflect` skill and translated to English. After the `zensu:code-reviewer` chain converges (PASS, suggestions-only, or max-rounds), the chain no longer terminates immediately; instead it hands off to `/zensu:self-review`, which re-reads this session's own changes as a senior engineer across seven dimensions (architecture, consistency, edge-cases, test coverage, security, simplification, conventions), emits a Positive / Improvements / Risks reflection, takes **at most one** fix round under the still-active TDD phase-gate if a must-fix surfaces — **without** re-running the code-reviewer — and then owns the chain terminus (`--chain-done`) and renders the final report with a new `## Self-Review Summary` section. Hard hook-enforced: a new `codeReviewDone` chain-state flag plus a `selfReviewFixed` one-fix-round latch (`hooks/lib/zensu-tdd-phase.sh`, both preserved across phase writes), two new `zensu-log.sh` markers (`--code-review-done`, `--self-review-fixed`), Stop-hook routing (`stop-chain-enforcer.sh`: `codeReviewDone && !chainDone` forces the Skill), and post-review hand-off (`post-review-tdd-delegate.sh`: PASS / suggestions-only / max-rounds all route to self-review instead of closing). Gated by the new `hooks.selfReview` config flag (default true); set `hooks.selfReview=false` to restore the previous behavior where the code-reviewer convergence closes the chain directly.
+
+## [0.4.2] - 2026-05-31
+
+### Fixed
+- **The `/zensu:tdd` narrative log path is now anchored to `${CLAUDE_PROJECT_DIR:-.}` so per-phase appends are working-directory-independent.** The narrative log was the only zensu artifact whose path was relative and unanchored: `skills/tdd/SKILL.md` created the directory with `mkdir -p .zensu/logs` exactly once in Phase 0, while every later per-phase append (Principle 3, Phase 4) emitted a bare `>> .zensu/logs/{SESSION_TS}_tdd-{slug}.log` that assumed the directory still existed *relative to the current working directory*. In a multi-directory project (e.g. a worktree root plus a nested build subdir such as `src-tauri`) an append issued after the shell's cwd had moved resolved the relative path against the wrong base and failed with `no such file or directory: .zensu/logs/..._tdd-....log`, aborting the log write mid-run. By contrast the witness log and all FSM state files already anchored with `${CLAUDE_PROJECT_DIR:-.}` (`hooks/lib/zensu-log.sh`, the Phase 5 witness path). The fix makes the narrative log consistent with that convention: `skills/tdd/SKILL.md` now defines `{log_file}` as the cwd-independent `"${CLAUDE_PROJECT_DIR:-.}/.zensu/logs/{SESSION_TS}_tdd-{slug}.log"` in Principle 3, anchors the Phase 0 `mkdir -p "${CLAUDE_PROJECT_DIR:-.}/.zensu/logs"` + create redirect, and routes the tail hint through `{log_file}` — so no `>`/`>>` redirect targets a bare relative `.zensu/logs/` path anymore. When `CLAUDE_PROJECT_DIR` is set (the normal claude-code case) the cwd-drift failure class is eliminated; when unset the `:-.` fallback preserves today's relative behavior, making the change a strict improvement with no regression. Doc references in `docs/tdd-manager-workflow.md` (the append example + the channel table) and `skills/implement/SKILL.md` were updated to the anchored form for consistency. Pinned by the new `tests/structure/test-tdd-log-path-anchor.sh` (asserts the anchored `mkdir`, the anchored `{log_file}` definition, and the absence of any bare-relative `.zensu/logs/` redirect).
+
+## [0.4.1] - 2026-05-31
+
+### Fixed
+- **Auto-fix rounds counter now resets at each fresh task — subsequent tasks in the same session no longer inherit a stale round count.** The auto-fix loop guard keys its counter by the Claude Code session id (`rounds-<session_id>.json`), and `hooks/post-review-tdd-delegate.sh` increments it on every `zensu:code-reviewer` completion. Before this fix the counter was only ever cleared by the manual `/zensu:reset-review-limit` skill — never on a new task — so a second (or later) task in the same session started its review chain at the first task's final round. If task 1 ended at or near `autoFixMaxRounds`, task 2 emitted `Auto-fix convergence: max N rounds reached` on its very first review (or after one fix round), short-circuiting the auto-fix loop. The fix resets the counter at the fresh-task boundary: `hooks/lib/zensu-log.sh --tdd-begin` — which `/zensu:tdd` Phase 0 runs exactly once per task, before any edit — now deletes `rounds-<session_id>.json` after setting the chain-state `active` flag, mirroring the counter owner's path resolution (`${CLAUDE_PLUGIN_DATA_OVERRIDE:-${CLAUDE_PROJECT_DIR:-.}/.zensu/state}`) and symlink-traversal guards. Fix rounds re-enter Phase 4 (never Phase 0), so the max-rounds guard still works WITHIN a single task's fix loop; only the cross-task carry-over is removed. `skills/reset-review-limit/SKILL.md` reworded: the manual skill is now only needed to grant *additional* budget within a single task, not between tasks. New `evals/config-gate/test-autofix-rounds-reset-on-fresh-tdd.sh` (registered in `run-eval.sh`) pins the behavior: `--tdd-begin` deletes a pre-seeded counter and still sets `active=true`; `--tdd-complete`/`--chain-done` preserve it; reset is idempotent when the counter is absent; and the symlink guard refuses to delete through a symlinked counter file or state dir.
+
+## [0.4.0] - 2026-05-30
+
+### Changed
+- **BREAKING (workflow): TDD execution migrated from the `zensu:tdd-manager` subagent to the MAIN agent.** Field testing showed too much implementation context was lost across the main↔subagent boundary when `tdd-manager` ran as an `Agent`-tool subagent. The entire Red/Green workflow (Phases 0–6, Principles 1–3, the rationalization counters, hard bans, precondition discovery, mtime + drift audits, structured-evidence witness cross-check) now lives in a new main-thread skill, `skills/tdd/SKILL.md`, invoked as `/zensu:tdd`. `zensu:code-reviewer` remains the only subagent. The auto-review/auto-fix chain is preserved end-to-end but is now driven from the main thread and **guaranteed** by a new `Stop` hook rather than by the (now non-existent) tdd-manager `Agent`-completion event. Migration of the routing surfaces: `hooks/plan-approved-delegate.sh` now directs the main agent to invoke the `/zensu:tdd` skill (was: spawn the subagent); `hooks/post-review-tdd-delegate.sh` now routes reviewer findings back into the main thread to be fixed in-thread under the still-active PreToolUse phase-gate, then re-spawns `zensu:code-reviewer` (was: spawn a fresh tdd-manager subagent to fix); `skills/implement/SKILL.md` Step 3 invokes the skill instead of the subagent. The PreToolUse phase-gate (`hooks/pre-edit-tdd-reminder.sh`) and the Bash witness (`hooks/post-bash-witness.sh`) no longer activate on `CLAUDE_AGENT_TYPE=zensu:tdd-manager` (never set in the main thread) — they activate on a per-session chain-state `active` flag set by `zensu-log.sh --tdd-begin` in Phase 0. A beneficial side effect: the session id now unifies on the harness session id across the gate, witness, Stop hook, and rounds counter, retiring the old PPID/prochash divergence between the subagent's writes and the gate's reads. NOTE: the heavy eval/test suites that hard-code the subagent model (`evals/config-gate/test-pre-edit-*.sh`, `evals/tdd-manager*`, `evals/tdd-review-chain`, the promptfoo wrapper, and four `tests/structure/*` files) are migrated in a tracked follow-up; this release ships the runtime migration plus a hermetic `tests/structure/test-smoke-main-thread-chain.sh` Funktionsnachweis.
+
+### Added
+- **SessionStart "Zensu active" banner + agent primer.** Two new fresh-start-only hooks gated by `hooks.sessionBanner` (default `true`): `hooks/session-start-banner.sh` prints a user-facing banner to stdout (Zensu PLM version, the Plan → `/zensu:tdd` → review-chain flow, the skills list, and the opt-out hint), and `hooks/session-start-primer.sh` injects a short `additionalContext` primer so the agent proactively uses Claude Code Plan mode → `/zensu:tdd`. Both parse the SessionStart `source` and fire only on `startup`/`clear` (silent on `resume`/`compact` to avoid spam). Registered in `hooks/hooks.json`; documented in the README Hooks (9) + Hook Opt-Out tables and `config.example.json`; pinned by `tests/structure/test-session-start-banner.sh`.
+- **`skills/tdd/SKILL.md` — main-thread TDD workflow (`/zensu:tdd`).** Carries the full Phase 0–6 discipline migrated from the deleted `agents/tdd-manager.md`, reframed so the main agent is the implementer. Phase 0 adds an `--tdd-begin` activation step; Phase 6 step 10 adds `--tdd-complete` + an explicit `zensu:code-reviewer` spawn (with a zero-file-changes `--chain-done` short-circuit). Registered in `plugin.json` (skills) and `marketplace.json`.
+- **`hooks/stop-chain-enforcer.sh` — Stop hook that guarantees the review chain.** Blocks the main agent from ending its turn while a TDD session has `implComplete=true` but `chainDone!=true`, forcing the `zensu:code-reviewer` spawn after implementation and after every in-thread fix round. Activation is scoped to chain-state `active` for the session (other sessions / non-TDD work stop normally). Escapes: `ZENSU_CHAIN=off`, `hooks.chainEnforcer=false`, and an anti-deadlock stop-block budget of `autoFixMaxRounds + 3`. Registered under a new `Stop` matcher in `hooks/hooks.json`.
+- **Chain-state flags in the per-session FSM file** (`active`, `implComplete`, `chainDone`) plus helpers in `hooks/lib/zensu-tdd-phase.sh` (`tdd_set_flag`, `tdd_clear_session`, `tdd_get_flag`, `tdd_session_active`, `tdd_impl_complete`, `tdd_chain_done`) written through the shared mutex (`_tdd_locked_run`) so a flag-write never clobbers a concurrent phase-write — and `_tdd_write_phase_critical` now carries the flags forward across phase writes. New `zensu-log.sh` verbs `--tdd-begin`, `--tdd-complete`, `--chain-done`, `--tdd-reset` drive the lifecycle.
+- **`tests/structure/test-smoke-main-thread-chain.sh` — hermetic Funktionsnachweis.** Pure-bash, no live `claude`, never sets `CLAUDE_AGENT_TYPE`; asserts the whole new state machine (gate + witness activation via chain-state, Stop-hook block/allow matrix, post-review in-thread routing + max-round `chainDone`, hooks.json wiring). Registered in `evals/config-gate/run-eval.sh`.
+- **`hooks/lib/resolve-session-id.js` Node helper** — pure-stdlib helper that resolves the live Claude session UUID by scanning `~/.claude/projects/<sanitized-cwd>/*.jsonl` and returning the entry with the newest mtime. Inserted as priority-2 path in `zensu_resolve_session_id` between the stdin-JSON tier and the PPID-cache tier. Accepts an optional nanosecond-precision `BASH_START` argument: when present, candidate files with `mtimeMs > cutoffMs` are filtered out so a `*.jsonl` that the harness rotates **after** the helper's parent bash call started cannot be selected. When more than one survivor remains and `ZENSU_OWN_CMD` is set in the environment, the helper reads the last 4096 bytes of each `*.jsonl` and returns the first one whose tail contains the cmdline needle — a deterministic disambiguator for concurrent claude sessions that share a `projects/<sanitized-cwd>` bucket. Cross-platform via pure Node `fs`/`path`/`os` (no `ps`, no `wmic`); the `projects` base directory is overridable via `ZENSU_PROJECTS_DIR` for the test suite. New `tests/structure/test-resolve-session-id.sh` exercises 22 sub-tests covering newest-mtime selection, BASH_START cutoff filtering, ZENSU_OWN_CMD tail-match, missing-projects-dir tolerance, and the sanitization round-trip. Note: the helper realises a two-layer race-hardening doctrine — **Layer-1 (BASH_START cutoff)** is a best-effort ~30–50 ms window bounded by node cold-start latency that filters out post-call rotations; **Layer-2 (ZENSU_OWN_CMD cmdline tail-match)** is a deterministic disambiguator that survives any timing race because it matches on a value the wrapper writes into the live session's own jsonl transcript. Layer-1 narrows the candidate set, Layer-2 picks the right one; either alone is insufficient under concurrent-session load, together they consolidate fragmented state into a single `tdd-phase-<realUUID>.json` per session.
+
+### Removed
+- **`agents/tdd-manager.md` deleted** — the subagent definition is gone; its Phase 0–6 body now lives in `skills/tdd/SKILL.md` and runs in the main thread. Removed from `plugin.json` `agents[]`. Any direct `Agent` spawn with `subagent_type='zensu:tdd-manager'` will no longer resolve — use `/zensu:tdd` instead.
+- **`hooks/post-tdd-review-delegate.sh` deleted** — this PostToolUse:Agent hook fired the reviewer after the tdd-manager subagent's `Agent` completion. With TDD in the main thread that event no longer exists; the reviewer spawn is now an explicit Phase 6 step in the skill, backstopped by `hooks/stop-chain-enforcer.sh`. Removed from the `Agent` matcher in `hooks/hooks.json`.
+
+### Fixed
+- **Witness logs are now gitignored (ephemeral, never committed).** `.gitignore` re-ignores `.zensu/logs/witness-*.log` while keeping the durable narrative `*_tdd-*.log` and plans tracked. The witness is single-session anti-hallucination evidence consumed only by the in-session Phase 6 cross-check (`grep -F 'cmd="X"'`); committing it would bloat history with no audit value, and the convention to "commit `.zensu/logs/`" would otherwise pull it in on future rounds. (No witness logs were tracked yet, so nothing was untracked — this is a forward guard.) Resolves a doc contradiction in `docs/tdd-manager-workflow.md` (the four-channel table now states the witness is local-only/gitignored everywhere, not just under promptfoo) and corrects a stale `CLAUDE_AGENT_TYPE=zensu:tdd-manager` witness-scoping reference there to the 0.4.0 chain-state `active` activation. Pinned by `tests/structure/test-gitignore-zensu.sh` (grep + `git check-ignore`).
+- **`/zensu:tdd` over-parallelization in the main thread.** A live test showed Opus, running the migrated skill in the main thread, firing parallel tool batches the old subagent never did: two concurrent `npm run test` background shells lingered, the `vitest --coverage` run was issued twice, and the Phase 6 finalization (mtime audit, plan writes, `--chain-done`, `git diff`, reviewer spawn) was emitted as one parallel batch — risking a `--chain-done` landing before the reviewer (releasing the Stop gate early) and breaking the witness `exit=N` cross-check (a backgrounded run records `exit=?`). Hardened `skills/tdd/SKILL.md` (prompt-only): a new "work sequentially — NO parallel tool batches" rule in the main-thread model; Phase 5 mandates foreground, serial test/lint/build/coverage runs (never `run_in_background`); Phase 6 step 10 spells out the strict one-at-a-time finalization order (`--tdd-complete` → `git diff` → spawn reviewer) and forbids `--chain-done` anywhere except the zero-changes branch or a PASS/suggestions terminus. Pinned by asserts MT3/MT4 in `tests/structure/test-tdd-manager-patches.sh`.
+- **Main-thread deferred-tool loading + `TaskCreate` signature in `skills/tdd/SKILL.md`.** A live test of the migrated skill hit `InputValidationError: TaskCreate failed — required parameter 'description' is missing; unexpected parameter 'status'` plus "schema was not sent to the API". Two root causes, both artifacts of moving off the subagent: (1) in the main thread `TaskCreate`/`TaskUpdate` are **deferred** tools whose schemas are not preloaded (the deleted `agents/tdd-manager.md` got them via its `tools:` frontmatter), so Phase 0 now instructs a `ToolSearch select:TaskCreate,TaskUpdate` load before the first task call; (2) the `TaskCreate` examples omitted the required `description` and implied a non-existent `status`/`blockedBy` — corrected to `subject`+`description`(+`activeForm`), with status via `TaskUpdate(status:...)` and deps via `TaskUpdate(addBlockedBy:[...])`. The same missing-`description` fix was applied to `agents/code-reviewer.md` Phase 0 (subagent path keeps its frontmatter preload, so it needs no `ToolSearch`). Relatedly, Phase 2 now creates the plan file via a Bash heredoc (consistent with the log): the phase-gate correctly DENIES the Write/Edit tool while `phase=UNINITIALIZED` (before the first RED), so `.zensu/` docs must use the intentionally-un-gated Bash channel — the skill now states this explicitly (with a guard that Bash is for docs only, never to bypass the gate for production code) so the agent does not hit the block and improvise. Pinned by asserts MT1–MT5 in `tests/structure/test-tdd-manager-patches.sh`.
+- **Session-id resolver no longer fragments state across `tdd-phase-fallback_*.json` buckets.** The PPID-derived cache key in `zensu_resolve_session_id` previously never matched the SessionStart-written cache when the consuming subagent ran under a different PPID than the SessionStart hook (claude-code spawns subagents from a separate child process), so every TDD phase write fell through to the Tier-3 deterministic `fallback_<PPID>_<proc_hash>` bucket and a single logical TDD run produced multiple `tdd-phase-fallback_*.json` files. The new `hooks/lib/resolve-session-id.js` helper (priority-2 path) reads the real session UUID directly from the harness-managed `~/.claude/projects/<sanitized-cwd>/*.jsonl` transcript by newest mtime, consolidating state into a single `tdd-phase-<realUUID>.json` per session regardless of the subagent's PPID.
+- **`sanitizeProjectDir` in `resolve-session-id.js` now uses an inverted allowlist `/[^A-Za-z0-9_-]/g`** instead of the narrower denylist of 4 characters (`/`, `\`, `:`, `.`) it carried in the first draft. Matches the wrapper's defense-in-depth at `hooks/lib/zensu-session.sh:29` and is resilient to future Claude Code project paths that may contain spaces, `~`, `#`, parentheses, or non-ASCII characters — every such character now collapses to `-`, identical to the directory name claude-code itself produces under `~/.claude/projects/`.
+- **`parseCutoffMs` rejects all-digit strings shorter than 18 characters** (footgun guard, `s.length < 18`). A millisecond-precision timestamp (13 digits) passed to a helper that expects nanoseconds (19 digits) would otherwise be divided by `1_000_000n` and yield a near-zero cutoff that silently filters every candidate to the empty set — a fail-quiet failure mode where the helper returns no UUID and downstream callers degrade to the Tier-3 fallback bucket without any error in the log. The length guard surfaces the misuse as `null` (meaning "no cutoff, use `helperStartMs`") instead of as a phantom zero, restoring the natural Layer-1 window.
+
+## [0.3.28] - 2026-05-26
+
+### Changed
+- **BREAKING: `.mcp.json` no longer expands `ZENSU_MCP_URL` — URL is now the literal SaaS default `https://mcp.zensu.dev/mcp`** — the `${ZENSU_MCP_URL:-https://mcp.zensu.dev}/mcp` substitution shipped from 0.1.0 onward had three problems in practice: (1) Claude Desktop's Custom Connector dialog validates the URL field as a literal URL — `$` is not a valid URL character so the `${...}` syntax left the "Add" button disabled, blocking the documented self-host path for any user wiring Zensu MCP into Claude Desktop / claude.ai rather than Claude Code CLI; (2) `settings.json` `env` blocks do not reliably propagate to `.mcp.json` HTTP URL expansion ([claude-code issue #1254](https://github.com/anthropics/claude-code/issues/1254), closed not-planned) — the only working setup path was `export ZENSU_MCP_URL=... ` in a shell profile, which README never actually documented; (3) the variable name promised a Claude-Code-side override knob, but the override surface in Claude Code itself (`claude mcp add --scope user`) is deterministic, persists across plugin upgrades, and was never mentioned in the docs. Removing the variable closes the Desktop-Connector gap and aligns the self-host story with the documented Claude Code MCP-config primitive. Migration for existing on-prem users relying on `export ZENSU_MCP_URL=https://mcp.example.internal`: replace with `claude mcp add zensu --transport http --url https://mcp.example.internal/mcp --scope user` (one-time, persists in `~/.claude.json`, survives plugin upgrades; user-scope MCP entries take precedence over the project-scope `.mcp.json` shipped with the plugin). The shell-env path silently breaks at upgrade time — any user who set the variable will now hit `https://mcp.zensu.dev/mcp` instead of their self-hosted instance, so the migration MUST be performed before upgrading the plugin in production. Changes: `.mcp.json:5` switches `"url"` from `${ZENSU_MCP_URL:-https://mcp.zensu.dev}/mcp` to literal `https://mcp.zensu.dev/mcp`; `tests/structure/test-mcp-json-url.sh` `EXPECTED` updated to the literal value and gains a new regression-guard assertion that fails if `ZENSU_MCP_URL` reappears anywhere in `.mcp.json`; README.md Environment Variables table drops the `ZENSU_MCP_URL` row, the Quickstart "Optionally set `ZENSU_MCP_URL`" sentence is replaced with a cross-reference to a new `### Self-hosting` subsection under § Data & Privacy that documents the `claude mcp add` migration path and explains the rationale (Desktop-Connector + settings.json-env-block limitations), Troubleshooting "MCP server unreachable" row updated to drop the variable reference. Skill prereq bullets in `skills/{bootstrap,ghost-scan,implement,pulse,security-review}/SKILL.md` rephrase "plugin auto-configures via `ZENSU_MCP_URL`" to "plugin auto-configures via `.mcp.json`"; `skills/zensu-help/SKILL.md` environment-variables index row removes the `ZENSU_MCP_URL` entry.
+
+## [0.3.27] - 2026-05-26
+
+### Fixed
+- **`/zensu:reset-review-limit` scope leak — agent reached into sibling worktrees** — a user invoked the skill in worktree A and the LLM driving the skill autonomously expanded scope to clear rounds counters in sibling worktree `thirsty-elbakyan-eaba92` (where a prior 6-round TDD chain had run), even though the user only asked to reset the current worktree. Root cause: the SKILL.md prose described single-worktree mechanics but contained no explicit prohibition against cross-worktree traversal; the LLM extrapolated "be helpful, reset the related counter too" from prior tool-output recollection. The bash recipe was always scoped correctly to `$STATE_DIR` — the overreach happened entirely in LLM-driven follow-up actions OUTSIDE the recipe. Fix adds new `## Strict Scope` section between `## Do NOT Use For` and `## Prerequisites` with 4 bold-NEVER prohibitions (no `git worktree list`, no out-of-`$STATE_DIR` inspection/modification, no parent/sibling traversal, no broad `find` / `git ls-files` traversal) and a positive directive that multi-worktree resets must be invoked separately per worktree. Phrasing borrows from `agents/tdd-manager.md` "Hard Bans" idiom for consistency. Two new region-scoped asserts (R24 verifies the section heading exists; R25 pins the `NEVER run \`git worktree list\`` substring) lock the contract.
+
+## [0.3.26] - 2026-05-26
+
+### Added
+- **`/zensu:reset-review-limit` surfaces fresh-worktree context** — when the skill is invoked inside a git worktree that has no prior `rounds-*.json` counter file (e.g. after `mcp__ccd_session__spawn_task` branched the session, or after the user manually `git worktree add`-ed off the project), the no-op output now appends `Fresh git worktree detected — counter effectively at 0, no prior rounds recorded in this worktree.` so the user understands that the counter wasn't reset by anyone, it just never existed in this worktree. Detection uses the POSIX-portable `.git`-is-a-file idiom (primary repo has `.git/` directory; linked worktree has `.git` regular file containing `gitdir: <path>`). Gated so the hint fires only when `STATE_DIR` was resolved via the project-local default (`$CLAUDE_PROJECT_DIR`-based path) — when `CLAUDE_PLUGIN_DATA_OVERRIDE` redirects state elsewhere, the parent has no worktree semantics and detection is skipped. Inline addition to the existing two no-op branches in Phase 2; no behavior change in the populated-deletion path. Verified by `tests/structure/test-reset-review-limit-skill.sh` R22 (hint substring present) + R23 (detection idiom present + gated on override absence).
+
+## [0.3.25] - 2026-05-25
+
+### Fixed
+- **`/zensu:reset-review-limit` shell portability — recipe failed under zsh** — The Phase 2 bash recipe in `skills/reset-review-limit/SKILL.md:38-60` used `shopt -s nullglob` (bash builtin) and relied on nullglob semantics for the `for f in "$STATE_DIR"/rounds-*.json` loop. macOS users invoking the skill saw `Exit code 1`, `(eval):9: command not found: shopt`, and `(eval):11: no matches found: .../rounds-*.json` because claude-code's Bash tool runs commands through the user's default zsh on macOS, and zsh treats a no-match glob as a fatal error by default. Replaced with a POSIX-portable rewrite using `find "$STATE_DIR" -maxdepth 1 -name 'rounds-*.json' 2>/dev/null` — find handles the pattern internally so zsh's strict-glob `nomatch` never fires, and the `removed=0` counter still drives the existing output schema (`Removed:`, `Reset complete:`, `No round counter files in`). Promptfoo eval (`evals/reset-review-limit/scenarios/reset-counter-{happy,empty}.yaml`) continues to pass without changes because the output substrings are identical to the bash form. Filename safety: counter files are always `rounds-<session_id>.json` with sanitized session_id (alphanumeric+dash, see `hooks/lib/zensu-session.sh`), so plain word-splitting in `for f in $(find ...)` is safe for this controlled input. Recipe is now portable across bash, zsh, dash, and sh. Phase 3 (Verify) carried the same root-cause bug — the `ls -la "$STATE_DIR"/rounds-*.json 2>/dev/null || echo "(empty, expected)"` line emitted `zsh:1: no matches found: …` to stderr because zsh's `nomatch` fires at glob-expansion time BEFORE `ls` runs, and the `2>/dev/null` only silences `ls`, not the shell. Final exit was 0 via the OR fallthrough but the user saw a noisy zsh error contradicting the skill's "exits 0 with a clear message when nothing matches" promise. Phase 3 was rewritten with the same `find` pattern in the same 0.3.25 release. Round 2 review additionally caught that the initial Phase 3 rewrite (`find …` followed by `[ -z "$(find …)" ] && echo "(empty, expected)"`) silently inverted the populated-branch exit code from 0 to 1 because `[` is the last evaluated command when files are present and exits 1 on a non-empty string — the SKILL.md's own "exits 0 with a clear message when nothing matches" promise (and the implicit success contract on the populated branch) was violated under bash/zsh/dash. Final Phase 3 form uses a single-`find`-into-`$out` capture with explicit if/else branching: `out="$(find …)"; if [ -n "$out" ]; then printf '%s\n' "$out"; else echo "(empty, expected)"; fi`. One `find` invocation (cheaper, no double-fork), exit 0 in BOTH branches, no `&&` short-circuit shape that could regress. Structure test `tests/structure/test-reset-review-limit-skill.sh` extended with 5 new asserts (R17/R18/R19/R20/R21) that pin the absence of `shopt -s nullglob`, the presence of the `find ... -maxdepth 1 -name 'rounds-*.json'` invocation, the POSIX-portability claim in the Phase 2 preamble, the region-scoped Phase 3 `find` invocation (so R18 — a whole-file grep — cannot silently satisfy the Phase 3 contract), and the exit-0-in-both-branches contract via region-scoped substring matches on `if [ -n "$out" ]`, `printf '%s\n' "$out"`, and `else echo "(empty, expected)"` so a future `&&` short-circuit form cannot sneak back in.
+
+## [0.3.24] - 2026-05-25
+
+### Added
+- **`/zensu:reset-review-limit` skill** — seventh skill, escape hatch for the auto-fix loop's `autoFixMaxRounds` budget. Deletes round-counter files at `${CLAUDE_PLUGIN_DATA_OVERRIDE:-${CLAUDE_PROJECT_DIR:-.}/.zensu/state}/rounds-*.json` so the next `zensu:code-reviewer` completion restarts at round 1. Mirrors the hook's symlink-traversal guard (refuses to operate on symlinked state dirs or counter files). Idempotent: no-op message when the directory is empty or absent. Use when the auto-fix chain hits the convergence branch (`Auto-fix convergence: max N rounds reached`) and the user wants to continue the review/fix cycle within the same Claude Code session instead of starting a new session or hand-fixing the remaining findings.
+
+### Changed
+- **Convergence directive in `hooks/post-review-tdd-delegate.sh:101` now surfaces the `/zensu:reset-review-limit` escape hatch** — the `additionalContext` payload appended to the convergence reply tells the main agent to mention the new skill at the end of its reply so the user discovers the recovery path without consulting docs. Backward-compat: existing assertions in `evals/config-gate/test-autofix-rounds-convergence.sh` (substring `Auto-fix convergence: max 2 rounds reached` and `Do NOT spawn zensu:tdd-manager again`) remain green; new sub-assert pins the `/zensu:reset-review-limit` mention so the hint can never silently regress.
+- **`scripts/claude-promptfoo-wrapper.sh` honors `ZENSU_PLUGIN_DIR_OVERRIDE` env var** — when set to an existing directory, the wrapper appends `--plugin-dir "$ZENSU_PLUGIN_DIR_OVERRIDE"` to the `claude --print` invocation so promptfoo evals can exercise pending plugin changes from a worktree without uninstalling/reinstalling the user-scope plugin. Default unset → wrapper behavior unchanged (uses whichever zensu plugin version the user has installed via `claude plugin install`). The 25-assert `tests/structure/test-claude-promptfoo-wrapper.sh` suite remains green (DRY_RUN previews stay backward-compatible because the new `--plugin-dir` slot is only inserted when the env var resolves to an existing directory).
+
+### Tests
+- **`evals/reset-review-limit/` promptfoo eval suite** — new 2-scenario eval pinning the `/zensu:reset-review-limit` skill behavior end-to-end. `scenarios/reset-counter-happy.yaml` pre-seeds two counter files (`rounds-eval-sess-{A,B}.json`) via the Bash tool, invokes the skill, and asserts both `Removed:` literals + the `Reset complete: 2 counter file(s) deleted` summary + the post-reset listing is empty. `scenarios/reset-counter-empty.yaml` is the idempotency probe — invokes the skill against an empty `.zensu/state/`, asserts the no-op message (`No round counter files in` or `does not exist`) appears AND a must-not-match guard on `^Removed:` and `Reset complete:` so the skill never claims removal when nothing was removed. Uses the no-agent provider variant of `scripts/claude-promptfoo-wrapper.sh` (slash-command invocation, not subagent dispatch) — wrapper takes the slash command verbatim because `agent:` is omitted from the provider config. Real-claude gating: structure test `tests/structure/test-promptfoo-reset-review-limit.sh` (20 asserts: file presence, yaml shape, assertion-block presence, no-agent invariant, fixture-path correctness) runs without claude/promptfoo installed so plain CI stays green; live eval requires `npm install -g promptfoo` + `claude` CLI + zensu plugin loaded.
+
+## [0.3.23] - 2026-05-24
+
+### Fixed
+- **Auto-fix rounds counter ACTUALLY project-local — 0.3.20 misship correction** — the 0.3.20 attempt to default the rounds counter to `${CLAUDE_PROJECT_DIR:-.}/.zensu/state/rounds-<session_id>.json` was unreachable in real claude-code execution: claude-code always sets `CLAUDE_PLUGIN_DATA` for plugin hooks (resolves to `~/.claude/plugins/data/zensu-inline/`), so the `STATE_DIR="${CLAUDE_PLUGIN_DATA:-${CLAUDE_PROJECT_DIR:-.}/.zensu/state}"` substitution in `hooks/post-review-tdd-delegate.sh:52` always picked the plugin-global path — never the project-local fallback. Result: counters accumulated user-global across tasks within one long claude session and crossed the 5-round cap after a few review chains, permanently emitting `Auto-fix convergence: max 5 rounds reached. Do NOT spawn zensu:tdd-manager again` on EVERY code-reviewer completion within that session — even the FIRST review pass of a new task. Critical/Important findings never reached `zensu:tdd-manager`; the user had to hand-fix. Evidence: 14 stale counter files at `~/.claude/plugins/data/zensu-inline/` (no equivalent project-local files were ever created). Fix inverts the precedence: hook line 52 now reads `STATE_DIR="${CLAUDE_PLUGIN_DATA_OVERRIDE:-${CLAUDE_PROJECT_DIR:-.}/.zensu/state}"`. A new opt-in env var `CLAUDE_PLUGIN_DATA_OVERRIDE` lets power-users centralize the round budget across worktrees (e.g. `$HOME/.zensu/state`); claude-code's auto-set `CLAUDE_PLUGIN_DATA` is intentionally IGNORED by this hook. Empirical check of the `hooks/` tree confirms no other Zensu hook currently reads `CLAUDE_PLUGIN_DATA` — all other state-writing hooks (`zensu-tdd-phase.sh`, `zensu-log.sh`, `post-bash-witness.sh`, `session-start-capture-sid.sh`) already default to `${CLAUDE_PROJECT_DIR:-.}/.zensu/state`, so this fix brings `post-review-tdd-delegate.sh` into ecosystem alignment without introducing new asymmetry. Counter dies with the worktree; each worktree gets its own 5-round budget. Verified via `evals/config-gate/test-rounds-default-location.sh` extended from 5 to 12 asserts pinning: C1-C4 project-local default when both env vars unset (carried over from 0.3.20), C6a-C6c hook ignores `CLAUDE_PLUGIN_DATA` even when set (the bug-fix invariant), C7a-C7b `CLAUDE_PLUGIN_DATA_OVERRIDE` wins over project-local default, C8a-C8c `CLAUDE_PLUGIN_DATA_OVERRIDE` beats both project-local and `CLAUDE_PLUGIN_DATA`. The 4 pre-existing rounds tests (`test-autofix-rounds-{convergence,increment,sanitize,session-isolation}.sh`) plus `test-post-review-combined-summary.sh` and `test-autofix-suggestions-{on,off}.sh` were renamed from `CLAUDE_PLUGIN_DATA` to `CLAUDE_PLUGIN_DATA_OVERRIDE` in their setup so they now exercise the override path; all 7 still PASS (46 asserts total). README Environment Variables table replaces the `CLAUDE_PLUGIN_DATA` row with a `CLAUDE_PLUGIN_DATA_OVERRIDE` row + explicit "claude-code's auto-set `CLAUDE_PLUGIN_DATA` is intentionally IGNORED by the rounds counter" note; Hooks row + `autoFixMaxRounds` row updated to the new substitution pattern; `docs/tdd-manager-workflow.md` section 7 likewise. Grandfathered header comment in the hook (line 12) acknowledges the intentional `CLAUDE_PLUGIN_DATA` ignore. Stale counter cleanup at `~/.claude/plugins/data/zensu-inline/` is left to natural rot (no migration code shipped).
+- **Witness eval scenarios: tightened assertions + sharpened spec_blocks** — v10 promptfoo run against the 0.3.19 witness-evidence layer surfaced 3 false-negative scenario failures (TEST 14 `witness-bash-runs`, TEST 15 `witness-evidence-gap`, TEST 16 `witness-non-bash-via`). Root cause was a mix of **assertion overreach** and **scenario-spec ambiguity** rather than a defect in the witness mechanism (hook + wrapper + agent prompt all correct). Two-track fix, scenarios-only. Track A: replaced the loose `/EVIDENCE GAP/i` "must-not-match" regex with the literal-schema form `/EVIDENCE GAP\s*[—-]\s*cmd="/i` in `evals/tdd-manager-pretool/scenarios/witness-evidence-gap.yaml` assertion #3 and `witness-non-bash-via.yaml` assertion #4 so a Phase-6 narrative paraphrase mentioning "no EVIDENCE GAP found" no longer triggers a false-positive fail. Track B: appended explicit imperative paragraphs to all 3 spec_blocks — `**CRITICAL OUTPUT REQUIREMENTS**` (witness-bash-runs requires 3 literal `S0 CHECKPOINT — cmd="..." exit=<N> result="..."` schema lines, not narrative), `**OUTPUT MUST CONTAIN**` + `**OUTPUT MUST NOT CONTAIN**` (witness-evidence-gap, pins the one literal schema line and forbids the `EVIDENCE GAP — cmd=` substring), `**STEP 1 IS MANDATORY**` + `**OUTPUT MUST CONTAIN**` (witness-non-bash-via, makes the prerequisite Bash invocation unambiguous so the witness hook fires and the wrapper appends a `===== witness: <file> =====` block as required by assertion #1). New `tests/structure/test-witness-scenario-assertions.sh` (9 cases) pins both the tightened regex form AND the imperative-phrase substrings so any future loosening regresses the structure suite. Existing TEST 15/16 sub-asserts that already required `/cmd="bash -c..."/` literal forms were the pattern reused — extending the same discipline to the inverse must-not-match case.
+
+## [0.3.22] - 2026-05-24
+
+### Added
+- **`/zensu:zensu-help` skill** — sixth skill, Q&A surface for Zensu PLM concepts and plugin internals. Embeds the stable glossary (Feature, ZEN-ID, Tier, Journey, Security Classification, Lifecycle Status) and three-layer architecture overview; routes volatile questions (hook flags, env vars, version, FSM details, MCP tools, CHANGELOG, data privacy) through `Read` of the canonical sources (`README.md`, `CHANGELOG.md`, `docs/tdd-manager-workflow.md`, `.claude-plugin/plugin.json`, `.mcp.json`) so answers cannot drift from reality. Read-only — does not execute workflows; points users at the appropriate action skill (`bootstrap` / `ghost-scan` / `implement` / `security-review` / `pulse`) when a workflow is requested.
+
+## [0.3.21] - 2026-05-24
+
+### Added
+- **tdd-manager Phase 6 Step 9 `## TL;DR` headline** — final report now begins with a single-sentence executive summary following template `{component} {symptom} because {root_cause} — fixed via {mechanism}[, {N} TDD round(s)], {pass}/{total} tests green.` Users scan one line instead of seven sections.
+
+### Fixed
+- **tdd-manager no longer improvises filesystem-search for `zensu-log.sh`** — subagent Bash calls do not inherit `$CLAUDE_PLUGIN_ROOT` (claude-code only injects it into hook command strings), so invocations like `bash $CLAUDE_PLUGIN_ROOT/hooks/lib/zensu-log.sh ...` expanded to `bash /hooks/lib/zensu-log.sh` and failed exit 127 before the script's own self-resolve at line 3 could run. The LLM then improvised by searching `~/.claude/plugins/cache/*/zensu/` via `find`/`ls`, triggering confusing permission prompts on user plugin-cache paths. Three-part fix: (1) `hooks/session-start-pulse.sh` persists `$CLAUDE_PLUGIN_ROOT` to `$HOME/.zensu/plugin-root` BEFORE the `pulseSession` gate (so users with `pulseSession=false` still get the file written, avoiding a FATAL-loop), with compare-before-write for idempotency; (2) `agents/tdd-manager.md` Phase 0 Step 1 reads the file via explicit `bash -c 'cat "$HOME/.zensu/plugin-root"'` (trimmed output) into a `{PLUGIN_ROOT}` placeholder used by all 12 helper invocations (migrated from `$CLAUDE_PLUGIN_ROOT/...`); (3) Hard Bans section gains a new prohibition against filesystem search for the helper, with extended FATAL message guiding users to verify `hooks.pulseSession` is not set to false. Backed by `tests/structure/test-session-start-plugin-root.sh` (10 cases: PR-S1..S5 structure + ordering, PR-F1..F4 functional incl. `pulseSession=false` via stubbed `zensu_hook_enabled`) and 9 new cases in `tests/structure/test-tdd-manager-patches.sh` (R15-P1..P5 migration + F1.a..d Phase 0 wording).
+
+## [0.3.20] - 2026-05-24
+
+### Changed
+- **Auto-fix rounds counter default location: project-local** — the per-session round counter persisted by `hooks/post-review-tdd-delegate.sh` now defaults to `${CLAUDE_PROJECT_DIR:-.}/.zensu/state/rounds-<session_id>.json` instead of `$HOME/.zensu/state/rounds-<session_id>.json`. Aligns with the TDD-FSM state file convention already used by `hooks/lib/zensu-tdd-phase.sh` (which has always been project-local). Counter is session-id-keyed and does not need user-global persistence; project-local survives worktree removal correctly and reduces cognitive overhead. `CLAUDE_PLUGIN_DATA` env var preserved as power-user override — only the DEFAULT shifts. All 4 existing rounds tests (`test-autofix-rounds-convergence|increment|sanitize|session-isolation`) set `CLAUDE_PLUGIN_DATA` explicitly and are unaffected. New `evals/config-gate/test-rounds-default-location.sh` (5 asserts) pins the new default plus regression-tests the explicit-override path. README Environment Variables table + Hooks `post-review-tdd-delegate.sh` row + `autoFixMaxRounds` row updated to reflect the new default.
+- **Session-id 3-tier fallback resolves `unknown` collisions** — four hooks (`hooks/pre-edit-tdd-reminder.sh`, `hooks/post-review-tdd-delegate.sh`, `hooks/post-bash-witness.sh`, `hooks/lib/zensu-tdd-phase.sh`) previously fell back to the literal string `"unknown"` when stdin JSON did not carry a `session_id` field. Concurrent claude-code sessions whose payloads happened to miss the field would all collide on the SAME state-file bucket (`tdd-phase-unknown.json`, `rounds-unknown.json`, `witness-unknown.log`). Fix: new `hooks/lib/zensu-session.sh` helper exposes `zensu_session_key` (returns `${PPID}_<cksum of ps -o lstart=>` — process fingerprint that survives OS PID reuse) and `zensu_resolve_session_id` (3-tier lookup: stdin → SessionStart cache file → `fallback_<PPID>_<proc_hash>` deterministic fallback). The `fallback_` prefix (not `claude_`) avoids any theoretical collision with a real session id of shape `claude_<digits>_<digits>` that survives sanitization. New `hooks/session-start-capture-sid.sh` SessionStart hook captures the `session_id` from its stdin (which claude-code reliably populates on session start) and writes it ATOMICALLY (`mktemp` + `mv`) to `${CLAUDE_PROJECT_DIR:-.}/.zensu/state/session-id-<PPID>_<proc_hash>.txt` — concurrent SessionStart fires from two claude-codes that share a PID and `lstart`-second can no longer interleave partial writes. Subsequent hooks read this cache when their own stdin lacks the field. PID reuse is handled by the start-time hash component: after claude-A exits and the kernel recycles PID 12345 to claude-B, A's cache file has a different `cksum(lstart)` hash than B's, so B writes a new cache file and never reads A's stale data. Tier-3 deterministic fallback (`fallback_<PPID>_<proc_hash>`) means even when SessionStart skipped firing (e.g. `claude --print` edge cases) two concurrent sessions still get distinct buckets. Cross-platform: macOS + Linux + WSL use full key; Git Bash / minimal Alpine without `procps` degrades to bare `${PPID}` (acceptable edge case). `hooks/lib/zensu-log.sh:26` `CLAUDE_SESSION_ID:-unknown` branch now invokes the full `zensu_resolve_session_id "${CLAUDE_SESSION_ID:-}"` so the phase-marker state-file path matches what `pre-edit-tdd-reminder.sh` reads (the prior inline `claude_$(zensu_session_key)` bypassed tier-2 and silently re-broke bucket alignment). Backed by 2 new structure-test suites — `tests/structure/test-session-id-fallback.sh` (14 cases pinning helper behavior: stdin verbatim, sanitization, cache hit, empty cache fall-through, deterministic `fallback_` fallback, key stability, graceful `ps`/`cksum` degradation, plus C8/C8b pinning the `zensu-log.sh` 3-tier alignment) and `tests/structure/test-session-start-capture-sid.sh` (13 cases pinning hook behavior: syntax, atomic cache write with payload, skip without session_id, graceful missing-node, hooks.json registration as sibling to `session-start-pulse.sh`). Existing rounds-isolation test (`test-autofix-rounds-session-isolation.sh`) unaffected because it explicitly passes `session_id` per payload. README Hooks table gains a new row documenting the SessionStart capture hook; README version badge bumped to 0.3.20.
+
+## [0.3.19] - 2026-05-23
+
+### Added
+- **Test-Run Evidence — Anti-Hallucination Witness Log** — three-layer defense against fabricated test-run claims by `zensu:tdd-manager`. Layer 1: new `hooks/post-bash-witness.sh` PostToolUse Bash hook records every Bash tool call (command, exit code, last 200 chars of stdout) verbatim to `${CLAUDE_PROJECT_DIR:-.}/.zensu/logs/witness-<session>.log`. Scoped to `CLAUDE_AGENT_TYPE=zensu:tdd-manager` (no other actor leaks witness lines); disable via `ZENSU_TEST_WITNESS=off`. Language-agnostic — no command-pattern filter, captures npm/pytest/go/cargo/mvn/bash/anything. JSON-escapes command + stdout-tail via `node JSON.stringify` for round-trip safety on commands containing quotes and newlines. Falls back gracefully when `node` is missing (exit 0, silent) or when `tool_response` is absent (logs `exit=?` placeholder). Layer 2: `agents/tdd-manager.md` Phase 5 + Phase 6 step 1 prompts now MANDATE the structured-evidence schema `CHECKPOINT — cmd="X" exit=N result="..."` / `AUDIT — cmd="X" exit=N result="..."` so the witness log can cross-check each claim by literal-string match. Layer 3: Phase 6 step 1 audit greps `cmd="X"` for every claim in the witness log; on mismatch, appends `EVIDENCE GAP — cmd="X" claimed but not in witness log` and marks Phase 6 NOT complete. Non-Bash escape: `via=tool_name claim="..."` is treated as known-limit (no cross-check possible) and surfaced prominently in the final report. The Phase 6 step 9 final-report schema gains a Test Evidence section with per-claim verdicts. Wrapper enhancement: `scripts/claude-promptfoo-wrapper.sh` appends a `===== witness: <file> =====` block (one per witness log) after the existing fsm-state enrichment so promptfoo assertions can see the witness content. Backed by 3 new structure-test suites — `tests/structure/test-post-bash-witness.sh` (9 cases pinning scope guard, opt-out, accumulation, JSON-escape round-trip, missing tool_response tolerance, CLAUDE_PROJECT_DIR override + fallback), +3 new cases in `test-tdd-manager-patches.sh` (Phase 5/6 contract substrings), +3 new cases in `test-claude-promptfoo-wrapper.sh` (P12-S1..S3 witness-block append behavior). Three new promptfoo eval scenarios — `witness-bash-runs.yaml`, `witness-evidence-gap.yaml`, `witness-non-bash-via.yaml` — verify the chain end-to-end in the existing `evals/tdd-manager-pretool/` suite.
+
+## [0.3.18] - 2026-05-23
+
+### Added
+- **Chain-end combined summary** — When the tdd-manager + code-reviewer auto-review chain reaches a stop branch (PASS / suggestions-only / max-rounds convergence), the main agent now produces a three-section summary block: `## Implementation Summary` (what tdd-manager built), `## Review Summary` (verdict + findings count), `## Auto-fix History` (per-round trace). Replaces the prior terse-stop behavior. Configurable via `~/.zensu/config.json` `hooks.combinedSummary` (default `true`; set `false` to restore terse stop). New helper `zensu_combined_summary_enabled` in `hooks/lib/zensu-config.sh` mirrors `zensu_autofix_include_suggestions` shape but inverts the default (only literal `false` disables). New eval `evals/config-gate/test-post-review-combined-summary.sh` (14 cases) covers all three chain-end branches with flag-on and flag-off, plus the regression case in `test-autofix-rounds-convergence.sh`.
+
+## [0.3.17] - 2026-05-23
+
+### Fixed
+- **Agent frontmatter: drop unused/unrecognized tools** — `agents/zensu-plm.md` and `agents/tdd-manager.md` declared `Grep` and `Glob` in their `tools:` lists, which the Claude Code agent inspector flagged with `⚠ Unrecognized: Grep, Glob` on every PR rendering. `zensu-plm` reduced from `Read, Grep, Glob, Bash, Write, Edit` to `Read, Bash` (the agent is a pure MCP orchestrator — `Grep`/`Glob`/`Write`/`Edit` were never invoked in the body). `tdd-manager` reduced from `Read, Edit, Write, Bash, Grep, Glob, TaskCreate, TaskUpdate, AskUserQuestion` to `Read, Edit, Write, Bash, TaskCreate, TaskUpdate, AskUserQuestion` (Phase 6 step 6 uses `grep -F -w` via Bash, not the `Grep` tool; no body step references the `Glob` tool). `agents/code-reviewer.md` intentionally unchanged — body lines 19–23 explicitly mandate the `Grep` and `Glob` tools and ban `Bash` grep/find, and `Grep`/`Glob` are documented Claude Code built-in tools so the inspector warning on that file is a UI false-positive.
+
+## [0.3.16] - 2026-05-22
+
+### Fixed
+- **MCP server URL: drop `/v1` prefix from `.mcp.json`** — plugin requested `https://mcp.zensu.dev/v1/mcp` but the server only serves `/mcp`; production returned `404 page not found` on every tool call and the OAuth flow never started (auth middleware never fired). Realigned with the MCP server (`mcp-server/cmd/zensu-mcp/main.go`), backend OAuth metadata (`/.well-known/oauth-protected-resource`), and the production ingress (all on `/mcp`). After updating the plugin, the browser-based OAuth flow opens on the first tool call as designed.
+
+## [0.3.15] - 2026-05-22
+
+### Added
+- **TDD-Manager precondition discovery (Patches 1-6)** — six surgical patches to `agents/tdd-manager.md` generalize the Phase-1-3b coverage-tool ask pattern to every spec-named external dependency: 3 new Rationalization Counters call out hand-rolled-replacement / placeholder-fixture / "no questions" rationalizations as LIES; new Hard Ban forbids substituting a missing required dependency with a hand-rolled equivalent without explicit user approval; new Phase 1.5 (Spec Precondition Discovery) enumerates external CLIs, secrets, endpoints, fixtures and escalates via AskUserQuestion with (a) install / (b) user-named substitute / (c) skip, with explicit override of any prior "no questions" instruction; new `## Preconditions` table template in the plan format; Phase 4 self-check extended with per-step precondition gate that marks dependent steps `[!]` and skips them when their precondition is missing+skip; new Phase 6 step 6 Precondition Drift Audit greps the log for the contracted tool name versus the user-named substitute and flags `PRECONDITION DRIFT — {tool}: decision={d}, actual={observed}` when reality diverges from the plan's `## Preconditions` decision column.
+- **Claude-code CLI promptfoo provider** — new `scripts/claude-promptfoo-wrapper.sh` invokes the local `claude` CLI as a promptfoo `exec:` provider, eliminating the round-4 API-key dependency. Auth via prior `claude login`; wrapper exits 127 with clear diagnostics when `claude`/`jq` missing on PATH. Provider config reads `.config.agent` + `.config.working_dir` from promptfoo's OPTIONS_JSON. APFS `cp -cR` clone for O(1) per-test isolation on macOS, falls back to `cp -R` on platforms without `-c`. `KEEP_ISOLATED=1` preserves the isolated dir for debugging. Stream-json output (`--output-format stream-json --include-partial-messages --verbose`) concatenated via jq to a single text blob promptfoo can match against.
+- **Promptfoo-native hook/state enrichment (Patches 8-9)** — `hooks/pre-edit-tdd-reminder.sh` mirrors `TDD-Phase-Gate`/`Current phase:`/`Expected: ... IMPL after RED_FAIL`/`permissionDecision=deny` lines to `$ZENSU_HOOK_LOG` when the gate denies, opt-in via env var, failure-tolerant. `scripts/claude-promptfoo-wrapper.sh` exports `ZENSU_HOOK_LOG="$ISOLATED_DIR/.zensu/hook-events.log"` before exec'ing claude, then appends a `===== hook events =====` block (non-empty mirror) and per-state-file `===== fsm state: <session>.json =====` jq-scraped sections after the stream-json concat. Synthetic `[fsm-state-final] phase=UNINITIALIZED` emitted when no state file exists but hook log saw `Current phase: UNINITIALIZED[,.]`. Uses `shopt -s nullglob` for the state-file glob loop. Exposes FSM phase markers and gate decisions to promptfoo assertions without modifying assertion logic.
+- **Promptfoo eval scenarios for precondition behavior** — 13 scenarios under `evals/tdd-manager-pretool/scenarios/`: happy-path FE+BE (`reverseString.ts`, `internal/stringutil/reverse.go`), cross-stack, override-env, drift recovery (impl-before-red, skipped-test-run, phase-jump, fake-green, uninitialized), REFACTOR-after-green, precondition-missing-cli (`snorgleblorf`), precondition-missing-secret (`SNORG_API_KEY`), precondition-drift-audit. Isolation-safe external JS assertion `evals/tdd-manager-pretool/assertions/assert-file-exists.js` grabs `[tool_use: Write|Edit|MultiEdit|NotebookEdit]` markers from the wrapper transcript instead of `fs.existsSync` (cleanup-resistant). `maxConcurrency: 5` in `promptfooconfig-pretool.yaml` for ~5× wall-clock speedup.
+- **Structure tests for new infrastructure** — 7 new/extended bash structure-test suites totalling 83 PASS: `test-tdd-manager-patches.sh` (21) pins Patches 1-6 patterns in the agent prompt, `test-claude-promptfoo-wrapper.sh` (20) covers wrapper DRY_RUN, isolation, stream-json concat, P10-S1..S6 enrichment branches incl. unwritable-path tolerance, `test-pre-edit-hook-mirror.sh` (8) pins Patch 8 mirror exact 4-line fixture via `diff` + `wc -l`, `test-file-exists-replacement.sh` (19) verifies external JS assertion semantics, `test-pretool-config-prompts.sh` (7) verifies promptfoo config carries the `prompts:` block + `defaultTest.transform`, `test-drift-audit-regex.sh` (5) pins drift-audit assertion #2/#3 regex shape, `test-promptfoo-concurrency.sh` (3) verifies `maxConcurrency: 5`.
+
+### Changed
+- **License relicensed from MIT to FSL-1.1-Apache-2.0** (Functional Source License, Version 1.1, Apache 2.0 Future License). Existing users retain all rights under the FSL Permitted Purpose (internal use, modifications, forks, commercial use in their own products, professional services, education, research). New restriction: no Competing Use — i.e. you may not offer a commercial product or service that substitutes for the Zensu plugin or the Zensu SaaS, or provides substantially similar functionality. Each release auto-converts to Apache License 2.0 on the second anniversary of its public availability. Rationale: protects the plugin's substantial IP (TDD-FSM phase gate, parallel reviewer fan-out, hook orchestration) from being repackaged as a competing managed service, while keeping end-user adoption frictionless. See [LICENSE](LICENSE), [fsl.software](https://fsl.software/), and the License section of the README for details. Existing contributions made under MIT remain available under MIT; the FSL applies from this release forward.
+
+### Security
+- **PreToolUse TDD-Gate hardening — round 1** (initial 9 findings closed across `hooks/pre-edit-tdd-reminder.sh` and `hooks/lib/zensu-tdd-phase.sh`):
+  - **(1)** Bash bypass closed (round 1 approach, later reverted in round 2 — see scope reduction below): matcher extended to `Edit|Write|MultiEdit|Bash` and the hook parsed `tool_input.command` for file-mutating patterns (`>`, `>>`, `sed -i`, `tee`, `dd of=`); the official `zensu-log.sh --phase` invocation remained allowed.
+  - **(2)** Concurrent-write race fixed: `tdd_write_phase` wraps the read-modify-write critical section in `flock -x 9` with a `mkdir`-based mutex fallback for systems without `flock` (macOS).
+  - **(3)** Inline-header regex anchored at line-start with comment-prefix exclusion so JSDoc/godoc/python comments like `// describe(`, `/* describe(`, `# def test_` no longer classify production files as tests.
+  - **(4)** Tight FSM around `GREEN_PASS`: edits are now restricted to test-path targets after GREEN_PASS; production-file edits require an explicit `REFACTOR` marker or a new `RED_WRITE` for the next step.
+  - **(5)** `tool_input.subagent_type` fallback removed entirely; only the harness-set `CLAUDE_AGENT_TYPE` env is trusted.
+  - **(6)** Top-level `tests/`, `test/`, `spec/`, `specs/`, `__tests__/` (no leading slash) now classify as test paths (case-insensitive).
+  - **(7)** Basename `*Test.*|*Tests.*|*Spec.*|*Specs.*` loose camelCase patterns dropped; only `_test`/`_spec`/`_tests`/`_specs` underscore-bounded patterns and `.test.`/`.spec.`/`.tests.`/`.specs.` dot-bounded patterns are accepted as test basenames — false-positives like `AttestSpec.tsx`, `AccountsTests.tsx`, `RequestSpec.ts` no longer match. Java/C# style `FooTest.java` is still classified true when it lives under a test path (e.g. `src/test/java/`).
+  - **(8)** Symlinks fail closed in `tdd_is_test_path` — eliminates `innocent.ts -> real.test.ts` bypass via `head -c` reading through the link.
+  - **(9)** `evals/tdd-manager-pretool/assertions/assert-no-bypass.sh` now exits 1 (not 0) when suspicious file-mutating writes are found in the transcript.
+  - Backed by 8 new offline tests in `evals/config-gate/test-pre-edit-{toplevel-paths,basename-boundary,symlink-reject,inline-header,concurrent-write,agent-trust,greenpass-tight,bash-bypass}.sh` plus `evals/tdd-manager-pretool/test-assert-no-bypass.sh`, all wired into the `--self-check` runner. Config-gate suite grew from 48/48 to 56/56 PASS.
+- **PreToolUse TDD-Gate hardening — round 2** (10 follow-up findings closed; **architectural shift**: PreToolUse gate now covers `Edit/Write/MultiEdit` **only**; Bash file mutations remain under agent-prompt + reviewer-chain enforcement):
+  - **(F1)** Bash removed from gate matcher in `hooks/hooks.json` and from `pre-edit-tdd-reminder.sh`. Reviewer empirically reproduced 14 distinct bypasses (`python -c`, `node -e`, `perl -pi`, `ruby -e`, `cp`, `mv`, `install`, `rsync`, `awk -i inplace`, `patch`, `git apply`, `dd  of=` with double-space, `sh -c` quoted inner, `echo;>` no-space, `printf hi>foo`) that the lexical denylist could not enumerate. The denylist approach is architecturally wrong — lexical bash parsing cannot enumerate all file-mutation paths. The gate's job is in-moment Edit/Write reminders, not bulletproofing against malicious agents. `test-pre-edit-bash-bypass.sh` repurposed to assert Bash is no-op for the gate.
+  - **(F2)** Default changed from fail-closed (gate-active when `CLAUDE_AGENT_TYPE` empty) to fail-open. Trust model: gate active **only** when the harness explicitly identifies the actor as `zensu:tdd-manager`. Main-thread and other-subagent edits are never gated. Documented `>>` log-append from `agents/tdd-manager.md:57` no longer gets denied as collateral (also automatically unblocked by F1).
+  - **(F3)** `*tdd-phase-*` substring denial removed (was as part of F1) — was false-positive on legitimate reads like `ls /tmp/my-tdd-phase-stats.txt`, `grep tdd-phase- somefile`, `cat .zensu/state/tdd-phase-abc.json`.
+  - **(F4)** Stale-lock recovery in `tdd_write_phase` mkdir-fallback mutex. Previously a leftover `${state_file}.lockd` would block writes for ~2s on macOS and then silently fail. Now: on mkdir-fail, if lockdir mtime > 30s OR `owner` PID is dead, force `rm -rf` and retry. Emit stderr diagnostic `[zensu-tdd-phase] lock acquisition failed for $state_file` when 200 attempts exhausted, so users see a clear diagnostic instead of silent data loss. Backed by new asserts in `test-pre-edit-concurrent-write.sh` (stale lockdir + dead PID → succeeds in < 100ms).
+  - **(F5)** `zensu-log.sh --phase` whitelist argv-injection leak closed by removing the Bash branch entirely (F1).
+  - **(F6)** `evals/tdd-manager-pretool/assertions/assert-no-bypass.sh` renamed to `assert-no-shell-redirect-bypass.sh` to honestly reflect its narrow scope. New sibling `evals/tdd-manager-pretool/assertions/README.md` documents what each assertion catches and explicitly lists bypass classes that are NOT caught (`python -c`, `node -e`, `ruby -e`, `perl -e`, `cp`, `mv`, `install`, `rsync`, `awk -i inplace`, `git apply`, `patch`, `dd`). Renamed test file `evals/tdd-manager-pretool/test-assert-no-shell-redirect-bypass.sh` exercises the narrow scope (still catches `>`, `>>`, `sed -i`, `tee`).
+  - **(F7)** Hard-link rejection added to `tdd_is_test_path`. Previously `ln target.test.ts innocent.ts` made `innocent.ts` indistinguishable from a real test (inline-header reads through inode). Now: after `-L` symlink check, probe link-count via `stat -f %l` (BSD) || `stat -c %h` (GNU); reject when count > 1. The new hard-link guard sits between the basename check (so genuine `*.test.*` files with hard links remain classified true) and the inline-header read (so the link-count > 1 short-circuit fires before inode-spoofing risk). Backed by new asserts in `test-pre-edit-symlink-reject.sh`.
+  - **(F8)** Inline-header detection widened to handle BOM-prefixed files and longer banners. Previously `head -c 200` cut off test signatures past byte 200 (long ASCII-art banners) and BSD-grep-specific behavior was the only thing salvaging BOM-prefixed files. Now: `head -n 20` reads 20 lines (covers banners), `sed '1s/^\xef\xbb\xbf//'` explicitly strips BOM for portability across grep implementations. Random binary noise still classifies false (no false-positive). Backed by 3 new asserts in `test-pre-edit-inline-header.sh` (BOM, banner, binary).
+  - **(F9)** `test-pre-edit-allow-refactor.sh` split into two files for honest naming: `test-pre-edit-allow-refactor.sh` keeps only the 3 REFACTOR-allow asserts; new `test-pre-edit-deny-greenpass-production.sh` carries the 5 inverted GREEN_PASS/RED_RUN/GREEN_RUN denial asserts. Total assert count preserved.
+  - **(F10)** README and CHANGELOG updated to document the scope reduction. README's Hooks table now includes the `TDD Phase Gate` row stating `Edit/Write/MultiEdit` scope and the Environment Variables table documents `ZENSU_TDD_GATE` and `CLAUDE_AGENT_TYPE` semantics. `test-readme-coverage.sh` extended with 4 new asserts; `test-changelog-coverage.sh` extended with 5 new asserts.
+  - Suite size: config-gate grew to 57+ tests (F9 split adds one file); `test-pre-edit-bash-bypass.sh` grew from 14 asserts to 31 (now covering the full bypass-class enumeration, all asserted as no-op). All pre-existing tests remain green.
+- **PreToolUse TDD-Gate hardening — round 3** (2 follow-up findings closed; both target round-2 regressions):
+  - **Stale-lock recovery test honored on Linux/CI**: `hooks/lib/zensu-tdd-phase.sh:132` flock-availability guard now reads `[ "${TDD_DISABLE_FLOCK:-}" != "1" ] && command -v flock`. Previously the production code consulted only `command -v flock`, so the round-2 F4 stale-lock recovery test in `evals/config-gate/test-pre-edit-concurrent-write.sh` was effectively dead on Linux/CI runners (flock branch took the early-return before the lockdir recovery code could execute). The test exercised the new F4 code path on macOS only because flock is genuinely absent there. The fix wires the existing `TDD_DISABLE_FLOCK=1` env var (which the test already exports) through the production code, so the same test now exercises the mkdir-fallback honestly on any platform. Backed by 2 new asserts in `test-pre-edit-concurrent-write.sh` (stale-lockdir + `TDD_DISABLE_FLOCK=1` + sentinel-file probe → mkdir branch recovers lockdir, sentinel removed).
+  - **REFACTOR phase: agent-trust boundary — gate does not require prior GREEN_PASS**: documented in `test-pre-edit-greenpass-tight.sh`. `decide_allow()` in `hooks/pre-edit-tdd-reminder.sh:71` returns `allow` for the REFACTOR phase unconditionally. A drift-prone agent could log a REFACTOR marker directly from UNINITIALIZED or RED_FAIL to bypass the FSM. This is the same trust-model boundary the round-2 F2 fail-open default codifies: the gate provides in-moment reminders for the `zensu:tdd-manager` subagent, not bulletproofing against malicious agents. The reviewer-chain (`zensu:code-reviewer`) catches phase-marker drift downstream. The codified gap surfaces any future tightening as a deliberate test update. Backed by 2 new asserts in `test-pre-edit-greenpass-tight.sh` (REFACTOR from UNINITIALIZED → allowed, REFACTOR from RED_FAIL → allowed, both labeled "known agent-trust gap") plus a banner echo `[INFO] Documenting REFACTOR known-gap: agent trust boundary, not enforced by FSM`.
+  - Suite size: config-gate stays at 57/57 file-level PASS; assert count grows by +4 (+2 in `test-pre-edit-concurrent-write.sh` internally, +2 in `test-pre-edit-greenpass-tight.sh` internally).
+
+### Added
+- `zensu:tdd-manager` agent definition now enforces a **Per-Step Logging Contract** under Principle 3: every Feature/Bug-Fix step MUST emit three log entries with the exact prefixes `{step_id} RED `, `{step_id} IMPL completed — files: `, and `{step_id} GREEN — PASS `. When merging N feature steps, the log must still contain N RED + 1 IMPL + N GREEN entries — merge cannot be used as a logging shortcut.
+- `zensu:tdd-manager` Phase 6 audit gained a new **mtime Discipline Audit (Step 5)** that compares test-file mtimes against impl-file mtimes per `[G]` step. Test-after steps are marked `[!]` and surface as `DISCIPLINE VIOLATION: test-after detected …` log entries. If > 20% of feature steps are test-after, the final report reads `TDD DISCIPLINE VIOLATED — N/M steps test-after, audit FAIL` and Phase 6 is not complete. Triggered by an observed real-world drift where the agent claimed strict Red/Green but wrote tests up to 50 minutes after the implementation files.
+- `evals/tdd-review-chain/assert-tdd-log-compliance.sh` new offline compliance checker. Parses RED/IMPL/GREEN entries per `{step_id}` with line-number ordering enforcement (RED < IMPL < GREEN, strict `<`), grammar guard (rejects logs with tdd-manager markers but zero parseable step entries), bulk-shortcut detection (rejects `BE-1..3 RED` style summaries when individual GREENs follow), and optional mtime audit via `--impl-dir` with collision warnings on stderr. Composite single-line VIOLATION message per step. BSD/GNU `stat` portability included.
+- Offline structural eval assertions **T5.1–T5.8** in `evals/tdd-review-chain/run-eval.sh --self-check`: fixture-driven coverage of the compliance script — good log passes (T5.1), missing-RED rejected (T5.2), bulk-shortcut rejected (T5.3), test-after mtime rejected (T5.4 with deterministic `touch -t` reseed), GREEN-before-RED ordering rejected (T5.5), grammar-empty rejected (T5.6), test/impl collision emits WARN and skips audit (T5.7), composite-message content asserted (T5.8a line count == 1, T5.8b non-empty parens, T5.8c three sub-rule tokens present). Backed by fixtures `tdd-log-{good,missing-red,bulk-shortcut,test-after,ordering,grammar,test-collision}.log` plus `fixtures/test-after-tree/`.
+- Slow-lane real-spawn smoke test **T9** in `evals/tdd-review-chain/run-eval.sh` (skipped in `--self-check`) plus new `test-tdd-compliance.exp` that drives `zensu:tdd-manager` through a two-function task and asserts the generated log passes `assert-tdd-log-compliance.sh`.
+- `.gitignore` exception `!evals/tdd-review-chain/fixtures/*.log` so the checked-in fixture logs are reachable despite the global `*.log` rule.
+- Project-local config resolution: `hooks/lib/zensu-config.sh` now exposes `_zensu_resolve_config` with a 3-stage lookup — `$ZENSU_CONFIG` (env override) -> `$CLAUDE_PROJECT_DIR/.zensu/config.json` (project-local, auto-discovered, no setup needed) -> `$HOME/.zensu/config.json` (global default). Resolution **REPLACES**, does not **MERGE** — the first matched file is used as-is. Downstream projects can commit a `.zensu/config.json` to opt into plugin behavior (e.g. broader auto-fix routing) without touching each developer's global config. Both existing readers (`zensu_hook_enabled`, `_zensu_log_style`) now route through the new helper, so all flags participate in the new resolution order. Backed by 3 new offline tests in `evals/config-gate/test-resolution-order-{env-override,project-local,global-fallback}.sh`.
+- `hooks.autoFixIncludeSuggestions` boolean config flag (default `false`). When `true`, the post-review auto-fix hook (`hooks/post-review-tdd-delegate.sh`) routes ALL severities — Critical, Important, Suggestion, Minor, Nit — to `zensu:tdd-manager` as a single feature spec, instead of restricting auto-fix to Critical+Important and buffering Suggestions for the user. Default `false` preserves the legacy backwards-compatible routing. Requires `autoFix:true` to have effect — when `autoFix:false`, the hook short-circuits entirely. Reader `zensu_autofix_include_suggestions` lives in `hooks/lib/zensu-config.sh` and follows the same safe-fallback pattern as `zensu_hook_enabled` (missing file / missing node / malformed JSON / wrong type -> default `false`). Backed by `evals/config-gate/test-autofix-suggestions-on.sh` and `evals/config-gate/test-autofix-suggestions-off.sh` plus the shared reader test `evals/config-gate/test-helper-autofix-flags.sh`.
+- `hooks.autoFixMaxRounds` integer config flag (default `5`, valid range `1..99`). Loop guard for the code-reviewer -> tdd-manager cycle. Counter state lives at `${CLAUDE_PLUGIN_DATA:-$HOME/.zensu/state}/rounds-<session_id>.json` (atomic `mktemp` + `mv` write, per-session isolation, ISO-UTC timestamp). The hook increments the counter BEFORE the convergence check so the recorded round reflects the just-completed cycle. When the count exceeds the configured maximum the hook emits a convergence `additionalContext` instructing the main agent to NOT spawn `zensu:tdd-manager` again and to list remaining findings under `### Findings (max rounds reached, manual fix required)`. Reader `zensu_autofix_max_rounds` clamps invalid values (non-integer, out-of-range, malformed) to the default `5`. Backed by `evals/config-gate/test-autofix-rounds-increment.sh`, `evals/config-gate/test-autofix-rounds-convergence.sh`, and `evals/config-gate/test-autofix-rounds-session-isolation.sh`.
+- `logging.timestampStyle` user-config flag in `~/.zensu/config.json` controlling inline timestamp prefixes in `zensu:tdd-manager` session logs (`.zensu/logs/`). Three values: `wall` (default, `[HH:MM:SS]` — backward compatible), `relative` (`[+HH:MM:SS]` under 24h, `[+Dd HH:MM:SS]` for longer sessions), `none` (no prefix). Filenames retain `YYYY-MM-DD-HHMM` for uniqueness — only inline prefixes are affected. Falls back to `wall` on missing file / missing `node` / malformed JSON / invalid value. New shared helper `hooks/lib/zensu-log.sh` (CLI wrapper) and `_zensu_log_style` function in `hooks/lib/zensu-config.sh` mirror the safe-fallback pattern from #6. Backed by 8 new offline tests in `evals/config-gate/test-log-style-*.sh` (wall, relative, none, fallback, no-node, bad-epoch with octal-parse regression, negative-delta clamp, long-delta two-tier format)
+- PostToolUse hook on `ExitPlanMode` that auto-delegates approved plans to the `zensu:tdd-manager` subagent (with escape hatch for doc-only or trivial plans)
+- E2E eval suite for the plan-approval hook in `evals/plan-approval-hook/` (expect-driven interactive test that approves a real plan and asserts hook firing)
+- E2E eval suite for the review-chain in `evals/tdd-review-chain/` (asserts that `zensu:tdd-manager` completion auto-invokes `@zensu:code-reviewer` and that other subagents do not trigger the chain)
+- Severity-routing hook `hooks/post-review-tdd-delegate.sh` (second `PostToolUse:Agent` command-type hook) that classifies `zensu:code-reviewer` findings by severity and routes ONLY **Critical + Important** findings to `zensu:tdd-manager` as a structured feature spec for proper RED/GREEN-cycle fixes. **Suggestions / Minor / Nits** are NOT auto-fixed: they are buffered in the main agent's response under "### Suggestions (not auto-fixed)" for the user to review. Convergence is preserved — when zero Critical/Important findings remain, the chain ends instead of re-spawning tdd-manager.
+- Offline structural eval assertions T6/T7/T8 in `evals/tdd-review-chain/run-eval.sh --self-check` covering (T6) critical+important dispatch directive, (T7) suggestions-only no-dispatch behavior, (T8) clean-review no-dispatch behavior. Backed by the new dedicated assertion script `evals/tdd-review-chain/assert-severity-routing.sh`.
+
+### Removed
+- Removed the `SubagentStop:zensu:code-reviewer` prompt-type hook (the previous "present findings to user" prompt). Replaced by the severity-routing `PostToolUse:Agent` hook above, which decides between auto-fix-via-tdd-manager and present-suggestions-only based on finding severity.
+
+### Changed
+- SubagentStop hook for `zensu:tdd-manager` now auto-invokes `@zensu:code-reviewer` via a new `PostToolUse:Task` command-type hook (`hooks/post-tdd-review-delegate.sh`) that filters on `subagent_type == "zensu:tdd-manager"` and injects a verbatim directive as `additionalContext`. Replaces the user-owned `/reflect` command (not a plugin concern) and works around two architectural blockers verified empirically: subagents cannot spawn other subagents, and `SubagentStop` hooks (a) do not support `additionalContext` injection and (b) route their output to the stopping subagent (which has no `Task` tool) rather than the main agent. PostToolUse on the `Task` tool fires after subagent completion and routes to the main agent, which DOES have `Task` and can spawn the reviewer.
+- tdd-manager Phase 6 step 7 no longer asks the user about code review — that decision is centralized in the SubagentStop hook
+- Plugin manifest no longer declares `"hooks": "./hooks/hooks.json"` — that path is auto-loaded by Claude Code, and an explicit declaration causes a `Duplicate hooks file detected` load error that disables all plugin hooks. (Reverts the defensive declaration added earlier in the 0.3.x series; the original assumption that the Desktop App needed it was wrong, and the side effect broke hook loading entirely.)
+- Plan-approval hook prompt sharpened: delegation is now mandatory for all code-related plans; override requires an EXPLICIT TDD negation phrase (e.g. "no tdd", "kein tdd-manager"); generic urgency phrases like "gleich arbeiten" or "go ahead" no longer count; Auto Mode is explicitly NOT an override
+- Plan-approval hook prompt further hardened: explicit prohibition on calling Read/Edit/Write/Bash/MultiEdit before the Agent tool; required acknowledgement line ("Delegating to zensu:tdd-manager" or "Skipping TDD: ..."); explicit instruction to set `subagent_type='zensu:tdd-manager'`
+- Plugin manifest now declares `"hooks": "./hooks/hooks.json"` explicitly to ensure loading across all Claude Code surfaces (auto-discovery via convention worked for the CLI but the Desktop App may use a stricter loader)
+- Plan-approval hook switched from `type: "prompt"` to `type: "command"` (new script `hooks/plan-approved-delegate.sh`). The prompt-type hook routed the directive through a judge LLM that summarized the instruction before it reached the main agent, which let Claude ignore the delegation requirement. The command-type hook injects the directive verbatim as `additionalContext` next to the tool result, removing the judge layer.
+- Data & Privacy disclosure in README
+- SECURITY.md with responsible disclosure policy and safe harbor
+- CONTRIBUTING.md with contributor guidelines
+- CODE_OF_CONDUCT.md (Contributor Covenant 2.1)
+- GitHub issue and PR templates
+- Troubleshooting section in README
+- Platform compatibility documentation
+- Default agent override documentation
+- Prerequisites and MCP Tools Used table to Pulse skill
+
+### Changed
+- Expanded .gitignore to prevent credential and artifact leaks
+- Reformatted CHANGELOG to Keep a Changelog specification
+- Improved PostToolUse hook with graceful failure handling
+- Downgraded version to 0.1.0 (pre-stable API)
+- Standardized terminology in agent decision rules
+
+### Fixed
+- Removed plugin-level `settings.json` that pinned every Claude Code session to `zensu-plm` as default agent. The pin forced `@zensu:tdd-manager` and `@zensu:code-reviewer` to spawn as subagents under `zensu-plm`'s restricted toolset (`Read, Grep, Glob, Bash, Write, Edit` only), so they could not access `TaskCreate`/`TaskUpdate`/`Agent`/`AskUserQuestion` and failed in Phase 0. Sessions now start with the full Claude Code toolset; `@zensu:zensu-plm` remains available for explicit invocation.
+- `zensu:tdd-manager` and `zensu:code-reviewer` failing in Phase 0 with "no Task tool available". Both agents now declare an explicit `tools:` whitelist in frontmatter (matching the pattern already used in `zensu-plm.md`) so `TaskCreate`/`TaskUpdate`/`AskUserQuestion` are eagerly loaded instead of falling under the restricted subagent default toolset.
+- SessionStart hook detached HEAD handling
+- Pinned MCP server URL to v1 endpoint for forward compatibility
+
+## [0.1.0] - 2026-03-01
+
+### Added
+- Plugin manifest (`plugin.json`) with full metadata
+- MCP server auto-configuration (`.mcp.json`)
+- Agent: `zensu-plm` — Product Lifecycle Manager with domain knowledge
+- Skill: `/zensu:bootstrap` — Bootstrap products from vision documents
+- Skill: `/zensu:security-review` — Comprehensive security review workflow
+- Skill: `/zensu:implement` — Feature implementation with artifact linking
+- Skill: `/zensu:ghost-scan` — Repository scanning for undocumented features
+- Skill: `/zensu:pulse` — Privacy-first developer session journal
+- Hook: Post-commit `[ZEN-xxx]` feature reference detection
+- Hook: Session-start pulse context preparation
+- Default agent configuration (`settings.json`)
+
+[unreleased]: https://github.com/MKITConsulting/zensu-claude-code/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/MKITConsulting/zensu-claude-code/releases/tag/v0.1.0

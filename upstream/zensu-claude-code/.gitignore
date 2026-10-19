@@ -1,0 +1,74 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+/.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment & secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Logs
+*.log
+# But keep checked-in fixture log files used by eval tests
+!evals/tdd-review-chain/fixtures/*.log
+!evals/tdd-manager-pretool/fixtures/**/*.log
+
+# Dependencies
+node_modules/
+vendor/
+
+# E2E fixture artifacts (per-fixture deps + lockfiles)
+tests/e2e/fixtures/
+tests/e2e/results/
+tests/e2e-plm/fixtures/*
+!tests/e2e-plm/fixtures/live-regressions/
+!tests/e2e-plm/fixtures/live-regressions/*.txt
+tests/e2e-plm/results/
+tests/e2e-skills/fixtures/
+tests/e2e-skills/results/
+tests/e2e-tdd/fixtures/
+tests/e2e-tdd/results/
+tests/e2e-context-nudge/fixtures/
+tests/e2e-context-nudge/results/
+tests/e2e-intent-router/fixtures/
+tests/e2e-intent-router/results/
+tests/e2e-source-write-gate/fixtures/
+tests/e2e-source-write-gate/results/
+tests/results/
+
+# Build output
+dist/
+build/
+out/
+
+# Claude Code
+.claude/plans/
+.claude/settings.local.json
+.claude/worktrees/
+
+# tdd-manager run artifacts (per-run plans + logs) — local-only, never committed.
+# Ephemeral dogfooding output of running the plugin on itself; the public repo
+# ships the plugin, not its internal session audit trail. Only config is tracked.
+.zensu/*
+!.zensu/config.json
+
+# Internal
+OSS_READINESS_REPORT.md
+evals/tdd-manager/**
+
+# Transient fixtures from tests/structure/test-bash-source-write-gate.sh
+tests/.bswgate-tmp.*/
+
+# c8 coverage output (npm run session-trail:coverage)
+coverage/
+evals/plan-approval-hook/results/

@@ -1,0 +1,6092 @@
+[
+  {
+    "path": ".claude-plugin/marketplace.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "50fb6faacfd869744905663fa7a33dae78169709"
+  },
+  {
+    "path": ".claude-plugin/plugin.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1777909338c27e41ce7fed365664538bbbb30f21"
+  },
+  {
+    "path": ".claude/rules/acceptance-verification-gate.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "45d03258772c34dd7918e911e4dd86611730134d"
+  },
+  {
+    "path": ".claude/rules/artifact-path-redaction.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4df28b2adb398cadcaf68fb9164982aec730d46e"
+  },
+  {
+    "path": ".claude/rules/automatic-adoption.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "516481f38e437590a3650fc0f3f52741fc7ef713"
+  },
+  {
+    "path": ".claude/rules/autopilot-active-read.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e6156f7814abb5dfbc6724e852c42799e3cbbdf5"
+  },
+  {
+    "path": ".claude/rules/autopilot-lease-row.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "adb81a2a4110d5874ce19a4eceb90b8ee63cdce3"
+  },
+  {
+    "path": ".claude/rules/autopilot-run-scope.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1643d3253a33218a3bbbb981d097ce8854d45113"
+  },
+  {
+    "path": ".claude/rules/bash32-command-substitution.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "57de34e337b16589d3e24808359b1fd181cd0312"
+  },
+  {
+    "path": ".claude/rules/browser-consent-gate.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a5feef321bee14bf7b8ab8c534dbb1db2cb4734c"
+  },
+  {
+    "path": ".claude/rules/bypass-ledger-read-contract.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "498db5b74d3a09b7e0dca5e7a94c87ccf1242de8"
+  },
+  {
+    "path": ".claude/rules/chain-shape-rearm-receipt.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "372a35c14022f0576a9f20a83b355b427bc440a2"
+  },
+  {
+    "path": ".claude/rules/cli-command-classification.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "95dc4d2b256705c05a584704afb2613a6dcc2bd8"
+  },
+  {
+    "path": ".claude/rules/cross-cutting-review.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c6ebf462735a3e3448293a2d24cc9104e0351e69"
+  },
+  {
+    "path": ".claude/rules/deferred-review-claim-ownership.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e855544d9d8e20061ea57340dc92ad216bb6bde7"
+  },
+  {
+    "path": ".claude/rules/evidence-runner.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8d575eee942cbcf0c4476688441350c22ace35fe"
+  },
+  {
+    "path": ".claude/rules/external-review-import.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "989cedfc08e45bc9082fb22230493ff7c1362737"
+  },
+  {
+    "path": ".claude/rules/fixture-mutation-events.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9d4cabd5b842867a1ed2bcf0c7199833167023ba"
+  },
+  {
+    "path": ".claude/rules/foreign-chain-row.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "94679e52be1d782d208c0524fa897d078dad6607"
+  },
+  {
+    "path": ".claude/rules/full-suite-ci-deferral.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2f001cee2c6323b906c262ae8b2110b906725f9c"
+  },
+  {
+    "path": ".claude/rules/gate-disable-prefixes.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "486137ab4b7c5c9b411d0f63418d01ea500b578f"
+  },
+  {
+    "path": ".claude/rules/git-mutation-tables.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6716fdbd423308c22a19bf5f219185d3b0833ef2"
+  },
+  {
+    "path": ".claude/rules/host-refused-reviewer-spawn.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8feb869d10c123c77098116edec0d81f0089dfc1"
+  },
+  {
+    "path": ".claude/rules/implementing-phase-turn-counter.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4156cffbb36566d087339fda89f85929b44be705"
+  },
+  {
+    "path": ".claude/rules/incremental-review-rounds.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e0a02b8daf0405f0050fe1293d9a7a294e5c793c"
+  },
+  {
+    "path": ".claude/rules/language.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9819699fa4622462a5577341226369acc3d9598a"
+  },
+  {
+    "path": ".claude/rules/lock-holder-liveness.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3fa766b86ddf835d91258365162b845646b07e0a"
+  },
+  {
+    "path": ".claude/rules/marker-block-carriers.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fce3b41d9ca7a5679be6922dccf633475774f696"
+  },
+  {
+    "path": ".claude/rules/multi-repo-stage1.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "43f3c5b0928e0b95c430164187330fe6122f34e8"
+  },
+  {
+    "path": ".claude/rules/plan-approval-delivery-route.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8abe0fff04d3c16244cb48222855b93de2047bb1"
+  },
+  {
+    "path": ".claude/rules/plan-gate-payload-sources.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1ff1b5332f1d6a72bab322084df2e0778c89b6f7"
+  },
+  {
+    "path": ".claude/rules/plugin-data-guard.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0b4773a4ca0a7c146148abfc22172281c9483c9a"
+  },
+  {
+    "path": ".claude/rules/prompt-ledger.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f9cfd50b9f567078ce973ee7577a74f1b727deea"
+  },
+  {
+    "path": ".claude/rules/prompt-origin.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3b8f5a4cd2e8fd8ffc462caeb415120d384ad7b1"
+  },
+  {
+    "path": ".claude/rules/relaxable-bind-failures.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "391b02ae0d5cd6f0adc793a0287725563cb46ac1"
+  },
+  {
+    "path": ".claude/rules/requirements-table-gate.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "49d9bf78164fb8883711909f6e19f556dc14880d"
+  },
+  {
+    "path": ".claude/rules/restore-vanished-project-root.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b5641f8979ff28eb80a59db8d1574f402aef9cef"
+  },
+  {
+    "path": ".claude/rules/review-convergence.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5c213c51b0058ea0c370f0bdb94d787e86e01464"
+  },
+  {
+    "path": ".claude/rules/review-spawn-scope-sentence.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e50bc47d2b9e68dcc6fc99fbc0752ef62ed27038"
+  },
+  {
+    "path": ".claude/rules/reviewer-capability-gate.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1842355385ed8f6af3005ad9f6eb7e43209effe9"
+  },
+  {
+    "path": ".claude/rules/reviewer-spawn-grant.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e1022e024f89f1ac2c12f79c2c6509078b7e4b62"
+  },
+  {
+    "path": ".claude/rules/runtime-lineage.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2e46af183f41be1ab10b22f5470d4d1555bb235a"
+  },
+  {
+    "path": ".claude/rules/session-adoption.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a5933eab4dfc3f6ba1fd0f7335f0cb4c72d34ef7"
+  },
+  {
+    "path": ".claude/rules/session-delivery-route.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "92db98d00f283020941cca085ddc848d4467dbf8"
+  },
+  {
+    "path": ".claude/rules/session-hub-receipt.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "47cbbe97341f1a73c4adcb50561e5f656ee9a1fb"
+  },
+  {
+    "path": ".claude/rules/session-lineage-ledger.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "35ff35b172b3647dbd00867452fb92b87277eb81"
+  },
+  {
+    "path": ".claude/rules/session-reanchor.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "664f670b9cec64830532bd4501756eb9e3575bac"
+  },
+  {
+    "path": ".claude/rules/session-trail-fork-anchor.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5f0e421dc72fca0671e4838f3fd81158448c488c"
+  },
+  {
+    "path": ".claude/rules/session-trail-linked-sessions.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c0f9457f173b7be8f755b23f60186e1f3da90650"
+  },
+  {
+    "path": ".claude/rules/session-trail-open-chips.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7fee7f790d71d1b5d695c112d44fbdee35bd066d"
+  },
+  {
+    "path": ".claude/rules/session-trail-prompt-listing.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2546a2e5fb731d86e85c3c682e7103d7051ee013"
+  },
+  {
+    "path": ".claude/rules/session-trail-read-only-git.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f7eb25e9ea768f40f3c5a91ed6bda5192963841a"
+  },
+  {
+    "path": ".claude/rules/session-trail-targeted-lookup.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6c56883f46026a5f90f139caf35b45116a792c6b"
+  },
+  {
+    "path": ".claude/rules/skill-argument-placeholders.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7dcf46db2e8091d47a1a15d2d49bfb02244f523a"
+  },
+  {
+    "path": ".claude/rules/skill-text-budget.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "59f2e4a778f0ba000edc4fb3d5d613ab2f3f6619"
+  },
+  {
+    "path": ".claude/rules/status-marker-legend.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cca5e6a5bb490ff9c02f5796a6d726ca8fb93beb"
+  },
+  {
+    "path": ".claude/rules/stop-latency.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a0eba540dcc5a438c727370c04b96b8ca1ad8238"
+  },
+  {
+    "path": ".claude/rules/subagent-shell-guard.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e7e7c93477cac95bc32fe96f99d23d7ac36f55b3"
+  },
+  {
+    "path": ".claude/rules/takeover-destination.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "faf3df6faa110e4cbdd1cbcd2a6943c5bec96a4b"
+  },
+  {
+    "path": ".claude/rules/tdd-mode-precedence.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "293f2322485f95709ec71cc57ef11ba52e5a1eb9"
+  },
+  {
+    "path": ".claude/rules/unit-file-registry.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "03e0627f2af0316c4f0e13be226cb50314350983"
+  },
+  {
+    "path": ".claude/rules/verify-feature-drivers.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bbd537f7edd888cc4d5b7933a298abd96a654bd3"
+  },
+  {
+    "path": ".claude/rules/windows-budget-best-solution-first.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "68e5e9163cebc9abd75140e3857b903014339f98"
+  },
+  {
+    "path": ".claude/rules/work-order-mode.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ba5faa012d601238759a6f202d58ece212257b56"
+  },
+  {
+    "path": ".claude/rules/workflow-baseline-repair.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b3838a4d0139450e22cb2da271b723abc9cd8a29"
+  },
+  {
+    "path": ".claude/rules/worktree-keep.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "45204cf126d486318c5924c2cba1339c74121b8b"
+  },
+  {
+    "path": ".claude/rules/zen-mode-chain-anchor.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "63fe9e6ec127e5193ddb81c30ae03b570461d9c4"
+  },
+  {
+    "path": ".gitattributes",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "054fea44746cb698341cf19186efa70344be7724"
+  },
+  {
+    "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "22195734ceeffef699483a1d66ad19df688dd30c"
+  },
+  {
+    "path": ".github/ISSUE_TEMPLATE/config.yml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "22fb19adde9817f7449c0e684d2c59f87604346f"
+  },
+  {
+    "path": ".github/ISSUE_TEMPLATE/feature_request.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "13b7a4ab81a5b32ef3351513a7263e4ebae07758"
+  },
+  {
+    "path": ".github/PULL_REQUEST_TEMPLATE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fb0cc01f32c1a2d7fb18298e5d341fd0e379e1a7"
+  },
+  {
+    "path": ".github/scripts/prepare-claude-sandbox-linux.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "35e6a688189606439f41fc94b423b7187018c8fb"
+  },
+  {
+    "path": ".github/workflows/ci.yml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1555455fd9d735ecff56f6b3f412526127c0e987"
+  },
+  {
+    "path": ".github/workflows/release.yml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5e4cc9b0e54cc97c6f04c6d70a29b0f5cf136044"
+  },
+  {
+    "path": ".github/workflows/scheduled.yml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "38b389195658cc4a25658989101798e81eb68595"
+  },
+  {
+    "path": ".github/workflows/windows-safety.yml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a2388d148f944d2fccfcbb49d42e18438a91b53c"
+  },
+  {
+    "path": ".gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "61f77415c727b426acb0d322dea696933fdd7a21"
+  },
+  {
+    "path": ".zensu/config.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "378e9c23a97f5f6de81c3f3f6fc6aa070c678b5b"
+  },
+  {
+    "path": ".zensu/logs/2026-06-11-1244_tdd-vanilla-mode.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c0a35753444dd4757155ae2645c0045b9839fa65"
+  },
+  {
+    "path": ".zensu/logs/2026-09-29-1335_tdd-session-reanchor.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5553c36ac8b97fa6eb241b77895ef3aba40a8edc"
+  },
+  {
+    "path": ".zensu/logs/2026-09-30-0018_tdd-reanchor-bound-root-paths.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c64acaa54dc3fad1f0e803a4286bb6e6125a54cc"
+  },
+  {
+    "path": ".zensu/logs/2026-09-30-0020_tdd-strict-autopilot-read-callers.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ac69b5516e0175588fd27ac7b932632b963900f9"
+  },
+  {
+    "path": ".zensu/logs/2026-10-06-2312_tdd-overview-blocks-helper.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8be7db3432fc0d0bb328a5425fe9d7b26e3acb3c"
+  },
+  {
+    "path": ".zensu/plans/2026-06-11-1244_tdd-vanilla-mode.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "01dd4106583a9f7dee8e575b9a35a6fec3e85d42"
+  },
+  {
+    "path": ".zensu/plans/2026-09-29-1335_tdd-session-reanchor.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "10e64bc63e9d3113d65f19e945bb7507be0c5847"
+  },
+  {
+    "path": ".zensu/plans/2026-09-30-0018_tdd-reanchor-bound-root-paths.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0adee0b270994cd525f95e98990b7fb0c0099a6d"
+  },
+  {
+    "path": ".zensu/plans/2026-09-30-0020_tdd-strict-autopilot-read-callers.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "af5b754b4e4100b773861b31203361d2b2260a56"
+  },
+  {
+    "path": ".zensu/plans/2026-10-06-2312_tdd-overview-blocks-helper.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f0ea35300dc94a47107e42427c303ace90423032"
+  },
+  {
+    "path": "CHANGELOG.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6a7134d6f8842dd9e4f4975eae0feebaadcb69ac"
+  },
+  {
+    "path": "CLAUDE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9b9ded7cff855e2b58e11cae3db72d6a7e4efbea"
+  },
+  {
+    "path": "CODE_OF_CONDUCT.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6de3965e523764f4624ed695873b455b9175a144"
+  },
+  {
+    "path": "CONTRIBUTING.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c03c88014d904a748a6899fe2f487772572be947"
+  },
+  {
+    "path": "LICENSE",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8e04f7f8abccd1908dbf042d924de6eb61ec402a"
+  },
+  {
+    "path": "README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9dbb3b8b3e338ca8630c425794a4ee8c7822fdf3"
+  },
+  {
+    "path": "SECURITY.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "72786aade3ed1d1c8c5732fd31fb7f10fcfb6dd2"
+  },
+  {
+    "path": "agents/code-reviewer.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2c4417186cae282664175b7f71ba09754c668745"
+  },
+  {
+    "path": "agents/plan-review-worker.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "837c8fb9656d5c8c14c20b0a519f7da7bd1d112a"
+  },
+  {
+    "path": "agents/pr-review-worker.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "78035cf8a8b0e2e35a7960541ec2409c275c6b7d"
+  },
+  {
+    "path": "agents/review-aspect.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "dccbafca3602bd39ee95fb958faa1e9a8713ab03"
+  },
+  {
+    "path": "agents/review-judge.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "10613d6fa6263524b87262366ad84812ce026b90"
+  },
+  {
+    "path": "agents/zensu-plm.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "11ec9d1b4e6d7159dd0f1e2011a95fd9e92f93ba"
+  },
+  {
+    "path": "assets/zensu-logo.svg",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bdc999370d4554f782b31efc788e653ce38ad641"
+  },
+  {
+    "path": "cliff.toml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "100415a1c7d0205028fe3575526da59ec35cc670"
+  },
+  {
+    "path": "config.example.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8f373d0b123b366d6629fa4501c72c80f30a5c6a"
+  },
+  {
+    "path": "docs/architecture.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "474d9e9908aaa4752258c01ecb2b25af859a1682"
+  },
+  {
+    "path": "docs/best-solution-first.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1497b5c6d62c3c5bc867ddcd9def6ebbb500167f"
+  },
+  {
+    "path": "docs/configuration.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8f1471d06b49a36c609895aee87b16a5ab93270c"
+  },
+  {
+    "path": "docs/documentation-guide.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0932bae0c67af82343b7251f2e8e2d57023c72d9"
+  },
+  {
+    "path": "docs/evidence-discipline.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "10140acb31f9dc863768bcadd7120a4e46dbf705"
+  },
+  {
+    "path": "docs/gates.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8d7b54e96ddc5029e0751c96526daf4d5337613a"
+  },
+  {
+    "path": "docs/multi-repo-chains-overview.html",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d3ea884539d8835baf91ad6d4252b7110f35fbcb"
+  },
+  {
+    "path": "docs/multi-repo-chains-principle.html",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3ce33277f65679f888e258f2ce8f9bb82c85c0ba"
+  },
+  {
+    "path": "docs/multi-repo-chains-spec.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "347bf597f0ed8acbc738b1bbe222d2bf22b8f5e5"
+  },
+  {
+    "path": "docs/operations.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e429a79d4320bc00b0babc40f755bcf4964ce401"
+  },
+  {
+    "path": "docs/review-chain.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0b4aca4c330b4e2e7008dca31e61e002a7a62791"
+  },
+  {
+    "path": "docs/review-severity.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c8629fbad1f5b21dcc91639fe4324b8f2dd70969"
+  },
+  {
+    "path": "docs/session-control-release-gate.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9b157f14faf3802f731afbae0642bde6ef3fab38"
+  },
+  {
+    "path": "docs/session-control.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "44dc89efba6ed8cb7cfdf61ae02aa0789aaf0cbd"
+  },
+  {
+    "path": "docs/superpowers/plans/2026-09-28-review-cost-levers.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5ef01be07fb06ff67a014a69216d8f57bac3c462"
+  },
+  {
+    "path": "docs/superpowers/plans/2026-10-04-critical-only-fix-loop.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c19fc70ec431ddc8d24128f03edf9a6c07a702f6"
+  },
+  {
+    "path": "docs/superpowers/specs/2026-07-07-zensu-setup-skill-design.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3a328fa247d850c598b9cc687d7c013e4bb3227f"
+  },
+  {
+    "path": "docs/superpowers/specs/2026-09-28-review-cost-levers-design.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bbc2f1036c14fdee11a2bfa336fc3a2cdf93ab57"
+  },
+  {
+    "path": "docs/superpowers/specs/2026-10-04-critical-only-fix-loop-design.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7c5a1048bfaadac313e7094a683a6cf5e09fc1ad"
+  },
+  {
+    "path": "docs/tdd-manager-workflow.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "747e5b9613dacfc3df55e10e8d46ccc8912f29bf"
+  },
+  {
+    "path": "docs/vcs-driver-spec.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1d36749b9f045efe28040b31f58c49084d838c93"
+  },
+  {
+    "path": "docs/verify-feature-consent-spec.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "826b1f67b8f38b051faa6c1525a14bb7fb85b7a7"
+  },
+  {
+    "path": "docs/verify-feature.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9828e25771838336aaeb8a0f43c1470396abc3d1"
+  },
+  {
+    "path": "docs/work-order-mode.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "612f27e57ba53e6a167dc3b816edde1ab54223a1"
+  },
+  {
+    "path": "docs/worktree-keep.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5145457f703ab46b7bf981f263b7f0d58a4cad2e"
+  },
+  {
+    "path": "evals/config-gate/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fbca22537997fac50f623ee6eb31f9bb2bb30799"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-all-disabled.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1a3a4d2aa2f4201663f6c984ef57728213968efb"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-log-invalid.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d173325cc106374ad0f0581b9d4a04372efc5721"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-log-none.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "84a7b37cf02abec9f777b3467e8493fbe8441d76"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-log-relative.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0d47f9dc9374aecb725396c49007975a555e1306"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-log-wall.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8c696698260cef811793fd9fb460e24856a1fd3c"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-malformed.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "98232c64fce9360c79f119cf6de8f670f69f1c44"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-only-tdd.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0443ecd1afbdb81cc059bf98eab8b131a8912f72"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-with-max-rounds.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7a0ec02fb1cd9c7e21f7a306e98ced31c0b53356"
+  },
+  {
+    "path": "evals/config-gate/fixtures/config-with-suggestions.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8702b9443710217dee8b2f79b8696f8d04951d3b"
+  },
+  {
+    "path": "evals/config-gate/fixtures/stdin-code-reviewer.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b1a26890c1089ed9a87d94fed5f514afc788be2c"
+  },
+  {
+    "path": "evals/config-gate/fixtures/stdin-exitplanmode.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4b67a02a3c98efca5441e1576d720522acb9bd20"
+  },
+  {
+    "path": "evals/config-gate/fixtures/stdin-other-agent.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "920f50bfa55280d6730e00977de0c61a433a6f16"
+  },
+  {
+    "path": "evals/config-gate/fixtures/stdin-tdd-manager.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7c3b35c36b696df27bff62463da329addffac607"
+  },
+  {
+    "path": "evals/config-gate/run-eval.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "41c0f5b6c727232085b78a2e6ff74a5420909d3b"
+  },
+  {
+    "path": "evals/config-gate/test-autofix-rounds-convergence.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "1f861eb8bbd55bdd95e6f0cde3ca8b696bf74612"
+  },
+  {
+    "path": "evals/config-gate/test-autofix-rounds-increment.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "662da01185da70c7c3bc1144d5bbc12111c8f2a3"
+  },
+  {
+    "path": "evals/config-gate/test-autofix-rounds-reset-on-fresh-tdd.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b5c508080356dd2007556f76d0097750542bf5bf"
+  },
+  {
+    "path": "evals/config-gate/test-autofix-rounds-sanitize.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "601112171b7f4172c327a299ec6a8bb3836cba07"
+  },
+  {
+    "path": "evals/config-gate/test-autofix-rounds-session-isolation.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "833f90618f74bbb79cc57fb32d2318f9d1e0c0fe"
+  },
+  {
+    "path": "evals/config-gate/test-autofix-suggestions-off.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "823570ed1e3d6083b34a9e1a2f988f191634a23a"
+  },
+  {
+    "path": "evals/config-gate/test-autofix-suggestions-on.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "75b155c73e989176ecca39ec5bf8d800cd5a3939"
+  },
+  {
+    "path": "evals/config-gate/test-changelog-coverage.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f17bcaf5cb633e4bcc6172638f496a6850286fb2"
+  },
+  {
+    "path": "evals/config-gate/test-changelog-round3-accuracy.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a05c58899f680c2d11023b1d170ec29b7fdd47ba"
+  },
+  {
+    "path": "evals/config-gate/test-config-merge.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "237f61abddb1c1afee29c307e45ec93bffa04fbb"
+  },
+  {
+    "path": "evals/config-gate/test-e2e-default.exp",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6cb211b897908b96ef3611020a58015e7fb07a41"
+  },
+  {
+    "path": "evals/config-gate/test-e2e-disabled-tdd.exp",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "06b781b2d2a98d9d568854bf9c0d90520630c130"
+  },
+  {
+    "path": "evals/config-gate/test-gate-plan.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0466505eb6f3778dba0b3ac7b7026d2d7c644359"
+  },
+  {
+    "path": "evals/config-gate/test-gate-postreview.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "474fabd85c47ffbdfa2d12d6587a97454809905e"
+  },
+  {
+    "path": "evals/config-gate/test-gate-session.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "9f0392ebc9e5024372c6da3d6e24428166fa8a05"
+  },
+  {
+    "path": "evals/config-gate/test-helper-autofix-flags.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "46f63a0eda1a3501b312f1110b233015ba6d9315"
+  },
+  {
+    "path": "evals/config-gate/test-helper-disabled.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "9013466681e3fba18e7e3251271f0ac50c4882db"
+  },
+  {
+    "path": "evals/config-gate/test-helper-envoverride.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e717baac17d5cf506ee55f69d6a2885c4f2066d6"
+  },
+  {
+    "path": "evals/config-gate/test-helper-keymissing.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f86dd5c548fe39a161ccdfd53e142ad127e223a1"
+  },
+  {
+    "path": "evals/config-gate/test-helper-malformed.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "1093972ddfbe7e06a7b6a5bd38d7ab67fe1dad06"
+  },
+  {
+    "path": "evals/config-gate/test-helper-missing.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ed84a19c7dd7f33ee277d0f5fdc547250b84a376"
+  },
+  {
+    "path": "evals/config-gate/test-helper-no-node.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b8d3c7e914ef3b1a30f700ed5318590cfc71c48d"
+  },
+  {
+    "path": "evals/config-gate/test-isolation-preserved.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2fb3d2204e36236b0e8cc88afbb3c56735eacc2d"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-artifacts.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "c7ad0d57eba489338c3d80570c930333cec491c6"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-bad-epoch.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b2f510447b53cfa6356a51702be5729263f7974d"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-fallback.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "1a383309e3973b24d968368d5d6c749d55f795c9"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-long-delta.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a7c1e11e0fa3c20b11995ca9c324950a4a445321"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-negative-delta.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0db4156eab68168286c428c4215fa233e13e014d"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-no-node.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e0b459113506d28c9eb25513d26f0533ec8eb983"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-none.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "46aa3e8f32520cf7cb471799e231f64d1024e127"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-relative.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0459685c3a6ca1788e0c5a0ef9c693863ba21d9b"
+  },
+  {
+    "path": "evals/config-gate/test-log-style-wall.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "341328f7bd59dc62ddf34381d54c3bab1e8fb032"
+  },
+  {
+    "path": "evals/config-gate/test-pluginroot-default-setu.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8fe80a05b530c1f48125ad41eec36311cb86a807"
+  },
+  {
+    "path": "evals/config-gate/test-post-review-combined-summary.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "06eef375f98fa96079727a3e81cc73ebd6f235fb"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-agent-trust.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "af47d1498daff9efb207c123f686b41aea97a887"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-allow-impl-after-redfail.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ff5e521c9d7f265b9ed2b6f3d8857bb97a71dd25"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-allow-red-write.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0615d2873b96d48923528bbefc279e3a4ffe7b8f"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-allow-redfail-test-only.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ae7ffcf22e33aa96448d485a217c57979a55b493"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-allow-refactor.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2c8dd5f067e4b33f665d19d5d07a716a983bcb1e"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-basename-boundary.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "5704d791808aa06fb51b43695b2b372c8b9fd989"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-bash-bypass.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3edb517125c46acc53f5ed53e498c4d376befb28"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-concurrent-write.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "18ddb9713de6933ee7cc278f2e0f9f64995cd1e7"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-deny-greenpass-production.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ecafa580abe8542b17d40d0cd8169baedfef2765"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-deny-uninitialized.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0ffba6440a5afc44f30d554e346bac10ad68c457"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-greenpass-tight.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "4c1d95df7609482194ce2cc5022f1a0b263d18e4"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-inline-header.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "83415bdff92194ba72ecfbfba35d8dc0cc559401"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-isolation.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fab5d6edbc67aaf6376098d72931957a1afe96b8"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-lib-paths.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f9fe6654d7c35c4eee180971846af51beba23360"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-lib-state.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a43c0dfc23732f6a9fcbc6001a6962b8ceb19921"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-log-phase-subcmd.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fd354dd3a17e031c10ce8704c6bd46d7f684ccbb"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-override-env.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6c91d376993a2ed5cf5e9b2633e1cc1acbbff7cc"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-symlink-reject.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2724d510a4dd21d03fddca1109973b5964dd477a"
+  },
+  {
+    "path": "evals/config-gate/test-pre-edit-toplevel-paths.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "81d274b0a2b96816a08a07529f647a26c95aeba7"
+  },
+  {
+    "path": "evals/config-gate/test-readme-coverage.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a27ee7a64f7b7f02a6928c3ddf5b1c1ed7ff2a96"
+  },
+  {
+    "path": "evals/config-gate/test-review-convergence-directive.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "c96d7748d63416fbb2d297764fee6791f01ddf2c"
+  },
+  {
+    "path": "evals/config-gate/test-review-counters-state-location.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b2bc1a5972005ed97752c0e76404fb663bb094a8"
+  },
+  {
+    "path": "evals/context-nudge-reaction/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "95af7d37e98de04da14fa349037b3e38581e53e3"
+  },
+  {
+    "path": "evals/context-nudge-reaction/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b548851b4044d4594b48b43d2878a3f41d3c59ca"
+  },
+  {
+    "path": "evals/context-nudge-reaction/promptfooconfig.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9c5aa8727ac99f982c9a565f4454f81b415822b2"
+  },
+  {
+    "path": "evals/context-nudge-reaction/scenarios/reaction-configured.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f867cdb4bf91de1896286e7ea58079b19300afdd"
+  },
+  {
+    "path": "evals/context-nudge-reaction/test-projects/empty-host/CLAUDE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3ea9e5027e2e2419da441f818173573b972d5f5d"
+  },
+  {
+    "path": "evals/plan-approval-hook/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5796191335b689a5ff67f63ff1a639230b905e74"
+  },
+  {
+    "path": "evals/plan-approval-hook/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4e815db78fcc1cdeda2957997ee6a8aae373de9e"
+  },
+  {
+    "path": "evals/plan-approval-hook/fixtures/sample.ts",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f2d5e31d036640c0492f72ac0fcfc2bca59cf8ab"
+  },
+  {
+    "path": "evals/plan-approval-hook/run-eval.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d700ff4fe25ff77d747132c4024e2eb25f500bcf"
+  },
+  {
+    "path": "evals/plan-approval-hook/test-code-plan.exp",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f99eacea9f04b5908dc53dc6762ee9fa98ec7727"
+  },
+  {
+    "path": "evals/plan-approval-hook/test-doc-plan.exp",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "19ba7c2f9be3cc1918d18bdcd6cc8486b95fc56c"
+  },
+  {
+    "path": "evals/reset-review-limit/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1d236a1d89799b03daed7dcca2c15344a1abc895"
+  },
+  {
+    "path": "evals/reset-review-limit/assertions/sealed-attestation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a7503f41dc31a355b4d9799d836f8f99a1488dc4"
+  },
+  {
+    "path": "evals/reset-review-limit/lib/sealed-attestation.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "cc0f34ad0e22a56ce2d6ffe17a49ef371efb8c80"
+  },
+  {
+    "path": "evals/reset-review-limit/lib/seed-state.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "68ef8a4835f7413ee1bf3eec7d537ed5347f0f2c"
+  },
+  {
+    "path": "evals/reset-review-limit/lib/session-start-barrier.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "056885f02b23afabd4f26d511249bec2c438b1e7"
+  },
+  {
+    "path": "evals/reset-review-limit/lib/state-snapshot.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "dc5aa033bc0abc5f87a8a90ab6b6fcb28c80d007"
+  },
+  {
+    "path": "evals/reset-review-limit/lib/stream-evidence.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "dcf853a627c8c032648eefdf3a0193c62962d454"
+  },
+  {
+    "path": "evals/reset-review-limit/promptfooconfig.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0a7c3d840da87b39380775f277c0d500931a7c78"
+  },
+  {
+    "path": "evals/reset-review-limit/provider.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "9d50273978dc3c257fd2bd9eeeeab278df630c65"
+  },
+  {
+    "path": "evals/reset-review-limit/run-eval.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ae316934951a93690d48b2c5e04dfa0d1ff4c52f"
+  },
+  {
+    "path": "evals/reset-review-limit/run-self-check.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "bed5a9619aaf19ef7635b3a379de5539950153e5"
+  },
+  {
+    "path": "evals/reset-review-limit/scenarios/reset-cas-happy.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b485ba2672a7068d32659c02b4008e0954c18f32"
+  },
+  {
+    "path": "evals/reset-review-limit/scenarios/reset-invalid-state.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "70abe58b81d0c4012fa71cf0ef82e5897c4644e5"
+  },
+  {
+    "path": "evals/reset-review-limit/scenarios/reset-sidecar-isolation.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "03656b0fc0b26ae16fb1c09870e514c4868676ec"
+  },
+  {
+    "path": "evals/reset-review-limit/test-projects/empty-host/CLAUDE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a11c8855475f4d44582f8430262c7876f64cecaf"
+  },
+  {
+    "path": "evals/reset-review-limit/tests/barrier-selftest.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b56d8f6d878a22b893709ea384ad2260689c5681"
+  },
+  {
+    "path": "evals/reset-review-limit/tests/results.test.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8932f390c0b0827003fa3a460e91cdbed2c6c4bf"
+  },
+  {
+    "path": "evals/reset-review-limit/tests/sealed-evidence.test.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "1593b6769d41d8505eff4ac04229afc5cfb994c4"
+  },
+  {
+    "path": "evals/reset-review-limit/verify-results.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ba07ed541f5fca51ace530be9add50f8f65ba2d0"
+  },
+  {
+    "path": "evals/route-short-line-reaction/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "95af7d37e98de04da14fa349037b3e38581e53e3"
+  },
+  {
+    "path": "evals/route-short-line-reaction/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ac8dd103b7fd232ff4f8e03fe84c13daf274bf42"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/after-ask.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3b30b6f586b220cef9ef5c171a067814f07f53e1"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/allowed-read.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "703de4a28a21e7ce42125a4d76696a39d39ab89e"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/first-decisive.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "458a8f349c3db3f73b835d08126fed79a5f67314"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/harness-attested.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "abc434c586d922aabbf3947e704dd063bc841bce"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/harness-injection.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1940a2f07c9ff9844cea63823107102ceab24e3b"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/harness-isolation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4495a2c3568d6ad4233473a5529745e4c325b741"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/interception.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e41abead6af262a2a7832bdc56f9994af072a4fe"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/no-delegation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cc619c3f33cd73d3e20f5ea0c0d8a3f59b03bccd"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/no-placeholder-copy.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "dcc4a41d8301e9053a6c2fa57997b314a304ebab"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/no-record-command.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "daa99a9791b547a3b55162adc47ed12e6006ba3a"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/no-route-question.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "25a2fddf37752e0dc9e0dae9b4b877b99ff3924b"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/no-route-status.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4389f9ed1c360e02878f98a3ac091db3c14e5064"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/nonce-first-line.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d0fbb8eb6308c488243ffde570b91c5ff3f42b99"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/route-neutral.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c6f5429e9849af0e0c1f4c69f303e84c332635c6"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/route-question-complete.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "114033c83d67ba46b64faabe7f1bdfece500de8c"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/router-triage-first.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "feac5ec84fbda98db2aae8212bbce6cca37bfcd0"
+  },
+  {
+    "path": "evals/route-short-line-reaction/assertions/status-line-exact.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "15219408cfd20fa6e65f6b7a088ff38f05969850"
+  },
+  {
+    "path": "evals/route-short-line-reaction/eval-config.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "00a1c70577880a11756ef0e82a404e68374d8ad3"
+  },
+  {
+    "path": "evals/route-short-line-reaction/lib/capture-injections.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "66d8b0edc699d44349bf05d20330cb2177b044c0"
+  },
+  {
+    "path": "evals/route-short-line-reaction/lib/decision-probe.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e83d247c9c2d3f32039adc9db1760e20ecabfbeb"
+  },
+  {
+    "path": "evals/route-short-line-reaction/lib/envelope.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8dbac44acf5e0cf050ea21ff436990d300e2d6dc"
+  },
+  {
+    "path": "evals/route-short-line-reaction/lib/inject-context.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "61e7353e155658290b3b985a7c5167c1719cd403"
+  },
+  {
+    "path": "evals/route-short-line-reaction/promptfooconfig-preflight.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "beb26d63fb105edf5ba6915cc0a7109ee35f815d"
+  },
+  {
+    "path": "evals/route-short-line-reaction/promptfooconfig.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "de83b751556ced29940cbb823f57c0dffa853cb8"
+  },
+  {
+    "path": "evals/route-short-line-reaction/provider.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0348fcf4f81b940b104b0b90135f6fc0c77dffeb"
+  },
+  {
+    "path": "evals/route-short-line-reaction/scenarios/ask-headless-code-change.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "12a2c18fa114849bef63ae4b985c4e66e199e6bb"
+  },
+  {
+    "path": "evals/route-short-line-reaction/scenarios/control-no-injection.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "99fe39d61f1e000ee1403ad35f502f571a153204"
+  },
+  {
+    "path": "evals/route-short-line-reaction/scenarios/control-planning-no-injection.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a0a2f8df89f98b9432f1ac951ecbe2250d7fef39"
+  },
+  {
+    "path": "evals/route-short-line-reaction/scenarios/decided-direct-code-change.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9bf106168f32ff121dd1359f04566f49b133f5ba"
+  },
+  {
+    "path": "evals/route-short-line-reaction/scenarios/decided-tdd-code-change.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1501a52e36b5f34d8cd980d99e666fcec1a94bc2"
+  },
+  {
+    "path": "evals/route-short-line-reaction/scenarios/preflight/channel-check.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d91ed5e946a21c009db3e7283039352f7fff6fcf"
+  },
+  {
+    "path": "evals/route-short-line-reaction/scenarios/preflight/read-check.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8c84fc074e147547f1e8e5f6af0b0f0e70506522"
+  },
+  {
+    "path": "evals/route-short-line-reaction/scenarios/router-genuine-planning.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "27e819ddc1716f31c6302f04d2743943a5528359"
+  },
+  {
+    "path": "evals/route-short-line-reaction/test-projects/cart-app/package.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a6bb0db38746d4152e6305b07cfbbb070f52d6c9"
+  },
+  {
+    "path": "evals/route-short-line-reaction/test-projects/cart-app/src/cart.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6b44ad375c312d3b92854f84994082cf2e33e74a"
+  },
+  {
+    "path": "evals/route-short-line-reaction/test-projects/cart-app/src/cart.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d7ea8a494df73e5c4026327ec1f91fc3a4f8aa21"
+  },
+  {
+    "path": "evals/session-control/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5942271913c82ef5fad6f60a55b1ef30426032cb"
+  },
+  {
+    "path": "evals/session-control/assertions/control-attestation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9678c0b115031ecf7f2a6f0f81a1f504b29933b9"
+  },
+  {
+    "path": "evals/session-control/assertions/upgrade-attestation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "aac583ccf232f4eb0c9b5d8fd3e4d323de7adccd"
+  },
+  {
+    "path": "evals/session-control/lib/attestation-common.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b660c9ea25d0f1cc7e1e50ac032e8a237c86e039"
+  },
+  {
+    "path": "evals/session-control/lib/concurrency-control.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "28d384802e8e2aae1830d29a7818266d76fc3cc9"
+  },
+  {
+    "path": "evals/session-control/lib/contract-provider.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "57f60aabfc4f434af0de898044ba981bf5aea2f6"
+  },
+  {
+    "path": "evals/session-control/lib/create-local-marketplace-fixture.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "00907a0f86c66e760c92299a1f16c29da933b22a"
+  },
+  {
+    "path": "evals/session-control/lib/evidence-worker-contract.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b87eaa732fc05ec00582eeba64c4e101b86e8fd6"
+  },
+  {
+    "path": "evals/session-control/lib/installed-plugin-contract.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "063569302e2d92d6f19bfc51fd337449c31ba4bb"
+  },
+  {
+    "path": "evals/session-control/lib/live-attest.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7331b04047a51dae4e2871b4071d10bcbb821549"
+  },
+  {
+    "path": "evals/session-control/lib/live-evidence.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7c237d8445c3e568e8650a5513451615d3d9c74e"
+  },
+  {
+    "path": "evals/session-control/lib/local-mutation-canary-status.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "47d5496e5473a6e9e2c9c7f70de7ea20ff1a32e4"
+  },
+  {
+    "path": "evals/session-control/lib/local-mutation-canary.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "66f62b027d2794a2dd68926253fb05ecff271364"
+  },
+  {
+    "path": "evals/session-control/lib/provision-installed-plugin.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "c23153f16ddd95d960bf046a2ec674afd96d0b69"
+  },
+  {
+    "path": "evals/session-control/lib/release-preflight.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "4a9a7f2c78e6262e4cf895f042fa4ae27a281645"
+  },
+  {
+    "path": "evals/session-control/lib/safe-file-read.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0e25c7aef7cbbb054cd6734e636b7e83aedcbfa0"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-anthropic-mock.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5d4c30211c5e1d1b9d0c652f43abe90a48453cb8"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-attestation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "59bfae5138ba537106604a89b9c574123e91c87f"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-credentials.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b58fa5541dfb766c68e279f007293dd2131de93a"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-environment.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0b1ddc47d1d566b73dd769228a2827e85bc06174"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-hook-contract.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9218657470990856471017d84b49f214b6020eac"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-independent-verifier.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "01ac527e7d7aa5f1f7ddd40f55a499bcf9749e82"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-linux-sandbox.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f03e5202cab6c728cbfcf664f18be1bdf39f4972"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-owned-directory.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ba744a0e52081b76985607845f1385ba4d7b7619"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-process.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "11286eef862300b160ba5e0edc58cdc80528dfd7"
+  },
+  {
+    "path": "evals/session-control/lib/upgrade-provider.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2a1912da1e902d3cc9aa2bba7615635f5664be2e"
+  },
+  {
+    "path": "evals/session-control/lib/verify-results.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "86c3073a4597916e2fcf630f2625bd1db1d5be82"
+  },
+  {
+    "path": "evals/session-control/lib/verify-upgrade-results.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "add47dbc73bdd5da923595f243cb4642b798cfeb"
+  },
+  {
+    "path": "evals/session-control/promptfooconfig-adversarial.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4ab2675845b0620fb10303b623955ed2f4d7f6bf"
+  },
+  {
+    "path": "evals/session-control/promptfooconfig-concurrency.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "232fe3b8a2b6088b69d916e9b0881debea191906"
+  },
+  {
+    "path": "evals/session-control/promptfooconfig-contract.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "293940880ef4bbb1460666b8ecfe8a668b19d4af"
+  },
+  {
+    "path": "evals/session-control/promptfooconfig-live.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7a30753f2b2ed7eb50285677ce7b68dfaf4d8e47"
+  },
+  {
+    "path": "evals/session-control/promptfooconfig-upgrade.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cee99dabd808bb1cdf2ad83fda7c98173218035b"
+  },
+  {
+    "path": "evals/session-control/run-eval.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6ac01870e6cbfe9acd97afef7436a9d59e1382ae"
+  },
+  {
+    "path": "evals/session-control/run-self-check.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a55295baa865d66ab0b2e46c630e2cb2a3d2b512"
+  },
+  {
+    "path": "evals/session-control/scenarios/adversarial.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "69d6f7ea840e3c2b5ea44344ec35cf37e1d84535"
+  },
+  {
+    "path": "evals/session-control/scenarios/catalog.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "15b80fa530d92889512ac7147dfd1a2a44fd63fb"
+  },
+  {
+    "path": "evals/session-control/scenarios/concurrency.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "deb4499870d1fc6edcb77c533b8b25d520ddfe13"
+  },
+  {
+    "path": "evals/session-control/scenarios/live.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9f31670864a725c8630126e9952a685b09a897d3"
+  },
+  {
+    "path": "evals/session-control/scenarios/upgrade.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a92c8f4ba3c2f77ef3571a019bf9b46e434c9695"
+  },
+  {
+    "path": "evals/session-control/tests/attestation.test.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7ded5db03d157a8e8caef6ed4d1e613318aaf123"
+  },
+  {
+    "path": "evals/session-control/tests/concurrency-barrier-selftest.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8207acc3d80d9cab8caa7f6f31985272c02849c4"
+  },
+  {
+    "path": "evals/session-control/tests/contract-provider.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e79886d6e330bca7d98e62208b65d78716780dc8"
+  },
+  {
+    "path": "evals/session-control/tests/coverage-report.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b6b9c3cab87baa5b52a6d768fe6f3f5fb5a16c87"
+  },
+  {
+    "path": "evals/session-control/tests/coverage-report.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0eb079fce00bf614844a84c0b7b74773717af090"
+  },
+  {
+    "path": "evals/session-control/tests/enforce-upgrade-coverage.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1e60d174b7ce8270d5a955fb03a88c74229e6467"
+  },
+  {
+    "path": "evals/session-control/tests/installed-plugin-provisioner-selftest.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8c88b66c58e039cde83ba8c68d06a4f6d384e69f"
+  },
+  {
+    "path": "evals/session-control/tests/linux-sandbox-runtime-smoke.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3f8894e633d8e65efc260ec5e217ccd21f87b002"
+  },
+  {
+    "path": "evals/session-control/tests/live-evidence-negative.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "aa099335454a0e9d483b2b3ff80e17f0ee909955"
+  },
+  {
+    "path": "evals/session-control/tests/marketplace-fixture-selftest.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "42a255d7ac35336a4b480a13a1428104d795eb5b"
+  },
+  {
+    "path": "evals/session-control/tests/preflight-selftest.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "981ce56a02c1de6109f5d0ad475ce587a58b7891"
+  },
+  {
+    "path": "evals/session-control/tests/results.test.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d8c72ecb6a1286e19b7eb0b5dcc4406a675a1e07"
+  },
+  {
+    "path": "evals/session-control/tests/runtime-fixture-installer.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8507fce84f295ded21fffbf8ce1e5978330bab16"
+  },
+  {
+    "path": "evals/session-control/tests/safe-file-read.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e0bdb517e9259a709f95f3b7812b4bb401b944a1"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-anthropic-mock.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "555c74f371c0e6dca7310468c52abce9efb2e265"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-credentials.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c85b2d3c79892cc7c4f30c3cc6e0f38223d6ef06"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-environment.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b79a6f0e5a6ec3aa97db867b90a663b7cd8de544"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-hook-contract.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9a8b0acfc581ebe797e53b0b1a7e27c46651fddb"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-independent-verifier.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7610dba14cd9574ec2b08147e1a5e9ed1ec02447"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-linux-sandbox.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9f2fc8d226dc94acbf0b55e4cdf4a3862cc7596c"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-owned-directory.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f2a7b78078b8433b3377a3ef38e5b271d43ec167"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-process.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a42f432ff899ffb3f8b133501e7975bde21960c4"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-provider-selftest.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "caf78b5a1c3ec58ad03f9382cabd3451ec54b33a"
+  },
+  {
+    "path": "evals/session-control/tests/upgrade-results.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a68338eafbb20f771327b3db293226907975cb11"
+  },
+  {
+    "path": "evals/session-control/tests/wrapper-selftest.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3839581dce2d60649874ea61167ec072a9725847"
+  },
+  {
+    "path": "evals/stubs/jks-js/package.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f98eceed1170dc5a58710470b72f277bb2ff8aec"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "09b867931971e0bf21a9d38ab71aaece3eead45b"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/assertions/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "68c2f2892d35135a5e9c2307dc71ecc220f1858b"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/assertions/assert-backward-compat.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ab742899f3ce4404a9352b89b6985512a39bdf31"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/assertions/assert-file-exists.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cc181deb9d17e178dfa508ac52dcf8cf531bd71d"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/assertions/assert-gate-recovered.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a8d664ec9bee49449dc9581fd8156b1adb19b263"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/assertions/assert-no-gate-fired.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d6f0e67262a26a9acb73e56a65119cc0018ccd0b"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/assertions/assert-no-shell-redirect-bypass.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "beb1501ef712069d2cb5064db5237dc76f4abdd8"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/assertions/assert-phase-sequence.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cf71871e8d0628a0538f907746f53d0c1ff269f9"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/baselines/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e8481952b9bd16269d2d70e8dd3122e25984e9dd"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/fixtures/snorg-drift/2026-01-01-0000_tdd-snorg.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e631363d242571c354a9172d937ff9abe1e13e07"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/fixtures/snorg-drift/2026-01-01-0000_tdd-snorg.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "634e8a10b15a28bcf0bfdbc529479b7accd535bd"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/fixtures/state-baselines/phase-green-pass.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a4cd72e6d7d510c6470183b175e2863e050fdd53"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/fixtures/state-baselines/phase-impl-no-red.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "28c3ae53b7ebe8cf7f45c4095fd230bc861c6c84"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/fixtures/state-baselines/phase-red-fail-s1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "01bd315ba2e32f3b863ed8bbb396d1d53c1e6183"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/fixtures/state-baselines/phase-red-write.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fb03981c8ebd07bd441c9a58420c6fbebb93cf47"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/fixtures/stdin-pre-edit-allow.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "99ee25a0ed9188622b71e7aa568079446654d949"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/fixtures/stdin-pre-edit-deny.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ceee57bdaab3b99e39144800b729c5b7e4395a94"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/promptfooconfig-pretool.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "96f691b4bc527f4d014c7bc2ae793616952ea6ff"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/promptfooconfig-regression.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5afd1d6f558165904bc4cc0ae9e2110ba1ad86a5"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-cross-stack.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "21c15daeb668f9cc64e55202a08953f32bbc1a76"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-fake-green-hint.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f255568f0eda9adda9144d858ae8bdb59ba8a831"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-no-phase-marker-hint.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a6673d213455f9c84b3dfaffae32458e176886f7"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-override-env.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ce57e774898c60eabb89c9087badec9df7aced65"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-phase-jump-hint.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9fffdc4cffd8d24d7193431b286dca73ba5817e9"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-refactor-after-green.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f8d93a62b7cdcabb2ba2c7ca7a45e096bba5b6e9"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-reverse-string-be.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "354c75bc45228344d15cb96d91fa317b1f8efbc9"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-reverse-string-fe.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bfb69d38611ee5ae3012a87a41ddbc4fef7aa3ae"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-skip-redrun-hint.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "812db408e280291d09a5ed1a05a5087eac972d20"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/prompts/feature-spec-with-shortcut-hint.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "51ddb830bb0b21bf5ec8f1d7362581fa388f5fc5"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/results/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d6b7ef32c8478a48c3994dcadc86837f4371184d"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/run-eval.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a2b045bbe3e6e5d208dd8a99c8df8f781a212561"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/01-happy-frontend.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "58b8120421a2ce2eb028cba9a428569d904f0083"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/02-happy-backend.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6a979cc13d0214de542831dd178e9c67439b9a8d"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/03-drift-impl-before-red.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "07d9c462e779529e918ee4f0ab4260d5254f75cd"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/04-drift-skipped-test-run.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "086258e991995898e6f08a8d1b2139557f78ebfe"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/05-drift-phase-jump.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "09223e77ddbc8a2f61c98dd55dd8ef3c97131d50"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/06-drift-fake-green.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5e4b95a8eaf480827743555b0467f17789446631"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/07-drift-uninitialized.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9e3fbf019e456f245139e10d99cb2c9ef1545466"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/08-refactor-after-green.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d0f5fee5e677570393f115b2713698a190466cd9"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/09-cross-stack.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "69456fd8a9a8b9aab4f621cf80a6d5eb62650a9b"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/10-override-env.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "541cdb53d4e8552db89c0c80f2e9525f7db49867"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/edit-landing-clean.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f4a64e7276ec906ffa176dee6827a26145cb05c7"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/edit-landing-not-landed.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3adf321f9c56d431fe6b287aae1c2ce05ea4cfce"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/precondition-drift-audit.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ce558d0e706324c70ac7425dce0711ae43f31e81"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/precondition-missing-cli.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cadc32e562c821098d92ac161a38b0cdaa3eed3c"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/scenarios/precondition-missing-secret.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "893962e46e06a3f1ceb0fca994871ebd4b00b223"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-assert-no-shell-redirect-bypass.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b43f38c033c1d2bd57aca3ace14abd3a637b1f83"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-hermetic.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fa153ca4813929eec1dceca4281f50aad1cd2a33"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c641ac97f9b34d043ea4534b3287a5fd86539d0d"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/CLAUDE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0677a6b5f8593f52a8beb798c76e15a82de36c9f"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/CLAUDE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3c7e113125d463fb6d2cf40ddcadc6660d67e4d2"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/cmd/server/main.go",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "da29a2cadf1e00b14b1a4bd0a52780888bf3e532"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/go.mod",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d45fe16f9a5246cfaedfb3b28f5acdbc93c9a49a"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/internal/.keep",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5d773796f99e4535d2cfcbd85999a015fa870839"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/frontend/CLAUDE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "38944fa091dc0d95d8c06dc71bb77b36ec212211"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/frontend/package.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3e177a568aa55f94ae9b7ca6edc4e762e619cdf7"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/frontend/src/App.tsx",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ec4a9574b26e9b707094d0c910c83da5b94dfb24"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/frontend/src/__tests__/.keep",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "43029f0034cd109252ddf8bc0e951e938c483d85"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/frontend/src/utils/.keep",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3904b44caeabb384e3c03f525e5f2de78f0afbe6"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/frontend/tsconfig.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bbdcc7d34868a60c20f4d8429c02432d71459b33"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/frontend/vite.config.ts",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ee2cf976320a0e562f8df6bbc4ebc20b2c94bd8b"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/frontend/vitest.setup.ts",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "91f4a912eb98b7af61b8f940451de6d9744957be"
+  },
+  {
+    "path": "evals/tdd-manager-pretool/test-projects/react-go-fullstack/package.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7125cd1744bcc3f10fc47f9114bbd1e8e5feb533"
+  },
+  {
+    "path": "evals/tdd-review-chain/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9782567923a6410a576977673115a8566cb39391"
+  },
+  {
+    "path": "evals/tdd-review-chain/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8f062518cee0601c9a5c471f037a4ca76e5ca868"
+  },
+  {
+    "path": "evals/tdd-review-chain/assert-agent.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "14db119d6cb396136f786ef678a55a790a594980"
+  },
+  {
+    "path": "evals/tdd-review-chain/assert-changelog.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6557392cbb5b845e73d83f98de2ad0fa374cc274"
+  },
+  {
+    "path": "evals/tdd-review-chain/assert-config.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fc1d02a9f146765f983f105f5521b6cb55efe3f2"
+  },
+  {
+    "path": "evals/tdd-review-chain/assert-severity-routing.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e300753e30c53cad221b675fb957ecb70721c01b"
+  },
+  {
+    "path": "evals/tdd-review-chain/assert-tdd-log-compliance.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3a4ae79924aeedb54eded946c4edd53b63e3858e"
+  },
+  {
+    "path": "evals/tdd-review-chain/assert-version.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "351c471be61719912e5005a053ceea1bdb9f3140"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/sample.ts",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "05ece4be656920d735ddc5f792bedcae35d5a433"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/tdd-log-bulk-shortcut.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "130d5a855c4c106d1071c61c2c11304220169445"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/tdd-log-good.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "dd8b4e983d4862d14f4627eb1256bc78c7c16e86"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/tdd-log-grammar.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4928013f6e0f407b04ddf6dcad942026753906ea"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/tdd-log-missing-red.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f302780185a102820d27734e2a988bc99647d1f9"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/tdd-log-ordering.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f5dd922846bb0c16750dfbc7604e19d255d7d135"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/tdd-log-test-after.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e83766ec34ada0602b00fc7aa9f03e3fdb74453e"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/tdd-log-test-collision.log",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "55846fed77154e13c928d5c6043f6b70763c8485"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/test-after-tree/Foo.java",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4a2b44daf653f3ec09369a97767329927dfd4c8a"
+  },
+  {
+    "path": "evals/tdd-review-chain/fixtures/test-after-tree/FooTest.java",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "adb8ee7bdba4ce8b3364010284d229c502211bb4"
+  },
+  {
+    "path": "evals/tdd-review-chain/hooks-experiment/logger.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0e8890a21e0df720f4238be55e742b6be2db5930"
+  },
+  {
+    "path": "evals/tdd-review-chain/hooks-experiment/posttool-task-logger.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "186d59412b81e4f17115f2dd4ae7b79dba2450fa"
+  },
+  {
+    "path": "evals/tdd-review-chain/run-eval.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f8c7cb0183621e649130c4bb151b1efb9bf5b35e"
+  },
+  {
+    "path": "evals/tdd-review-chain/run-self-check.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "c5cdae87cf64ff3b83bfa74768d860ee051b53b3"
+  },
+  {
+    "path": "evals/tdd-review-chain/test-tdd-compliance.exp",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e0b87cab4e419964c848d3974b65cc683629b5d1"
+  },
+  {
+    "path": "evals/tdd-review-chain/test-tdd-isolation.exp",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2567f96bbfb264d973cf371b9d2074311b594ff2"
+  },
+  {
+    "path": "evals/tdd-review-chain/test-tdd-positive.exp",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "637a67ffba5d8dc48d0f72fd0b1ecc2e0fb7e74e"
+  },
+  {
+    "path": "evals/verify-feature/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "95eccc1c2df3b7c4528c344edb4dcbf15e5de1a4"
+  },
+  {
+    "path": "evals/verify-feature/assertions/transcript-check.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e4e1417b82520b47e89796996ce35f707a7fc74b"
+  },
+  {
+    "path": "evals/verify-feature/port-reservation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d2f4c452381abd470b74e454d38d2a2ebaa55d2c"
+  },
+  {
+    "path": "evals/verify-feature/promptfooconfig.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3ef627281ea4b32a1483217009497da06bff0033"
+  },
+  {
+    "path": "evals/verify-feature/remote-network-only-provider.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "08a2998d6ea2b0c2519c5d02751b0aa6dde77666"
+  },
+  {
+    "path": "evals/verify-feature/remote-provider.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b180a877e1ffc0b0754ab104279cfcf8f9bb4e24"
+  },
+  {
+    "path": "evals/verify-feature/run-eval.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "9f178b857d29e6d17bb68bea019bc3ae9de7ea62"
+  },
+  {
+    "path": "evals/verify-feature/scenarios/local-happy-path.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c5b5f7995ccd71c7c75aafaf2c5e3748c9540527"
+  },
+  {
+    "path": "evals/verify-feature/scenarios/remote-accepted-public.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2d62f3f26c025d466e67c73bfa33f45873e1b68d"
+  },
+  {
+    "path": "evals/verify-feature/scenarios/remote-separate-api-origin.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7d75d2009ef2a9432925266ea181a3c3f595c43e"
+  },
+  {
+    "path": "evals/verify-feature/scenarios/remote-unsafe-url.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "01e0fbde26c3cfb9b22b7ded675dc30441c61282"
+  },
+  {
+    "path": "evals/verify-feature/test-projects/live-app/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e05b2e247d701bd774b68d284ad5c724f308b6bf"
+  },
+  {
+    "path": "evals/verify-feature/test-projects/live-app/.zensu/autopilot.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "65a2f2dca8a4114c95620edfb9a5fcfef44d2848"
+  },
+  {
+    "path": "evals/verify-feature/test-projects/live-app/.zensu/remote-example.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6fdf0c57fdf2357505fab06d5f5fe2d46371ce5d"
+  },
+  {
+    "path": "evals/verify-feature/test-projects/live-app/.zensu/remote-network-only.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e92df61c45519afc8b5b43e2c0e357f23e917a75"
+  },
+  {
+    "path": "evals/verify-feature/test-projects/live-app/CLAUDE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d59df10ce2d1d55f8ec1f6155c78197a1a929ed2"
+  },
+  {
+    "path": "evals/verify-feature/test-projects/live-app/public/index.html",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d3d77639a7d9bf881186bd3c4fcf8645702549ba"
+  },
+  {
+    "path": "evals/verify-feature/test-projects/live-app/scripts/fixture-runtime.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2a30405b5f5a2af9c498fe64b7e871e0070db395"
+  },
+  {
+    "path": "evals/verify-feature/test-projects/live-app/scripts/fixture-server.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "55cc2cb70f4f0d2071e3cbe90cc948efe9e8463e"
+  },
+  {
+    "path": "evals/zen-mode-reaction/.gitignore",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "95af7d37e98de04da14fa349037b3e38581e53e3"
+  },
+  {
+    "path": "evals/zen-mode-reaction/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1f74dfa3bfe202e43679201f6e09a57a260971b3"
+  },
+  {
+    "path": "evals/zen-mode-reaction/promptfooconfig.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "77b84b94ae4aae91b39b09df8ce3be74d211dfe7"
+  },
+  {
+    "path": "evals/zen-mode-reaction/scenarios/anchor-failed-step.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "78a7ffb6689b466d3af413d4939324cd689b6398"
+  },
+  {
+    "path": "evals/zen-mode-reaction/scenarios/anchor-multi-step.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ad0059fc48d66e32067c2c2a57a8f73d5f1ec6c0"
+  },
+  {
+    "path": "evals/zen-mode-reaction/scenarios/contract-compliance.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5e7989eba9c26ec8bd5491020f2dd7aa92c0e1fa"
+  },
+  {
+    "path": "evals/zen-mode-reaction/scenarios/precedence-over-compression.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1354300cd57c5057251ab70c9b29271d39955192"
+  },
+  {
+    "path": "evals/zen-mode-reaction/scenarios/safety-carve-out.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "46eef9676687e3e1feac0d584915c92d2078fbc0"
+  },
+  {
+    "path": "evals/zen-mode-reaction/scenarios/short-anchor-multi-step.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "023dd95664a96d827a288e295dffb2cdf959694b"
+  },
+  {
+    "path": "evals/zen-mode-reaction/scenarios/short-contract-compliance.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "76327a0f5f32b357529811357e6be3171fab25a0"
+  },
+  {
+    "path": "evals/zen-mode-reaction/scenarios/short-safety-carve-out.yaml",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0564a77ac607506ce485ec22af70767e263c5881"
+  },
+  {
+    "path": "evals/zen-mode-reaction/test-projects/empty-host/CLAUDE.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fd938b51a51c2145fdf0408d09036dcd0a0ff1eb"
+  },
+  {
+    "path": "harness/launcher.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a8ca37e1759399d1b9d1238bf2acf65cd15ba0f6"
+  },
+  {
+    "path": "harness/manifest.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "816c281bec6a76a77f448d2cedeb830d6903cd64"
+  },
+  {
+    "path": "hooks/hooks.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7c3e362a4d50800f22d11921bb4869d0f7973bd4"
+  },
+  {
+    "path": "hooks/lib/acceptance-verify-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2c14abacaf3b8214c73e630e6b6f264341665097"
+  },
+  {
+    "path": "hooks/lib/aspect-activation-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1282a6ea109885b6e33b9ae0444f22608029eb1e"
+  },
+  {
+    "path": "hooks/lib/bash-source-write-parse.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "659b88c4ed97197f78dc12ef085384f056b0141a"
+  },
+  {
+    "path": "hooks/lib/chain-recovery-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "acdeb9b945fbc6fceb872deb7f81ab9776c67b63"
+  },
+  {
+    "path": "hooks/lib/ci-contract-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "147f15771aab9e9a6244470a02d224980245a809"
+  },
+  {
+    "path": "hooks/lib/claude-hook-session-v1.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8c6eb98f6fede83153795bb09fba1283d1c69a0d"
+  },
+  {
+    "path": "hooks/lib/claude-path-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8493b36b6286699783c0bea44e8af1f37e2db56d"
+  },
+  {
+    "path": "hooks/lib/claude-principal-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9fb98ed3906e06852b734af27241af93f700f000"
+  },
+  {
+    "path": "hooks/lib/claude-session-control-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8b123fdfbdab77c797977cb99929e81058d52511"
+  },
+  {
+    "path": "hooks/lib/edit-landing-receipt-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "63b294a79803f9c81cd7d2d79cc12922302f1aed"
+  },
+  {
+    "path": "hooks/lib/evidence-run-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6ccc06396aed6a88c670662523af25d6a8867818"
+  },
+  {
+    "path": "hooks/lib/external-review-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a64c72b9ecfccea32285f6fcb1b3998551f59142"
+  },
+  {
+    "path": "hooks/lib/finding-verify-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f145fcde54b598628b52045ee83d0abf35480d55"
+  },
+  {
+    "path": "hooks/lib/full-suite-policy-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c56a5c196090ca498569b415dc289a99c7c8521e"
+  },
+  {
+    "path": "hooks/lib/hook-registration-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3832516cfb07d7862a074bb365a95e48d1d6d59c"
+  },
+  {
+    "path": "hooks/lib/persona-activation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "80afcdfdbb8f70d8cc6fdda1f2b7d3705f894625"
+  },
+  {
+    "path": "hooks/lib/plan-payload-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "97821bcf3afbae0489789ab9cdc76b52f31c95f9"
+  },
+  {
+    "path": "hooks/lib/playwright-cli-version-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3d2498dbb58bd49d8982b1c2b982d46679053dcf"
+  },
+  {
+    "path": "hooks/lib/plugin-data-guard-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "aeb7eb6644759b6556f63152a13acf70427c594b"
+  },
+  {
+    "path": "hooks/lib/review-evidence-hook-v1.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2b5dca6852b6045981063673acdafc2e6f7681d4"
+  },
+  {
+    "path": "hooks/lib/review-evidence-lease-v1.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8868ae8b1fe5e6b65ad1896f5f37ffad96bfe49d"
+  },
+  {
+    "path": "hooks/lib/review-evidence-sweep-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "acf980b1aac0208c1bca7b31a94cd7aec7fca8e6"
+  },
+  {
+    "path": "hooks/lib/review-ledger-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3fad7475ddec6ad1819aa139bebaabc9c4603c04"
+  },
+  {
+    "path": "hooks/lib/review-round-scope-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "99a8d59f41f6a07a405ebdda8668896ec6800291"
+  },
+  {
+    "path": "hooks/lib/reviewer-capability-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8dbd1be3cabe548c33108b5c9879751776b0f4da"
+  },
+  {
+    "path": "hooks/lib/reviewer-spawn-allow-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "66f3b7adb3fcbb1e35848812b45db8da97231207"
+  },
+  {
+    "path": "hooks/lib/reviewer-spawn-denial-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8a61d979a44fd48e35677383f6b750a525165ecf"
+  },
+  {
+    "path": "hooks/lib/rule-block-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4ca7ac58c48d03ed0b817cd0f9534793d303a9b5"
+  },
+  {
+    "path": "hooks/lib/secret-patterns.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b3f917f99dfec49306811c6294803e452d41c686"
+  },
+  {
+    "path": "hooks/lib/secret-scan-decide.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3fa8a5b3ac3874c727324906ced99e88d9402cf0"
+  },
+  {
+    "path": "hooks/lib/session-adopt-report-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a7fa6d61d7995707500d83abf54c013aca20eb59"
+  },
+  {
+    "path": "hooks/lib/session-auto-adopt-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d1dc8d88c8af8dd86a8bd54aee944e0a5fe35ac1"
+  },
+  {
+    "path": "hooks/lib/session-control-core-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7be2a6be663bc8bc63851c235a4f4b74272edfae"
+  },
+  {
+    "path": "hooks/lib/session-hub-receipt-v1.mjs",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bb75d42b9b790a0db04f01a9dbf0344485c2914f"
+  },
+  {
+    "path": "hooks/lib/session-reanchor-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "716059a77788c6c17ca838ddf7f259cb7ef1d390"
+  },
+  {
+    "path": "hooks/lib/stop-idle-probe-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "de12f12e14cb11229e7a0ddfe6f08942bc987c97"
+  },
+  {
+    "path": "hooks/lib/subagent-shell-guard-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9520ac85d215a18bf4b3794cb31601c88161052b"
+  },
+  {
+    "path": "hooks/lib/valid-diff-lines.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "64895d7909a298564dac6e3c7c5db82c13508b3b"
+  },
+  {
+    "path": "hooks/lib/verify-consent-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "35538d708f274b0140125c3970a8c8347c09cf36"
+  },
+  {
+    "path": "hooks/lib/verify-navigation-floor-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9b79978d4db42589c9e20071eb4db7c5d7bd4b61"
+  },
+  {
+    "path": "hooks/lib/work-order-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5df2e01034be3baf4361ff6d761154b48b0e2910"
+  },
+  {
+    "path": "hooks/lib/worktree-keep-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e1b841cc5907cb29dc7a39ea74eb03e78b17f674"
+  },
+  {
+    "path": "hooks/lib/zen-anchor-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c40c17bfe023b66d0ec0440c643c7a411f8a5565"
+  },
+  {
+    "path": "hooks/lib/zensu-agent-context.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bd46a29bd3d0adf979c34cd80aa22e9bd3e2a6c9"
+  },
+  {
+    "path": "hooks/lib/zensu-artifact-redact-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7edfda9fa653abd603ce97d2f011ed2746422e66"
+  },
+  {
+    "path": "hooks/lib/zensu-autopilot-state.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0651c6a9c90f090b278eb5b78d20ae7cbf302079"
+  },
+  {
+    "path": "hooks/lib/zensu-bounded-run.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "db95bb0866c71b2ca6fdf4509d72a27160e8c2d3"
+  },
+  {
+    "path": "hooks/lib/zensu-browser-consent-prefilter.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "df9a219155a88de037f35271cb1a19dccb760ae8"
+  },
+  {
+    "path": "hooks/lib/zensu-cli-map.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6eb5d0f95fd7207a95d5bdd32e962e3d1d9d9805"
+  },
+  {
+    "path": "hooks/lib/zensu-config.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6f0983dc65d65c30b4e450907cb02d686bebaa3c"
+  },
+  {
+    "path": "hooks/lib/zensu-delivery-route.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3db79f24beb49b36570c3a96f3ec6fd97694f053"
+  },
+  {
+    "path": "hooks/lib/zensu-directive.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1c9fd9b9f58b63499d0702b95a592bddf9a245d8"
+  },
+  {
+    "path": "hooks/lib/zensu-doctor-invocation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ad60a3a6d697783c239417b8856622cba00c2cea"
+  },
+  {
+    "path": "hooks/lib/zensu-doctor-report.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "66a3c2ccc1342968131671459f1b97b210939953"
+  },
+  {
+    "path": "hooks/lib/zensu-doctor.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "4775542c86d2353aca8df342e7c41002b7b722c6"
+  },
+  {
+    "path": "hooks/lib/zensu-edit-landing.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "240bb07a6c4af504eea1c6223875b38a00d7add9"
+  },
+  {
+    "path": "hooks/lib/zensu-full-suite-transport.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3a328b1e2f87654bdc94bc27b6b8c08b3aaaa5e0"
+  },
+  {
+    "path": "hooks/lib/zensu-full-suite.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6701888d83fc8c023dab83563df50b1b5943a5e2"
+  },
+  {
+    "path": "hooks/lib/zensu-host-path.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e49115474ca9eb7d883b320d725d7ffe768c1b3b"
+  },
+  {
+    "path": "hooks/lib/zensu-log.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b5a8ea8c4286e142db31ea42cd9134c7ed60b5da"
+  },
+  {
+    "path": "hooks/lib/zensu-marker-write.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5bb0c90f2dd0106a9f2c8440a426ab227d5e7b14"
+  },
+  {
+    "path": "hooks/lib/zensu-mcp-tools.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "55d24beed207e7037ac8517ac3f2a0290a670f07"
+  },
+  {
+    "path": "hooks/lib/zensu-msys-env.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "44cca7cb48bdbdcabf2774e4609b1a1ec45abec8"
+  },
+  {
+    "path": "hooks/lib/zensu-plan-requirements.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d59376d1e9e65d0d11160e41d709017403552a39"
+  },
+  {
+    "path": "hooks/lib/zensu-prompt-ledger.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a3ecadf6af70bb8d4a286bcc7031ebaf8f8abf54"
+  },
+  {
+    "path": "hooks/lib/zensu-prompt-origin.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "97c8b36e1d22dc5510d7adc3e7b23ba95e05839e"
+  },
+  {
+    "path": "hooks/lib/zensu-review-evidence.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7c9a3e56271581b616269fb466a6e585d6d52960"
+  },
+  {
+    "path": "hooks/lib/zensu-safe-display-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d8a483351d0ba7dde4d5bfd37e9806ace992efe8"
+  },
+  {
+    "path": "hooks/lib/zensu-safe-render.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e7b8439d606e822990c9fb69ab34bcf47fcfce21"
+  },
+  {
+    "path": "hooks/lib/zensu-session-adopt.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "35bd6c708a95632cef391871c3c654484eb6babe"
+  },
+  {
+    "path": "hooks/lib/zensu-session-reanchor.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "94072b30c8fe074ed9976b2c83b7d7c365c4dc35"
+  },
+  {
+    "path": "hooks/lib/zensu-session.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c021c64a63eadea4e0330496708b637a5c8beff9"
+  },
+  {
+    "path": "hooks/lib/zensu-stop-deadline.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "af40a6432590efd28906bd6e366d964d8d05cda2"
+  },
+  {
+    "path": "hooks/lib/zensu-tdd-mode.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "4d8fe39f2c8dbfeb85371fc9a816ee40136513c9"
+  },
+  {
+    "path": "hooks/lib/zensu-tdd-phase.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a9a340716fe0f1be170c87c9afe22dfd0ff0d3d0"
+  },
+  {
+    "path": "hooks/lib/zensu-vcs.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8d25a79eee1d8bd0a398e9fab1f612895ad9dc66"
+  },
+  {
+    "path": "hooks/lib/zensu-work-order-hook.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "15ebbf4ce205d08fe5d72b2ebe582b6b230efcd3"
+  },
+  {
+    "path": "hooks/lib/zensu-work-order.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8d96566f0b1443b0ef51a0137814903f16268512"
+  },
+  {
+    "path": "hooks/lib/zensu-worktree-keep.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0560b19d9e3389bf6b74c067ba576412c34d4dd6"
+  },
+  {
+    "path": "hooks/lib/zensu-zen-mode.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "29f8de85631376aa499ea01922f63547dc079438"
+  },
+  {
+    "path": "hooks/lib/zensu-zen-shared.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "81f278f7c9c38f0d3ca86e2520b2df2648bca6a8"
+  },
+  {
+    "path": "hooks/plan-approved-delegate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a003ae2400614bf4a219fbda80dd894041717862"
+  },
+  {
+    "path": "hooks/post-artifact-redact.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "50754be2006ae03e7b18313128dbf734e28c893c"
+  },
+  {
+    "path": "hooks/post-browser-navigation-consent.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ff6b9744fd52c630d69dfcfaf53e2d2e12e9740b"
+  },
+  {
+    "path": "hooks/post-review-tdd-delegate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "dfda05e22cc31e7f63e07554fa9bedf695486926"
+  },
+  {
+    "path": "hooks/post-work-order.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "56770d5e970d0e9bacabcee14f0340d9c21f7f3c"
+  },
+  {
+    "path": "hooks/post-workflow-launch.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "5a40f56301c0eed56b3191007e3ac3dcb5972452"
+  },
+  {
+    "path": "hooks/pre-agent-reviewer-allow.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "c854329eb81d2cc45f5e4c1f01e8a401cbb14f5f"
+  },
+  {
+    "path": "hooks/pre-bash-source-write-gate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "db0077f5b0616e0942a0ca3c8bd5ffcc5379878c"
+  },
+  {
+    "path": "hooks/pre-bash-zensu-gate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "85b578deeba76037fdfa3124313794304593b7ac"
+  },
+  {
+    "path": "hooks/pre-browser-navigation-consent.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d32ec8bd52eb5af9ed36611d477c6d6bf297b4ea"
+  },
+  {
+    "path": "hooks/pre-edit-tdd-reminder.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "26f4d02164e2cb55d4595d86105eaaa97c398667"
+  },
+  {
+    "path": "hooks/pre-reviewer-capability-gate.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8a79c4ce5794cf760fff19d4f84731c7ca3e3e50"
+  },
+  {
+    "path": "hooks/pre-work-order-gate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "74a81a1666c3dc2d5ce2a79f8b4e41e32fd10397"
+  },
+  {
+    "path": "hooks/pre-write-plugin-data-guard.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ba91f464b8edd9a3feae8a6e0e22eaba9777fc93"
+  },
+  {
+    "path": "hooks/pre-write-secret-scan.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8a10c002fe4d9c6f6c45e7061446984236c7dcc6"
+  },
+  {
+    "path": "hooks/review-evidence-subagent-start.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ca0204319bb3650d284658372095bede2c03a384"
+  },
+  {
+    "path": "hooks/review-evidence-subagent-stop.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "c92966e56f4514037e6cc9c4bb7f6dc6c0386d2f"
+  },
+  {
+    "path": "hooks/session-end-worktree-keep.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b5a99f3df25f2b8500e53acbac231ac2fc1ec3cd"
+  },
+  {
+    "path": "hooks/session-start-autopilot-resume.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a1bd6ab7e2bb4af5109952999f44893419b17aae"
+  },
+  {
+    "path": "hooks/session-start-banner.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7c868fd59d23b73beeda3b9aa7eec88f312b3b77"
+  },
+  {
+    "path": "hooks/session-start-evidence-discipline.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b97cf12f6dc2f010f771d855e46ccc8bc09fb742"
+  },
+  {
+    "path": "hooks/session-start-primer.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3d5aa169453f93457dd72310050a0cefa4862b8a"
+  },
+  {
+    "path": "hooks/session-start-prompt-ledger.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d79de11a6d38ee64954f88c47910612bdd11fdae"
+  },
+  {
+    "path": "hooks/session-start-pulse.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "9469cba4288f5b27cc5abec4d4b1e3ae252dc29e"
+  },
+  {
+    "path": "hooks/session-start-session-control.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "65422aac0389d69bf6046db7476bcde7747f0b49"
+  },
+  {
+    "path": "hooks/session-start-worktree-keep.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e572c2d532e5841b8d7d6865abd197310c062eb8"
+  },
+  {
+    "path": "hooks/stop-chain-enforcer.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "317f5a050fd58a4148c04af8371a644c470851f0"
+  },
+  {
+    "path": "hooks/stop-work-order.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fd0f042a555a249cb8ad13bce9cf3d78c6847e5a"
+  },
+  {
+    "path": "hooks/user-prompt-best-solution-first.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f8eb911fcda3976963529a4144df7e0909c8ce50"
+  },
+  {
+    "path": "hooks/user-prompt-context-nudge.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "713d792ce01bd5f14808674e569ef57f76297804"
+  },
+  {
+    "path": "hooks/user-prompt-intent-router.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "50c401a115f328353d00ada77d1245a389eafbbb"
+  },
+  {
+    "path": "hooks/user-prompt-session-hub-receipt.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7e096005c946081ee4812c94d64d641581f22044"
+  },
+  {
+    "path": "hooks/user-prompt-tdd-reminder.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d5c75793db33f7d4bd1dbe3dcc83fbd51aaa6b59"
+  },
+  {
+    "path": "hooks/user-prompt-worktree-keep.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fd1116ec97126bd87e7e4f9e8bfb4350b4b24d00"
+  },
+  {
+    "path": "hooks/user-prompt-zen-mode.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "076e6b0afc6ec8be83f9784c76dfa072998e9bac"
+  },
+  {
+    "path": "package-lock.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ef8c5e9878cb2f1d28d239721889c6a21ff77f71"
+  },
+  {
+    "path": "package.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b1ef30f8b4f34a5229b6a838daad3de3dd12ed24"
+  },
+  {
+    "path": "scripts/claude-enrichment-render.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "34c2bf07501c1817f69fed2b8ec5347e4ec52730"
+  },
+  {
+    "path": "scripts/claude-promptfoo-wrapper.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e3720f32154e4da4f3265e5357ec587dfb3ce169"
+  },
+  {
+    "path": "scripts/claude-stream-render.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "879a86b4457a22b5750b999e025f2a65434a5912"
+  },
+  {
+    "path": "scripts/fixture-manifest.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "39c7ceb75e1cd70df89c5aa9c317d3c47f882395"
+  },
+  {
+    "path": "scripts/fixture-mutation-watch.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bc9f7012337573b00009a8a14b3dae5f5f42406d"
+  },
+  {
+    "path": "scripts/owned-process.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "9eb95dc4690de9f533a96eae7c7c4985ade9912a"
+  },
+  {
+    "path": "scripts/process-supervisor.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8c9fe60133ad5c5b8a79131aa223d8c191ab8eff"
+  },
+  {
+    "path": "scripts/session-control-claude-wrapper.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8e63537c417fde413e77b5a1a8a88ec649ee6321"
+  },
+  {
+    "path": "scripts/verify-browser-config.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "995019da017ae1195cb8fc8cb97324ef49e50d94"
+  },
+  {
+    "path": "scripts/verify-free-port.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7ad87413525fbded02d320157a4e77f5bf051a16"
+  },
+  {
+    "path": "skills/adopt-session/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7467a65ba25e21d9e76f40d4e4bc6785c2cd4962"
+  },
+  {
+    "path": "skills/autopilot-adopt/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1e73870e974e0e40baaa9498fbd9a07397caf898"
+  },
+  {
+    "path": "skills/autopilot-release/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2b184814ddb6575880b798906e287e60a1b24b33"
+  },
+  {
+    "path": "skills/autopilot/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8800e0109aaa63011e6ba25b82c7d26f8e78fece"
+  },
+  {
+    "path": "skills/autopilot/rules/auth.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d6f6599990ff3e717124e24aa307d94368c54d99"
+  },
+  {
+    "path": "skills/autopilot/rules/config.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e6b0ece0dbdf692efc02a649b0fa3d7c823dbfe4"
+  },
+  {
+    "path": "skills/autopilot/rules/drivers.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b6dbba8647141f933b38b55a729dce1c12efc914"
+  },
+  {
+    "path": "skills/autopilot/rules/probe.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fd6ab53f351dc2746084d661ea7c30ce081eb9be"
+  },
+  {
+    "path": "skills/autopilot/rules/work-order.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3dff4a91d843871ea7c4f04f15521d07b942997d"
+  },
+  {
+    "path": "skills/bootstrap/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8b11441868e0e2e2760fc78787fee6084db714a8"
+  },
+  {
+    "path": "skills/converge/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ba12fff68541567c788a63b882d103d3eeef308e"
+  },
+  {
+    "path": "skills/cover/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "15a89305c73db65ec1332cec32bae0e3023e0e8f"
+  },
+  {
+    "path": "skills/cover/rules/drivers.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9c7247fb4339819d689b873c40ca69ea4c340c95"
+  },
+  {
+    "path": "skills/cover/rules/levels.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5af531cd5918205cfc2042675d2b1c2d16b4b9e0"
+  },
+  {
+    "path": "skills/cover/rules/probe.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8c7cb19a974317c1f473db26c4d437be8bb7d318"
+  },
+  {
+    "path": "skills/cover/rules/quality.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1e71a570d6ec667c8f238987a3cd1f810a2146cd"
+  },
+  {
+    "path": "skills/delivery-route/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e48db0bb67dc446fab5e9aca80ea8d39160b900d"
+  },
+  {
+    "path": "skills/docs/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5939f5c655cdcf47b6ed7b51992726e44a34be7b"
+  },
+  {
+    "path": "skills/doctor/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fa8906fc9cf03b7601257a1ba046b7b33ed18147"
+  },
+  {
+    "path": "skills/doctor/references/autopilot-lease.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5720dc71c9985507d23ee1a04854a70c58baf6c3"
+  },
+  {
+    "path": "skills/full-suite/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f470df6c603c178d53a712f134df769229204951"
+  },
+  {
+    "path": "skills/gauntlet-loop/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6dd053ea51545b4952b35fcd1a6148d0441eaf9b"
+  },
+  {
+    "path": "skills/gauntlet-loop/references/harness.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7c009f3d6ea05a05b72bfe783ee45a54809b1222"
+  },
+  {
+    "path": "skills/gauntlet-loop/references/quality-bars.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1313a2879c64ad7a14c7f7bc2bdd799a8ad6f67b"
+  },
+  {
+    "path": "skills/ghost-scan/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "05273152c7547699a1ebc31e2fed5b2734379726"
+  },
+  {
+    "path": "skills/implement/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a0544f92963e577eec440d49354415819894f4ee"
+  },
+  {
+    "path": "skills/pilot/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2ae6a848766c9ac44e4b72747fa077add278ca87"
+  },
+  {
+    "path": "skills/plan-review/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b59b8aeb89c132ec5ce922c4eac444aeee9168c5"
+  },
+  {
+    "path": "skills/pr-fix-findings/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "23fbe7edce4792659fa656d8e4e0b1544aa6625e"
+  },
+  {
+    "path": "skills/pr-team-review/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cfdbeb22bedf87e370d95204e08e839c91ddac73"
+  },
+  {
+    "path": "skills/pr-team-review/references/cast.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f4de6d709147fd53122b479ef79c2caebe71135d"
+  },
+  {
+    "path": "skills/pr-team-review/references/debate.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "65f513f887e4d812753b5929cfa8426d4aaa54c5"
+  },
+  {
+    "path": "skills/pr-team-review/references/delegated.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2283167ed22e0e5b027dde6a0af789be2a51625e"
+  },
+  {
+    "path": "skills/pr-team-review/references/publish.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "53f6855b78a5051de44040de16bc7cc587e6abc5"
+  },
+  {
+    "path": "skills/pr-team-review/references/scout.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "022c06ae50ca0cb4bf4a3f3b81ab264af975be06"
+  },
+  {
+    "path": "skills/pr-team-review/references/spawn.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "88c5066463e344a9dcccad4e6f044c8520c68853"
+  },
+  {
+    "path": "skills/pr-team-review/rules/github-publish.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "804e624549c151402b8252410b4800710186955e"
+  },
+  {
+    "path": "skills/pr-team-review/rules/gitlab-publish.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "23e2673b2dc2057a217af3397906333bed96cdb2"
+  },
+  {
+    "path": "skills/pr-team-review/rules/reviewer-personas.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "320f8fe0e9bb5599ebd2c6a9499851c360f6c038"
+  },
+  {
+    "path": "skills/pr-team-review/rules/workflow.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0f4232955b95635e71604fa7a69d7e8a2b035d3a"
+  },
+  {
+    "path": "skills/pulse/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2a43a563e638cdb9d24357e2fc99901027893e02"
+  },
+  {
+    "path": "skills/recover-chain/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8464cbda0614b066f4f6c5fb1bd07192af105b84"
+  },
+  {
+    "path": "skills/reset-review-limit/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9a78cb671bc89fbc9042bd6c7e459d2e72f95220"
+  },
+  {
+    "path": "skills/security-review/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cd848cb221838be105dd4228460d8b9f47dc1339"
+  },
+  {
+    "path": "skills/self-review/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8c0b064b525f742061484061394dac8788130b90"
+  },
+  {
+    "path": "skills/session-trail/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "56c171ad682e470cc633c585942e7409dccd40bb"
+  },
+  {
+    "path": "skills/session-trail/handover-contract.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d882d18ca501b7f4697a76b843f9bc12402376ab"
+  },
+  {
+    "path": "skills/session-trail/references/archive.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "447b102d1bc9c3c960d21cf3e555962f374fecdc"
+  },
+  {
+    "path": "skills/session-trail/references/commands.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3c8e81526103d074026e0394c9121594962483bc"
+  },
+  {
+    "path": "skills/session-trail/references/disclosure.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "51d1f423c88eb0f726ec3234191bdb3fdb5e4d09"
+  },
+  {
+    "path": "skills/session-trail/references/gotchas.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "44a771a75409e02f7ebc9de7074217c6e97eced2"
+  },
+  {
+    "path": "skills/session-trail/references/handoff.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "412cb22464d0e584e79d27a213fdf19f5cb62f7f"
+  },
+  {
+    "path": "skills/session-trail/references/limits.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cbc9566e986a9469255a2dd463d0a3149ab64d5c"
+  },
+  {
+    "path": "skills/session-trail/references/takeover.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4448885559f604c41ffea9b5b704df54461e8bc7"
+  },
+  {
+    "path": "skills/session-trail/scripts/linked-sessions-v1.mjs",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fff82ee33f03712e3783afdbf581b8447d70bc12"
+  },
+  {
+    "path": "skills/session-trail/scripts/session-lineage-v1.mjs",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3670823009cfd37f9b4d3c06f480fa1115167e57"
+  },
+  {
+    "path": "skills/session-trail/scripts/trail.mjs",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d561028aaee6b32cbadcc6cb7dbc1d422f72aa16"
+  },
+  {
+    "path": "skills/setup/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ca0553fea216de4c955f3f4e3c35c78b17b151d1"
+  },
+  {
+    "path": "skills/tdd-mode/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ee99163c7a9ae2f5884bb468e62fc9c72b057fc6"
+  },
+  {
+    "path": "skills/tdd/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a9d8008244856b0a4eda32dc9e579199e499c4d2"
+  },
+  {
+    "path": "skills/tdd/references/audit.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9cc02dfb9c8108a95ec2f4703ada762651af4387"
+  },
+  {
+    "path": "skills/tdd/references/discipline.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "df13bdbad94f3ecd9e748a358b9bb472d6266f63"
+  },
+  {
+    "path": "skills/tdd/references/execution.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6766cfae4d2493d851ccb48b16bebc49e29df9f6"
+  },
+  {
+    "path": "skills/tdd/references/modes.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5ffccf13dc0d4a92743365194357c3cf93062bc5"
+  },
+  {
+    "path": "skills/tdd/references/planning.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f1c18f4dbd7aced4a99a2092693462b7aa6c148c"
+  },
+  {
+    "path": "skills/tdd/references/review-chain.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "330a1d20f142873c8b59a24f4006b0f5f7b4cade"
+  },
+  {
+    "path": "skills/verify-feature/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d504affc81aec0bc4df1dffb9dee8e435c695358"
+  },
+  {
+    "path": "skills/verify-feature/rules/attach.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7495527fddf523c2a21802d8df32e56d9c363be2"
+  },
+  {
+    "path": "skills/verify-feature/rules/browser-verification.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5b8c7eae2c3270786750e5e694d98d63ca0a98ae"
+  },
+  {
+    "path": "skills/verify-feature/rules/cli-verification.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "157547093a96be8ac25c6dfd226f2ea4872d6bb9"
+  },
+  {
+    "path": "skills/verify-feature/rules/desktop-verification.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "59efb2652bd6cd1effc8649a241457646b5f6df5"
+  },
+  {
+    "path": "skills/verify-feature/rules/drivers.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "15d33f5696f0a62939a57e7c8920ced208f49f64"
+  },
+  {
+    "path": "skills/verify-feature/rules/mobile-verification.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "569269fd7681033b8d579482eda8200711820190"
+  },
+  {
+    "path": "skills/verify-feature/rules/service-verification.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e9127883cce7202784bcf7f2a23e5fc80f0900fa"
+  },
+  {
+    "path": "skills/verify-feature/rules/setup.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5a16b102b24a1065abbc01e556e1041541c8a367"
+  },
+  {
+    "path": "skills/verify-feature/scripts/verify-run-resources.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "369fab15c87da9181fdc6139d74f8b257bf15bcb"
+  },
+  {
+    "path": "skills/wargame/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8d1bf663c403b66b110ced5b227b5fa6fcf3f288"
+  },
+  {
+    "path": "skills/wargame/references/goal-contract.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5588d7ea4755179b9f8bc7a060caa37a04464f66"
+  },
+  {
+    "path": "skills/wargame/references/success.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d96e0af86c3049cad2ed515345ea6ff4ff794a4b"
+  },
+  {
+    "path": "skills/wargame/references/templates/01-website.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cacfc31f27c62b96644798f77a256a59e4f79e42"
+  },
+  {
+    "path": "skills/wargame/references/templates/02-copy.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ab5346b39ccb1023e7aab39f34aa8be0acc6b748"
+  },
+  {
+    "path": "skills/wargame/references/templates/03-localai.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "14ce61f65fb6488887b72cb212e2cde5bc206462"
+  },
+  {
+    "path": "skills/wargame/references/templates/04-tax.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2a9f9ca235b3499c9e8942d9e3e0cba6e4b37f46"
+  },
+  {
+    "path": "skills/wargame/references/templates/05-offer.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bcf49456f9400e026f02a6209ae958096846316b"
+  },
+  {
+    "path": "skills/wargame/references/templates/06-chatbot.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "20980ec842e57bd2a24d64ecde3333d19fc7bca4"
+  },
+  {
+    "path": "skills/wargame/references/templates/07-bugs.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a25c73e71a8302d002d628822b8dac6b4fccd14a"
+  },
+  {
+    "path": "skills/wargame/references/templates/08-model.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8b3a6f01ead15b805e6cdbdf5c7425defed18306"
+  },
+  {
+    "path": "skills/wargame/references/templates/09-competitors.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f4b16cc89ac50426c6edd9e6c9713cf793b2c582"
+  },
+  {
+    "path": "skills/wargame/references/templates/10-automation.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "40dccca6f8d5ba446aade73fff52ed4674e9f867"
+  },
+  {
+    "path": "skills/wargame/references/wargame-structure.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b44d02c9ed96487284204ce22d1aaf97cfe40964"
+  },
+  {
+    "path": "skills/work/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a06e259cfb1dcb408ddc0580965a7672b1fc6805"
+  },
+  {
+    "path": "skills/work/references/protocol.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4fc7de93a45bc16b7ab41cf566a930189c63a9e5"
+  },
+  {
+    "path": "skills/zen-mode/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "86c1d14567d2657a401f956c07ba3751ac5ee543"
+  },
+  {
+    "path": "skills/zensu-help/SKILL.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4241cba3e53adc914bcfbb4149376e2c0ff59ef2"
+  },
+  {
+    "path": "templates/autopilot-pr-body.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5baa16efb407a71d277b33b69847958de8cd26a9"
+  },
+  {
+    "path": "templates/autopilot-spec.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6bc97366d964415257f68a57446ec5871159dba7"
+  },
+  {
+    "path": "templates/pr-body.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "67a84296bc43017a66a9f5021e132379ec3e5372"
+  },
+  {
+    "path": "templates/tdd-plan.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2d48917b2448b9b6e118595590eb36461bbc3c6e"
+  },
+  {
+    "path": "templates/workflows/zensu-review-v1.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b77e3147234a5b1881054fbcf3f88bdcbb8bfa15"
+  },
+  {
+    "path": "tests/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "47b493fa9476a7ed914bc9aac28178cb49300d0b"
+  },
+  {
+    "path": "tests/SUITE-OVERVIEW.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8137ed5238040bd77803a43e7f45ec75349177c5"
+  },
+  {
+    "path": "tests/e2e-context-nudge/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c644f135b3cb86d88d8411d5785d8e731982b2ff"
+  },
+  {
+    "path": "tests/e2e-context-nudge/run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7be6fee02c6c277b93b36d73aefd97ba326779ee"
+  },
+  {
+    "path": "tests/e2e-context-nudge/setup-fixtures.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "85f486bf00b447c7e0e16b8a18da1cfe1a69026f"
+  },
+  {
+    "path": "tests/e2e-intent-router/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5a782526718cf37715d336010956ee6f514ed8d7"
+  },
+  {
+    "path": "tests/e2e-intent-router/run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d02bd831d99489217e06a726a68c1f1c31cb146f"
+  },
+  {
+    "path": "tests/e2e-intent-router/setup-fixtures.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "27017b2636431119b60989fa5ba3bd770093c1ef"
+  },
+  {
+    "path": "tests/e2e-plm/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "16c34f2662db5a50c2d58f8576ad15c6d9424473"
+  },
+  {
+    "path": "tests/e2e-plm/expected/bootstrap.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5c44189ae4de41a75e201acf321c5138b9a9bdff"
+  },
+  {
+    "path": "tests/e2e-plm/expected/feature-id-guard.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c5bd598129d6270f24bc3e0c04f1f9f1a88ab754"
+  },
+  {
+    "path": "tests/e2e-plm/expected/ghost-scan.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "526e1cf4e878e30da173b48f1e8c958b42325fb5"
+  },
+  {
+    "path": "tests/e2e-plm/expected/implement.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "81ab8c9deb97b14bcb8e2f9ad1d02fd51231fb51"
+  },
+  {
+    "path": "tests/e2e-plm/expected/pulse-session.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "dd40d1596ca4dd5b1d4086c1e5a8afbad5dd1d44"
+  },
+  {
+    "path": "tests/e2e-plm/expected/security-review.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4b859f2b3c19b2228d9d9caf1d70c952f96c6b15"
+  },
+  {
+    "path": "tests/e2e-plm/expected/status-transition.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f532f3b78eb0dc6159df6c32819b189e772af75a"
+  },
+  {
+    "path": "tests/e2e-plm/fixtures/live-regressions/feature-id-guard-caveman-200525.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8eead750c4cd9ef9d3033629a9a33cdd03d5b750"
+  },
+  {
+    "path": "tests/e2e-plm/prompts/bootstrap.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a2a8da96453d499f4925d846fc2d481899212d0b"
+  },
+  {
+    "path": "tests/e2e-plm/prompts/feature-id-guard.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8f7ac77ef6351e9f491b32f404236a079dc0203d"
+  },
+  {
+    "path": "tests/e2e-plm/prompts/ghost-scan.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "de2f760138109de816e754312dd150f2eee9683f"
+  },
+  {
+    "path": "tests/e2e-plm/prompts/implement.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c09788dfa700dc5c544b7a1ed097fd63c32bc430"
+  },
+  {
+    "path": "tests/e2e-plm/prompts/pulse-session.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3181fdc9bd5eae946c6d0850c26bd87d366a2c05"
+  },
+  {
+    "path": "tests/e2e-plm/prompts/security-review.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5861cc1d1bce1bb1735b95dafe3e048b60cb9acc"
+  },
+  {
+    "path": "tests/e2e-plm/prompts/status-transition.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b59dc3c9b3350087823c1d591129b7c6148e7b06"
+  },
+  {
+    "path": "tests/e2e-plm/run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0213e17ccbdf75e4040d3a6204bae3c1b6da1663"
+  },
+  {
+    "path": "tests/e2e-plm/setup-fixtures.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "abeba303148ae5ad0781363ac88beb445423884b"
+  },
+  {
+    "path": "tests/e2e-plm/test-runner.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "9691c2fda57672c9956e36a5c9c864c5cadc34b6"
+  },
+  {
+    "path": "tests/e2e-skills/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "47d98a261931489f2980c144a9ff774b26f972ac"
+  },
+  {
+    "path": "tests/e2e-skills/expected/converge.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "02578c8d9da728bb5398f31ece583b78483eba43"
+  },
+  {
+    "path": "tests/e2e-skills/expected/plan-review.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "6d149541e3bb93e4e82463e0f154bfdeae33ada2"
+  },
+  {
+    "path": "tests/e2e-skills/expected/review-aspect.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ba9f4bf4a72721c867f2710eddcc642a5620b2bd"
+  },
+  {
+    "path": "tests/e2e-skills/expected/review-judge.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c1bd90a5a010286aafc54a81927a784752cb50f7"
+  },
+  {
+    "path": "tests/e2e-skills/expected/self-review.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e5ea5a270cb6c236e1dd654a889c35354b10c36d"
+  },
+  {
+    "path": "tests/e2e-skills/expected/zensu-help.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "02d7222ace8a9737bdf628eb7771716326c29a39"
+  },
+  {
+    "path": "tests/e2e-skills/prompts/converge.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "84abc963e0f2491119f05b7e80f965fc3e0f7e8d"
+  },
+  {
+    "path": "tests/e2e-skills/prompts/plan-review.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f86f1d22fea2d791b1cb9e5fbb71d056dac1ae5d"
+  },
+  {
+    "path": "tests/e2e-skills/prompts/review-aspect.agent",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a4266e5246a0a022b6347ea796836e42eed283e2"
+  },
+  {
+    "path": "tests/e2e-skills/prompts/review-aspect.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bbf15f9178e7c209c534b313eefae916f70604ad"
+  },
+  {
+    "path": "tests/e2e-skills/prompts/review-judge.agent",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "67a7f49da890ba1d67d97e0bd230d30743a58c99"
+  },
+  {
+    "path": "tests/e2e-skills/prompts/review-judge.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5e5e6ed8622bedecb3c35e4e7e36234ab5cd70ed"
+  },
+  {
+    "path": "tests/e2e-skills/prompts/self-review.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0d3637808c49dfbe3eb30a14bb81b2cd3044d74e"
+  },
+  {
+    "path": "tests/e2e-skills/prompts/zensu-help.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "618a3ad1eb589066a787be292ee9ea325b5f8155"
+  },
+  {
+    "path": "tests/e2e-skills/run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f9796b27d9904033f3b620f28f925a22a200903d"
+  },
+  {
+    "path": "tests/e2e-skills/setup-fixtures.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "08ab6076a7541c1babb8bf05fb0da70c34785ffc"
+  },
+  {
+    "path": "tests/e2e-skills/test-runner.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "39dc29ce49276c0f8f20670d343b27f542fafbf4"
+  },
+  {
+    "path": "tests/e2e-source-write-gate/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "583351d019f1455a8c9f6ceb6abe81538d5b6401"
+  },
+  {
+    "path": "tests/e2e-source-write-gate/run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b180eef1ac5d27b20b9c8ee462ae860acaf42f01"
+  },
+  {
+    "path": "tests/e2e-source-write-gate/setup-fixtures.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e93a6f69a147330b5e862f21ff9e4faafc5fe082"
+  },
+  {
+    "path": "tests/e2e-tdd/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f3f24f2624b32f70b9620b0cc4849da38560854a"
+  },
+  {
+    "path": "tests/e2e-tdd/run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7f5ab10f4932fb739c995f56d2829f115c782902"
+  },
+  {
+    "path": "tests/e2e-tdd/setup-fixtures.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e7919c0f083fdebc94dfac859b0e899cc2015dcc"
+  },
+  {
+    "path": "tests/e2e/README.md",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bb1709851b2632afc373e1d44276d1814d12d1b7"
+  },
+  {
+    "path": "tests/e2e/expected/build-fails.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "96ec9044da79ab87037eb21b6488baa3a51660ab"
+  },
+  {
+    "path": "tests/e2e/expected/clean-pr.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bc0d30b7a8c2f3a491798acd188c578a967185b9"
+  },
+  {
+    "path": "tests/e2e/expected/docs-only.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4a3d760c3dbfcf9f5101fa57e52854b5b82c502c"
+  },
+  {
+    "path": "tests/e2e/expected/false-test-claim.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bf628f4ea1395326052c6f6bbe0dbf5da06a1f75"
+  },
+  {
+    "path": "tests/e2e/expected/stale-branch.pattern",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "52da693472a5d8d7ce9be5b6557666ad6fbbbb64"
+  },
+  {
+    "path": "tests/e2e/run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2cb198716d0280fe604119e071fdf0f1d8d9dc00"
+  },
+  {
+    "path": "tests/e2e/setup-fixtures.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b25c0a404ce82d9b469e6b628169fb3a37479cb8"
+  },
+  {
+    "path": "tests/e2e/test-runner.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "4229ecfee65bc5c73fda1950e83f7310ae2b8f9a"
+  },
+  {
+    "path": "tests/lib/clock-shift-reporter.cjs",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ddde91452589d1544d4fd116b5b4378e81fb8373"
+  },
+  {
+    "path": "tests/lib/clock-shift.cjs",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ff87980ccc337232711eeb2904e6bab6aa5ef47a"
+  },
+  {
+    "path": "tests/profile-suite-supervisor.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "73ff2bf33fc4f79489c0243dcb4e9f47bbc4f49a"
+  },
+  {
+    "path": "tests/profiles/ci-shard-weights.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0376de90a61b593bb0a6bbaa92869904f9cf688b"
+  },
+  {
+    "path": "tests/profiles/clock-shift-allowlist.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ea2dc7d36b8f8308119222f18e839cd735a1b63d"
+  },
+  {
+    "path": "tests/profiles/promptfoo-local-only.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "519fd8ff9a8b77d4ed7b0bc7a122a606001d73f2"
+  },
+  {
+    "path": "tests/profiles/unit-files.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "86f6f491ee7931fb44cb4c14d9b0149fb656b032"
+  },
+  {
+    "path": "tests/profiles/windows-ci-command-catalog.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f91bdd743c86dcece250272b61113568f8a5cc12"
+  },
+  {
+    "path": "tests/profiles/windows-ci.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b361f8a635ccabc1f0cac2917ceefa96077a6a41"
+  },
+  {
+    "path": "tests/profiles/windows-legacy-canary.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2594a0f397a30a8d0a6f2055367f73f50314b22f"
+  },
+  {
+    "path": "tests/profiles/windows-native-structure.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c34e07af8a72dcac0c0339bcd4cc15f15d80c8f1"
+  },
+  {
+    "path": "tests/run-all.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "79bb26cba95fc0302b3e74064207feddecbc24e0"
+  },
+  {
+    "path": "tests/run-clock-shift.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0a5d7ae8c6aff1894fd2e2d74445131b921fb62a"
+  },
+  {
+    "path": "tests/run-profile.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9cc76dcfe655463c37d2c63fa5a6a9315c9814ae"
+  },
+  {
+    "path": "tests/run-windows-safety-shard.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "56fb6e1806da0b6107653126f29179fb0561ded0"
+  },
+  {
+    "path": "tests/session-control/initialize-baseline.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b8aa95bce719bf59fa99e8123cf7b8ace0cee30c"
+  },
+  {
+    "path": "tests/session-control/run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "11fa672c6d0b54b911be0059555ba8f522084022"
+  },
+  {
+    "path": "tests/session-control/session-control-core-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "af38ee806ae9beec4ebf9c801ae18e45ae14bfc9"
+  },
+  {
+    "path": "tests/structure/acceptance-verify-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "68eaecfbd68bf848b08929a81beeb990128a405b"
+  },
+  {
+    "path": "tests/structure/aspect-activation-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "aa0fc36fd9e459354a0b5ecef66608200402ecf6"
+  },
+  {
+    "path": "tests/structure/bash32-substitution-scan.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9c94cf125478fda1b6c9c86c3ba778aa15d70e69"
+  },
+  {
+    "path": "tests/structure/chain-recovery-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "59286fc4c28b9f70fdd860cc4122fe6198c4ad9d"
+  },
+  {
+    "path": "tests/structure/claude-stream-render.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a333ba5e0ba08b80bc1318f5f3abe4cc5d5ab7b8"
+  },
+  {
+    "path": "tests/structure/clock-shift-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2fae2d86528ab2e26de9f0e268446fb0b1b2348e"
+  },
+  {
+    "path": "tests/structure/deferred-review-claim-cases.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "534b5e2785e343ecd0cd30569b6eab387c56c598"
+  },
+  {
+    "path": "tests/structure/deferred-review-claim-cases.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "76d8141da89000e31fa5541c9c54b8bd106b232f"
+  },
+  {
+    "path": "tests/structure/evidence-run-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "743327ebd4876414040c268a27c23c95a563adf0"
+  },
+  {
+    "path": "tests/structure/external-review-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "046e7eea3c9489bce6dd3420d555536dc4370fb5"
+  },
+  {
+    "path": "tests/structure/finding-verify-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "489a2a6dd380599a06bc879cd62b248a494f55c8"
+  },
+  {
+    "path": "tests/structure/fixture-mutation-watch.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "80f7e39adfc620f0dd9e1454950b0eda52d4a0b6"
+  },
+  {
+    "path": "tests/structure/fixtures/deferred-owner-liveness-observer.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9109e58933c4a53f2ca48c9c659f2734bc6c4f97"
+  },
+  {
+    "path": "tests/structure/fixtures/deferred-reset-inner-race-preload.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "508cdd78ebd7a4eaf2af4209994de8fad82751cd"
+  },
+  {
+    "path": "tests/structure/fixtures/exitplanmode-posttooluse-payload.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4baf8958867c9566b82fa527e44520cab47b4e5c"
+  },
+  {
+    "path": "tests/structure/fixtures/gh-api-stub.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4cc363d9220f5c77fba339153835cf4138f643b0"
+  },
+  {
+    "path": "tests/structure/fixtures/install-claude-runtime-fixture.js",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "02cc633f2f8700ff65ce58b99423f8f3e0df6ff3"
+  },
+  {
+    "path": "tests/structure/fixtures/lock-owner-report.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "25cabdf7cf372c593957fc6ea6b5b9df6a5ed122"
+  },
+  {
+    "path": "tests/structure/fixtures/multi-repo-docs.txt",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1ee0821d14461cdcdc53a9186cdf0067ca942611"
+  },
+  {
+    "path": "tests/structure/fixtures/playwright-cli-argv.v1.json",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "eda661d0be0a76f4b6c55020a88c6c8b11889fee"
+  },
+  {
+    "path": "tests/structure/fixtures/pre-edit-classifier-transport-preload.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1b35bef91d61a321ffe99d3aa415c90240e38139"
+  },
+  {
+    "path": "tests/structure/fixtures/queued-command-delivery.v1.jsonl",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f8ee4647a333d570f5ec90ba53a22023e86c1ed5"
+  },
+  {
+    "path": "tests/structure/fixtures/record-playwright-cli-argv.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c2f24bfc7eef5185157780c129fca1682a7fed35"
+  },
+  {
+    "path": "tests/structure/fixtures/reviewer-spawn-denied-transcript.v1.jsonl",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a16f08fdbf6a9ba7f08fc3556a1a34e537833360"
+  },
+  {
+    "path": "tests/structure/full-suite-ci-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8b091bc46e1f628afaabfd454f8c3e2fb9f76028"
+  },
+  {
+    "path": "tests/structure/git-repo-escape.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d82b3ecde911c9031300cd56e9758f3838b20fd7"
+  },
+  {
+    "path": "tests/structure/lib-autopilot-lease.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7f71c29c8de17b19738bafc45afa52c391e10dd8"
+  },
+  {
+    "path": "tests/structure/lib-fake-zensu-work.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a55d2b8218eea0cbfb20519c2363439e06c3243e"
+  },
+  {
+    "path": "tests/structure/lib-skill-registry.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a2f08d762a4e9f5f781c8e9d2c9145609e1faac2"
+  },
+  {
+    "path": "tests/structure/lib-skill-text.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "30b79410a2c4db1b85938b1513c42a007b0f329a"
+  },
+  {
+    "path": "tests/structure/lib-unit-registry.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0ab04fbc785b790597ba26a1179e659e67460022"
+  },
+  {
+    "path": "tests/structure/lib-unit-registry.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "23bf9fe2e491bc7cec42fa2e38b529e19782c383"
+  },
+  {
+    "path": "tests/structure/lib-work-order.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d3d7a8d07cc3030d8932c62fa74a00f23990c44d"
+  },
+  {
+    "path": "tests/structure/linked-sessions-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ba704db44316f361d4b5b05423aa792ec52f4d03"
+  },
+  {
+    "path": "tests/structure/owned-process.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cddf79624e13548e75b20a54cc1b7cd513e4749b"
+  },
+  {
+    "path": "tests/structure/plan-payload-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4850f2294949e641e85f87f29b3dd2885bd623c4"
+  },
+  {
+    "path": "tests/structure/playwright-cli-version-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e7f3bf83a07179b60482de491edfa5bcc07b7380"
+  },
+  {
+    "path": "tests/structure/plugin-data-guard-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "18ebd2dbd3f82e7850a473a9632f720acf0805b6"
+  },
+  {
+    "path": "tests/structure/process-supervisor.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "311773bdb80f6cbc62eca5651fe98f58ea75de68"
+  },
+  {
+    "path": "tests/structure/profile-runner.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9ce97cc243e0eb914cac6db4a5f553870a74f5f7"
+  },
+  {
+    "path": "tests/structure/prompt-listing-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2e5f81dcb15d8bfb81d538274e775e52759d6d1b"
+  },
+  {
+    "path": "tests/structure/release-run-step.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a5d55e751762c1b81a0927003fb1796e2787b541"
+  },
+  {
+    "path": "tests/structure/restore-root-render-cases.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f54dc884dc47eea530974f611ad114fb452c3dd7"
+  },
+  {
+    "path": "tests/structure/review-evidence-sweep-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "08ae459eed0a7ba7b0ba899d3d09ff18066a2039"
+  },
+  {
+    "path": "tests/structure/review-ledger-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "54599c292eb5d52c1d820e302a445a9e0f54d871"
+  },
+  {
+    "path": "tests/structure/review-round-scope-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9f8409e222881a1c12f25f8138e24b78adc5fcda"
+  },
+  {
+    "path": "tests/structure/reviewer-spawn-allow-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "89adb54d96abaf9ae90e63a398d067f71150c706"
+  },
+  {
+    "path": "tests/structure/reviewer-spawn-denial-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "18ba0dec907fb2aea802ab9f7e590508da420d74"
+  },
+  {
+    "path": "tests/structure/route-short-line-graders.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ff111020aae1c24d15b1f2de7bfabcfbd3eedb63"
+  },
+  {
+    "path": "tests/structure/rule-block-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d2a8657487471f49a1303ad60722093e95d4cf0e"
+  },
+  {
+    "path": "tests/structure/run-session-trail-coverage.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "e038b69d02d62464b8c553a6ccf932b183b73bf1"
+  },
+  {
+    "path": "tests/structure/session-adopt-report-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0987579bfac5f065e620ea882093e27f1cff3272"
+  },
+  {
+    "path": "tests/structure/session-auto-adopt-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "421e68ec836db2edde6d8338dedc9d3d6da29c3c"
+  },
+  {
+    "path": "tests/structure/session-control-lineage.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "faaf9e41191d484931bf5256dfbd1c43bb799e40"
+  },
+  {
+    "path": "tests/structure/session-hub-receipt-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b7e69473fd1f4dcc34631e4b8e16bd115533abc3"
+  },
+  {
+    "path": "tests/structure/session-lineage-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ce1d67500a10cdc70838e44f1647bf029a6f2bbf"
+  },
+  {
+    "path": "tests/structure/session-reanchor-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ddc8ed23f964e0dbdf0476252962cef3762467fd"
+  },
+  {
+    "path": "tests/structure/subagent-shell-guard-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7c0c9e79e87404fa06c346f6285e9faca3968cfa"
+  },
+  {
+    "path": "tests/structure/test-acceptance-gate.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1a697663e72131bb5cd7667469624e9863d9d803"
+  },
+  {
+    "path": "tests/structure/test-agent-context.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "855858942bde9d4366365a3246f4a4361740a647"
+  },
+  {
+    "path": "tests/structure/test-artifact-redaction.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f26141664121aabf5173caba80b635d3247501a0"
+  },
+  {
+    "path": "tests/structure/test-autopilot-adopt-cli.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d745daf367054333d754e394867427a82c8cfafb"
+  },
+  {
+    "path": "tests/structure/test-autopilot-adversarial-recovery.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8b39a79124e746c0a658e1bb700070a6cec777be"
+  },
+  {
+    "path": "tests/structure/test-autopilot-bound-payload-windows.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a077b216d4f3e7e73db33970ceb05956c2995451"
+  },
+  {
+    "path": "tests/structure/test-autopilot-chain-integration.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "999988789a2047856abf73b6b20425756c6838a1"
+  },
+  {
+    "path": "tests/structure/test-autopilot-delegated-skill-contract.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7c481d8d18afc98f57b760500e97df221f7a72fe"
+  },
+  {
+    "path": "tests/structure/test-autopilot-durable-skill.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "660faadc3f928a082030cc9b45e0133050d536db"
+  },
+  {
+    "path": "tests/structure/test-autopilot-full-cycle.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "555f8d80a8b7fe00450a50907cfc16ee5a208cd7"
+  },
+  {
+    "path": "tests/structure/test-autopilot-id-and-start-boundaries.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "55888156bda0445b5bb57fd91edc42a446728dd9"
+  },
+  {
+    "path": "tests/structure/test-autopilot-inner-termination.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3d98455296355ad4844763998696a3fe415906e8"
+  },
+  {
+    "path": "tests/structure/test-autopilot-plan-delegate.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "40b7e9dacb7e6230056b0593e71876ccdfae7489"
+  },
+  {
+    "path": "tests/structure/test-autopilot-post-review-max-rounds.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "388dca0fa9634f9dccc3a7f9098b84e4bdca6830"
+  },
+  {
+    "path": "tests/structure/test-autopilot-release-cli.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "440c66e0c34fe595be09f18cb453a471cfa083c1"
+  },
+  {
+    "path": "tests/structure/test-autopilot-review-rearm.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a0ad4238bee9fcc998ec52d1b7a2464011060e28"
+  },
+  {
+    "path": "tests/structure/test-autopilot-session-resume.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "32957c101860f59cae61d0d6f80c9b53418fdf7d"
+  },
+  {
+    "path": "tests/structure/test-autopilot-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d5dd86b5f991c9a7678d8f7258bd02e6ecf1492e"
+  },
+  {
+    "path": "tests/structure/test-autopilot-state-machine.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fcb3f1a66069c7fdb3069a7ff9dab1afab41a62a"
+  },
+  {
+    "path": "tests/structure/test-autopilot-stop-enforcer.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bd723b0700cb566f503e768b89498fdf2b153450"
+  },
+  {
+    "path": "tests/structure/test-bash-source-write-gate.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "3fb34b55d986af1b9397d8a6ab02353cba434ca0"
+  },
+  {
+    "path": "tests/structure/test-bash-zensu-gate.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fb530f1bca6994866193455388f837b315eb8cb7"
+  },
+  {
+    "path": "tests/structure/test-bash32-portability.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "238407e1c4156fc1d8b0b1c75c59c953f5acbf9d"
+  },
+  {
+    "path": "tests/structure/test-best-solution-first.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "200c244b5e10d84e5cdaf7c62699585f1273e238"
+  },
+  {
+    "path": "tests/structure/test-bypass-ledger.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "acee8c945fb1548777c1dbba72124177f40bd440"
+  },
+  {
+    "path": "tests/structure/test-chain-recover.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "25d6552a27acd90245502bb5838df0d638e395b9"
+  },
+  {
+    "path": "tests/structure/test-chain-terminus-zero-change-gate.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d6799afd303cdf4214df5aba434597e515519740"
+  },
+  {
+    "path": "tests/structure/test-changelog-unreleased-resolver-entries.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3ac06b3a4a0874710e4140c91df14bd47f94652a"
+  },
+  {
+    "path": "tests/structure/test-claude-promptfoo-wrapper.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d97869e1b83e7e48b050ffa295c752a44b87e380"
+  },
+  {
+    "path": "tests/structure/test-clock-shift.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fd4184bcdcf8de1bd87f6cfc1b42d832d2588163"
+  },
+  {
+    "path": "tests/structure/test-context-nudge-hook.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a2d2af679437bb6b737c38c3ef6e49da8c2d0e04"
+  },
+  {
+    "path": "tests/structure/test-converge-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "20268dfe775c524e018738339aad86add92c1c38"
+  },
+  {
+    "path": "tests/structure/test-cover-skill.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "60b47b841f8abc0409e21f5a738503a4a3ba8b4e"
+  },
+  {
+    "path": "tests/structure/test-deferred-review-claim.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "41244014e5d6bf1b7ca316a4a02959aa36c07d42"
+  },
+  {
+    "path": "tests/structure/test-deferred-review-fallback.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "32e46cda4bcae9c7c9017dfea2929df6340d1924"
+  },
+  {
+    "path": "tests/structure/test-delivery-route.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ae2123884fb5ec9bd38b83e0a91a34216735891a"
+  },
+  {
+    "path": "tests/structure/test-doc-generation-guidance.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "715fd07b542eadcfa641efcfcdf7e2f5be405052"
+  },
+  {
+    "path": "tests/structure/test-docs-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f17c186051526b48ff11b5dcdf5a1a652c8b3a4d"
+  },
+  {
+    "path": "tests/structure/test-doctor.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d333584e84aee48dbbecc508a43c62fb698d27fc"
+  },
+  {
+    "path": "tests/structure/test-drift-assertion-or-logic.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "dac770c674295d5e0390d9325b41b87a346591da"
+  },
+  {
+    "path": "tests/structure/test-drift-audit-regex.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "4620aa22ed9e9b3d54d5719d36d6ca2cd58e8e56"
+  },
+  {
+    "path": "tests/structure/test-edit-landing-audit.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d5518caed44e0f868842e27e52d03e06c6c2d0bb"
+  },
+  {
+    "path": "tests/structure/test-eval-harness-units.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "76091eeb57fa088fb3074af9991e8044885fd220"
+  },
+  {
+    "path": "tests/structure/test-evidence-discipline.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2a1695db6cd02bbac341effdb59b25a0b1a510c2"
+  },
+  {
+    "path": "tests/structure/test-evidence-run.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "248a6383aa8db5c25be3079103eea771ec799f52"
+  },
+  {
+    "path": "tests/structure/test-external-review-hook.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3fea911db93eeff089808cb4381e5c20ca93c5dc"
+  },
+  {
+    "path": "tests/structure/test-file-exists-replacement.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b62ef3428c6fa18f1a484e2c4601b78f90b49f34"
+  },
+  {
+    "path": "tests/structure/test-finding-verification.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "500e3bfb1dc7759f8bd9138681fc646de9b41b63"
+  },
+  {
+    "path": "tests/structure/test-full-suite-ci.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "67cbfcb5c18dc55426e5176032b7d8b235871fc8"
+  },
+  {
+    "path": "tests/structure/test-full-suite-gate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b97a1e01c46c0b659df12343fd83810a79f1432a"
+  },
+  {
+    "path": "tests/structure/test-gauntlet-loop-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "97189a408b88969df4c1f86fd8e6d35da6c92ddf"
+  },
+  {
+    "path": "tests/structure/test-ghost-scan-test-detection.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8db90ea1a25ca6cf0244c43a08f8fc79fcbdde20"
+  },
+  {
+    "path": "tests/structure/test-gitignore-zensu.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "90403bbaaa4ab87aae049a42dcba8ac79d350d51"
+  },
+  {
+    "path": "tests/structure/test-harness-launcher.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7c503e61886a9bbf3fa159f431aaa9933975b2cb"
+  },
+  {
+    "path": "tests/structure/test-immutable-marketplace-release.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "554475fb1081298d6c322a8a6a8636496e950150"
+  },
+  {
+    "path": "tests/structure/test-impl-stop-counter.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "dfe5184f77446fba8d9955e7004e85f23f32ac09"
+  },
+  {
+    "path": "tests/structure/test-incremental-review-rounds.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ce2e2171bc3e737d27e8075eaebf5bee7ba6f1ab"
+  },
+  {
+    "path": "tests/structure/test-intent-router-hook.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5f29f921879239e1fdc541143a1b242d44407e19"
+  },
+  {
+    "path": "tests/structure/test-msys-runtime-boundaries.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "625d0a8b087e0eff96f767e4979e83bd41199a93"
+  },
+  {
+    "path": "tests/structure/test-msys-special-plugin-module-boundaries.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "61b8cb56b2fbcf46b542d9f10ec7e80c43de718b"
+  },
+  {
+    "path": "tests/structure/test-multi-repo-doc-citations.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "7bd7eb90736c3379ff26e3f3a495f74b40207a12"
+  },
+  {
+    "path": "tests/structure/test-multi-repo-doc-consistency.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0bdb5f66498093fac35f57c5ebb0e9d107ce7c3c"
+  },
+  {
+    "path": "tests/structure/test-multi-repo-doc-contrast.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "100fd1a25dc5cdfa04e2ca6c1bfbc4679b3e52de"
+  },
+  {
+    "path": "tests/structure/test-multi-repo-doc-structure.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "0696f808a73e2a6830726e913c321df678c052d5"
+  },
+  {
+    "path": "tests/structure/test-orphaned-project-root.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "854fc7339e324a6d8d2f9ec07d0d6f5f8b3239ab"
+  },
+  {
+    "path": "tests/structure/test-pending-review-ttl.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "bc1fc6fe73aa5ee092c7c8fef76232466b64b58b"
+  },
+  {
+    "path": "tests/structure/test-pilot-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6cc944ebe330af836742c3f3481265ac3f65be26"
+  },
+  {
+    "path": "tests/structure/test-plan-approved-delegate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d0cf69e99764352f1024dfaacf0faeadee4a2b6e"
+  },
+  {
+    "path": "tests/structure/test-plan-payload-fallback.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "92cc52f409af54dceb0aee74a0eedac07edc2434"
+  },
+  {
+    "path": "tests/structure/test-plan-requirement-ids.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a3f53944508c3e89f83a8fdcf3c1ac0291a7950e"
+  },
+  {
+    "path": "tests/structure/test-plan-review-skill.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b9eadec5cc8c9fe432545ae0d601832adf67ebeb"
+  },
+  {
+    "path": "tests/structure/test-plugin-data-guard.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f0f39d6eb20361b7c0c063379f56b1d30d148c20"
+  },
+  {
+    "path": "tests/structure/test-post-review-autopilot-claim.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "29fc345f5f99117d6061d9bc289e822251c508a7"
+  },
+  {
+    "path": "tests/structure/test-post-review-outer-ownership-root.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "462e9f8ec25529c0654b2d38479e95c6631d6dd6"
+  },
+  {
+    "path": "tests/structure/test-post-review-self-review-handoff.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "fba679bf5c2bafe705be66806ff943d797365bc3"
+  },
+  {
+    "path": "tests/structure/test-post-review-tdd-scope.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d3e9d9f96da37a7eca62b945e8265969de2fa66f"
+  },
+  {
+    "path": "tests/structure/test-pr-fix-findings-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6e91d2335c3e4357fdf87c5f41a8da5a78ad1832"
+  },
+  {
+    "path": "tests/structure/test-pr-team-review-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "bcb717a0edcc7f4dc83f3e837abfafa7b4dfd37c"
+  },
+  {
+    "path": "tests/structure/test-pre-edit-hook-mirror.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "eab529c0870848b18f2c7fc98bd780ba69c5f80d"
+  },
+  {
+    "path": "tests/structure/test-pretool-config-prompts.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "67a026725123c22392c1a2049d51bc079d5e8f5b"
+  },
+  {
+    "path": "tests/structure/test-prompt-ledger.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "50357d2db1b47fd9dcc6c3dbbf513bbd6040b227"
+  },
+  {
+    "path": "tests/structure/test-promptfoo-concurrency.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "489a8989f6901e51e81ab98a6ee34d56ba64d789"
+  },
+  {
+    "path": "tests/structure/test-promptfoo-config-refs.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "78af8682f89c52da0cce2089091b22c4727310c0"
+  },
+  {
+    "path": "tests/structure/test-promptfoo-context-nudge-reaction.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2ce256d5a954c77655d1e539f414005a41e317f5"
+  },
+  {
+    "path": "tests/structure/test-promptfoo-local-only.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "eeae2dd1ce5df1baa7289e555c949d27a60c80f8"
+  },
+  {
+    "path": "tests/structure/test-promptfoo-reset-review-limit.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8f586f491d8fe19cd40a7b482e74c012a9acbbdb"
+  },
+  {
+    "path": "tests/structure/test-promptfoo-session-upgrade.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a95d461c7f236150d403153c2ddfdfaff91bf872"
+  },
+  {
+    "path": "tests/structure/test-promptfoo-verify-feature.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b8c00eccb791ffc326eb695d4a21720a5f9f37fb"
+  },
+  {
+    "path": "tests/structure/test-promptfoo-zen-mode.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "538f42a8aa72dcf1e0f2d1b7c6e8b6f8303ae1e9"
+  },
+  {
+    "path": "tests/structure/test-readme-hook-count-sync.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "dd8ff9f164b52b5c201ba2119619059166e35c5a"
+  },
+  {
+    "path": "tests/structure/test-release-session-control-gate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "87b42e64928ee220458774dfb299a3f0b028de4d"
+  },
+  {
+    "path": "tests/structure/test-requirements-table-gate.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d3fe2497d06a0fabcfea33e0e30bfc02369a8887"
+  },
+  {
+    "path": "tests/structure/test-reset-review-limit-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fc22e58206541ea336b9e40901db25160b620694"
+  },
+  {
+    "path": "tests/structure/test-reset-review-limit-transaction.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "da7de11975e06b7e88ea1e0ad71d5fa38f7941a3"
+  },
+  {
+    "path": "tests/structure/test-restore-project-root.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f5e012650cef49e5a25a4b774c039169f730e429"
+  },
+  {
+    "path": "tests/structure/test-review-aspect-agent.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7eeae806bc4f0a59b776896b295b81b9d7813721"
+  },
+  {
+    "path": "tests/structure/test-review-convergence.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "5d396c1477a62925f342671f57aac394ee19b623"
+  },
+  {
+    "path": "tests/structure/test-review-judge.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "fc70d289f59440e1edcc22466b9c253fbf105395"
+  },
+  {
+    "path": "tests/structure/test-review-personas.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "36b3807e7271478475c8ec27de87352c43456143"
+  },
+  {
+    "path": "tests/structure/test-review-worker-evidence-lease.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "5da1471975b223c9303b8dd26fbc32f982dae33d"
+  },
+  {
+    "path": "tests/structure/test-reviewer-capability-gate.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f7123eee4283479df093638556e3b4018df9e15e"
+  },
+  {
+    "path": "tests/structure/test-reviewer-readonly-v1.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "acb5c94cc62943fbfd829a3bfdb3a370ce94092d"
+  },
+  {
+    "path": "tests/structure/test-reviewer-spawn-allow.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "b1504583aebc7f7e04c87251b0508bac1a60bdd9"
+  },
+  {
+    "path": "tests/structure/test-route-short-line-eval.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a12f334a5f73efe07452f10add6eec60cd9e1f1a"
+  },
+  {
+    "path": "tests/structure/test-run-all-preflight-watchdog.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2d2d161c1d6ca131f1b5c28330d0a8e1fee6079b"
+  },
+  {
+    "path": "tests/structure/test-run-all-required-offline-suites.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "74e941f2d98ce80ae76e521aba07f1c10831a28e"
+  },
+  {
+    "path": "tests/structure/test-run-all-sharding.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "94e5aca3145b3deaf9ce1957356b066a901d6cfb"
+  },
+  {
+    "path": "tests/structure/test-secret-scan-gate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "8a8f07cc90930bfca88a3062c2d9bafa662aa61a"
+  },
+  {
+    "path": "tests/structure/test-self-review-flags.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7358a8114c6ac9b8300e1484c4c6fb7ed5da9886"
+  },
+  {
+    "path": "tests/structure/test-self-review-markers.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "99cea703b9c77c9b1faea2ddbdbbb6bbff3cdfd4"
+  },
+  {
+    "path": "tests/structure/test-self-review-skill.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "e4c1b602cffef2f57a86af69a887b06113158375"
+  },
+  {
+    "path": "tests/structure/test-session-control-claude.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a07d38f36ab5cb96a3a7726f2e9c3934b8e4f7d1"
+  },
+  {
+    "path": "tests/structure/test-session-control-core.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a86639077b35d102519a19536f3cc1c3d19f9280"
+  },
+  {
+    "path": "tests/structure/test-session-control-sandbox-hook-integration.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "992257b20e523354310cde91699004c6d53534fd"
+  },
+  {
+    "path": "tests/structure/test-session-hub-receipt.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "82626f50d29afda9d80256155e1c76e10649b66b"
+  },
+  {
+    "path": "tests/structure/test-session-id-v1.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "98af92f9a19f5fd0a60085514dbf48c85764f9cb"
+  },
+  {
+    "path": "tests/structure/test-session-reanchor.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "387047179ef6733c1c2ec7e72dfb8056251b88a6"
+  },
+  {
+    "path": "tests/structure/test-session-start-banner.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "082d8f6280f8bab4d8f62fbba0da2c5c144299f1"
+  },
+  {
+    "path": "tests/structure/test-session-trail-lineage.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "92ece5e1b73e1da7e4731527e28a48a71a1f27d5"
+  },
+  {
+    "path": "tests/structure/test-session-trail-skill.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "909c0f52a0b976c6a29324303929e6af29a63bb0"
+  },
+  {
+    "path": "tests/structure/test-session-trail-verdict.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d2f74354be097eddc41a16f68a3dfb3a1659ae41"
+  },
+  {
+    "path": "tests/structure/test-setup-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "975d274a94a387450f704a0fdc093b17dc613a28"
+  },
+  {
+    "path": "tests/structure/test-skill-overlays.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8dcd171ca6d834cabc85286b4b9b27b0b554d753"
+  },
+  {
+    "path": "tests/structure/test-skill-text-budget.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6af263e3c9496a59ac88b598ea5c2ef5dba4fc2b"
+  },
+  {
+    "path": "tests/structure/test-skill-workflow-markers.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "966c6f520347f00da1f41282322baba4002b7898"
+  },
+  {
+    "path": "tests/structure/test-smoke-main-thread-chain.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "c6d9952a3d94bd9674f665ca7d98264759bf3c42"
+  },
+  {
+    "path": "tests/structure/test-state-verb-diagnostics.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "c8bb29a3389e4f42eaf861d24ccb95e6d3656d09"
+  },
+  {
+    "path": "tests/structure/test-stop-enforcer-escapes.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "f6fc25cfdf50a1992038c36fbc2b25ce7c0b407a"
+  },
+  {
+    "path": "tests/structure/test-stop-enforcer-latency.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "8b6515f9f0df5ab25932ad5832302ffbcaa5fab6"
+  },
+  {
+    "path": "tests/structure/test-stop-enforcer-reviewer-denial-note.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "75bb19625ebb7c2e7d4c46dd03fd82cce36ea3d9"
+  },
+  {
+    "path": "tests/structure/test-stop-enforcer-self-review-routing.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9755894df032ae6380580997d196e8b88a6932bd"
+  },
+  {
+    "path": "tests/structure/test-stop-enforcer-subagent-noop.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a73bffc603f435dc1f66c3bd748ece45a383b42a"
+  },
+  {
+    "path": "tests/structure/test-stop-session-binding-recovery.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "96ee99c9664c4d0a770af259efe9dd70e0d7714e"
+  },
+  {
+    "path": "tests/structure/test-tdd-begin-chain-reset.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "ced473d5d95fc24ff3644cb4ac68e86902264022"
+  },
+  {
+    "path": "tests/structure/test-tdd-complete-receipt-gate.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "d5f0ec37b1221a53d519d3d00a44df6f5f841253"
+  },
+  {
+    "path": "tests/structure/test-tdd-full-cycle.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "4719460ba113af7cb81b433c812a9fe8e3ce92a6"
+  },
+  {
+    "path": "tests/structure/test-tdd-log-path-anchor.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "57cc016ecdbdb64ba5a535eaee7e710d6e8fda5b"
+  },
+  {
+    "path": "tests/structure/test-tdd-manager-patches.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "a9c17a778e7eec73bc7bc2d654f8b2ad15c8fcff"
+  },
+  {
+    "path": "tests/structure/test-tdd-mode-toggle.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "afdda1f6bac1ad44e12b8de53391931ff813a8a7"
+  },
+  {
+    "path": "tests/structure/test-tdd-no-flock-external-lease.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ee12b9c5d020b56e181958e5a016c1f86e39379b"
+  },
+  {
+    "path": "tests/structure/test-tdd-protocol-prominence.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "581b7ff292de526c3530fc56407dd715a1a595e2"
+  },
+  {
+    "path": "tests/structure/test-tdd-reminder-hook.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "2fac7b02aba78cec5ca0754520fdc2d78ebf5344"
+  },
+  {
+    "path": "tests/structure/test-tdd-skill-review-fanout.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "55c1f6fec61c36b2e87ba3378b68594f2e2af07a"
+  },
+  {
+    "path": "tests/structure/test-tdd-skill-self-review-handoff.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "7c5a3df212d2a317a281d9c77f76f8e687d822ea"
+  },
+  {
+    "path": "tests/structure/test-tdd-state-corruption-fail-closed.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9abf827d88cd5bb55211062d8871a8e0c6f8b9d6"
+  },
+  {
+    "path": "tests/structure/test-tdd-state-path-safety.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "adcbc3700f23ea344c17606ada020efffc33e22b"
+  },
+  {
+    "path": "tests/structure/test-tdd-vanilla-mode.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3eab52db45934b58ded57f353f621536b68c0072"
+  },
+  {
+    "path": "tests/structure/test-templates.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "61f45f77248d75bf02dca9999525380e1897b16a"
+  },
+  {
+    "path": "tests/structure/test-unit-registry.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "b2016e38f9e2c50ec220dbea22310077e43fac82"
+  },
+  {
+    "path": "tests/structure/test-user-prompt-budget.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "c6853e41c03891c01fc3217c89ba239b6cc3255e"
+  },
+  {
+    "path": "tests/structure/test-valid-diff-lines.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d9161de156f377687f99e5f138ea2fd0a7d86916"
+  },
+  {
+    "path": "tests/structure/test-vanished-session-cwd.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "6c2b350e58ae74cd3da31d9a5829b8d3eeb99352"
+  },
+  {
+    "path": "tests/structure/test-vcs-detect.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "71a0f70264127da8b06e4cbecdefc2fa4ce83030"
+  },
+  {
+    "path": "tests/structure/test-vcs-pr-ops.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "cf17f7c51024b791984b158f272e6597b8cf8999"
+  },
+  {
+    "path": "tests/structure/test-vcs-publish.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "848c5b8a794f1116aba15b5fd443390128b2389e"
+  },
+  {
+    "path": "tests/structure/test-vcs-reconcile.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "734312a11ac71eac6aa386ee28c789a7acadbdc2"
+  },
+  {
+    "path": "tests/structure/test-vcs-review-marker-reconcile.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f7fb9dc65fd3489ac4cb5cc08c33ddf7b86b823a"
+  },
+  {
+    "path": "tests/structure/test-verify-consent.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ad244c7d6331e9133508695bd6fa7733cfa342cb"
+  },
+  {
+    "path": "tests/structure/test-verify-feature-skill.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "adb0c5181e2f8a9f9b9f4c5d0540423303d69827"
+  },
+  {
+    "path": "tests/structure/test-version-sync.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "5f3a784b4ca233e1417fc144940d304a1ea4a004"
+  },
+  {
+    "path": "tests/structure/test-versioned-plugin-upgrade.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "cf2b8372cbdd23d85915a094517588f8e2af6eae"
+  },
+  {
+    "path": "tests/structure/test-windows-ci-contract.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ae3fd8356618bc81590e93bf371eadffeff76e0f"
+  },
+  {
+    "path": "tests/structure/test-windows-portability-guards.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "754ae40c183ab0730338fe62d0fc3306649be087"
+  },
+  {
+    "path": "tests/structure/test-work-order-gates.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "87514b05e9eccb60ec486c9d6994e39af34807b9"
+  },
+  {
+    "path": "tests/structure/test-work-order-implement.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0ab5fd88db8b48d75175f271649f7042812cad6a"
+  },
+  {
+    "path": "tests/structure/test-work-order-runtime.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3dab81665e7bcbbce466573fb0625916eb6d6b6a"
+  },
+  {
+    "path": "tests/structure/test-work-order-takeover.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "059058701e6af928f5e3ffb2303fdd9620d73ef5"
+  },
+  {
+    "path": "tests/structure/test-workflow-checkout-credentials.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "dd802079d9bd23b26a3a29ecc2274a79cac398c4"
+  },
+  {
+    "path": "tests/structure/test-workflow-dispatch-inputs.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "af2864b1970545c62f59f333f04217d933960ce7"
+  },
+  {
+    "path": "tests/structure/test-workflow-scope.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "534cc97f67ac939a98c03952af1c4b4b6c413740"
+  },
+  {
+    "path": "tests/structure/test-worktree-keep.sh",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d198b2edac7914db1d12f37b94689f588bd48108"
+  },
+  {
+    "path": "tests/structure/test-zen-mode.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "3d6facd29f250bf15d9eab51b55263290e6086de"
+  },
+  {
+    "path": "tests/structure/test-zensu-help-skill.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "71b78bfafc836ff528a624c937682f87decc1327"
+  },
+  {
+    "path": "tests/structure/test-zensu-plm-arg-guidance.sh",
+    "mode": "100755",
+    "type": "blob",
+    "oid": "cac5d857532145631b10644d0105310311bdcb1e"
+  },
+  {
+    "path": "tests/structure/unit-registry.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "a23b53e7dd73406c2390d62204e424212cf214ab"
+  },
+  {
+    "path": "tests/structure/verify-browser-config.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "501a27aadbaa41a8cea1f9f8e834d0f9a188e2f8"
+  },
+  {
+    "path": "tests/structure/verify-consent-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "12c8c6aec608f74583de276e6d31859d396d9613"
+  },
+  {
+    "path": "tests/structure/verify-feature-transcript-check.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0300aec67266d7ba7744475f13f54de8ecf0e74a"
+  },
+  {
+    "path": "tests/structure/verify-free-port.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9bcd53d69f56f3e44e8c6f459b94bd638b3c5696"
+  },
+  {
+    "path": "tests/structure/verify-navigation-floor-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f979ea15a934a34967db196c1d3eb5f189ee8bf2"
+  },
+  {
+    "path": "tests/structure/verify-run-resources.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "dc91e9960de1b00c94cccf7906bcfd74520ec4b1"
+  },
+  {
+    "path": "tests/structure/windows-ci-contract.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "1a524756b418652f9bd6ec045779cf9ee1c45d38"
+  },
+  {
+    "path": "tests/structure/windows-observation.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "9771cdc59ce7627f0aa4f63895c66577104b7435"
+  },
+  {
+    "path": "tests/structure/windows-profile-contract.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "d0f72fb82eb6ee2059bb354ff9836588f8a383e7"
+  },
+  {
+    "path": "tests/structure/windows-safety-shard.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "cf556a250a38ea53644971c193602aecaf55f768"
+  },
+  {
+    "path": "tests/structure/work-order-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "2039f1c1926fc4a18c0fbd988c2d0ed5d7af5047"
+  },
+  {
+    "path": "tests/structure/workflow-dispatch-inputs.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "4c2856fcf64557979f0c044f703b9dc75af237b9"
+  },
+  {
+    "path": "tests/structure/worktree-advice-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "29c8913c9db58c8bb53416bb7e0f5618dacd5996"
+  },
+  {
+    "path": "tests/structure/worktree-keep-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f1c4cf68464a0d1f61a97789dd854bb0fad9b29a"
+  },
+  {
+    "path": "tests/structure/zen-anchor-assertions.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "0367b599692360a71bd73c67f1bb146f5ad57392"
+  },
+  {
+    "path": "tests/structure/zen-anchor-v1.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "58a563ca8ed584837541ce2e49ae0b68ed4ddcfc"
+  },
+  {
+    "path": "tests/structure/zensu-doctor-invocation.test.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "81db75a167f7099acf529a80569b6aae3812d7f1"
+  },
+  {
+    "path": "tests/summarize-windows-observation.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "f28b995a8baf02135cc26f24514c6331fc4203cf"
+  },
+  {
+    "path": "tests/windows-profile-contract.js",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "ae391b930aa9b7975cacaf3a3507d7ffef4d3b77"
+  },
+  {
+    "path": "tests/windows-profile-job.ps1",
+    "mode": "100644",
+    "type": "blob",
+    "oid": "5c6728150c166a36c504855269223f8f238622c0"
+  }
+]

@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" sessionStart",
+        "timeoutSec": 45
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" sessionEnd",
+        "timeoutSec": 45
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" userPromptSubmitted",
+        "timeoutSec": 45
+      }
+    ],
+    "userPromptTransformed": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" userPromptTransformed",
+        "timeoutSec": 45
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" preToolUse",
+        "timeoutSec": 60
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" postToolUse",
+        "timeoutSec": 45
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" postToolUseFailure",
+        "timeoutSec": 45
+      }
+    ],
+    "subagentStart": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" subagentStart",
+        "timeoutSec": 45
+      }
+    ],
+    "subagentStop": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" subagentStop",
+        "timeoutSec": 45
+      }
+    ],
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" agentStop",
+        "timeoutSec": 45
+      }
+    ],
+    "preCompact": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" preCompact",
+        "timeoutSec": 45
+      }
+    ]
+  }
+}

@@ -1,0 +1,1049 @@
+#!/bin/bash
+set -u
+
+# zensu-doctor-home-exempt: this suite never RUNS the doctor. It only names
+# hooks/lib/zensu-doctor.sh inside a `{"command": ...}` payload handed to the
+# capability gate, to check that the gate admits that command shape.
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+if [ -d "$ROOT/plugins/zensu" ]; then PLUGIN="$ROOT/plugins/zensu"; else PLUGIN="$ROOT"; fi
+GATE="$PLUGIN/hooks/pre-reviewer-capability-gate.sh"
+POLICY="$PLUGIN/hooks/lib/reviewer-capability-v1.js"
+HOST_PATH="$PLUGIN/hooks/lib/zensu-host-path.sh"
+PASS=0
+FAIL=0
+check() {
+  if [ "$2" = PASS ]; then printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1))
+  else printf '  FAIL  %s\n' "$1"; FAIL=$((FAIL + 1)); fi
+}
+
+for artifact in "$GATE" "$POLICY" "$HOST_PATH"; do
+  [ -f "$artifact" ] && check "artifact exists: ${artifact#$PLUGIN/}" PASS || check "artifact exists: ${artifact#$PLUGIN/}" FAIL
+done
+if [ "$FAIL" -ne 0 ]; then
+  printf '%s\n' "----" "test-reviewer-capability-gate: $PASS PASS / $FAIL FAIL"
+  exit 1
+fi
+
+RAW_TMP="$(mktemp -d "${TMPDIR:-/tmp}/reviewer-capability-XXXXXX")"
+RAW_TMP="$(cd -P -- "$RAW_TMP" && pwd -P)"
+TMP="$(bash "$HOST_PATH" "$RAW_TMP")" || {
+  rm -rf -- "$RAW_TMP"
+  printf '%s\n' 'reviewer capability fixture could not render its native host path' >&2
+  exit 1
+}
+trap 'rm -rf "$RAW_TMP"' EXIT
+PLUGIN_DATA="$TMP/plugin-data"
+MISSING_DATA="$TMP/missing-plugin-data"
+TAMPERED_DATA="$TMP/tampered-plugin-data"
+PROJECT="$TMP/project"
+OTHER="$TMP/other"
+SESSION_ID='capability-test'
+mkdir -p "$PLUGIN_DATA" "$MISSING_DATA" "$TAMPERED_DATA" "$PROJECT" "$OTHER"
+mkdir -p "$PROJECT/src/nested"
+touch "$PROJECT/existing-neutral.txt" "$OTHER/existing-report.md" "$PLUGIN_DATA/private-hardlink-source"
+
+SESSION_ID="$SESSION_ID" PROJECT="$PROJECT" node -e '
+  process.stdout.write(JSON.stringify({
+    hook_event_name: "SessionStart",
+    source: "startup",
+    session_id: process.env.SESSION_ID,
+    cwd: process.env.PROJECT,
+  }));
+' | CLAUDE_PLUGIN_ROOT="$PLUGIN" CLAUDE_PLUGIN_DATA="$PLUGIN_DATA" \
+  env -u ZENSU_SOURCE_REVISION -u ZENSU_SOURCE_REVISION_AUTHORITY \
+  bash "$PLUGIN/hooks/session-start-session-control.sh" >/dev/null
+SESSION_KEY="$(node -e 'process.stdout.write(require(process.argv[1]).sessionKey(process.argv[2]))' \
+  "$PLUGIN/hooks/lib/session-control-core-v1.js" "$SESSION_ID")"
+SESSION_CONTEXT="$PLUGIN_DATA/session-control/v1/records/${SESSION_KEY}.json"
+
+SESSION_ID="$SESSION_ID" PROJECT="$PROJECT" node -e '
+  process.stdout.write(JSON.stringify({
+    hook_event_name: "SessionStart",
+    source: "startup",
+    session_id: process.env.SESSION_ID,
+    cwd: process.env.PROJECT,
+  }));
+' | CLAUDE_PLUGIN_ROOT="$PLUGIN" CLAUDE_PLUGIN_DATA="$TAMPERED_DATA" \
+  env -u ZENSU_SOURCE_REVISION -u ZENSU_SOURCE_REVISION_AUTHORITY \
+  bash "$PLUGIN/hooks/session-start-session-control.sh" >/dev/null
+TAMPERED_CONTEXT="$TAMPERED_DATA/session-control/v1/records/${SESSION_KEY}.json"
+node -e '
+  const fs = require("node:fs");
+  const file = process.argv[1];
+  const value = JSON.parse(fs.readFileSync(file, "utf8"));
+  value.runtime_digest = `sha256:${"0".repeat(64)}`;
+  value.source_revision = value.runtime_digest;
+  fs.writeFileSync(file, `${JSON.stringify(value)}\n`);
+' "$TAMPERED_CONTEXT"
+
+payload() {
+  local input="${3:-}"
+  [ -n "$input" ] || input='{}'
+  AGENT_TYPE="$1" TOOL="$2" INPUT="$input" \
+    PAYLOAD_SESSION_ID="${PAYLOAD_SESSION_ID:-$SESSION_ID}" PAYLOAD_CWD="${PAYLOAD_CWD:-$PROJECT}" node -e '
+    const o = {
+      hook_event_name: "PreToolUse",
+      session_id: process.env.PAYLOAD_SESSION_ID,
+      cwd: process.env.PAYLOAD_CWD,
+      tool_name: process.env.TOOL,
+      tool_input: JSON.parse(process.env.INPUT)
+    };
+    if (process.env.AGENT_TYPE === "?") o.agent_id = "agent-with-missing-type";
+    else if (process.env.AGENT_TYPE.startsWith("no-id:")) {
+      o.agent_type = process.env.AGENT_TYPE.slice("no-id:".length);
+    }
+    else if (process.env.AGENT_TYPE !== "-") {
+      o.agent_id = "agent-1";
+      o.agent_type = process.env.AGENT_TYPE;
+    }
+    process.stdout.write(JSON.stringify(o));
+  '
+}
+
+# ONE definition of the environment every gate invocation runs under, shared by
+# decision() and by the deny-REASON probe further down. The scrub is what stops a
+# developer's ambient ZENSU_* state from poisoning an assertion, and it was previously
+# hand-copied: a change to this unset list would have reached one caller and not the
+# other, so two assertions about the SAME payload would have run under different
+# environments and disagreed for an environmental reason rather than a policy one.
+gate_env() {
+  env \
+    -u ZENSU_CLAUDE_PLUGIN_ROOT \
+    -u ZENSU_SESSION_KEY \
+    -u ZENSU_SESSION_CONTEXT \
+    -u ZENSU_RUNTIME_DIGEST \
+    -u ZENSU_PROJECT_ROOT \
+    ZENSU_CONFIG="${GATE_ZENSU_CONFIG:-$TMP/absent-zensu-config.json}" \
+    ${GATE_HOME:+"HOME=$GATE_HOME"} \
+    CLAUDE_PLUGIN_ROOT="$1" \
+    CLAUDE_PLUGIN_DATA="$2" \
+    bash "$GATE" 2>/dev/null
+}
+
+decision() {
+  local out status hook_root="$PLUGIN" hook_data="$PLUGIN_DATA"
+  case "${GATE_TEST_MODE:-valid}" in
+    missing-context) hook_data="$MISSING_DATA" ;;
+    tampered-digest) hook_data="$TAMPERED_DATA" ;;
+    wrong-root) hook_root="$OTHER" ;;
+    wrong-data) hook_data="$OTHER" ;;
+  esac
+  out="$(gate_env "$hook_root" "$hook_data")"
+  status=$?
+  if [ "$status" -eq 2 ]; then printf deny; return; fi
+  if [ "$status" -ne 0 ]; then printf invalid; return; fi
+  if [ -z "$out" ]; then printf allow; return; fi
+  printf '%s' "$out" | node -e '
+    let s = ""; process.stdin.on("data", c => s += c); process.stdin.on("end", () => {
+      try {
+        const j = JSON.parse(s);
+        process.stdout.write(j.hookSpecificOutput?.permissionDecision === "deny" ? "deny" : "other");
+      } catch (_) { process.stdout.write("invalid"); }
+    });
+  '
+}
+
+# ONE reason extractor for every probe below. Two verbatim copies of this pipeline existed and
+# a change to the decision envelope could have been applied to one of them alone.
+deny_reason() {
+  payload "$@" | gate_env "$PLUGIN" "$PLUGIN_DATA" | node -e '
+    let s = ""; process.stdin.on("data", c => s += c); process.stdin.on("end", () => {
+      try { process.stdout.write(String(JSON.parse(s).hookSpecificOutput?.permissionDecisionReason || "")); }
+      catch (_) { process.stdout.write(""); }
+    });
+  '
+}
+
+assert_case() {
+  local label="$1" expected="$2" type="$3" tool="$4" input="${5:-}" actual
+  [ -n "$input" ] || input='{}'
+  actual="$(payload "$type" "$tool" "$input" | decision)"
+  [ "$actual" = "$expected" ] && check "$label" PASS || check "$label (expected $expected, got $actual)" FAIL
+}
+
+assert_case "main-thread writes pass after immutable context revalidation" allow - Write '{"file_path":"x"}'
+assert_case "production hook path needs no SessionStart-exported ZENSU variables" allow arbitrary-custom Read '{"file_path":"README.md"}'
+assert_case "nested tool_input cannot impersonate a reviewer" allow - Write '{"agent_type":"code-reviewer","file_path":"x"}'
+assert_case "bare PLM subagent is denied project-local writes in depth" deny zensu-plm Write '{"file_path":"x"}'
+assert_case "scoped plugin PLM is denied project-local writes" deny zensu:zensu-plm Write '{"file_path":"x"}'
+assert_case "bare PLM remains read-only when Claude omits correlation agent_id" deny no-id:zensu-plm Write '{"file_path":"x"}'
+assert_case "bare PLM may read inside the immutable project" allow zensu-plm Read '{"file_path":"README.md"}'
+assert_case "bare PLM cannot edit project files" deny zensu-plm Edit '{"file_path":"README.md","old_string":"x","new_string":"y"}'
+assert_case "bare PLM cannot apply patches" deny zensu-plm apply_patch '{"patch":"*** Begin Patch\n*** Add File: ATTACK.txt\n+attack\n*** End Patch"}'
+assert_case "bare PLM subagent cannot invoke shell" deny zensu-plm Bash '{"command":"pwd"}'
+assert_case "bare PLM subagent cannot invoke mutating control" deny zensu-plm mcp__zensu__transition '{"state":"complete"}'
+assert_case "bare PLM may Grep a safe project subtree" allow zensu-plm Grep '{"pattern":"x","path":"src"}'
+assert_case "bare PLM cannot Grep a project ancestor of workflow state" deny zensu-plm Grep '{"pattern":"x","path":"."}'
+assert_case "bare PLM cannot Glob a project ancestor of workflow state" deny zensu-plm Glob '{"pattern":"**/*","path":"."}'
+assert_case "bare PLM cannot use host-default Grep at a protected ancestor cwd" deny zensu-plm Grep '{"pattern":"x"}'
+assert_case "bare code reviewer may use Read" allow code-reviewer Read '{"file_path":"x"}'
+assert_case "scoped plugin code reviewer may use Read" allow zensu:code-reviewer Read '{"file_path":"x"}'
+assert_case "scoped plugin aspect reviewer remains read-only" deny zensu:review-aspect Write '{"file_path":"x"}'
+assert_case "scoped plugin judge reviewer may use Glob" allow zensu:review-judge Glob '{"pattern":"**/*","path":"src"}'
+assert_case "bare reviewer remains read-only when Claude omits correlation agent_id" deny no-id:code-reviewer Write '{"file_path":"x"}'
+assert_case "bare aspect reviewer may use project-bound Grep" allow review-aspect Grep '{"pattern":"x","path":"src"}'
+assert_case "bare judge reviewer may use project-bound Glob" allow review-judge Glob '{"pattern":"**/*","path":"src"}'
+assert_case "reviewer may Grep protected terminology in a safe subtree" allow review-aspect Grep '{"pattern":"session-control|main-v1","path":"src"}'
+assert_case "reviewer cannot Grep a project ancestor of workflow state" deny review-aspect Grep '{"pattern":"session-control|main-v1","path":"."}'
+assert_case "reviewer cannot use host-default Grep at a protected ancestor cwd" deny review-aspect Grep '{"pattern":"session-control"}'
+assert_case "reviewer cannot Glob a project ancestor of workflow state" deny review-judge Glob '{"pattern":"**/*","path":"."}'
+assert_case "reviewer cannot use host-default Glob at a protected ancestor cwd" deny review-judge Glob '{"pattern":"**/*"}'
+assert_case "reviewer Grep path filters cannot escape a safe subtree" deny review-aspect Grep '{"pattern":"session-control|main-v1","path":"src","glob":"../.zensu/**"}'
+assert_case "reviewer Glob patterns cannot escape a safe subtree" deny review-judge Glob '{"pattern":"../.zensu/**","path":"src"}'
+assert_case "reviewer view_image is denied outside the exact read trio" deny review-judge view_image '{"path":"x.png"}'
+assert_case "unknown custom agent receives neutral normal reads" allow arbitrary-custom Read '{"file_path":"x"}'
+assert_case "neutral agent may read ordinary installed plugin documentation" allow arbitrary-custom Read "{\"file_path\":\"$PLUGIN/README.md\"}"
+assert_case "neutral agent cannot Grep a project ancestor of workflow state" deny arbitrary-custom Grep '{"pattern":"main-v1","path":"."}'
+assert_case "neutral agent may Grep a safe project subtree" allow arbitrary-custom Grep '{"pattern":"main-v1","path":"src"}'
+assert_case "neutral agent may Glob a safe project subtree" allow arbitrary-custom Glob '{"pattern":"**/*","path":"src"}'
+assert_case "neutral agent may Grep an external safe subtree" allow arbitrary-custom Grep "{\"pattern\":\"main-v1\",\"path\":\"$OTHER\"}"
+assert_case "neutral agent may Glob an external safe subtree" allow arbitrary-custom Glob "{\"pattern\":\"**/*\",\"path\":\"$OTHER\"}"
+assert_case "unknown custom agent receives neutral normal writes" allow arbitrary-custom Write '{"file_path":"x"}'
+assert_case "neutral Edit keeps an ordinary nlink=1 project file" allow arbitrary-custom Edit '{"file_path":"existing-neutral.txt","old_string":"x","new_string":"y"}'
+assert_case "neutral Write keeps an ordinary nlink=1 external report file" allow arbitrary-custom Write "{\"file_path\":\"$OTHER/existing-report.md\",\"content\":\"report\"}"
+assert_case "neutral Write cannot mutate the installed plugin runtime" deny arbitrary-custom Write "{\"file_path\":\"$PLUGIN/ATTACK.txt\",\"content\":\"attack\"}"
+assert_case "neutral Edit cannot mutate an installed plugin file" deny arbitrary-custom Edit "{\"file_path\":\"$PLUGIN/README.md\",\"old_string\":\"x\",\"new_string\":\"y\"}"
+assert_case "neutral MultiEdit cannot mutate an installed plugin file" deny arbitrary-custom MultiEdit "{\"file_path\":\"$PLUGIN/README.md\",\"edits\":[{\"old_string\":\"x\",\"new_string\":\"y\"}]}"
+assert_case "neutral NotebookEdit cannot mutate private plugin data" deny arbitrary-custom NotebookEdit "{\"notebook_path\":\"$PLUGIN_DATA/ATTACK.ipynb\",\"new_source\":\"attack\"}"
+assert_case "neutral apply_patch cannot add installed plugin runtime files" deny arbitrary-custom apply_patch "{\"patch\":\"*** Begin Patch\\n*** Add File: $PLUGIN/ATTACK.js\\n+attack\\n*** End Patch\"}"
+assert_case "neutral Write cannot persist arbitrary private plugin data" deny arbitrary-custom Write "{\"file_path\":\"$PLUGIN_DATA/ATTACK\",\"content\":\"attack\"}"
+assert_case "neutral Read of an unprotected plugin-data path stays allowed (control)" allow arbitrary-custom Read "{\"file_path\":\"$PLUGIN_DATA/unrelated/v1/x.json\"}"
+assert_case "neutral Read cannot open a full-suite evidence record" deny arbitrary-custom Read "{\"file_path\":\"$PLUGIN_DATA/evidence-run/v1/records/scv1_x/er1_x.json\"}"
+assert_case "neutral Grep cannot search the full-suite evidence store" deny arbitrary-custom Grep "{\"pattern\":\"exit_code\",\"path\":\"$PLUGIN_DATA/evidence-run\"}"
+assert_case "reviewer Read cannot open a full-suite evidence record" deny review-aspect Read "{\"file_path\":\"$PLUGIN_DATA/evidence-run/v1/records/scv1_x/er1_x.json\"}"
+assert_case "neutral Read cannot open an acceptance record" deny arbitrary-custom Read "{\"file_path\":\"$PLUGIN_DATA/acceptance-verify/v1/records/scv1_x/av1_x.json\"}"
+assert_case "reviewer Grep cannot search the acceptance store" deny review-aspect Grep "{\"pattern\":\"verdict\",\"path\":\"$PLUGIN_DATA/acceptance-verify\"}"
+PLUGIN_CASE_ALIAS="$(node -e '
+  const value = process.argv[1];
+  const slash = Math.max(value.lastIndexOf("/"), value.lastIndexOf("\\"));
+  const chars = [...value];
+  for (let index = slash + 1; index < chars.length; index += 1) {
+    if (/[a-z]/.test(chars[index])) { chars[index] = chars[index].toUpperCase(); break; }
+    if (/[A-Z]/.test(chars[index])) { chars[index] = chars[index].toLowerCase(); break; }
+  }
+  process.stdout.write(chars.join(""));
+' "$PLUGIN")"
+if [ "$PLUGIN_CASE_ALIAS" != "$PLUGIN" ] && [ -e "$PLUGIN_CASE_ALIAS" ]; then
+  assert_case "neutral Write cannot mutate plugin runtime through a case-variant root alias" deny arbitrary-custom Write "{\"file_path\":\"$PLUGIN_CASE_ALIAS/CASE-ATTACK.txt\",\"content\":\"attack\"}"
+else
+  check "case-variant plugin-root alias is exercised only on a case-insensitive filesystem" PASS
+fi
+assert_case "named neutral agent may run git status" allow arbitrary-custom Bash '{"command":"git status --short"}'
+assert_case "named neutral agent may run git in an external review worktree" allow arbitrary-custom Bash "{\"command\":\"git -C $OTHER diff --stat\"}"
+assert_case "neutral agent cannot enumerate the inherited shell environment" deny arbitrary-custom Bash '{"command":"env"}'
+assert_case "the shell guard does not see an obfuscated workflow-root path (documented gap)" allow arbitrary-custom Bash '{"command":"d=.zen; ls \"$d\"su/state"}'
+assert_case "the shell guard does not see an obfuscated helper name (documented gap)" allow arbitrary-custom Bash '{"command":"n=zensu-log; printf %s \"$n.sh\""}'
+assert_case "named neutral agent may run an interpreter shell" allow arbitrary-custom Bash '{"command":"sh -c true"}'
+assert_case "neutral agent cannot invoke shell tool aliases" deny arbitrary-custom shell '{"command":"pwd"}'
+assert_case "neutral agent cannot invoke exec tool aliases" deny arbitrary-custom exec '{"cmd":"pwd"}'
+assert_case "neutral agent cannot invoke exec_command tool aliases" deny arbitrary-custom exec_command '{"cmd":"pwd"}'
+assert_case "neutral agent cannot invoke terminal tool aliases" deny arbitrary-custom terminal '{"script":"pwd"}'
+assert_case "neutral agent cannot invoke command tool aliases" deny arbitrary-custom command '{"command":"pwd"}'
+assert_case "neutral agent keeps external report writes" allow arbitrary-custom Write "{\"file_path\":\"$OTHER/report.md\"}"
+
+# The two agent types skills/gauntlet-loop/SKILL.md names by hand. Every other
+# command-tool row above uses the synthetic type "arbitrary-custom", which proves
+# the fallthrough but never these two spellings — so the skill's claim that an
+# Explore critic and a general-purpose builder hold a guarded shell rested on reading
+# classifySubagent rather than on driving it. These drive it.
+assert_case "Explore critic may run a shell command" allow Explore Bash '{"command":"pwd"}'
+assert_case "general-purpose builder may run a shell command" allow general-purpose Bash '{"command":"pwd"}'
+# The premise the two rows above depend on: a payload with NEITHER subagent field
+# is the interactive main thread and is unrestricted. Whether the host reports
+# agent_type for a given spawn shape is a host property this repo cannot verify,
+# so pin the boundary rather than claiming the host's behaviour.
+assert_case "a payload with no agent_type is main-v1 and keeps its shell" allow - Bash '{"command":"pwd"}'
+assert_case "general-purpose builder keeps project writes" allow general-purpose Write "{\"file_path\":\"$PROJECT/note.md\"}"
+# The rows above assert a VERDICT, and decision() collapses every deny to the
+# same token. A reviewer and host-profile-v1 are both denied a command alias, so
+# assert the REASON for one, which names the principal.
+# Runs through the SAME gate_env decision() uses, so this reason and the verdict rows
+# above can never disagree because of the environment they were invoked under.
+EXPLORE_REASON="$(deny_reason Explore shell '{"command":"pwd"}')"
+case "$EXPLORE_REASON" in
+  *"host-profile-v1 cannot invoke command-execution tools"*)
+    check "Explore is denied a command alias AS host-profile-v1, not merely denied" PASS ;;
+  *)
+    check "Explore deny reason must name host-profile-v1 (got: ${EXPLORE_REASON:-<empty>})" FAIL ;;
+esac
+
+# The deny REASON string, not just the verdict. skills/gauntlet-loop/SKILL.md tells
+# the model which command tools a builder or critic subagent is denied, and
+# tests/structure/test-gauntlet-loop-skill.sh G8 greps this exact literal out of the
+# module to prove the skill is not describing a gate that stopped existing. Without
+# an owner here, rewording the message would break that unrelated suite with no
+# warning at the site that changed it.
+DENY_REASON='host-profile-v1 cannot invoke command-execution tools'
+if grep -qF "$DENY_REASON" "$POLICY"; then
+  check "neutral command-tool deny reason is the literal skills/gauntlet-loop G8 pins" PASS
+else
+  check "neutral command-tool deny reason changed — update tests/structure/test-gauntlet-loop-skill.sh G8 with it" FAIL
+fi
+assert_case "neutral report content may discuss protected architecture" allow arbitrary-custom Write "{\"file_path\":\"$OTHER/report.md\",\"content\":\"session-control main-v1 ZENSU_SESSION_KEY\"}"
+assert_case "neutral agent keeps host task updates" allow arbitrary-custom TaskUpdate '{"taskId":"review-1","status":"completed"}'
+assert_case "neutral agent is denied an MCP tool outside the named read-only list" deny arbitrary-custom mcp__github__get_pull_request '{"pull_number":172}'
+assert_case "neutral agent keeps read-only Zensu MCP tools" allow arbitrary-custom mcp__zensu__get_feature '{"feature_id":"F-1"}'
+assert_case "neutral agent is denied browser tools of a foreign server keyed playwright" deny arbitrary-custom mcp__playwright__browser_snapshot '{}'
+assert_case "neutral nested-agent capability stays host-governed" allow arbitrary-custom Agent '{"subagent_type":"general-purpose","prompt":"review session-control and main-v1"}'
+assert_case "neutral agent cannot run code through context-mode ctx_execute" deny general-purpose mcp__plugin_context-mode_context-mode__ctx_execute '{"language":"shell","code":"cat .zensu/state/*.json"}'
+assert_case "neutral agent cannot run a command through a terminal MCP server" deny general-purpose mcp__terminal__run_in_terminal '{"command":"ls .zensu/state"}'
+assert_case "neutral StructuredOutput may name a .zensu file in its result" allow general-purpose StructuredOutput '{"target_files":[".zensu/state/tdd-phase.json"],"summary":"inspected"}'
+assert_case "neutral Read under .zensu/state stays denied beside that StructuredOutput" deny general-purpose Read "{\"file_path\":\"$PROJECT/.zensu/state/tdd-phase-${SESSION_KEY}.json\"}"
+
+native_real() { node -e 'process.stdout.write(require("node:fs").realpathSync.native(process.argv[1]))' "$1"; }
+native_join() { node -e 'process.stdout.write(require("node:path").join(process.argv[1], process.argv[2]))' "$1" "$2"; }
+NATIVE_PROJECT="$(native_real "$PROJECT")"
+NATIVE_PLUGIN="$(bash "$HOST_PATH" "$PLUGIN")"
+HOST_PROFILE_VERDICTS="$(ZENSU_CONFIG="$TMP/absent-zensu-config.json" node -e '
+  const gate = require(process.argv[1]);
+  const [projectRoot, pluginRoot, pluginData, contextFile] = process.argv.slice(2);
+  const trusted = { projectRoot, toolCwd: projectRoot, pluginRoot, pluginData, contextFile };
+  const rows = [];
+  const verdict = (ok, label, reason) => rows.push(`${ok ? "PASS" : "FAIL"}\t${label}${ok ? "" : ` (got: ${reason})`}`);
+  const judge = (tool, input) => {
+    try { return gate.neutralViolation({ tool_name: tool, tool_input: input }, trusted); }
+    catch (error) { return `threw ${error.message}`; }
+  };
+  const host = [...gate.HOST_PROFILE_TOOLS];
+  const mcp = [...gate.HOST_PROFILE_MCP_READ_TOOLS];
+  const listed = `${host.join(" ")}|${mcp.join(" ")}|${[...gate.NON_PATH_TOOLS].join(" ")}`;
+  verdict(listed === "Read Grep Glob Edit Write MultiEdit NotebookEdit apply_patch LSP WebFetch WebSearch ToolSearch TodoWrite TaskCreate TaskGet TaskList TaskUpdate Agent SendMessage AskUserQuestion StructuredOutput ReportFindings SubagentHandback|mcp__plugin_context7_context7__resolve-library-id mcp__plugin_context7_context7__query-docs|StructuredOutput ReportFindings SubagentHandback AskUserQuestion",
+    "the host-profile-v1 allowlist, its named MCP tools and its path-free tools are exactly the reviewed sets", listed);
+  for (const tool of [...host, ...mcp]) {
+    const reason = judge(tool, { path: "src", pattern: "x" });
+    verdict(reason === null, `host-profile-v1 admits allowlisted tool ${tool}`, reason);
+  }
+  const allowance = `a neutral subagent may use only ${host.join(", ")}, the MCP tools ${mcp.join(", ")}, and read-only Zensu MCP tools`;
+  for (const tool of ["Skill", "Monitor", "Task", "TaskOutput", "TaskStop", "BashOutput", "KillShell", "CronCreate", "ScheduleWakeup", "RemoteTrigger", "Workflow", "EnterWorktree", "Artifact", "Config", "REPL", "ListMcpResourcesTool", "ReadMcpResourceTool", "NotebookRead", "subagenthandback", " Read", "MCP__zensu__get_feature", "mcp__github__get_pull_request", "mcp__context7__query-docs", "mcp__plugin_context-mode_context-mode__ctx_search", "mcp__Claude_Browser__navigate", "mcp__playwright__browser_snapshot", "mcp__ccd_session_mgmt__search_session_transcripts"]) {
+    const reason = judge(tool, { path: "src", command: "pwd", prompt: "x" });
+    verdict(reason === `host-profile-v1 cannot invoke ${tool}; ${allowance}`, `host-profile-v1 denies ${JSON.stringify(tool)} outside its allowlist and names the allowlist`, reason);
+  }
+  const shellAllowance = `a neutral subagent may use only ${host.join(", ")}, Bash behind an accident guard, the MCP tools ${mcp.join(", ")}, and read-only Zensu MCP tools`;
+  const judgeAs = (type, tool, input) => {
+    try { return gate.neutralViolation({ tool_name: tool, tool_input: input, agent_id: "agent-1", agent_type: type }, trusted); }
+    catch (error) { return `threw ${error.message}`; }
+  };
+  for (const tool of ["Monitor", "Skill", "mcp__github__get_pull_request"]) {
+    const named = judgeAs("general-purpose", tool, { path: "src", command: "pwd", prompt: "x" });
+    verdict(named === `host-profile-v1 cannot invoke ${tool}; ${shellAllowance}`, `a named neutral child denied ${JSON.stringify(tool)} is told it holds Bash behind the accident guard`, named);
+    const persona = judgeAs("zensu-review-domain", tool, { path: "src", command: "pwd", prompt: "x" });
+    verdict(persona === `host-profile-v1 cannot invoke ${tool}; ${allowance}`, `a zensu-review-* persona denied ${JSON.stringify(tool)} is not told it holds Bash`, persona);
+  }
+  const commandLead = "host-profile-v1 cannot invoke command-execution tools. To search the project, ";
+  for (const tool of ["shell", "exec", "exec_command", "terminal", "command", "mcp__plugin_context-mode_context-mode__ctx_execute", "mcp__plugin_context-mode_context-mode__ctx_execute_file", "mcp__plugin_context-mode_context-mode__ctx_batch_execute", "mcp__terminal__run_in_terminal", "mcp__playwright__browser_run_code_unsafe", "mcp__desktop-commander__execute_command", "mcp__python__run_code"]) {
+    const reason = judge(tool, { path: "src/probe.js", code: "x", command: "pwd" });
+    verdict(typeof reason === "string" && reason.startsWith(commandLead), `host-profile-v1 gives ${tool} the command-execution deny and its search remedy`, reason);
+  }
+  const grantLead = "host-profile-v1 cannot invoke command-execution tools: the subagent reports no usable agent_type, so the shell grant cannot tell it from a read-only reviewer. To search the project, ";
+  const unnamedBash = judge("Bash", { command: "pwd" });
+  verdict(typeof unnamedBash === "string" && unnamedBash.startsWith(grantLead) && unnamedBash.endsWith(" Report the need to the main thread instead."), "host-profile-v1 refuses Bash to a child without agent_type with the grant cause, the search remedy and the main-thread close", unnamedBash);
+  for (const [label, tool, input, expected] of [
+    ["an admitted MCP tool still has its path inputs checked", "mcp__zensu__get_feature", { feature_id: "F-1", file_path: ".zensu/state/tdd-phase.json" }, "host-profile-v1 cannot access a protected Session Control path"],
+    ["a Zensu MCP mutation stays outside the read allowlist", "mcp__zensu__update_feature", { feature_id: "F-1" }, "host-profile-v1 cannot invoke Zensu MCP tools outside the read allowlist"],
+    ["an admitted path-taking tool still cannot name .zensu", "LSP", { operation: "hover", filePath: ".zensu/state/tdd-phase.json", line: 1, character: 1 }, "host-profile-v1 cannot access a protected Session Control path"],
+    ["neutral StructuredOutput may name .zensu under any path-like key", "StructuredOutput", { target_files: [".zensu/state/x"], root: ".zensu", file_path: ".zensu/state/y" }, null],
+    ["neutral ReportFindings may cite a .zensu file", "ReportFindings", { findings: [{ file: ".zensu/state/tdd-phase.json", summary: "x" }], files: [".zensu/state/x"] }, null],
+    ["neutral handback may quote a patch header into .zensu", "SubagentHandback", { message: "*** Update File: .zensu/state/tdd-phase.json\nreport" }, null],
+    ["neutral AskUserQuestion may mention a .zensu path", "AskUserQuestion", { questions: [{ question: "Inspect .zensu/state?", header: "Scope" }], root: ".zensu" }, null],
+  ]) {
+    const reason = judge(tool, input);
+    verdict(reason === expected, label, reason);
+  }
+  process.stdout.write(rows.join("\n"));
+' "$POLICY" "$NATIVE_PROJECT" "$NATIVE_PLUGIN" "$PLUGIN_DATA" "$SESSION_CONTEXT" 2>&1)"
+HOST_PROFILE_STATUS=$?
+BATCH_TAB="$(printf '\t')"
+if [ "$HOST_PROFILE_STATUS" -ne 0 ] || [ -z "$HOST_PROFILE_VERDICTS" ]; then
+  check "host-profile-v1 policy batch ran (node exited $HOST_PROFILE_STATUS: ${HOST_PROFILE_VERDICTS:-<empty>})" FAIL
+else
+  while IFS="$BATCH_TAB" read -r verdict label; do
+    check "$label" "$verdict"
+  done <<EOF
+$HOST_PROFILE_VERDICTS
+EOF
+fi
+
+SRC_EXAMPLE="$(native_join "$NATIVE_PROJECT" src)"
+DOCS_EXAMPLE="$(native_join "$NATIVE_PROJECT" docs)"
+SEARCH_LEAD="To search the project, call Grep or Glob with a path that names a subdirectory of the project root $NATIVE_PROJECT other than .zensu"
+COMMAND_REMEDY_REASON="$(deny_reason general-purpose shell '{"command":"grep -r session ."}')"
+if [ "$COMMAND_REMEDY_REASON" = "reviewer-capability-v1 deny: host-profile-v1 cannot invoke command-execution tools. $SEARCH_LEAD: src. For example, pass $SRC_EXAMPLE as the path." ]; then
+  check "the neutral command-tool deny names the Grep/Glob remedy and the project's searchable subdirectories" PASS
+else
+  check "the neutral command-tool deny must name the Grep/Glob remedy (got: ${COMMAND_REMEDY_REASON:-<empty>})" FAIL
+fi
+UNNAMED_REMEDY_REASON="$(deny_reason ? Bash '{"command":"grep -r session ."}')"
+if [ "$UNNAMED_REMEDY_REASON" = "reviewer-capability-v1 deny: host-profile-v1 cannot invoke command-execution tools: the subagent reports no usable agent_type, so the shell grant cannot tell it from a read-only reviewer. $SEARCH_LEAD: src. For example, pass $SRC_EXAMPLE as the path. Report the need to the main thread instead." ]; then
+  check "the refused shell grant names its cause, the Grep/Glob remedy and the main-thread close" PASS
+else
+  check "the refused shell grant must name its cause and the remedy (got: ${UNNAMED_REMEDY_REASON:-<empty>})" FAIL
+fi
+TRAVERSAL_REMEDY_REASON="$(deny_reason general-purpose Grep '{"pattern":"phase","path":"."}')"
+if [ "$TRAVERSAL_REMEDY_REASON" = "reviewer-capability-v1 deny: host-profile-v1 traversal root may reach protected Session Control or workflow state. $SEARCH_LEAD: src. For example, pass $SRC_EXAMPLE as the path." ]; then
+  check "the neutral traversal deny names the subdirectory remedy" PASS
+else
+  check "the neutral traversal deny must name the subdirectory remedy (got: ${TRAVERSAL_REMEDY_REASON:-<empty>})" FAIL
+fi
+REVIEWER_TRAVERSAL_REASON="$(deny_reason review-aspect Glob '{"pattern":"**/*"}')"
+if [ "$REVIEWER_TRAVERSAL_REASON" = "reviewer-capability-v1 deny: reviewer-readonly-v1 traversal root may reach protected Session Control or workflow state. $SEARCH_LEAD: src. For example, pass $SRC_EXAMPLE as the path." ]; then
+  check "the reviewer traversal deny names the same subdirectory remedy" PASS
+else
+  check "the reviewer traversal deny must name the subdirectory remedy (got: ${REVIEWER_TRAVERSAL_REASON:-<empty>})" FAIL
+fi
+MCP_COMMAND_REASON="$(deny_reason general-purpose mcp__plugin_context-mode_context-mode__ctx_execute '{"language":"shell","code":"grep -r x ."}')"
+if [ "$MCP_COMMAND_REASON" = "$COMMAND_REMEDY_REASON" ]; then
+  check "a command-executing MCP tool gets the same command-execution deny and remedy as a shell alias" PASS
+else
+  check "a command-executing MCP tool must get the command-execution deny and remedy (got: ${MCP_COMMAND_REASON:-<empty>})" FAIL
+fi
+mkdir "$PROJECT/docs"
+DEMAND_REASON="$(deny_reason general-purpose shell '{"command":"ls"}')"
+rmdir "$PROJECT/docs"
+if [ "$DEMAND_REASON" = "reviewer-capability-v1 deny: host-profile-v1 cannot invoke command-execution tools. $SEARCH_LEAD: docs, src. For example, pass $DOCS_EXAMPLE as the path." ]; then
+  check "the remedy lists the project's subdirectories as they exist at deny time" PASS
+else
+  check "the remedy must list the subdirectories present at deny time (got: ${DEMAND_REASON:-<empty>})" FAIL
+fi
+FLAT_PROJECT="$TMP/flat-project"
+FLAT_SESSION_ID='capability-test-flat'
+mkdir -p "$FLAT_PROJECT"
+touch "$FLAT_PROJECT/only-file.txt"
+SESSION_ID="$FLAT_SESSION_ID" PROJECT="$FLAT_PROJECT" node -e '
+  process.stdout.write(JSON.stringify({
+    hook_event_name: "SessionStart",
+    source: "startup",
+    session_id: process.env.SESSION_ID,
+    cwd: process.env.PROJECT,
+  }));
+' | CLAUDE_PLUGIN_ROOT="$PLUGIN" CLAUDE_PLUGIN_DATA="$PLUGIN_DATA" \
+  env -u ZENSU_SOURCE_REVISION -u ZENSU_SOURCE_REVISION_AUTHORITY \
+  bash "$PLUGIN/hooks/session-start-session-control.sh" >/dev/null
+FLAT_REASON="$(PAYLOAD_SESSION_ID="$FLAT_SESSION_ID" PAYLOAD_CWD="$FLAT_PROJECT" deny_reason general-purpose shell '{"command":"ls"}')"
+if [ "$FLAT_REASON" = "reviewer-capability-v1 deny: host-profile-v1 cannot invoke command-execution tools. To search the project, call Grep or Glob with a path that names a subdirectory of the project root $(native_real "$FLAT_PROJECT") other than .zensu; none qualifies here, so Read the files you need or name one file as the Grep path." ]; then
+  check "a project root without a searchable subdirectory gets the Read fallback" PASS
+else
+  check "a project root without a searchable subdirectory must get the Read fallback (got: ${FLAT_REASON:-<empty>})" FAIL
+fi
+HOST_CONTEXT_TOOLS="$(node -e '
+  const fs = require("node:fs");
+  const core = require(process.argv[1]);
+  const gate = require(process.argv[2]);
+  const text = core.renderHostContext(JSON.parse(fs.readFileSync(process.argv[3], "utf8")));
+  const match = /admits only (.+?), plus the MCP tools (.+?) and read-only Zensu MCP tools; it denies every other tool/.exec(text);
+  if (!match) { process.stdout.write("unparsed"); process.exit(0); }
+  const host = match[1].split(/, (?:and )?/);
+  const mcp = match[2].split(" and ");
+  const same = (a, b) => a.length === b.length && a.every((value, index) => value === b[index]);
+  process.stdout.write(same(host, [...gate.HOST_PROFILE_TOOLS]) && same(mcp, [...gate.HOST_PROFILE_MCP_READ_TOOLS]) ? "same" : `drift:${host.join(",")}|${mcp.join(",")}`);
+' "$PLUGIN/hooks/lib/session-control-core-v1.js" "$POLICY" "$SESSION_CONTEXT" 2>/dev/null)"
+if [ "$HOST_CONTEXT_TOOLS" = same ]; then
+  check "the neutral SubagentStart context names exactly the tools the gate admits" PASS
+else
+  check "the neutral SubagentStart context must name exactly the admitted tools (got: ${HOST_CONTEXT_TOOLS:-<empty>})" FAIL
+fi
+assert_case "missing agent_type with an agent_id is neutral" allow ? Read '{"file_path":"x"}'
+assert_case "non-host reviewer alias is neutral, not reviewer" allow zensu-review-domain Write '{"file_path":"x"}'
+assert_case "runtime reviewer path is neutral, not reviewer" allow /root/zensu_code_reviewer Write '{"file_path":"x"}'
+assert_case "reviewer Write is denied" deny code-reviewer Write '{"file_path":"x"}'
+assert_case "reviewer apply_patch is denied" deny review-aspect apply_patch '{"patch":"x"}'
+assert_case "reviewer mutating shell is denied" deny code-reviewer exec_command '{"cmd":"printf x > source.js"}'
+assert_case "reviewer shell is denied even for git diff" deny code-reviewer exec_command '{"cmd":"git diff HEAD -- src/app.js"}'
+assert_case "reviewer shell is denied even for git status" deny review-aspect Bash '{"command":"git status --short"}'
+assert_case "workflow-control shell invocation is denied" deny code-reviewer Bash '{"command":"bash hooks/lib/zensu-log.sh --chain-done"}'
+assert_case "mutating MCP/control tool is denied" deny code-reviewer mcp__zensu__transition '{"state":"complete"}'
+assert_case "nested Agent tool is denied" deny review-aspect Agent '{"subagent_type":"general-purpose"}'
+assert_case "nested collaboration spawn is denied" deny review-judge spawn_agent '{"task_name":"attack"}'
+assert_case "unknown reviewer tools fail closed" deny code-reviewer mystery_tool '{}'
+
+HANDBACK_REPORT='{"message":"## Review\nNo findings."}'
+VANISHED_CWD="$TMP/vanished-working-directory"
+assert_case "scoped code reviewer may deliver its report through SubagentHandback" allow zensu:code-reviewer SubagentHandback "$HANDBACK_REPORT"
+assert_case "scoped aspect reviewer may deliver its report through SubagentHandback" allow zensu:review-aspect SubagentHandback "$HANDBACK_REPORT"
+assert_case "scoped judge reviewer may deliver its report through SubagentHandback" allow zensu:review-judge SubagentHandback "$HANDBACK_REPORT"
+assert_case "bare reviewer fixture may deliver its report through SubagentHandback" allow code-reviewer SubagentHandback "$HANDBACK_REPORT"
+assert_case "bare reviewer keeps SubagentHandback when Claude omits correlation agent_id" allow no-id:review-aspect SubagentHandback "$HANDBACK_REPORT"
+assert_case "scoped PLM may deliver its report through SubagentHandback" allow zensu:zensu-plm SubagentHandback "$HANDBACK_REPORT"
+assert_case "bare PLM may deliver its report through SubagentHandback" allow zensu-plm SubagentHandback "$HANDBACK_REPORT"
+assert_case "reviewer report text is not policed for protected paths or patch markers" allow zensu:review-aspect SubagentHandback '{"message":"*** Update File: /etc/passwd\n.zensu/state/tdd-phase.json main-v1 session-control"}'
+assert_case "reviewer handback with an empty message is left to the host" allow zensu:code-reviewer SubagentHandback '{"message":""}'
+PAYLOAD_CWD="$VANISHED_CWD" assert_case "reviewer handback resolves no path, so a vanished cwd cannot block the report" allow zensu:code-reviewer SubagentHandback "$HANDBACK_REPORT"
+PAYLOAD_CWD="$VANISHED_CWD" assert_case "PLM handback resolves no path, so a vanished cwd cannot block the report" allow zensu:zensu-plm SubagentHandback "$HANDBACK_REPORT"
+PAYLOAD_CWD="$VANISHED_CWD" assert_case "reviewer Read still needs a usable cwd beside the handback" deny zensu:code-reviewer Read '{"file_path":"README.md"}'
+PAYLOAD_CWD="$VANISHED_CWD" assert_case "neutral child handback still passes cwd resolution and is denied with the rest" deny general-purpose SubagentHandback "$HANDBACK_REPORT"
+assert_case "reviewer handback with a recipient field is denied" deny zensu:code-reviewer SubagentHandback '{"message":"report","to":"main"}'
+assert_case "PLM handback with a path field is denied" deny zensu:zensu-plm SubagentHandback '{"message":"report","file_path":"notes.md"}'
+assert_case "reviewer handback without a message is denied" deny zensu:review-aspect SubagentHandback '{}'
+assert_case "reviewer handback with a structured message is denied" deny zensu:review-judge SubagentHandback '{"message":{"text":"report"}}'
+assert_case "reviewer handback with a list message is denied" deny zensu:review-judge SubagentHandback '{"message":["report"]}'
+WORKFLOW_RESULT='{"findings":[{"title":"x","file":".zensu/state/tdd-phase.json","line":1}]}'
+assert_case "scoped aspect reviewer may return a workflow result through StructuredOutput" allow zensu:review-aspect StructuredOutput "$WORKFLOW_RESULT"
+assert_case "scoped judge reviewer may return a workflow result through StructuredOutput" allow zensu:review-judge StructuredOutput '{"outcome":"real"}'
+assert_case "bare reviewer fixture may return a workflow result through StructuredOutput" allow review-aspect StructuredOutput '{}'
+assert_case "scoped PLM may return a workflow result through StructuredOutput" allow zensu:zensu-plm StructuredOutput '{"answer":"x"}'
+PAYLOAD_CWD="$VANISHED_CWD" assert_case "reviewer workflow result resolves no path, so a vanished cwd cannot block it" allow zensu:review-aspect StructuredOutput '{"findings":[]}'
+assert_case "evidence worker stays on the bare read trio without StructuredOutput" deny zensu:pr-review-worker StructuredOutput '{"result":"x"}'
+assert_case "reviewer cannot invoke a case variant of StructuredOutput" deny zensu:review-aspect structuredoutput '{}'
+assert_case "reviewer cannot invoke an MCP tool named like StructuredOutput" deny zensu:review-aspect mcp__evil__StructuredOutput '{}'
+assert_case "reviewer cannot invoke a case variant of SubagentHandback" deny zensu:code-reviewer subagenthandback "$HANDBACK_REPORT"
+assert_case "reviewer cannot invoke a padded SubagentHandback name" deny zensu:code-reviewer ' SubagentHandback' "$HANDBACK_REPORT"
+assert_case "reviewer cannot invoke an MCP tool named like SubagentHandback" deny zensu:code-reviewer mcp__evil__SubagentHandback "$HANDBACK_REPORT"
+assert_case "reviewer cannot message agents through SendMessage" deny zensu:review-aspect SendMessage '{"to":"main","message":"report"}'
+assert_case "PLM cannot message agents through SendMessage" deny zensu:zensu-plm SendMessage '{"to":"main","message":"report"}'
+assert_case "evidence worker stays on the bare read trio without SubagentHandback" deny zensu:pr-review-worker SubagentHandback "$HANDBACK_REPORT"
+assert_case "plan evidence worker stays on the bare read trio without SubagentHandback" deny zensu:plan-review-worker SubagentHandback "$HANDBACK_REPORT"
+assert_case "neutral child keeps SubagentHandback under host governance" allow general-purpose SubagentHandback "$HANDBACK_REPORT"
+
+HANDBACK_TAIL='only Read, Grep, and Glob are allowed, plus SubagentHandback or StructuredOutput to deliver the final report'
+REVIEWER_TOOL_REASON="$(deny_reason zensu:review-aspect Bash '{"command":"pwd"}')"
+case "$REVIEWER_TOOL_REASON" in
+  "reviewer-capability-v1 deny: reviewer-readonly-v1 cannot invoke Bash; $HANDBACK_TAIL")
+    check "reviewer deny names SubagentHandback and StructuredOutput as the report channels" PASS ;;
+  *)
+    check "reviewer deny must name SubagentHandback and StructuredOutput as the report channels (got: ${REVIEWER_TOOL_REASON:-<empty>})" FAIL ;;
+esac
+PLM_TOOL_REASON="$(deny_reason zensu:zensu-plm Write '{"file_path":"x"}')"
+case "$PLM_TOOL_REASON" in
+  "reviewer-capability-v1 deny: zensu-plm-readonly-v1 cannot invoke Write; $HANDBACK_TAIL")
+    check "PLM deny names SubagentHandback and StructuredOutput as the report channels" PASS ;;
+  *)
+    check "PLM deny must name SubagentHandback and StructuredOutput as the report channels (got: ${PLM_TOOL_REASON:-<empty>})" FAIL ;;
+esac
+HANDBACK_SHAPE_REASON="$(deny_reason zensu:code-reviewer SubagentHandback '{"message":"report","to":"main"}')"
+case "$HANDBACK_SHAPE_REASON" in
+  'reviewer-capability-v1 deny: reviewer-readonly-v1 may invoke SubagentHandback only with exactly one string field, message')
+    check "malformed handback deny names the one admitted input shape" PASS ;;
+  *)
+    check "malformed handback deny must name the admitted input shape (got: ${HANDBACK_SHAPE_REASON:-<empty>})" FAIL ;;
+esac
+WORKER_HANDBACK_REASON="$(deny_reason zensu:pr-review-worker SubagentHandback "$HANDBACK_REPORT")"
+case "$WORKER_HANDBACK_REASON" in
+  'reviewer-capability-v1 deny: evidence-worker-v1 cannot invoke SubagentHandback; only Read, Grep, and Glob are allowed')
+    check "evidence worker is denied SubagentHandback by its own lease policy" PASS ;;
+  *)
+    check "evidence worker must be denied SubagentHandback by its lease policy (got: ${WORKER_HANDBACK_REASON:-<empty>})" FAIL ;;
+esac
+REVIEWER_ROTATION=(zensu:code-reviewer zensu:review-aspect zensu:review-judge)
+HOST_NON_READ_TOOLS=(
+  Agent Task Bash BashOutput KillShell KillBash Monitor
+  Edit MultiEdit Write NotebookEdit NotebookRead
+  WebFetch WebSearch LSP ListMcpResourcesTool ReadMcpResourceTool ReadMcpResourceDirTool
+  TodoWrite TaskCreate TaskGet TaskList TaskUpdate TaskOutput TaskStop
+  Skill ToolSearch AskUserQuestion EnterPlanMode ExitPlanMode EnterWorktree ExitWorktree
+  SendMessage SendUserMessage ListAgents TeamCreate TeamDelete
+  CronCreate CronDelete CronList ScheduleWakeup RemoteTrigger PushNotification
+  Artifact ArtifactCheck ArtifactComments ArtifactData SendUserFile ReportFindings DesignSync
+  ListPlugins ListSkills SearchPlugins SearchSkills SuggestSkills SuggestPluginInstall
+  Workflow Config Sleep REPL
+)
+SWEEP_INPUT='{"file_path":"src/probe.txt","path":"src","command":"pwd","prompt":"report","message":"report"}'
+SWEEP_INDEX=0
+for tool in "${HOST_NON_READ_TOOLS[@]}"; do
+  type="${REVIEWER_ROTATION[$((SWEEP_INDEX % ${#REVIEWER_ROTATION[@]}))]}"
+  SWEEP_INDEX=$((SWEEP_INDEX + 1))
+  reason="$(deny_reason "$type" "$tool" "$SWEEP_INPUT")"
+  if [ "$reason" = "reviewer-capability-v1 deny: reviewer-readonly-v1 cannot invoke $tool; $HANDBACK_TAIL" ]; then
+    check "reviewer-readonly-v1 ($type) is denied host tool $tool by the read allowlist" PASS
+  else
+    check "reviewer-readonly-v1 ($type) must be denied host tool $tool by the read allowlist (got: ${reason:-<empty>})" FAIL
+  fi
+done
+assert_case "neutral agent cannot access workflow root" deny arbitrary-custom Read '{"file_path":".zensu/state/tdd-phase.json"}'
+assert_case "neutral agent cannot access immutable Session Control record" deny arbitrary-custom Read "{\"file_path\":\"$SESSION_CONTEXT\"}"
+assert_case "neutral Grep cannot traverse the project root into workflow state" deny arbitrary-custom Grep '{"pattern":"phase","path":"."}'
+assert_case "neutral Glob cannot traverse the project root into workflow state" deny arbitrary-custom Glob '{"pattern":"**/*","path":"."}'
+assert_case "neutral Grep without path uses and rejects a protected ancestor cwd" deny arbitrary-custom Grep '{"pattern":"phase"}'
+assert_case "neutral Glob without path uses and rejects a protected ancestor cwd" deny arbitrary-custom Glob '{"pattern":"**/*"}'
+assert_case "neutral Grep cannot traverse a plugin-data ancestor" deny arbitrary-custom Grep "{\"pattern\":\"session\",\"path\":\"$PLUGIN_DATA\"}"
+assert_case "neutral Glob cannot traverse an executed-plugin ancestor" deny arbitrary-custom Glob "{\"pattern\":\"**/*\",\"path\":\"$PLUGIN\"}"
+assert_case "neutral Grep cannot escape a safe subtree through its glob" deny arbitrary-custom Grep '{"pattern":"phase","path":"src","glob":"../.zensu/**"}'
+assert_case "neutral Glob cannot escape a safe subtree through its pattern" deny arbitrary-custom Glob '{"pattern":"../.zensu/**","path":"src"}'
+PAYLOAD_CWD="$OTHER" assert_case "neutral Grep may use an omitted path in an external safe cwd" allow arbitrary-custom Grep '{"pattern":"main-v1"}'
+PAYLOAD_CWD="$OTHER" assert_case "neutral Glob may use an omitted path in an external safe cwd" allow arbitrary-custom Glob '{"pattern":"**/*"}'
+assert_case "reviewer cannot read outside the immutable project" deny code-reviewer Read '{"file_path":"/etc/passwd"}'
+assert_case "neutral agent may read an external host-governed path" allow arbitrary-custom Read "{\"file_path\":\"$OTHER/existing-report.md\"}"
+PAYLOAD_CWD="$PROJECT/src/nested" assert_case "descendant cwd remains bound to the immutable project" allow arbitrary-custom Read '{"file_path":"../../README.md"}'
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    check "symlink path-boundary cases skipped only where unprivileged creation is unavailable" PASS
+    ;;
+  *)
+    ln -s "$OTHER" "$PROJECT/outside-link"
+    assert_case "reviewer cannot escape through a project symlink" deny review-aspect Read '{"file_path":"outside-link/secret.txt"}'
+    assert_case "neutral agent may follow an external host-governed symlink" allow arbitrary-custom Read '{"file_path":"outside-link/secret.txt"}'
+    ln -s "$PLUGIN" "$PROJECT/plugin-runtime-link"
+    assert_case "neutral Write cannot mutate plugin runtime through a directory symlink" deny arbitrary-custom Write '{"file_path":"plugin-runtime-link/README.md","content":"attack"}'
+    ln -s "$PLUGIN_DATA" "$PROJECT/plugin-data-link"
+    assert_case "neutral Edit cannot mutate plugin data through a directory symlink" deny arbitrary-custom Edit '{"file_path":"plugin-data-link/ATTACK","old_string":"x","new_string":"y"}'
+    ln -s "$PLUGIN/hooks/lib/future-runtime.js" "$PROJECT/dangling-plugin-runtime"
+    assert_case "neutral Write cannot mutate plugin runtime through a dangling symlink leaf" deny arbitrary-custom Write '{"file_path":"dangling-plugin-runtime","content":"attack"}'
+    ln -s "$PLUGIN_DATA/future-private-record.json" "$PROJECT/dangling-plugin-data"
+    assert_case "neutral Write cannot mutate plugin data through a dangling symlink leaf" deny arbitrary-custom Write '{"file_path":"dangling-plugin-data","content":"attack"}'
+    ln "$PLUGIN/README.md" "$PROJECT/plugin-runtime-hardlink"
+    assert_case "neutral Edit cannot mutate plugin runtime through a project hard link" deny arbitrary-custom Edit '{"file_path":"plugin-runtime-hardlink","old_string":"x","new_string":"y"}'
+    rm -f "$PROJECT/plugin-runtime-hardlink"
+    ln "$PLUGIN_DATA/private-hardlink-source" "$PROJECT/plugin-data-hardlink"
+    assert_case "neutral Write cannot mutate plugin data through a project hard link" deny arbitrary-custom Write '{"file_path":"plugin-data-hardlink","content":"attack"}'
+    ln -s .zensu/state/new-dir "$PROJECT/dangling-protected"
+    assert_case "neutral write cannot enter protected state through a dangling symlink leaf" deny arbitrary-custom Write '{"file_path":"dangling-protected/new.txt"}'
+    ;;
+esac
+assert_case "neutral apply_patch Move to external host path is allowed" allow arbitrary-custom apply_patch '{"patch":"*** Begin Patch\n*** Update File: src/old.js\n*** Move to: ../outside/new.js\n*** End Patch"}'
+assert_case "neutral apply_patch Move to workflow state is denied" deny arbitrary-custom apply_patch '{"patch":"*** Begin Patch\n*** Update File: src/old.js\n*** Move to: .zensu/state/new.js\n*** End Patch"}'
+assert_case "neutral apply_patch Move to a project path is allowed" allow arbitrary-custom apply_patch '{"patch":"*** Begin Patch\n*** Update File: src/old.js\n*** Move to: src/new.js\n*** End Patch"}'
+assert_case "neutral agent cannot invoke Session Control helper" deny arbitrary-custom Bash '{"command":"node hooks/lib/session-control-core-v1.js render-main"}'
+assert_case "neutral agent cannot read the host session selector" deny arbitrary-custom Bash '{"command":"printf %s \"$CLAUDE_CODE_SESSION_ID\""}'
+assert_case "neutral agent cannot invoke the model-session binder function" deny arbitrary-custom Bash '{"command":"zensu_bind_model_session"}'
+assert_case "neutral agent cannot source the model-session binder" deny arbitrary-custom Bash '{"command":"source hooks/lib/zensu-session.sh"}'
+assert_case "neutral agent cannot invoke the private binder CLI" deny arbitrary-custom Bash '{"command":"node hooks/lib/claude-hook-session-v1.js model-bind"}'
+SHELL_OFF_CONFIG="$TMP/shell-off-config.json"
+SHELL_BAD_CONFIG="$TMP/shell-bad-config.json"
+printf '%s\n' '{"hooks":{"subagentShell":false}}' > "$SHELL_OFF_CONFIG"
+printf '%s\n' '{"hooks":' > "$SHELL_BAD_CONFIG"
+assert_case "a subagent without agent_type gets no shell" deny ? Bash '{"command":"pwd"}'
+assert_case "a zensu-review-* persona gets no shell" deny zensu-review-domain Bash '{"command":"git status"}'
+GATE_ZENSU_CONFIG="$SHELL_OFF_CONFIG" assert_case "hooks.subagentShell false withdraws the subagent shell" deny general-purpose Bash '{"command":"pwd"}'
+GATE_ZENSU_CONFIG="$SHELL_BAD_CONFIG" assert_case "an unreadable config layer withdraws the subagent shell" deny general-purpose Bash '{"command":"pwd"}'
+GATE_ZENSU_CONFIG="$SHELL_OFF_CONFIG" assert_case "hooks.subagentShell false leaves the main thread its shell" allow - Bash '{"command":"pwd"}'
+SHELL_OFF_REASON="$(GATE_ZENSU_CONFIG="$SHELL_OFF_CONFIG" deny_reason general-purpose Bash '{"command":"pwd"}')"
+case "$SHELL_OFF_REASON" in
+  "reviewer-capability-v1 deny: host-profile-v1 cannot invoke command-execution tools: hooks.subagentShell withdraws the subagent shell"*)
+    check "the withdrawn grant keeps the command-tool deny literal and names the flag" PASS ;;
+  *)
+    check "the withdrawn grant must name hooks.subagentShell (got: ${SHELL_OFF_REASON:-<empty>})" FAIL ;;
+esac
+UNNAMED_SHELL_REASON="$(deny_reason ? Bash '{"command":"pwd"}')"
+case "$UNNAMED_SHELL_REASON" in
+  *"no usable agent_type"*) check "an unnamed child is refused the grant for its missing agent_type" PASS ;;
+  *) check "an unnamed child's deny must name the missing agent_type (got: ${UNNAMED_SHELL_REASON:-<empty>})" FAIL ;;
+esac
+assert_case "the shell guard denies a .zensu path" deny general-purpose Bash '{"command":"ls .zensu/state"}'
+assert_case "the shell guard denies the private plugin data" deny general-purpose Bash "{\"command\":\"ls $PLUGIN_DATA\"}"
+assert_case "the shell guard denies the session record" deny general-purpose Bash "{\"command\":\"cat $SESSION_CONTEXT\"}"
+assert_case "the shell guard denies a Zensu workflow helper" deny general-purpose Bash '{"command":"bash hooks/lib/zensu-log.sh --chain-done"}'
+assert_case "the shell guard keeps a read of a helper's source" allow general-purpose Bash '{"command":"grep -n tdd hooks/lib/zensu-log.sh"}'
+assert_case "the shell guard denies a selector assignment" deny general-purpose Bash '{"command":"ZENSU_CONFIG=/tmp/x make test"}'
+assert_case "the shell guard denies an environment dump" deny general-purpose Bash '{"command":"export -p"}'
+assert_case "the shell guard denies git clean" deny general-purpose Bash '{"command":"git clean -fdx"}'
+assert_case "the shell guard denies git stash" deny general-purpose Bash '{"command":"git stash -u"}'
+assert_case "the shell guard keeps git stash list" allow general-purpose Bash '{"command":"git stash list"}'
+assert_case "the shell guard denies git reset --hard" deny general-purpose Bash '{"command":"git reset --hard HEAD~1"}'
+assert_case "the shell guard denies git checkout of the whole tree" deny general-purpose Bash '{"command":"git checkout -- ."}'
+assert_case "the shell guard denies git worktree remove" deny general-purpose Bash '{"command":"git worktree remove ../other"}'
+assert_case "the shell guard denies claude plugin management" deny general-purpose Bash '{"command":"claude plugin update zensu@zensu"}'
+assert_case "the shell guard denies removing the project root" deny general-purpose Bash "{\"command\":\"rm -rf $PROJECT\"}"
+assert_case "the shell guard denies removing the working directory" deny general-purpose Bash '{"command":"rm -rf ."}'
+assert_case "the shell guard keeps removing a build directory" allow general-purpose Bash '{"command":"rm -rf build"}'
+assert_case "the shell guard denies a background shell" deny general-purpose Bash '{"command":"sleep 5","run_in_background":true}'
+assert_case "the shell guard scans every string field" deny general-purpose Bash '{"command":"pwd","description":"inspect .zensu/state"}'
+GATE_HOME="$TMP" assert_case "the shell guard expands ~ before matching protected paths" deny general-purpose Bash '{"command":"ls ~/plugin-data/session-control"}'
+GATE_HOME="$TMP" assert_case "the shell guard expands \$HOME before matching protected paths" deny general-purpose Bash '{"command":"ls \"$HOME/plugin-data\""}'
+CLAUDE_PROJECT_DIR="$PROJECT" GATE_HOME="$TMP" assert_case "a root-level glob passes while the project overlay lies under HOME" allow general-purpose Bash '{"command":"ls *.md"}'
+CLAUDE_PROJECT_DIR="$PROJECT" GATE_HOME="$TMP" assert_case "the project overlay under HOME keeps the project-root rule" deny general-purpose Bash '{"command":"rm -rf *"}'
+assert_case "a Monitor command is not part of the shell grant" deny general-purpose Monitor '{"command":"tail -f build.log"}'
+assert_case "a Monitor stream stays outside the allowlist" deny ? Monitor '{"ws":"wss://example.test/feed"}'
+MONITOR_REASON="$(deny_reason general-purpose Monitor '{"command":"tail -f build.log"}')"
+case "$MONITOR_REASON" in
+  "reviewer-capability-v1 deny: host-profile-v1 cannot invoke Monitor; a neutral subagent may use only "*", SubagentHandback, Bash behind an accident guard, the MCP tools "*)
+    check "a named neutral agent's Monitor command gets the allowlist deny, which names its guarded Bash" PASS ;;
+  *)
+    check "a Monitor command must get the allowlist deny naming the guarded Bash (got: ${MONITOR_REASON:-<empty>})" FAIL ;;
+esac
+MONITOR_OFF_REASON="$(GATE_ZENSU_CONFIG="$SHELL_OFF_CONFIG" deny_reason general-purpose Monitor '{"command":"tail -f build.log"}')"
+case "$MONITOR_OFF_REASON" in
+  "reviewer-capability-v1 deny: host-profile-v1 cannot invoke Monitor; a neutral subagent may use only "*", SubagentHandback, the MCP tools "*)
+    check "a withdrawn grant leaves Bash out of the allowlist deny" PASS ;;
+  *)
+    check "a withdrawn grant must leave Bash out of the allowlist deny (got: ${MONITOR_OFF_REASON:-<empty>})" FAIL ;;
+esac
+GUARD_TAIL='The guard prevents accidents and is not a sandbox; report the need to the main thread instead.'
+GUARD_REASON="$(deny_reason general-purpose Bash '{"command":"git clean -fdx"}')"
+case "$GUARD_REASON" in
+  "reviewer-capability-v1 deny: host-profile-v1 shell guard: the command runs a git operation that removes or reverts work (git clean). $GUARD_TAIL")
+    check "the guard deny names the rule and says it is not a sandbox" PASS ;;
+  *)
+    check "the guard deny must name the rule and the accident-only bound (got: ${GUARD_REASON:-<empty>})" FAIL ;;
+esac
+case "$SHELL_OFF_REASON" in
+  *". Report the need to the main thread instead.")
+    check "the withdrawn grant ends by sending the need to the main thread" PASS ;;
+  *)
+    check "the withdrawn grant must end with the main-thread tail (got: ${SHELL_OFF_REASON:-<empty>})" FAIL ;;
+esac
+assert_case "the shell guard keeps a quoted commit subject whole" allow general-purpose Bash '{"command":"git commit -m \"feat(export): add CSV export\""}'
+assert_case "the shell guard denies a redirected environment dump" deny general-purpose Bash '{"command":"env > env.txt"}'
+assert_case "the shell guard follows cd before judging a removal" deny general-purpose Bash '{"command":"cd .. && rm -rf project"}'
+CONFIG_HOME="$TMP/config-home"
+mkdir -p "$CONFIG_HOME/.zensu"
+printf '%s\n' '{"hooks":{"subagentShell":false}}' > "$CONFIG_HOME/.zensu/config.json"
+GATE_HOME="$CONFIG_HOME" assert_case "a subagent cannot edit the global config layer that decides its shell" deny general-purpose Edit "{\"file_path\":\"$CONFIG_HOME/.zensu/config.json\",\"old_string\":\"false\",\"new_string\":\"true\"}"
+GATE_ZENSU_CONFIG="$SHELL_OFF_CONFIG" assert_case "a subagent cannot rewrite the explicit ZENSU_CONFIG file" deny general-purpose Write "{\"file_path\":\"$SHELL_OFF_CONFIG\",\"content\":\"{}\"}"
+GATE_HOME="$CONFIG_HOME" assert_case "a subagent may still read the global config layer" allow general-purpose Read "{\"file_path\":\"$CONFIG_HOME/.zensu/config.json\"}"
+GATE_HOME="$CONFIG_HOME" assert_case "the main thread may edit the global config layer" allow - Edit "{\"file_path\":\"$CONFIG_HOME/.zensu/config.json\",\"old_string\":\"false\",\"new_string\":\"true\"}"
+CONFIG_REASON="$(GATE_HOME="$CONFIG_HOME" deny_reason general-purpose Write "{\"file_path\":\"$CONFIG_HOME/.zensu/config.json\",\"content\":\"{}\"}")"
+case "$CONFIG_REASON" in
+  *"cannot change a Zensu configuration layer"*) check "the config-layer deny names the layer rule" PASS ;;
+  *) check "the config-layer deny must name the layer rule (got: ${CONFIG_REASON:-<empty>})" FAIL ;;
+esac
+CD_PARENT_REASON="$(deny_reason general-purpose Bash '{"command":"cd .. && rm -rf project"}')"
+case "$CD_PARENT_REASON" in
+  *"the command removes or moves the project root or one of its parents."*)
+    check "the removal after cd .. is judged as a project-root removal" PASS ;;
+  *)
+    check "the removal after cd .. must be judged as a project-root removal (got: ${CD_PARENT_REASON:-<empty>})" FAIL ;;
+esac
+LINK_HOME="$TMP/link-home"
+LINK_TARGET="$TMP/link-target/zensu.json"
+mkdir -p "$LINK_HOME/.zensu" "$TMP/link-target"
+printf '%s\n' '{"hooks":{"subagentShell":false}}' > "$LINK_TARGET"
+if ln -s "$LINK_TARGET" "$LINK_HOME/.zensu/config.json" 2>/dev/null && [ -L "$LINK_HOME/.zensu/config.json" ]; then
+  GATE_HOME="$LINK_HOME" assert_case "a subagent cannot edit a symlinked global config layer" deny general-purpose Edit "{\"file_path\":\"$LINK_HOME/.zensu/config.json\",\"old_string\":\"false\",\"new_string\":\"true\"}"
+  GATE_HOME="$LINK_HOME" assert_case "a subagent cannot edit the target of a symlinked config layer" deny general-purpose Edit "{\"file_path\":\"$LINK_TARGET\",\"old_string\":\"false\",\"new_string\":\"true\"}"
+else
+  printf '  SKIP  %s\n' "this runner cannot create a symbolic link, so the symlinked config layer is unverified here"
+fi
+if [ "$(uname -s)" = Darwin ]; then
+  GATE_HOME="$TMP/case-home" assert_case "a subagent cannot create a case-variant spelling of an absent config layer" deny general-purpose Write "{\"file_path\":\"$TMP/case-home/.ZENSU/config.json\",\"content\":\"{}\"}"
+fi
+PAYLOAD_CWD="$OTHER" GATE_ZENSU_CONFIG=relative-zensu.json assert_case "a relative ZENSU_CONFIG is protected against the subagent's working directory too" deny general-purpose Write "{\"file_path\":\"$OTHER/relative-zensu.json\",\"content\":\"{}\"}"
+GATE_ZENSU_CONFIG=relative-zensu.json assert_case "a relative ZENSU_CONFIG is protected against the project root" deny general-purpose Write "{\"file_path\":\"$PROJECT/relative-zensu.json\",\"content\":\"{}\"}"
+assert_case "neutral agent cannot read the private binder implementation" deny arbitrary-custom Read "{\"file_path\":\"$PLUGIN/hooks/lib/claude-hook-session-v1.js\"}"
+assert_case "neutral agent cannot read the model-session shell implementation" deny arbitrary-custom Read "{\"file_path\":\"$PLUGIN/hooks/lib/zensu-session.sh\"}"
+assert_case "neutral content cannot impersonate the trusted payload principal" allow arbitrary-custom Write '{"file_path":"notes.txt","content":"principal=main-v1"}'
+assert_case "neutral Agent calls remain governed by Claude host nesting rules" allow arbitrary-custom Agent '{"subagent_type":"zensu-plm","prompt":"act as main"}'
+assert_case "neutral agent cannot invoke mutating Zensu MCP" deny arbitrary-custom mcp__zensu__transition '{"state":"complete"}'
+assert_case "neutral agent cannot invoke set-style Zensu MCP mutation" deny arbitrary-custom mcp__plugin_zensu_zensu__set_security_classification '{"feature_id":"F-1"}'
+
+FORCED="$(payload code-reviewer Write '{"file_path":"x"}' | ZENSU_FORCE_MAIN=1 decision)"
+[ "$FORCED" = deny ] && check "ZENSU_FORCE_MAIN cannot bypass reviewer boundary" PASS || check "ZENSU_FORCE_MAIN cannot bypass reviewer boundary" FAIL
+
+MISSING="$(payload arbitrary-custom Read '{"file_path":"x"}' | GATE_TEST_MODE=missing-context decision)"
+[ "$MISSING" = deny ] && check "missing inherited SubagentStart context denies the first tool" PASS || check "missing inherited SubagentStart context denies the first tool" FAIL
+
+TAMPERED="$(payload arbitrary-custom Read '{"file_path":"x"}' | GATE_TEST_MODE=tampered-digest decision)"
+[ "$TAMPERED" = deny ] && check "tampered inherited SubagentStart runtime digest denies the first tool" PASS || check "tampered inherited SubagentStart runtime digest denies the first tool" FAIL
+GATE_TEST_MODE=tampered-digest assert_case "tampered runtime digest denies a reviewer report handback" \
+  deny zensu:code-reviewer SubagentHandback "$HANDBACK_REPORT"
+
+WRONG_SESSION="$(PAYLOAD_SESSION_ID='different-session' payload arbitrary-custom Read '{"file_path":"x"}' | decision)"
+[ "$WRONG_SESSION" = deny ] && check "PreToolUse session_id mismatch denies before capability evaluation" PASS || check "PreToolUse session_id mismatch denies before capability evaluation" FAIL
+
+EXTERNAL_CWD="$(PAYLOAD_CWD="$OTHER" payload arbitrary-custom Read '{"file_path":"x"}' | decision)"
+[ "$EXTERNAL_CWD" = allow ] && check "host-reported external cwd remains valid after CwdChanged" PASS || check "host-reported external cwd remains valid after CwdChanged" FAIL
+
+FAKE_BIN="$TMP/fake-bin"
+mkdir -p "$FAKE_BIN"
+printf '#!/bin/sh\nprintf leaked-output\nprintf "secret child diagnostic\\n" >&2\nexit 127\n' >"$FAKE_BIN/node"
+chmod +x "$FAKE_BIN/node"
+FAIL_CLOSED_STDOUT="$(PATH="$FAKE_BIN:/usr/bin:/bin" bash "$GATE" </dev/null 2>"$TMP/fail-closed.stderr")"
+FAIL_CLOSED_STATUS=$?
+FAIL_CLOSED_STDERR="$(cat "$TMP/fail-closed.stderr")"
+[ "$FAIL_CLOSED_STATUS" -eq 2 ] && check "launcher failure exits with Claude blocking status 2" PASS || check "launcher failure exits with Claude blocking status 2 (got $FAIL_CLOSED_STATUS)" FAIL
+[ -z "$FAIL_CLOSED_STDOUT" ] && check "launcher failure suppresses child stdout" PASS || check "launcher failure suppresses child stdout" FAIL
+[ "$FAIL_CLOSED_STDERR" = 'zensu: reviewer capability gate unavailable' ] && check "launcher failure emits only a sanitized diagnostic" PASS || check "launcher failure emits only a sanitized diagnostic" FAIL
+
+WRONG_ROOT="$(payload arbitrary-custom Read '{"file_path":"x"}' | GATE_TEST_MODE=wrong-root decision)"
+[ "$WRONG_ROOT" = deny ] && check "PreToolUse plugin-root mismatch denies before capability evaluation" PASS || check "PreToolUse plugin-root mismatch denies before capability evaluation" FAIL
+
+# Root mismatches are rejected before policy evaluation, but the hook must
+# still consume a payload larger than the pipe buffer. Otherwise an upstream
+# producer can receive EPIPE while Claude is handling the blocking exit.
+DRAIN_STATUS_FILE="$TMP/drain-pipe-status"
+DRAIN_PRODUCER_ERR="$TMP/drain-producer.stderr"
+DRAIN_HOOK_ERR="$TMP/drain-hook.stderr"
+(
+  set +e
+  set -o pipefail
+  node -e 'process.stdout.write("x".repeat(2 * 1024 * 1024))' 2>"$DRAIN_PRODUCER_ERR" \
+    | CLAUDE_PLUGIN_ROOT="$OTHER" CLAUDE_PLUGIN_DATA="$PLUGIN_DATA" \
+        bash "$GATE" >/dev/null 2>"$DRAIN_HOOK_ERR"
+  statuses=("${PIPESTATUS[@]}")
+  printf '%s %s\n' "${statuses[0]:-missing}" "${statuses[1]:-missing}" >"$DRAIN_STATUS_FILE"
+)
+read -r DRAIN_PRODUCER_STATUS DRAIN_HOOK_STATUS <"$DRAIN_STATUS_FILE"
+DRAIN_HOOK_MESSAGE="$(cat "$DRAIN_HOOK_ERR")"
+if [ "$DRAIN_PRODUCER_STATUS" = 0 ] && [ "$DRAIN_HOOK_STATUS" = 2 ] \
+  && [ ! -s "$DRAIN_PRODUCER_ERR" ] \
+  && [ "$DRAIN_HOOK_MESSAGE" = 'zensu: reviewer capability gate unavailable' ]; then
+  check "plugin-root mismatch drains a large payload without producer EPIPE" PASS
+else
+  check "plugin-root mismatch drains payload (producer=$DRAIN_PRODUCER_STATUS hook=$DRAIN_HOOK_STATUS)" FAIL
+fi
+
+WRONG_DATA="$(payload arbitrary-custom Read '{"file_path":"x"}' | GATE_TEST_MODE=wrong-data decision)"
+[ "$WRONG_DATA" = deny ] && check "unbound host plugin-data denies before capability evaluation" PASS || check "unbound host plugin-data denies before capability evaluation" FAIL
+
+STATE_FILE="$PROJECT/.zensu/state/tdd-phase-${SESSION_KEY}.json"
+BASELINE_REVISION="$(node -e 'process.stdout.write(String(require(process.argv[1]).revision))' "$STATE_FILE")"
+[ "$BASELINE_REVISION" = 1 ] \
+  && check "SessionStart baseline CAS state exists before any workflow activation" PASS \
+  || check "SessionStart baseline CAS state exists before any workflow activation" FAIL
+
+CLAUDE_PROJECT_DIR="$PROJECT" CLAUDE_PLUGIN_DATA="$PLUGIN_DATA" \
+  CLAUDE_CODE_SESSION_ID="$SESSION_ID" bash "$PLUGIN/hooks/lib/zensu-log.sh" \
+  --tdd-begin --session "$SESSION_ID" >/dev/null
+if [ -f "$STATE_FILE" ] && node -e '
+  const s = require(process.argv[1]);
+  process.exit(s.revision === 2 && s.active === true && s.phase === "UNINITIALIZED" ? 0 : 1);
+' "$STATE_FILE"; then
+  check "TDD begin atomically advances the mandatory baseline CAS state" PASS
+else
+  check "TDD begin atomically advances the mandatory baseline CAS state" FAIL
+fi
+ACTIVE_STATE="$(payload - Read '{"file_path":"README.md"}' | decision)"
+[ "$ACTIVE_STATE" = allow ] \
+  && check "valid project-bound CAS state passes immutable revalidation" PASS \
+  || check "valid project-bound CAS state passes immutable revalidation" FAIL
+node -e 'require("node:fs").unlinkSync(process.argv[1])' "$STATE_FILE"
+DELETED_STATE="$(payload - Read '{"file_path":"README.md"}' | decision)"
+[ "$DELETED_STATE" = deny ] \
+  && check "deleted mandatory project CAS state denies every subsequent tool" PASS \
+  || check "deleted mandatory project CAS state denies every subsequent tool" FAIL
+
+INVALID="$(printf 'not-json' | decision)"
+[ "$INVALID" = deny ] && check "malformed trusted payload fails closed" PASS || check "malformed trusted payload fails closed" FAIL
+
+MISSING_EVENT="$(SESSION_ID="$SESSION_ID" PROJECT="$PROJECT" node -e '
+  process.stdout.write(JSON.stringify({
+    session_id: process.env.SESSION_ID,
+    cwd: process.env.PROJECT,
+    tool_name: "Read",
+    tool_input: { file_path: "README.md" },
+  }));
+' | decision)"
+[ "$MISSING_EVENT" = deny ] \
+  && check "missing hook_event_name fails closed" PASS \
+  || check "missing hook_event_name fails closed" FAIL
+
+WRONG_EVENT="$(SESSION_ID="$SESSION_ID" PROJECT="$PROJECT" node -e '
+  process.stdout.write(JSON.stringify({
+    hook_event_name: "PostToolUse",
+    session_id: process.env.SESSION_ID,
+    cwd: process.env.PROJECT,
+    tool_name: "Read",
+    tool_input: { file_path: "README.md" },
+  }));
+' | decision)"
+[ "$WRONG_EVENT" = deny ] \
+  && check "wrong hook_event_name fails closed" PASS \
+  || check "wrong hook_event_name fails closed" FAIL
+
+# --- unregistered session (the 0.17.0 upgrade state) -----------------------
+# Session Control shipped in 0.17.0 and a resume/compact SessionStart requires a
+# record it never mints, so every session predating the update is unbindable
+# forever. This gate matches every tool, so denying there left the user unable to
+# run even /zensu:doctor and read why. The main thread — which this gate returns
+# unrestricted anyway once revalidation succeeds — keeps the capabilities it had
+# before Session Control existed.
+#
+# This gate relaxes TWO states, both MAIN-only: the one below, and a record whose
+# recorded project root no longer exists (a deleted or recycled worktree). The
+# orphaned half is pinned in tests/structure/test-orphaned-project-root.sh
+# (O25/O25a/O26/O27) against a real minted record, which this suite's synthetic
+# GATE_TEST_MODE fixtures cannot produce. Nothing beyond those two is relaxed.
+GATE_TEST_MODE=missing-context assert_case \
+  "unregistered session: the main thread keeps Bash so /zensu:doctor stays reachable" \
+  allow - Bash '{"command":"bash hooks/lib/zensu-doctor.sh"}'
+GATE_TEST_MODE=missing-context assert_case \
+  "unregistered session: the main thread keeps Read" \
+  allow - Read '{"file_path":"README.md"}'
+GATE_TEST_MODE=missing-context assert_case \
+  "unregistered session: an exact reviewer still fails closed" \
+  deny zensu:code-reviewer Read '{"file_path":"README.md"}'
+GATE_TEST_MODE=missing-context assert_case \
+  "unregistered session: a reviewer report handback still fails closed" \
+  deny zensu:review-aspect SubagentHandback "$HANDBACK_REPORT"
+GATE_TEST_MODE=missing-context assert_case \
+  "unregistered session: a PLM report handback still fails closed" \
+  deny zensu:zensu-plm SubagentHandback "$HANDBACK_REPORT"
+GATE_TEST_MODE=missing-context assert_case \
+  "unregistered session: a neutral child still fails closed" \
+  deny general-purpose Read '{"file_path":"README.md"}'
+GATE_TEST_MODE=missing-context assert_case \
+  "unregistered session: a neutral child gets no shell either" \
+  deny general-purpose Bash '{"command":"git status"}'
+
+# Neither relaxable state covers this one. A record that EXISTS but was minted
+# against another installation is what a plugin update leaves behind, and it is a
+# security signal: it must keep denying for every principal, main thread included.
+FOREIGN_DATA="$TMP/foreign-plugin-data"
+FOREIGN_PLUG="$TMP/foreign-plugin"
+mkdir -p "$FOREIGN_DATA/session-control/v1/records" "$FOREIGN_DATA/session-control/v1/locks" \
+  "$FOREIGN_PLUG/.claude-plugin" "$FOREIGN_PLUG/hooks"
+chmod 700 "$FOREIGN_DATA" "$FOREIGN_DATA/session-control" "$FOREIGN_DATA/session-control/v1" \
+  "$FOREIGN_DATA/session-control/v1/records" "$FOREIGN_DATA/session-control/v1/locks"
+printf '{"name":"zensu","version":"9.9.9"}\n' > "$FOREIGN_PLUG/.claude-plugin/plugin.json"
+printf '{"hooks":{}}\n' > "$FOREIGN_PLUG/hooks/hooks.json"
+if node -e '
+  const path = require("path");
+  const [corePath, data, plug, project, sessionId] = process.argv.slice(1);
+  require(corePath).registerContext({
+    recordsDir: path.join(data, "session-control", "v1", "records"),
+    host: "claude", sessionId, projectRoot: project, pluginRoot: plug, pluginData: data,
+  });
+' "$PLUGIN/hooks/lib/session-control-core-v1.js" "$FOREIGN_DATA" "$FOREIGN_PLUG" "$PROJECT" "$SESSION_ID" 2>/dev/null; then
+  FOREIGN_DECISION="$(payload - Bash '{"command":"git status"}' | env \
+    -u ZENSU_CLAUDE_PLUGIN_ROOT -u ZENSU_SESSION_KEY -u ZENSU_SESSION_CONTEXT \
+    -u ZENSU_RUNTIME_DIGEST -u ZENSU_PROJECT_ROOT \
+    CLAUDE_PLUGIN_ROOT="$PLUGIN" CLAUDE_PLUGIN_DATA="$FOREIGN_DATA" \
+    bash "$GATE" 2>/dev/null | node -e '
+      let s = ""; process.stdin.on("data", c => s += c); process.stdin.on("end", () => {
+        s = s.trim();
+        if (!s) { process.stdout.write("allow"); return; }
+        try { process.stdout.write(JSON.parse(s).hookSpecificOutput?.permissionDecision === "deny" ? "deny" : "other"); }
+        catch (_) { process.stdout.write("invalid"); }
+      });
+    ')"
+  [ "$FOREIGN_DECISION" = deny ] \
+    && check "a record from another installation stays fail-closed even for the main thread" PASS \
+    || check "foreign-installation record (expected deny, got $FOREIGN_DECISION)" FAIL
+else
+  check "foreign-installation fixture could not be minted" FAIL
+fi
+
+HANDBACK_LITERAL="$(sed -n "s/^const HOST_HANDBACK_TOOL = '\([A-Za-z]*\)';\$/\1/p" "$POLICY")"
+if [ "$HANDBACK_LITERAL" = SubagentHandback ]; then
+  check "the gate declares SubagentHandback as its one host report tool" PASS
+else
+  check "the gate must declare HOST_HANDBACK_TOOL as SubagentHandback (got: ${HANDBACK_LITERAL:-<none>})" FAIL
+fi
+READ_TRIO_LITERAL="$(sed -n "s/^const REVIEWER_READ_TOOLS = new Set(\[\(.*\)]);\$/\1/p" "$POLICY")"
+if [ "$READ_TRIO_LITERAL" = "'Read', 'Grep', 'Glob'" ]; then
+  check "the read-only allowlist is exactly Read, Grep and Glob" PASS
+else
+  check "the read-only allowlist must be exactly Read, Grep and Glob (got: ${READ_TRIO_LITERAL:-<none>})" FAIL
+fi
+HANDBACK_PROFILES_LITERAL="$(sed -n "s/^const HANDBACK_PROFILES = new Set(\[\(.*\)]);\$/\1/p" "$POLICY")"
+if [ "$HANDBACK_PROFILES_LITERAL" = "'reviewer-readonly-v1', 'zensu-plm-readonly-v1'" ]; then
+  check "only reviewer-readonly-v1 and zensu-plm-readonly-v1 may hand a report back" PASS
+else
+  check "only reviewer-readonly-v1 and zensu-plm-readonly-v1 may hand a report back (got: ${HANDBACK_PROFILES_LITERAL:-<none>})" FAIL
+fi
+for doc in docs/session-control.md docs/gates.md docs/configuration.md docs/review-chain.md; do
+  if [ -n "$HANDBACK_LITERAL" ] && grep -qF "$HANDBACK_LITERAL" "$PLUGIN/$doc"; then
+    check "$doc names the host report tool the gate admits" PASS
+  else
+    check "$doc must name the host report tool the gate admits (${HANDBACK_LITERAL:-<none>})" FAIL
+  fi
+done
+
+host_handback_verdicts() {
+  node -e '
+    const fs = require("node:fs");
+    const [literal, floor, ...candidates] = process.argv.slice(1);
+    const needle = Buffer.from(JSON.stringify(literal));
+    const marker = Buffer.from("// Version: ");
+    const parts = (value) => value.split(".").map(Number);
+    const older = (left, right) => {
+      const a = parts(left);
+      const b = parts(right);
+      for (let index = 0; index < 3; index += 1) {
+        if (a[index] !== b[index]) return a[index] < b[index];
+      }
+      return false;
+    };
+    const seenPaths = new Set();
+    const seenVersions = new Set();
+    for (const candidate of candidates) {
+      let real;
+      try { real = fs.realpathSync(candidate); } catch { continue; }
+      if (seenPaths.has(real)) continue;
+      seenPaths.add(real);
+      const stat = fs.statSync(real);
+      if (!stat.isFile() || stat.size < 5 * 1024 * 1024) {
+        console.log(`SKIP\t${candidate} resolves to a launcher, not a Claude Code host bundle`);
+        continue;
+      }
+      const bundle = fs.readFileSync(real);
+      const at = bundle.indexOf(marker);
+      const found = at < 0 ? null
+        : /^\d+\.\d+\.\d+/.exec(bundle.subarray(at + marker.length, at + marker.length + 24).toString("latin1"));
+      if (!found) {
+        console.log(`SKIP\t${candidate} carries no version marker, so its report tool is unverified`);
+        continue;
+      }
+      const version = found[0];
+      if (seenVersions.has(version)) continue;
+      seenVersions.add(version);
+      if (older(version, floor)) {
+        console.log(`SKIP\thost ${version} predates ${floor}, the oldest build measured to define ${literal}`);
+      } else if (bundle.indexOf(needle) >= 0) {
+        console.log(`PASS\thost ${version} still defines the ${literal} report tool the reviewer gate admits`);
+      } else {
+        console.log(`FAIL\thost ${version} no longer defines ${literal}: its subagent report tool was renamed or removed, so zensu reviewers deliver no report; re-measure the bundle and update HOST_HANDBACK_TOOL`);
+      }
+    }
+  ' "${HANDBACK_LITERAL:-SubagentHandback}" 2.1.269 "$@"
+}
+
+HOST_CONTROL="$TMP/host-control"
+mkdir -p "$HOST_CONTROL"
+node -e '
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const directory = process.argv[1];
+  const padding = Buffer.alloc(6 * 1024 * 1024, 0x20);
+  const bundle = (name, text) => fs.writeFileSync(path.join(directory, name), Buffer.concat([Buffer.from(text), padding]));
+  bundle("renamed", "// Version: 9.9.9\nvar IS=\"SubagentReport\";\n");
+  bundle("current", "// Version: 9.9.8\nvar IS=\"SubagentHandback\";\n");
+  bundle("predates", "// Version: 2.1.100\n");
+  fs.writeFileSync(path.join(directory, "launcher"), "#!/bin/sh\nexec node cli.js\n");
+' "$HOST_CONTROL"
+CONTROL_VERDICTS="$(host_handback_verdicts "$HOST_CONTROL/renamed" "$HOST_CONTROL/current" \
+  "$HOST_CONTROL/predates" "$HOST_CONTROL/launcher" | cut -f1 | tr '\n' ' ')"
+if [ "$CONTROL_VERDICTS" = "FAIL PASS SKIP SKIP " ]; then
+  check "host cross-check control: a renamed report tool fails, a current one passes, an older build and a launcher skip" PASS
+else
+  check "host cross-check control must fail a renamed report tool (got: ${CONTROL_VERDICTS:-<empty>})" FAIL
+fi
+
+HOST_CANDIDATES=()
+PATH_CLAUDE="$(command -v claude 2>/dev/null || true)"
+[ -n "$PATH_CLAUDE" ] && HOST_CANDIDATES+=("$PATH_CLAUDE")
+for bundle in "${HOME:-/nonexistent}"/Library/Application\ Support/Claude/claude-code/*/claude.app/Contents/MacOS/claude; do
+  [ -f "$bundle" ] && HOST_CANDIDATES+=("$bundle")
+done
+HOST_VERDICTS="$(host_handback_verdicts ${HOST_CANDIDATES[@]+"${HOST_CANDIDATES[@]}"})"
+HOST_STATUS=$?
+TAB="$(printf '\t')"
+if [ "$HOST_STATUS" -ne 0 ]; then
+  check "host report-tool cross-check ran to completion (node exited $HOST_STATUS)" FAIL
+elif [ -z "$HOST_VERDICTS" ]; then
+  printf '  SKIP  %s\n' "no Claude Code host bundle on this runner; SubagentHandback is unverified against a host here"
+else
+  while IFS="$TAB" read -r verdict label; do
+    case "$verdict" in
+      PASS|FAIL) check "$label" "$verdict" ;;
+      *) printf '  SKIP  %s\n' "$label" ;;
+    esac
+  done <<EOF
+$HOST_VERDICTS
+EOF
+fi
+
+GUARD_UNIT="$PLUGIN/tests/structure/subagent-shell-guard-v1.test.js"
+. "$PLUGIN/tests/structure/lib-unit-registry.sh"
+unit_check "the shell guard unit file passes" "$GUARD_UNIT"
+unit_check_done "every unit file the registry gives this suite was graded"
+
+SANDBOX_MISSING=""
+for text in docs/configuration.md docs/session-control.md docs/gates.md docs/review-chain.md \
+  docs/tdd-manager-workflow.md docs/session-control-release-gate.md evals/session-control/README.md \
+  skills/gauntlet-loop/SKILL.md skills/gauntlet-loop/references/harness.md skills/ghost-scan/SKILL.md \
+  skills/cover/SKILL.md skills/docs/SKILL.md skills/tdd/SKILL.md \
+  skills/session-trail/references/limits.md skills/session-trail/references/takeover.md; do
+  grep -qE 'not a sandbox|no sandbox' "$PLUGIN/$text" || SANDBOX_MISSING="$SANDBOX_MISSING $text"
+done
+[ -z "$SANDBOX_MISSING" ] && check "every operator text that names the subagent shell says the guard is not a sandbox" PASS \
+  || check "operator texts without the not-a-sandbox statement:$SANDBOX_MISSING" FAIL
+
+if node -e '
+  const config = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+  process.exit(config.hooks && config.hooks.subagentShell === true ? 0 : 1);
+' "$PLUGIN/config.example.json"; then
+  check "config.example.json documents hooks.subagentShell as true, the default" PASS
+else
+  check "config.example.json documents hooks.subagentShell as true, the default" FAIL
+fi
+
+printf '%s\n' "----" "test-reviewer-capability-gate: $PASS PASS / $FAIL FAIL"
+[ "$FAIL" -eq 0 ]

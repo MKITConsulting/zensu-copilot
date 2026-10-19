@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "version": "0.2.0",
+  "recordedAt": "2026-10-18T22:50:48.324248+00:00",
+  "copilotCliVersion": "1.0.98",
+  "implementationMode": "direct; no Zensu workflow used to implement this port",
+  "automated": {
+    "command": "npm run verify",
+    "tests": 420,
+    "passed": 420,
+    "failed": 0,
+    "skipped": 0,
+    "log": "/private/tmp/zensu-native-verify-final.log",
+    "logSha256": "6bd9836f3d2f7496767cac8ee1d9cdd36f7cc2ea44c195fb90e08d68fbf86bce",
+    "packageFiles": 252,
+    "skills": 32,
+    "agents": 6,
+    "nativeEvents": 11,
+    "syntaxChecks": 125,
+    "immutableArchiveFiles": 1015,
+    "savedLog": "validation/automated-tests.log"
+  },
+  "liveWorkflow": {
+    "sessionId": "fdd809e7-f38a-4df5-8ae5-1ea76c2220a7",
+    "exitCode": 0,
+    "fixture": "/private/tmp/zensu-copilot-native-v2-final/project",
+    "build": {
+      "version": "0.2.0",
+      "buildReceiptSha256": "d655362c685ffab29713478d767c4115f949f9781b893a9b2d6c371b66e5ec28",
+      "verifiedPackageFiles": 252,
+      "root": "/Users/marcelkarras/.copilot/installed-plugins/_direct/zensu",
+      "verifiedAt": "2026-10-18T22:17:46.579Z"
+    },
+    "eventsSha256": "8185b5643ae79c0d3ca613c9f968714e97f8cc27057d5684962b77f596f0203d",
+    "nativeAgentCompletions": [
+      {
+        "name": "negate-review-security",
+        "agentType": "zensu:review-aspect",
+        "success": true
+      },
+      {
+        "name": "negate-review-correctness",
+        "agentType": "zensu:review-aspect",
+        "success": true
+      },
+      {
+        "name": "negate-review-design",
+        "agentType": "zensu:review-aspect",
+        "success": true
+      },
+      {
+        "name": "negate-review-judge-second",
+        "agentType": "zensu:review-judge",
+        "success": true
+      },
+      {
+        "name": "negate-review-judge-first",
+        "agentType": "zensu:review-judge",
+        "success": true
+      },
+      {
+        "name": "negate-consume-review",
+        "agentType": "zensu:code-reviewer",
+        "success": true
+      }
+    ],
+    "state": {
+      "active": true,
+      "vanilla": true,
+      "implComplete": true,
+      "chainDone": true,
+      "codeReviewDone": true,
+      "reviewTicketConsumed": true,
+      "reviewRound": 1,
+      "revision": 7
+    },
+    "observedAcceptanceCriteria": 2,
+    "attestedAcceptanceCriteria": 0,
+    "fixtureTests": 4,
+    "sourceCoveragePercent": 100,
+    "bypassLedger": "none",
+    "note": "An extra second judge packet had an evidence-summary mismatch and was discarded; the first judge and required native panel completed."
+  },
+  "finalInstallation": {
+    "version": "0.2.0",
+    "buildReceiptSha256": "3f031180ba3f98f2cb8a39f2ec78fdb4ed492dfa36f0a551737ffa4c2e871d90",
+    "verifiedPackageFiles": 252,
+    "root": "/Users/marcelkarras/.copilot/installed-plugins/_direct/zensu",
+    "verifiedAt": "2026-10-18T22:49:12.418530+00:00"
+  },
+  "liveRuntimeAdoption": {
+    "status": "passed",
+    "sessionId": "fdd809e7-f38a-4df5-8ae5-1ea76c2220a7",
+    "exitCode": 0,
+    "workflowBytesPreserved": true,
+    "workflowSha256": "b9d04fc51b70dd5987d4860aee093c1d8cabc758e2763d6c52ce5ac22c66ac30",
+    "workflowRevision": 7,
+    "chainDone": true,
+    "oldBindingArchivedByteExactly": true,
+    "changedBindingFields": [
+      "runtime_digest",
+      "source_revision"
+    ],
+    "oldRuntimeDigest": "sha256:cf437cb9010b1aab003256b234664023ce120ea6495be8c9a38f16afb711f0d5",
+    "newRuntimeDigest": "sha256:5535a3e559c9f08b1ad26cb10ac475aebd5ced0271cad4c154cab5cb85d2e0c8",
+    "doctorBlockers": 0,
+    "doctorWarnings": 4,
+    "nativePluginRoots": [
+      "/Users/marcelkarras/.copilot/installed-plugins/_direct/zensu"
+    ],
+    "eventsSha256": "e1d155e16b3dbea39b2f8da41fbb759e9b72bfa9e4bbdfd87d5c2f5871513d8e",
+    "earlierBlockedAttempts": "Two stopped attempts exposed native command recognition and host-container permission checks; both repaired and regression-tested; neither changed private binding or workflow.",
+    "savedOutput": "validation/native-resume-output.txt"
+  },
+  "remainingLiveAcceptance": [
+    "Human plan approval and browser permission receipts",
+    "A review finding and fix round",
+    "Zensu backend and forge operations",
+    "Browser and other non-library validation drivers",
+    "Backend work-order lease round trip"
+  ],
+  "hostDifferences": "See docs/parity.md; source-host Desktop account/window behavior has no native CLI equivalent."
+}

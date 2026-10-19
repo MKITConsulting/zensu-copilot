@@ -1,0 +1,31 @@
+description: "Happy-Path FE: tdd-manager implements reverseString.ts via correct RED->IMPL->GREEN."
+vars:
+  target: frontend
+  spec_path: prompts/feature-spec-reverse-string-fe.md
+  expected_paths:
+    - 'frontend/src/utils/reverseString.ts'
+assert:
+  - type: contains
+    value: "RED"
+  - type: contains
+    value: "GREEN"
+  - type: javascript
+    value: |
+      const txt = String(output);
+      const pass = /S1\s+RED .* — FAIL/.test(txt) && /S1\s+GREEN — PASS/.test(txt);
+      return {
+        pass,
+        score: pass ? 1 : 0,
+        reason: "Expect Per-Step Logging Contract entries for S1 (RED FAIL + GREEN PASS)"
+      };
+  - type: javascript
+    value: file://assertions/assert-file-exists.js
+  - type: javascript
+    value: |
+      const txt = String(output);
+      const n = (txt.match(/\[tool_use: TaskCreate\]/g) || []).length;
+      return {
+        pass: n >= 1,
+        score: Math.min(n / 3, 1),
+        reason: `TaskCreate calls surfaced in transcript: ${n} (>=1 to pass, 3 for full score — user progress dashboard)`
+      };

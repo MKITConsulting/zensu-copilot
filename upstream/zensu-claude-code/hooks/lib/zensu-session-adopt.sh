@@ -1,0 +1,362 @@
+#!/bin/bash
+# zensu-session-adopt.sh — report on, and optionally perform, the adoption of an
+# intact Session Control record by a runtime that cannot SERVE it: either a
+# declared-incompatible lineage, or a minting installation the host pruned from
+# its plugin cache. The second is reachable under a COMPATIBLE lineage too, so do
+# not narrow this line back to the incompatible case.
+#
+# This is the SECOND script the PreToolUse Bash gates recognize in a bind
+# failure, and it differs from the first in the one way that matters: the
+# diagnostic writes nothing, and this WRITES. The widening therefore does not
+# inherit /zensu:doctor's justification and needs its own, stated here because
+# hooks/lib/zensu-doctor-invocation.js points at this header:
+#
+#   - FIVE write classes, all confined, and the ORDER here is their NUMBERING:
+#     the bounded-exception paragraph below labels the lease sweep "write class 3"
+#     and the workflow-baseline repair "write class 4", while this list used to
+#     present them the other way round one screen above. The numbered LABELS are
+#     local to this header — a grep for `write class` finds them nowhere else — so
+#     what the sibling carriers share is the ORDER, not the labels; do not restate
+#     that as a census a reader cannot check. (1) one record for THIS session in the
+#     private plugin-data store; (2) one workflow history entry in the recorded
+#     project; (3) any review-evidence lease naming the previous installation,
+#     MOVED (never deleted) out of that session's own lease records directory
+#     into a sibling `superseded/` one; and (4) this session's own workflow document
+#     plus its `.zensu` ancestors under the recorded project root, created with mode
+#     0o700 and reachable ONLY on an `already-served` refusal with `--confirm` (see
+#     the bounded-exception paragraph below) — stated as `.zensu` and not
+#     `.zensu/state`, because the mkdir creates BOTH components and `.zensu` is not
+#     inside `.zensu/state`, which is the argument that paragraph already makes and
+#     which this bullet contradicted. The lease selector is broader than "names the
+#     previous installation" and narrower than "everything listRecords rejects":
+#     the keep-predicate is a SUPERSET of that reader's accept set, mirroring three
+#     of its conjuncts, so a stale lease, one whose id disagrees with its filename,
+#     a malformed record, a symlinked or oversized one and a non-.json leftover are
+#     all moved — while an entry that fails only the checks NOT mirrored
+#     (multiply-linked, non-canonical, otherwise validateRecord-invalid) and still
+#     names the executing root is KEPT, and keeps wedging later lease operations. That
+#     residual is documented in review-evidence-sweep-v1.js beside the predicate —
+#     the sweep is no longer part of adoptContext, and THIS script is what invokes
+#     it. (5) the recorded project ROOT itself, re-created as an empty directory
+#     together with at most RESTORE_MAX_MISSING_COMPONENTS missing components
+#     below the nearest existing ancestor, reachable ONLY through
+#     `--restore-root --confirm` (bounded exception (c) below). It is the one
+#     class that creates a directory the record does not yet have, so its
+#     destination is worth stating twice: the path comes from
+#     context.project_root and from nowhere else, which is what lets this script
+#     re-create the anchor a session already had while never being steerable to a
+#     new one. Nothing else, and nothing outside
+#     <plugin_data>/{session-control,review-evidence} and the recorded project.
+#   - CLASS 5 IS not bounded by location, and the distinction matters because the
+#     two claims read alike: "the destination is CARRIED from the record" is true,
+#     "the destination is BOUNDED" is not. Classes 1-4 land inside <plugin_data>
+#     or inside the recorded project, and the barrier paragraph below was written
+#     for them. Class 5 is the first whose destination is an ARBITRARY absolute
+#     path: restoreRootComponentLadder applies no containment check of any kind —
+#     not under $HOME, not inside a git repository, not excluding a child of the
+#     filesystem root — and the private records directory bounds WHICH RECORD IS
+#     READ, never where the syscall lands. What IS bounded is the DEPTH: at most
+#     RESTORE_MAX_MISSING_COMPONENTS components below a nearest-existing ancestor
+#     the ladder proved to be a real, canonical, link-free directory, and each one
+#     is re-verified by realpath after it is created.
+#     A LOCATION allowlist was weighed and REFUSED. `git worktree remove` does
+#     leave the parent in place, so a `$HOME`-or-inside-a-git-repository rule would
+#     admit the ordinary case — but it also refuses legitimate roots this project
+#     really has (a worktree under /opt, /srv or /Volumes, and this repository's
+#     own fixtures under the canonicalized temp root), and it would be a policy
+#     invented at the boundary rather than derived from the record. The barrier
+#     stays the records directory, which is the same one classes 1-4 rest on — but
+#     state what that buys PRECISELY, because "already holds the capability this
+#     write would give it" is an overstatement and stood here as one. What authoring
+#     a record already confers is the CHOICE of destination: the path comes from the
+#     record and from nowhere else, so this write adds no target a record author
+#     could not already name. What it does add is the ACT — creating a directory
+#     outside the store, which write access to the store does not itself perform.
+#     That residual is narrowed rather than closed: the depth bound above, and the
+#     ancestor-permission rule (refusal `unsafe-ancestor-ownership`), which refuses a
+#     nearest-existing ancestor that users other than its owner can write unless it
+#     is sticky. Both NARROW the window and neither closes it: Node exposes no
+#     `mkdirat`, so every syscall resolves the name again, and the sticky exemption
+#     admits a tree where a co-tenant can still create the name first. The realpath
+#     re-verification after each mkdir is what catches that. State it that way, and
+#     never as a location bound.
+#   - What BOUNDS that write is not derivation — CLAUDE_PLUGIN_DATA is a
+#     caller-supplied literal, exactly as it is for the diagnostic — it is
+#     adoptableRecord's condition-1 LADDER. Naming only its first rung, as this
+#     header once did, states a check the code does not always perform:
+#       * the strict readContext: the session-hash must match, the runtime digest
+#         is recomputed against the RECORDED root, and that root's manifest must
+#         still declare the recorded version;
+#       * else, when that root was PRUNED from the cache,
+#         readPrunedPluginRootContext, which re-measures NEITHER the digest nor the
+#         declared version — nothing can read a tree that is gone — and instead
+#         PROVES the root absent with its parent still present.
+#     On BOTH rungs: the session-hash match, the full schema and principal-profile
+#     validation, source_revision === runtime_digest, the sibling-root bound, the
+#     plugin_data equality check, and ADOPTION_SAFE_VERSION_RE on both versions
+#     before either reaches a filename. So a record the caller authored under a
+#     directory it controls still cannot reach the write for a session it does not
+#     already own. What the pruned rung drops is a CONSISTENCY check, not a
+#     barrier: runtime_digest is a content hash of a readable tree computed by an
+#     exported pure function, never a secret, so write access to the private
+#     records directory could always produce a matching one. That directory is the
+#     barrier. State it this way and not as "every location is derived from the
+#     record": that is the stronger claim, and it is not what the code enforces.
+#   - The record and history writes require every adoptableRecord condition to
+#     hold. There are exactly THREE bounded exceptions, and they are stated here
+#     because this header is what the recognizer's admission rests on. All three
+#     are idempotent repairs that re-mint no record. (a) and (b) are reached the
+#     same way — an `already-served` refusal WITH `--confirm` — while (c) has its
+#     own argv mode and never runs adoptableRecord at all:
+#       (a) write class 4, the workflow-baseline repair: when this session's own
+#           workflow document is MISSING it is recreated through
+#           initializeWorkflowState, which mkdirs `<recorded project>/.zensu` and
+#           `.zensu/state` at mode 0o700 when absent and atomically writes one new
+#           document, plus one BASELINE_REBUILT history entry. It refuses a
+#           document that is present-but-unreadable, a symlink, a hard link, a
+#           non-file or an oversized one, leaving those bytes alone. It touches
+#           nothing outside <recorded project>/.zensu — stated as `.zensu` and not
+#           `.zensu/state`, because the mkdir above creates BOTH components and
+#           `.zensu` is not inside `.zensu/state`.
+#       (b) write class 3, the lease sweep, re-run over the same session key. It
+#           touches nothing outside
+#           <plugin_data>/review-evidence/v1/{records,superseded}/<session key>.
+#       (c) write class 5, the project-root restore, under `--restore-root
+#           --confirm`. Its own condition ladder is restoreRootVerdict, and it is
+#           DISJOINT from adoptableRecord by construction rather than by ordering:
+#           it requires the STRICT readContext to FAIL and
+#           readOrphanedProjectRootContext to SUCCEED, which excludes a healthy
+#           session and a pruned installation. A LINEAGE BREAK is NOT excluded by
+#           that ladder and it is worth saying so: allowMissingProjectRoot waives
+#           only the recorded root's existence, so a lineage-broken record whose
+#           project root is also gone passes BOTH reads. What excludes it is the
+#           next conjunct — this mode re-applies the plugin_data equality check and
+#           REQUIRES servesRecordedRuntime, the inverse of adoption's condition 3,
+#           which is also why the remedy for that state is adopt FIRST and restore
+#           second. Then it
+#           refuses a symlinked or non-canonical nearest-existing ancestor and a
+#           gap deeper than RESTORE_MAX_MISSING_COMPONENTS. It then composes
+#           exception (a) over the restored root, so the one command leaves no
+#           second wedge behind. Provenance is one PROJECT_ROOT_RESTORED history
+#           entry, reserved in the same three guard bodies as BASELINE_REBUILT.
+#     Without `--confirm` every one of the three is read-only. Counting (a)
+#     as part of the sweep is what this header said for one release, and it
+#     understated the admission the recognizer grants: the sweep never leaves the
+#     plugin-data store, while (a) writes into the user's project tree.
+#   - It cannot reach project source files, cannot run a build or a test, and
+#     takes no argument other than the two literals `--restore-root` and
+#     `--confirm` — NEITHER of which takes a value. That is the property, not the
+#     arity: a mode that accepted a destination would be the caller-named
+#     re-anchoring CLAUDE.md refuses, not an extension of this one.
+#   - Without `--confirm` it is strictly read-only and answers the same question
+#     the doctor row asks.
+#
+# What it does NOT do: relax runtimeLineageCompatible, rewrite any record (the
+# superseded one is set aside under a new name and stays readable), touch the
+# workflow document's decision fields, or relax plugin_data. A session whose
+# persisted shapes really did change is refused, by construction — validateContext
+# and validateWorkflowState enforce the two schema constants, so a real break
+# makes the record or the document unreadable and adoption declines.
+set -u
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)" || {
+  printf '%s\n' 'zensu:adopt-session: cannot resolve the plugin library directory' >&2
+  exit 1
+}
+PLUGIN_ROOT="$(cd "$DIR/../.." && pwd -P)" || {
+  printf '%s\n' 'zensu:adopt-session: cannot resolve the executing plugin root' >&2
+  exit 1
+}
+# EVERY module this command loads, guarded from ONE table. These were seven
+# byte-for-byte copies differing only in a variable name, a path and a noun, while the
+# two SHELL siblings further down were already guarded by a loop — one file carrying
+# two spellings of one rule, with the better one demonstrated in the same file.
+#
+# The LIST is the safety property, not the tidiness. This file's own history records
+# claude-path-v1.js being left out when the list last grew, with the omission written
+# into a comment as a known gap: a list that grows by copy-paste is a list that loses a
+# member, and the loss is silent because every surviving copy still passes.
+#
+# Each row keeps its noun, so the seven original emitted messages are unchanged and the
+# eighth follows their shape. Why each module is on the list, carried over from the
+# guards this replaces:
+#   session-control-core-v1.js   the runtime that reads and re-mints the record
+#   claude-hook-session-v1.js    loaded by the report for its private-store constructor.
+#                                zensu-session.sh guards this exact file at three sites,
+#                                and a symlinked binder must not be the one library this
+#                                write-capable script loads unchecked
+#   session-adopt-report-v1.js   the file this command actually executes
+#   review-evidence-sweep-v1.js  invoked after adoptContext; a missing or symlinked
+#                                sweep must stop this command BEFORE any record is
+#                                mutated, not after
+#   review-evidence-lease-v1.js  the lease-store OWNER the sweep requires, so the one
+#                                command still reachable in a tamper-suspicious state
+#                                does not load its move selector from an unchecked file
+#   zensu-safe-display-v1.js     decides what every value in the report may look like
+#                                before it reaches a terminal and the model's context.
+#                                node's require FOLLOWS symlinks, so a link planted at
+#                                this name substitutes the fold for the whole report —
+#                                including the project line the user reads to decide
+#   claude-path-v1.js            reached TRANSITIVELY, and not inert on that path:
+#                                canonicalDirectory runs every trust-boundary path
+#                                through normalizeHostPathInput, including the
+#                                CLAUDE_PLUGIN_DATA value that locates the private
+#                                record store, and nothing else re-verifies the
+#                                EXECUTING tree here
+#   session-auto-adopt-v1.js     the ONE adoption implementation; --confirm runs the
+#                                record swap and the sweep through it, so a symlinked
+#                                copy would substitute the code that re-mints the
+#                                record — the same argument as for the binder
+#
+# The loop runs in THIS shell — a `while … done < input` is not a subshell in bash — so
+# `exit 1` still stops the command rather than only the loop. The loop variable is
+# lowercase and `_zsa_`-prefixed, matching the shell-sibling loop below, which is the
+# shape this replacement wants more of. tests/structure/test-versioned-plugin-upgrade.sh
+# pins both halves: that no per-module hand-copied guard returns, and that no module
+# silently drops off this list.
+_zsa_seen=0
+while IFS='|' read -r _zsa_file _zsa_noun; do
+  [ -n "$_zsa_file" ] || continue
+  _zsa_seen=$((_zsa_seen + 1))
+  [ -f "$DIR/$_zsa_file" ] && [ ! -L "$DIR/$_zsa_file" ] || {
+    printf '%s\n' "zensu:adopt-session: the $_zsa_noun is missing or symlinked; repair the Zensu plugin installation" >&2
+    exit 1
+  }
+done <<'ZSA_REQUIRED_MODULES'
+session-control-core-v1.js|Session Control runtime
+claude-hook-session-v1.js|Session Control binder
+session-adopt-report-v1.js|adoption report module
+review-evidence-sweep-v1.js|review-evidence sweep module
+review-evidence-lease-v1.js|review-evidence lease module
+zensu-safe-display-v1.js|display-safety module
+claude-path-v1.js|host-path module
+session-auto-adopt-v1.js|automatic-adoption module
+ZSA_REQUIRED_MODULES
+# A loop that never ran verified nothing, and said so to no one. The seven guards this
+# replaced could not skip — each was a straight-line test — so consolidating them into
+# one loop introduced a failure mode they did not have: this script sets `set -u` but
+# NOT `set -e`, so a failed redirection reports and then falls straight through to the
+# node invocation with zero modules checked. Counting the rows closes it on every
+# shell, and also catches a table truncated to a prefix, which no per-row test can see.
+# The number is spelled here rather than derived because the table is the thing being
+# verified: deriving the expectation from it would make the check agree with whatever
+# it found.
+[ "$_zsa_seen" -eq 8 ] || {
+  printf '%s\n' 'zensu:adopt-session: the required-module table could not be read in full; repair the Zensu plugin installation' >&2
+  exit 1
+}
+
+# TWO literals, and NEITHER takes a value. That is the property to keep, not the
+# arity: the whole safety argument for the restore mode is that the destination is
+# carried from the record, so an argument that could name a path is the one thing
+# this parser must never learn to accept. Each literal may appear once — a repeat
+# is refused rather than ignored, so the accepted surface stays exactly what the
+# recognizer's allowlist enumerates.
+CONFIRM=0
+MODE=adopt
+for _zsa_arg in "$@"; do
+  case "$_zsa_arg" in
+    --confirm)
+      [ "$CONFIRM" -eq 0 ] || {
+        printf '%s\n' 'zensu:adopt-session: --confirm may be given only once' >&2
+        exit 2
+      }
+      CONFIRM=1
+      ;;
+    --restore-root)
+      [ "$MODE" = adopt ] || {
+        printf '%s\n' 'zensu:adopt-session: --restore-root may be given only once' >&2
+        exit 2
+      }
+      MODE=restore-root
+      ;;
+    *)
+      printf '%s\n' 'zensu:adopt-session: the only supported arguments are --restore-root and --confirm' >&2
+      exit 2
+      ;;
+  esac
+done
+# UNREACHABLE as the loop above stands: it exits 2 on any token that is not one of
+# the two literals and on any repeat, so at most two arguments can survive it. Kept
+# as a belt against a future loop edit that relaxes one of those arms, and annotated
+# rather than silent, because this file annotates its other defense-in-depth guards.
+[ "$#" -le 2 ] || {
+  printf '%s\n' 'zensu:adopt-session: the only supported arguments are --restore-root and --confirm' >&2
+  exit 2
+}
+
+command -v node >/dev/null 2>&1 || {
+  printf '%s\n' 'zensu:adopt-session: node is not available, so Session Control cannot be read' >&2
+  exit 1
+}
+[ -n "${CLAUDE_CODE_SESSION_ID:-}" ] || {
+  printf '%s\n' 'zensu:adopt-session: CLAUDE_CODE_SESSION_ID is unset, so this session cannot be identified' >&2
+  exit 1
+}
+[ -n "${CLAUDE_PLUGIN_DATA:-}" ] || {
+  printf '%s\n' 'zensu:adopt-session: CLAUDE_PLUGIN_DATA is unset, so the record store cannot be located' >&2
+  exit 1
+}
+# CLAUDE_PROJECT_DIR is deliberately NOT required, and is not read at all. It was
+# required once, and rendered through the host-path script, which rejects a path
+# that is not a directory — so a session whose harness project dir had been
+# deleted exited here, before any report, in exactly the state this command
+# exists to diagnose. adoptableRecord no longer judges the caller's project root:
+# the anchor is carried from the record, and every write below is bounded by
+# readContext, the sibling-root check and plugin_data. The recognizer still
+# ACCEPTS the assignment, because the diagnostic reads it and the two share one
+# set — this script simply ignores it.
+
+# Both crossings into native Node go through the host-path renderer, as every
+# other stateful helper does, and are excluded from Git Bash's heuristic
+# environment conversion so a drive spelling is not reinterpreted twice.
+# The two SHELL siblings. Every JS module in this command's require graph is guarded
+# above; these two were not, and `source` executes arbitrary shell IN THIS PROCESS,
+# which is strictly more powerful than a `require`. The read-only /zensu:doctor already
+# refuses a symlinked `zensu-session.sh` and renders a dedicated row for it, so the
+# write-capable command was the weaker of the two on the same file. Same bound as the
+# others, stated rather than implied: `[ ! -L ]` catches a link, not a replaced regular
+# file, so this is consistency in a defense-in-depth convention, not an independent
+# control.
+for _zsa_lib in "$DIR/zensu-session.sh" "$DIR/zensu-host-path.sh"; do
+  [ -f "$_zsa_lib" ] && [ ! -L "$_zsa_lib" ] || {
+    printf '%s\n' "zensu:adopt-session: ${_zsa_lib##*/} is missing or symlinked; repair the Zensu plugin installation" >&2
+    exit 1
+  }
+done
+
+# Directly above the `source` it suppresses, and not a line earlier: shellcheck binds a
+# directive to the NEXT COMMAND, and while it sat above the comment block it bound to the
+# `for` loop instead, leaving this line unsuppressed. Pre-existing, found in review.
+# shellcheck disable=SC1090
+source "$DIR/zensu-session.sh" >/dev/null 2>&1 || {
+  printf '%s\n' 'zensu:adopt-session: the Session Control shell library is unavailable' >&2
+  exit 1
+}
+# Both renders name their cause. zensu-host-path.sh exits SILENTLY for anything that
+# is not an existing, non-symlink directory, and a bare `|| exit 1` here made this
+# command — the last reachable diagnosis in a wedged session — produce no output at
+# all for a plugin-data store that had been pruned, replaced by a file, or symlinked.
+# The `private-record-store-unsafe` branch below already carries the right wording
+# for exactly those shapes and never got the chance to run.
+NATIVE_PLUGIN_ROOT="$(bash "$DIR/zensu-host-path.sh" "$PLUGIN_ROOT")" || {
+  printf '%s\n' 'zensu:adopt-session: the executing plugin root is not a readable directory; repair the Zensu plugin installation' >&2
+  exit 1
+}
+NATIVE_PLUGIN_DATA="$(bash "$DIR/zensu-host-path.sh" "$CLAUDE_PLUGIN_DATA")" || {
+  printf '%s\n' 'zensu:adopt-session: CLAUDE_PLUGIN_DATA does not name a readable directory, so the record store cannot be located. It is missing, a file, or a symlink.' >&2
+  exit 1
+}
+MSYS_EXCL="$(zensu_msys_env_exclusions ZADOPT_PLUGIN_ROOT ZADOPT_PLUGIN_DATA)" || {
+  printf '%s\n' 'zensu:adopt-session: the host-path environment library is unavailable; repair the Zensu plugin installation' >&2
+  exit 1
+}
+
+cd -P -- "$DIR" || exit 1
+MSYS2_ENV_CONV_EXCL="$MSYS_EXCL" \
+ZADOPT_PLUGIN_ROOT="$NATIVE_PLUGIN_ROOT" \
+ZADOPT_PLUGIN_DATA="$NATIVE_PLUGIN_DATA" \
+ZADOPT_SESSION_ID="$CLAUDE_CODE_SESSION_ID" \
+ZADOPT_CONFIRM="$CONFIRM" \
+ZADOPT_MODE="$MODE" \
+node "$DIR/session-adopt-report-v1.js"

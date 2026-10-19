@@ -1,0 +1,59 @@
+ADOPTION
+Zensu Copilot in-place runtime update — explicit confirmation required
+
+  recorded runtime: sha256:cf437cb9010b1aab003256b234664023ce120ea6495be8c9a38f16afb711f0d5
+  executing runtime: sha256:5535a3e559c9f08b1ad26cb10ac475aebd5ced0271cad4c154cab5cb85d2e0c8
+  project: /private/tmp/zensu-copilot-native-v2-final/project
+  workflow revision: 7
+
+Copilot replaced the package at the same installation path. The old runtime
+bytes cannot be checked again. Confirmation accepts only that missing comparison;
+the private owner/session/project binding, workflow state and complete new native
+build were checked. The workflow, tickets and completion flags will remain unchanged.
+Superseded review leases will be archived; pending reviewers need fresh leases.
+
+Runtime binding updated; workflow revision 7 preserved.
+Previous private record: /Users/marcelkarras/.copilot/plugin-data/_direct/1e962a366dd4cd1d3af5db3224107f6dfb42061d85e845a793e643cb9b363439/session-control/v1/records/scv1_937a42afd812e158dacc2fa8083b5a46dc649ffcebb32a196fc6bbb2b5547582.runtime-cf437cb9010b1aab003256b234664023ce120ea6495be8c9a38f16afb711f0d5.json
+Review leases archived: 0
+<shellId: 1 completed with exit code 0>
+
+DOCTOR
+Zensu doctor — read-only setup diagnostics
+
+CLI & tooling
+  ✅  zensu CLI: installed and authenticated
+  ✅  node: v26.9.0
+  ⚠️  forge CLI: no GitHub/GitLab remote detected — needs a repo with a GitHub (gh) or GitLab (glab) remote (or ZENSU_VCS_PROVIDER set for a self-hosted host)
+  ✅  playwright-cli: installed (0.1.21) — /zensu-verify-feature and the autopilot browser driver run through it
+  ⚠️  verify-feature: runtime recipe absent; run /zensu-verify-feature --setup or attach to an authorized running app; native navigation approval remains untested
+  ✅  Copilot CLI: 1.0.98 on PATH; authentication and supported native events require a live session
+  ⚠️  MCP: connectivity and authorized tool access are not probed by this read-only report; inspect the native host status when the chosen workflow requires a server
+
+Copilot plugin integrity
+  ✅  plugin.json: zensu 0.2.0 (Agent Plugins package)
+  ✅  native hooks: all 11 dispatcher registrations present; execution requires a live host check
+  ✅  native runtime: dispatcher and its five support modules present
+  ✅  skills: all 32 entries present; host discovery is a separate live check
+  ✅  custom agents: six named definitions restrict tools to view/grep/glob; host execution and permission decisions are not inferred
+
+Config
+  ✅  config: valid JSON, no quoted-boolean traps in /private/tmp/zensu-copilot-native-v2-final/config.json
+  ⚠️  permissions: effective Copilot tool policy is not inspected. A native task call determines reviewer availability.
+  ✅  rule carriers: best-solution-first block is intact (1672 chars)
+  ✅  rule carriers: best-solution-first-reminder block is intact (348 chars)
+  ✅  rule carriers: evidence-discipline block is intact (811 chars)
+
+Session state
+  ✅  binding: this session has a valid Session Control record — stateful tools can run
+  ✅  delivery route: ask — the route question is asked on a code request (the plan-approval half is off: hooks.autoTdd=false); /zensu-delivery-route fixes it for this session, hooks.defaultDeliveryRoute for the project
+  ✅  state: 1 validated CAS workflow document(s); reviewRound/stopBlockCount/implStopCount are integrated fields
+  ✅  chain: 1 review chain(s) — scv1_937a42af…: chain-closed
+  ✅  autopilot lease: free — no lock artifact and no recovery sentinel, so no process holds the Autopilot project lease
+  ✅  worktree: Git recognizes the bound project; Copilot CLI has no Desktop archive keep-marker contract
+
+Summary: 4 ⚠️  — no blocker detected by completed checks; unresolved checks remain.
+<shellId: 2 completed with exit code 0>
+
+CHAIN
+{"shape":"chain-closed","wedged":false,"deadEnd":false,"recoverable":false,"nextCommandId":"chain-closed","nextCommand":"none — this chain already reached its terminus","linkage":"standalone","autopilot":null,"rearmReceipt":"none","active":true,"vanilla":true,"implComplete":true,"chainDone":true,"codeReviewDone":true,"selfReviewFixed":false,"deferredReviewClaim":"none","reviewTicketPresent":true,"reviewTicketConsumed":true,"claimedReviewTicketPresent":true,"reviewRound":1,"stopBlockCount":0,"implStopCount":0,"revision":7,"lastEvent":"state-update","recoveries":0}
+<shellId: 3 completed with exit code 0>

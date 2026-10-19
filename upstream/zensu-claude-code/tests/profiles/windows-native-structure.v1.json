@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "markers": [
+    "\\bcygpath\\b",
+    "process\\.platform\\s*!?={2,3}\\s*[\"']win32[\"']",
+    "\\b(?:MINGW|MSYS|CYGWIN)\\*",
+    "\\bMSYS2_(?:ARG|ENV)_CONV_EXCL\\b",
+    "[\"']junction[\"']"
+  ],
+  "required": [
+    "tests/structure/test-autopilot-bound-payload-windows.sh",
+    "tests/structure/test-autopilot-plan-delegate.sh",
+    "tests/structure/test-autopilot-state-machine.sh",
+    "tests/structure/test-bash-source-write-gate.sh",
+    "tests/structure/test-best-solution-first.sh",
+    "tests/structure/test-file-exists-replacement.sh",
+    "tests/structure/test-msys-runtime-boundaries.sh",
+    "tests/structure/test-plan-payload-fallback.sh",
+    "tests/structure/test-post-review-self-review-handoff.sh",
+    "tests/structure/test-pre-edit-hook-mirror.sh",
+    "tests/structure/test-review-worker-evidence-lease.sh",
+    "tests/structure/test-reviewer-capability-gate.sh",
+    "tests/structure/test-session-control-claude.sh",
+    "tests/structure/test-session-start-banner.sh",
+    "tests/structure/test-session-trail-lineage.sh",
+    "tests/structure/test-stop-enforcer-self-review-routing.sh",
+    "tests/structure/test-tdd-state-path-safety.sh",
+    "tests/structure/test-vcs-review-marker-reconcile.sh",
+    "tests/structure/test-versioned-plugin-upgrade.sh",
+    "tests/structure/test-windows-portability-guards.sh"
+  ],
+  "excluded": [
+    {
+      "path": "tests/structure/test-autopilot-adversarial-recovery.sh",
+      "reason": "The complete adversarial suite remains in weekly Windows Safety; its blocking Session Control path boundary is extracted into the focused bound-payload contract."
+    },
+    {
+      "path": "tests/structure/test-autopilot-chain-integration.sh",
+      "reason": "The complete lifecycle remains in weekly Windows Safety; the PR gate covers its native Session Control and payload transport boundary through focused contracts."
+    },
+    {
+      "path": "tests/structure/test-autopilot-full-cycle.sh",
+      "reason": "The complete full cycle remains in weekly Windows Safety; its Windows payload-store boundary is extracted into the focused bound-payload contract."
+    },
+    {
+      "path": "tests/structure/test-chain-recover.sh",
+      "reason": "The only native-Windows branch passes T30 when Git Bash cannot create a real file symlink, so it asserts nothing there; the weekly Windows Safety run covers the suite."
+    },
+    {
+      "path": "tests/structure/test-delivery-route.sh",
+      "reason": "The only native-Windows marker is R9h's MSYS2_ENV_CONV_EXCL probe of the directive library's exclusion list through a POSIX node shim; it asserts no Windows behavior, and the suite stays in ciStructureTests, so the weekly Windows Safety run still executes it."
+    },
+    {
+      "path": "tests/structure/test-doctor.sh",
+      "reason": "Two native-Windows constructs: P1pw4 skips the POSIX-only isolated-PATH assertion that the wrapper reports playwright-cli absent, and P1o3 links the state directory as a junction, which Windows creates without the symlink privilege."
+    },
+    {
+      "path": "tests/structure/test-evidence-discipline.sh",
+      "reason": "The only native-Windows branch passes H10 when no runnable dirname survives a stripped PATH, so it asserts nothing there; the weekly Windows Safety run covers the suite."
+    },
+    {
+      "path": "tests/structure/test-finding-verification.sh",
+      "reason": "The only native-Windows branch passes P1c when Git Bash cannot create a real file symlink, so it asserts nothing there; the weekly Windows Safety run covers the suite."
+    },
+    {
+      "path": "tests/structure/test-zen-mode.sh",
+      "reason": "The only native-Windows branch passes Z17c when Git Bash cannot create a real file symlink, so it asserts nothing there; the weekly Windows Safety run covers the suite."
+    },
+    {
+      "path": "tests/structure/test-promptfoo-verify-feature.sh",
+      "reason": "Promptfoo contracts are local-only and never run in GitHub Actions."
+    },
+    {
+      "path": "tests/structure/test-claude-promptfoo-wrapper.sh",
+      "reason": "Promptfoo wrapper contracts are local-only and never run in GitHub Actions."
+    },
+    {
+      "path": "tests/structure/test-promptfoo-context-nudge-reaction.sh",
+      "reason": "Promptfoo context-nudge contracts are local-only and never run in GitHub Actions."
+    },
+    {
+      "path": "tests/structure/test-promptfoo-reset-review-limit.sh",
+      "reason": "Promptfoo reset-review contracts are local-only and never run in GitHub Actions."
+    },
+    {
+      "path": "tests/structure/test-promptfoo-zen-mode.sh",
+      "reason": "Promptfoo zen-mode contracts are local-only and never run in GitHub Actions."
+    },
+    {
+      "path": "tests/structure/test-tdd-state-corruption-fail-closed.sh",
+      "reason": "The native-Windows branch explicitly skips the unavailable POSIX symlink fixture."
+    },
+    {
+      "path": "tests/structure/test-restore-project-root.sh",
+      "reason": "The native marker is the R4 block's own host branch, and on win32 that branch grades a DOCUMENTED REFUSAL rather than path transport: zensu-doctor-invocation.js refuses every recognized invocation on that host by design, so the restore command is unreachable there exactly as /zensu:doctor is, and a blocking shard would pay for five ladder spawns, five armed baselines, two full adopt runs and roughly eighteen emitter drives to re-learn that. Excluded here scopes to the blocking PR shards only: the suite is in ciStructureTests, so the weekly windows-safety run still executes it and windows-ci-contract.test.js enforces that membership rather than leaving it asserted in prose. Residual stated rather than implied: this suite's Windows wall clock has never been measured, and every windows-ci shard already documents itself as near its profileTimeoutMs, so a required slot would have to be paid for by moving another suite off one. Take the figure from the first green weekly run before proposing that trade."
+    },
+    {
+      "path": "tests/structure/test-session-trail-verdict.sh",
+      "reason": "The only native marker is W14a's platform guard, whose Windows arm deliberately skips because a backslash really is a path separator there, so the blocking shards would pay for the whole synthetic-HOME block and learn nothing about the branch that made this suite Windows-relevant. Excluded here scopes to the blocking PR shards only: the suite is in ciStructureTests, so the weekly windows-safety run still executes it, and windows-ci-contract.test.js now enforces that membership rather than leaving it asserted in prose. Residual stated rather than implied, and it is the guard the suite itself flags rather than the separator branch an earlier wording named: canonicalPair's filesystem-root guard (path.parse(p).root === p) is byte-identical on POSIX to the p.length > 1 spelling it replaced, so only a win32 drive root discriminates them. W14c now drives trimDir against path.win32 on every host, so that residual is closed; what remains unverified natively is the win32 TRAILING_SEP selection itself, which is module-scope and platform-selected."
+    },
+    {
+      "path": "tests/structure/test-plugin-data-guard.sh",
+      "reason": "The complete containment suite remains in weekly Windows Safety. Its native marker is a two-class skip rule rather than a path-transport boundary: one row needs a case-insensitive volume and ten need real symlinks, so a PR-gate run would measure the host rather than the gate. The module transport this hook shares with its siblings is covered on the PR gate by test-msys-special-plugin-module-boundaries.sh."
+    },
+    {
+      "path": "tests/structure/test-verify-consent.sh",
+      "reason": "The only native-Windows branch skips H18, because the doctor and adoption recognizer refuses every command on win32, so the consent pre hook has no allowance to prove there. Excluded here scopes to the blocking PR shards only: the suite is in ciStructureTests, so the weekly Windows Safety run still executes it. Its Windows wall clock is unmeasured, and a blocking shard would have to be paid for by moving another suite off. On the PR gate, test-msys-special-plugin-module-boundaries.sh loads the consent module from a special plugin root through the doctor; no blocking shard drives the consent hooks themselves."
+    },
+    {
+      "path": "tests/structure/test-stop-enforcer-latency.sh",
+      "reason": "The native-Windows markers belong to the two link helpers. make_directory_symlink makes a junction on win32 for L13, L17d, L43, L50, L51 and L52, and make_file_symlink makes the native file symlink of L48, which Windows creates only for an elevated token or in Developer Mode; each of the seven checks skips only when its helper fails. Excluded here scopes to the blocking PR shards only: the suite is in ciStructureTests, so the weekly Windows Safety run still executes it. Its Windows wall clock is unmeasured, and a blocking shard would have to be paid for by moving another suite off one."
+    },
+    {
+      "path": "tests/structure/test-harness-launcher.sh",
+      "reason": "The launcher run is explicitly unsupported and skipped on native Windows: the launcher stops its session through POSIX process groups, and the suite starts a fake claude through its shebang line. H1 also carries a win32 guard, because that host has no executable bit to check."
+    },
+    {
+      "path": "tests/structure/test-work-order-runtime.sh",
+      "reason": "Work-order mode is unverified on native Windows and the suite skips there: its fake zensu is a shell script on PATH, and the runtime starts zensu through Node without a shell, which cannot run such a script on that host."
+    },
+    {
+      "path": "tests/structure/test-work-order-implement.sh",
+      "reason": "Work-order mode is unverified on native Windows and the suite skips there: its fake zensu is a shell script on PATH, and the runtime starts zensu through Node without a shell, which cannot run such a script on that host."
+    },
+    {
+      "path": "tests/structure/test-work-order-gates.sh",
+      "reason": "Work-order mode is unverified on native Windows and the suite skips there: its fake zensu is a shell script on PATH, and the runtime starts zensu through Node without a shell, which cannot run such a script on that host. Outside the mode each hook exits after one environment check, before any Node call."
+    },
+    {
+      "path": "tests/structure/test-work-order-takeover.sh",
+      "reason": "Work-order mode is unverified on native Windows and the suite skips there: its fake zensu is a shell script on PATH, and the runtime starts zensu through Node without a shell, which cannot run such a script on that host."
+    }
+  ]
+}

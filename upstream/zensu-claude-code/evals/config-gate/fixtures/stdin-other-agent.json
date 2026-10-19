@@ -1,0 +1,1 @@
+{"hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","prompt":"x"},"session_id":"fixture-review"}

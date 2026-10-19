@@ -1,0 +1,164 @@
+{
+  "preToolUse": [
+    {
+      "script": "hooks/pre-reviewer-capability-gate.sh",
+      "matcher": ".*",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-agent-reviewer-allow.sh",
+      "matcher": "task",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-write-plugin-data-guard.sh",
+      "matcher": "edit|create",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-edit-tdd-reminder.sh",
+      "matcher": "edit|create",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-write-secret-scan.sh",
+      "matcher": "edit|create",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-bash-zensu-gate.sh",
+      "matcher": "bash",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-bash-source-write-gate.sh",
+      "matcher": "bash",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-write-secret-scan.sh",
+      "matcher": "bash",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-browser-navigation-consent.sh",
+      "matcher": "bash",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/pre-work-order-gate.sh",
+      "matcher": ".*",
+      "timeout": 60
+    }
+  ],
+  "postToolUse": [
+    {
+      "script": "hooks/plan-approved-delegate.sh",
+      "matcher": "exit_plan_mode"
+    },
+    {
+      "script": "hooks/post-review-tdd-delegate.sh",
+      "matcher": "task"
+    },
+    {
+      "script": "hooks/post-artifact-redact.sh",
+      "matcher": "bash"
+    },
+    {
+      "script": "hooks/post-browser-navigation-consent.sh",
+      "matcher": "bash",
+      "timeout": 60
+    },
+    {
+      "script": "hooks/post-artifact-redact.sh",
+      "matcher": "edit|create"
+    },
+    {
+      "script": "hooks/post-work-order.sh",
+      "matcher": ".*",
+      "timeout": 60
+    }
+  ],
+  "sessionStart": [
+    {
+      "script": "hooks/session-start-session-control.sh"
+    },
+    {
+      "script": "hooks/session-start-evidence-discipline.sh",
+      "timeout": 10
+    },
+    {
+      "script": "hooks/session-start-prompt-ledger.sh",
+      "timeout": 10
+    },
+    {
+      "script": "hooks/user-prompt-best-solution-first.sh",
+      "timeout": 10
+    },
+    {
+      "script": "hooks/session-start-pulse.sh"
+    },
+    {
+      "script": "hooks/session-start-banner.sh"
+    },
+    {
+      "script": "hooks/session-start-primer.sh"
+    },
+    {
+      "script": "hooks/session-start-autopilot-resume.sh"
+    }
+  ],
+  "subagentStart": [
+    {
+      "script": "hooks/session-start-session-control.sh"
+    },
+    {
+      "script": "hooks/session-start-evidence-discipline.sh",
+      "timeout": 10
+    },
+    {
+      "script": "hooks/user-prompt-best-solution-first.sh",
+      "timeout": 10
+    },
+    {
+      "script": "hooks/review-evidence-subagent-start.sh",
+      "timeout": 60
+    }
+  ],
+  "subagentStop": [
+    {
+      "script": "hooks/review-evidence-subagent-stop.sh",
+      "timeout": 60
+    }
+  ],
+  "agentStop": [
+    {
+      "script": "hooks/stop-chain-enforcer.sh",
+      "timeout": 90
+    },
+    {
+      "script": "hooks/stop-work-order.sh",
+      "timeout": 120
+    }
+  ],
+  "userPromptSubmitted": [],
+  "sessionEnd": [],
+  "postToolUseFailure": [],
+  "userPromptTransformed": [
+    {
+      "script": "hooks/user-prompt-intent-router.sh"
+    },
+    {
+      "script": "hooks/user-prompt-tdd-reminder.sh"
+    },
+    {
+      "script": "hooks/user-prompt-zen-mode.sh",
+      "timeout": 20
+    },
+    {
+      "script": "hooks/user-prompt-best-solution-first.sh",
+      "timeout": 10
+    }
+  ],
+  "preCompact": []
+}
