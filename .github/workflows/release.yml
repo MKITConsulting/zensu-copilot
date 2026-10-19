@@ -59,3 +59,12 @@ jobs:
             --verify-tag --target "$GITHUB_SHA" \
             --title "Zensu for Copilot CLI $version" \
             --notes-file "docs/releases/$GITHUB_REF_NAME.md" --latest
+
+  marketplace:
+    name: Publish native Copilot marketplace
+    needs: release
+    permissions:
+      contents: write
+    uses: ./.github/workflows/marketplace.yml
+    with:
+      release_tag: ${{ github.ref_name }}

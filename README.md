@@ -25,7 +25,36 @@ for provenance and parity checks; it is not needed to build or run the package.
   Browser validation additionally needs the measured `@playwright/cli` version
   reported by `/zensu-doctor`; other validation drivers need their own tools.
 
-## Install the release
+## Install from the native Copilot marketplace
+
+This repository and its marketplace are private. Authenticate Copilot with a
+GitHub account that can read `MKITConsulting/zensu-copilot`, then run:
+
+```bash
+copilot plugin marketplace add MKITConsulting/zensu-copilot#marketplace
+copilot plugin install zensu@zensu
+```
+
+The `#marketplace` suffix selects the generated distribution branch and is
+required. The marketplace installs the complete, verified release without a
+local build. Each catalog entry pins the package to an immutable commit SHA.
+Restart Copilot after installation. To update later:
+
+```bash
+copilot plugin marketplace update zensu
+copilot plugin update zensu@zensu
+```
+
+If you previously installed Zensu directly from a directory, use
+`copilot plugin list --json` to identify that installation, then remove it with
+`copilot plugin uninstall <direct-install-name>` before installing `zensu@zensu`.
+Do not keep both registrations: Copilot can load both sets of hooks. Start a
+fresh session after migrating; do not remove your project or Zensu state files.
+
+See [marketplace publication](https://github.com/MKITConsulting/zensu-copilot/blob/main/docs/marketplace.md) for release automation,
+version pinning, authentication and validation boundaries.
+
+## Download a release manually
 
 This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
@@ -41,6 +70,9 @@ copilot plugin install "$(pwd)/zensu"
 ```
 
 ## Build from source
+
+Source verification also requires Python 3 for the marketplace integration
+tests. The installed plugin itself does not require Python.
 
 ```bash
 gh repo clone MKITConsulting/zensu-copilot
@@ -74,9 +106,8 @@ Commands use `/zensu-…`, for example `/zensu-tdd`, `/zensu-autopilot`,
 
 CLI 1.0.98 caches local installs; after rebuilding, run the same install command
 again to refresh the cache. It currently warns that direct installs will be
-removed in a future release. Published distribution should use a plugin
-marketplace; this checkout's local installation remains supported by the tested
-version.
+removed in a future release. Use the native marketplace for released versions;
+this checkout's local installation remains supported by the tested version.
 
 Configuration is read from `~/.zensu/config.json` and the project's
 `.zensu/config.json`; `ZENSU_CONFIG` selects a full override. Project setup avoids

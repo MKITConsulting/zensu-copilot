@@ -6,6 +6,16 @@ entry points and six specialist agents. Version 0.2.0 owns and directly implemen
 Copilot contracts; no source-host adapter is built or loaded. Retained workflow instructions are not evidence that a
 live Copilot run has satisfied every acceptance criterion.
 
+## Native distribution
+
+Copilot distribution uses its own `.github/plugin/marketplace.json` on the
+generated `marketplace` branch. The catalog pins the complete native release
+package to a full Git commit SHA; users install `zensu@zensu` after registering
+`MKITConsulting/zensu-copilot#marketplace`. Release automation publishes the
+verified archive bytes and an immutable `marketplace/vX.Y.Z` tag. No Claude
+marketplace manifest or compatibility loader is used. See the
+[publication guide](https://github.com/MKITConsulting/zensu-copilot/blob/main/docs/marketplace.md).
+
 ## All 32 skills
 
 Every command below is emitted as a native skill directory with a `SKILL.md` and
