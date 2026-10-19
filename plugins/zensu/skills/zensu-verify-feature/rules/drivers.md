@@ -1,17 +1,17 @@
 # Verification drivers
 
 A **driver** is how one matrix row exercises the running feature and observes the result.
-`SKILL.md` Phase 0 resolves a driver for every row with this file; Phases 2 to 4 then load the
-driver's own rule file. The orchestration, the boundaries and the verdict contract in `SKILL.md`
+`references/scope.md` Phase 0 resolves a driver for every row with this file; Phases 2 to 4 then load the
+driver's own rule file. The orchestration, the boundaries in `SKILL.md` and the verdict contract in `references/execution.md`
 are the same for every driver. The vocabulary is shared with `/zensu-autopilot` and
-`/zensu-cover` (`../../autopilot/rules/drivers.md`); `desktop-native`, an earlier spelling there,
+`/zensu-cover` (`../../zensu-autopilot/rules/drivers.md`); `desktop-native`, an earlier spelling there,
 is read as `desktop`.
 
 ## 1. Catalog
 
 | Driver | Verifies | Rule file | Drives with | Remote |
 |---|---|---|---|---|
-| `browser` | web apps, PWAs, server-rendered pages | `rules/browser-verification.md` and the browser sections of `SKILL.md` | `playwright-cli` on a `zensu-verify` session behind the consent gate | yes, at the permission prompt or under a launch-time policy |
+| `browser` | web apps, PWAs, server-rendered pages | `rules/browser-verification.md` and `references/browser-policy.md` and `references/browser-session.md` | `playwright-cli` on a `zensu-verify` session behind the consent gate | yes, at the permission prompt or under a launch-time policy |
 | `api` | REST, GraphQL, gRPC, WebSocket, SSE and webhook endpoints of a run-owned service | `rules/service-verification.md` | `curl`, `grpcurl`, a WebSocket client, or the project's own client | no |
 | `cli` | commands, scripts, batch jobs, terminal UIs | `rules/cli-verification.md` | the built entry point; a TUI through `tmux` on a run socket, else `expect` | no |
 | `library` | packages, SDKs, modules without an entry point | `rules/cli-verification.md` | a throwaway consumer in `$RUN_DIR` that depends on the worktree by path | no |
@@ -53,7 +53,7 @@ them.
 A recipe command runs with its inputs assigned on that command: `ZENSU_VERIFY_RUN_DIR` (the run
 directory), `ZENSU_VERIFY_PORT` (a service's run-specific port in consent mode) and
 `ZENSU_VERIFY_DEVICE` (the run's simulator UDID or emulator serial, for a `mobile` row). The
-recipe schema, including each driver's block, is in `../../autopilot/rules/config.md`; without a
+recipe schema, including each driver's block, is in `../../zensu-autopilot/rules/config.md`; without a
 recipe, a build driver derives its facts from tracked files as its rule file describes.
 
 ## 3. Evidence planes
@@ -114,9 +114,9 @@ the criterion.
 
 Every device, process, cluster, container and terminal server that a driver rule file starts goes
 through the run-resource helper, and so does its teardown. The services a recipe starts keep the
-recipe's own `down` (`SKILL.md` Phase 4): the helper neither records nor stops those. Replace
+recipe's own `down` (`references/execution.md` Phase 4): the helper neither records nor stops those. Replace
 `<absolute-plugin-root>` with the concrete `ROOT`
-from `SKILL.md`:
+from `references/runtime.md`:
 
 ```bash
 node "<absolute-plugin-root>/skills/zensu-verify-feature/scripts/verify-run-resources.js" list --run-dir "$RUN_DIR"
@@ -249,7 +249,7 @@ action. A parallel lane with `mobile` rows also needs its own device.
 - **Visual:** device screenshots, app-window screenshots and terminal pane captures are
   described like browser screenshots; a driver without a visual plane reports `n/a`.
 - **Resources:** the run-resource helper's teardown lines; every resource it kept is named.
-- **Limitations:** every missing tool, beside the gaps `SKILL.md` names.
+- **Limitations:** every missing tool, beside the gaps `references/execution.md` names.
 
 An `Evidence` cell names `output`, `hierarchy` or `log` where a browser row names a screenshot,
 snapshot or request.

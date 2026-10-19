@@ -5,6 +5,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const protocol = require('./protocol');
 const nativeContext = require('./context');
+const reviewGate = require('./review-gate');
 const { readPlanApproval, readNavigationApproval } = require('./approval');
 
 function matchingHooks(root, event, tool) {
@@ -84,7 +85,12 @@ function dispatch(event, raw, options = {}) {
     if (result.error || result.status !== 0) throw new Error('Could not reset prompt ledger before compaction');
     return {};
   }
-  if (event === 'postToolUseFailure') return { additionalContext: 'Zensu: this tool failed. Do not record it as a successful test, completed reviewer, approved plan or acceptance observation.' };
+  if (event === 'postToolUseFailure') {
+    const output = { additionalContext: 'Zensu: this tool failed. Do not record it as a successful test, completed reviewer, approved plan or acceptance observation.' };
+    try { additional(output, reviewGate.postReview(context, payload, { env })); }
+    catch (error) { additional(output, `Zensu review remains pending: ${error.message}`); }
+    return output;
+  }
   if (event === 'postToolUse' && payload.toolName === 'bash' && /playwright/i.test(payload.toolArgs.command)) {
     payload.nativePermissionApproved = Boolean(readNavigationApproval(context.transcriptPath, raw.toolArgs, payload.agentId));
   }
@@ -95,6 +101,23 @@ function dispatch(event, raw, options = {}) {
     // stand in for the native human approval record.
     payload.planApproved = Boolean(receipt);
     if (receipt) payload.toolResult = { ...payload.toolResult, ...receipt };
+  }
+  let reviewDispatch = null;
+  let reviewCompletion = null;
+  if (event === 'preToolUse') {
+    try {
+      reviewDispatch = reviewGate.preReview(context, payload, { env });
+      if (reviewDispatch?.modifiedArgs) {
+        payload.toolArgs = reviewDispatch.modifiedArgs;
+        payload.toolCalls = payload.toolCalls.map(call => ({ ...call, toolArgs: reviewDispatch.modifiedArgs }));
+      }
+    } catch (error) {
+      return { permissionDecision: 'deny', permissionDecisionReason: `Zensu review gate: ${error.message}` };
+    }
+  }
+  if (event === 'postToolUse') {
+    try { reviewCompletion = reviewGate.postReview(context, payload, { env }); }
+    catch (error) { return { additionalContext: `Zensu review remains pending: ${error.message}` }; }
   }
   const start = Date.now();
   const budget = event === 'preToolUse' ? 50000 : 35000;
@@ -119,11 +142,21 @@ function dispatch(event, raw, options = {}) {
     }
   }
   let output = protocol.normalizeOutput(event, results, raw);
+  if (reviewDispatch?.modifiedArgs && output.permissionDecision !== 'deny') {
+    try { reviewDispatch.admit(); }
+    catch (error) {
+      return { permissionDecision: 'deny', permissionDecisionReason: `Zensu review gate: ${error.message}` };
+    }
+    output.modifiedArgs = reviewDispatch.modifiedArgs;
+  }
+  if (reviewCompletion) additional(output, reviewCompletion);
   if (event === 'postToolUse' && payload.toolName === 'exit_plan_mode' && !payload.planApproved) {
     additional(output, 'Zensu: no human implementation approval was recorded for this plan. Rejection, exit-only and automated responses do not approve a durable run. Keep its planning gate pending; use the native plan approval interaction and select an implementation action when the user is ready.');
   }
   if (event === 'sessionStart') {
     additional(output, `Zensu Copilot CLI plugin is active. Session: ${context.sessionId}. Use /zensu-help, /zensu-setup, /zensu-doctor. Shell helpers are bound to this session by the native tool hook. Context occupancy is only reported when the host supplies measured utilization; no occupancy is inferred from transcript length.`);
+    additional(output, nativeContext.SHELL_BINDING_NOTICE);
+    additional(output, nativeContext.NATIVE_READ_NOTICE);
   }
   if (event === 'preToolUse' && output.permissionDecision !== 'deny' && payload.toolName === 'bash') {
     if (raw.toolName === 'powershell') return { permissionDecision: 'deny', permissionDecisionReason: 'Zensu shell policy requires Bash; use the bash tool (native PowerShell is not supported).' };

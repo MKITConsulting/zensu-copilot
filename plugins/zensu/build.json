@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -46,32 +46,32 @@
     {
       "source": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
       "target": "com.github.copilot/agents/code-reviewer.agent.md",
-      "sha256": "c1d0eb7f7ffa53a656249c7e61d31f4f6f038bd3b9106e005a3cac92e8ab90fd"
+      "sha256": "73886053522be34858d41e21fad9036959e72bcaabba4a7f41b58cec168fbeac"
     },
     {
       "source": "src/plugin/com.github.copilot/agents/plan-review-worker.agent.md",
       "target": "com.github.copilot/agents/plan-review-worker.agent.md",
-      "sha256": "0d7c5848df92ab1148c62980d0aba66f8cae67fcf680355bf783bb27a932b1bb"
+      "sha256": "c40b3edcb21b4ca69379488d40d47f376e66b82da21d739cd5c243ab5db97ae4"
     },
     {
       "source": "src/plugin/com.github.copilot/agents/pr-review-worker.agent.md",
       "target": "com.github.copilot/agents/pr-review-worker.agent.md",
-      "sha256": "00cca5682e7084d787a8eacad4625290ec77bedfc0630690fabb5a573a99e856"
+      "sha256": "cabae5205e768f5565cbbefd3422f9c6adac8af04c729921790b2091c349797f"
     },
     {
       "source": "src/plugin/com.github.copilot/agents/review-aspect.agent.md",
       "target": "com.github.copilot/agents/review-aspect.agent.md",
-      "sha256": "0265e0d47c559c18e575aebe67ea3986bc9ab09f0383479ed1f51b0cc35c3723"
+      "sha256": "7a7418de46858ec606fbbd6a63a888ec8472342492750fb599f9351fd00fc414"
     },
     {
       "source": "src/plugin/com.github.copilot/agents/review-judge.agent.md",
       "target": "com.github.copilot/agents/review-judge.agent.md",
-      "sha256": "cd144f8462b5ab6c43df187afa8d152808c80f63aa438d6ae39f3d4a1b70a17c"
+      "sha256": "1be22385e898bb76aa120a9434fc3467b91e71da0040d6e9f67c88209cc6bb04"
     },
     {
       "source": "src/plugin/com.github.copilot/agents/zensu-plm.agent.md",
       "target": "com.github.copilot/agents/zensu-plm.agent.md",
-      "sha256": "feea413fc7485f8d749afd9664231878bd9d511e4201c3c7d8aff6dbe8edc24b"
+      "sha256": "ccb123c45b3dbf89065d02cb4891372c0b8b0a48aebc80ae0923fe6449767e17"
     },
     {
       "source": "src/plugin/com.github.copilot/hooks/hooks.json",
@@ -96,7 +96,7 @@
     {
       "source": "src/plugin/docs/configuration.md",
       "target": "docs/configuration.md",
-      "sha256": "97590f32e5f739be436976006141861e81c5df500fa9cfffb88a6908c47abb6a"
+      "sha256": "2a9e56f7f8d86940b9f0ad165f7d98ee34cb53f463f60ead2ec3aa6ef2caf7ee"
     },
     {
       "source": "docs/copilot-runtime.md",
@@ -126,12 +126,12 @@
     {
       "source": "docs/parity.md",
       "target": "docs/parity.md",
-      "sha256": "65c79e1f4f20f31cf22d82aecef10ebba18c63ebf22ac21ddc80a923a5a2c39d"
+      "sha256": "a86e6ccdf70478ef6c56a581083d0e469c2c02e5b4ced7376aa4c3f0239d4d2a"
     },
     {
       "source": "src/plugin/docs/review-chain.md",
       "target": "docs/review-chain.md",
-      "sha256": "ebd8dc4f8d6bae998e99acfb1fcb3e18211a10be87864d12541734d27d63ddc6"
+      "sha256": "a50b789712b1ab0422d935ad17d1bb7bc68310feb6a033a215ab823a3fc9128c"
     },
     {
       "source": "src/plugin/docs/review-severity.md",
@@ -166,7 +166,7 @@
     {
       "source": "src/plugin/docs/verify-feature.md",
       "target": "docs/verify-feature.md",
-      "sha256": "711b55e172014ef3ae9622ccea4777290f5d84fbf29ff31aa1696b4054fccb6b"
+      "sha256": "056aa4717a2794cd1190e1dfa2ab7e22e5f05172454c663fecddf1c52d753796"
     },
     {
       "source": "src/plugin/docs/work-order-mode.md",
@@ -241,7 +241,7 @@
     {
       "source": "src/plugin/hooks/lib/edit-landing-receipt-v1.js",
       "target": "hooks/lib/edit-landing-receipt-v1.js",
-      "sha256": "77008ac4193c804785400f1c66a3ff4d2026a9758a991b3cdd4328cac40c4639"
+      "sha256": "8b51c1f40307f9f80c750ad52e2ad03d8ce20d357d25414febbc5c3324aabe79"
     },
     {
       "source": "src/plugin/hooks/lib/evidence-run-v1.js",
@@ -251,7 +251,7 @@
     {
       "source": "src/plugin/hooks/lib/finding-verify-v1.js",
       "target": "hooks/lib/finding-verify-v1.js",
-      "sha256": "a5a26955259b8b2cd47be22ec574cf993ecc1a2a3596b354826658beb87533ae"
+      "sha256": "bc2c6fc162cc88f18fc0b4067dcbd15b875c066255e729e0c16d33f99497d5e1"
     },
     {
       "source": "src/plugin/hooks/lib/full-suite-policy-v1.js",
@@ -302,6 +302,11 @@
       "source": "src/plugin/hooks/lib/review-ledger-v1.js",
       "target": "hooks/lib/review-ledger-v1.js",
       "sha256": "7225ce553ac5a607a9ac184eb52b539c47551b72cc73c2b63f525bb33acf7d9f"
+    },
+    {
+      "source": "src/plugin/hooks/lib/review-packet-v1.js",
+      "target": "hooks/lib/review-packet-v1.js",
+      "sha256": "12c30c5ccb5a31973643f5016358e81525ffa1ed5202bf2822a56ef0bd673220"
     },
     {
       "source": "src/plugin/hooks/lib/review-round-scope-v1.js",
@@ -394,6 +399,11 @@
       "sha256": "2ef405e2301718ca1714ade5f895474728d083e0c79bef35a64e9808a42b809e"
     },
     {
+      "source": "src/plugin/hooks/lib/workflow-artifacts-v1.js",
+      "target": "hooks/lib/workflow-artifacts-v1.js",
+      "sha256": "a3533c79616107cdf5c91da756d494e06e02aeb8a22049163452a55120da5557"
+    },
+    {
       "source": "src/plugin/hooks/lib/zen-anchor-v1.js",
       "target": "hooks/lib/zen-anchor-v1.js",
       "sha256": "81bc6df1263b79a8ebda730fd2bf9a1e847be3ad3cace3d88799b5ebb61a0cd5"
@@ -451,7 +461,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-doctor-report.js",
       "target": "hooks/lib/zensu-doctor-report.js",
-      "sha256": "d7085eb72590678cc6d7c979ccc352c20800710639bd7c1c3b54b3e96f6c1406"
+      "sha256": "7e15f7b6a43cc1236c35cc47d2aee262ca3c3873fa9a0be18c9349a782a0b889"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-doctor.sh",
@@ -461,7 +471,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-edit-landing.sh",
       "target": "hooks/lib/zensu-edit-landing.sh",
-      "sha256": "31bd8973078c579836d829b690cfb8916dd3a630b92bbb0674549e6f1f0072b1"
+      "sha256": "eaef51b236df0b79389b9da1e54682f12579103e4dae15ef662f25f31a684223"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-full-suite-transport.sh",
@@ -481,7 +491,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-log.sh",
       "target": "hooks/lib/zensu-log.sh",
-      "sha256": "61863719376e293d301353289ea276b6fe36647e883eeb6e536619c7ab300179"
+      "sha256": "10cf0e4042371852dd6f9170f4ab0bf84cf323962db4afce38152bf9a6d0ff64"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-marker-write.sh",
@@ -556,7 +566,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-tdd-phase.sh",
       "target": "hooks/lib/zensu-tdd-phase.sh",
-      "sha256": "472d68d39beb97e4638b87de45e93fee05ec47feb4445357d4bde1c2b9e99212"
+      "sha256": "bf0c186e4254ab87eba10e26c9ffbaa9d1494d6e06b3edc7cef828e8d7be60bc"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-vcs.sh",
@@ -591,12 +601,12 @@
     {
       "source": "src/context.js",
       "target": "hooks/native/context.js",
-      "sha256": "86e22d86635c1d35d0489d6af4636de3070a1bd517180534b9f267e92ad5ac41"
+      "sha256": "f6466dda18e4a2e07913fbe6d65bfffebeb887deb75fb165541114dc4de61655"
     },
     {
       "source": "src/dispatcher.js",
       "target": "hooks/native/dispatcher.js",
-      "sha256": "4aea0f8ae9c967de362f1ea07cd8814cdf8f4a57f66505c8a034cb49f5274528"
+      "sha256": "74aff1eb0d388a46211ac46cb9b3ddb290cac8ef1963662d195b3729e6cb8114"
     },
     {
       "source": "src/helper.js",
@@ -606,7 +616,12 @@
     {
       "source": "src/protocol.js",
       "target": "hooks/native/protocol.js",
-      "sha256": "7a32f5bded004a8ea13d002f170385c130536bd430a4234aeff354a0ce9d2dc8"
+      "sha256": "e405534e3207a65c6d26821fe3fe71acc4a6e9eeca523ee998bcadae939f80df"
+    },
+    {
+      "source": "src/review-gate.js",
+      "target": "hooks/native/review-gate.js",
+      "sha256": "7fdde6e37961cb7ecd969d193828a5e3e98f10a58f9115e78e56da90dd78eed3"
     },
     {
       "source": "src/transcript.js",
@@ -631,7 +646,7 @@
     {
       "source": "src/plugin/hooks/post-review-tdd-delegate.sh",
       "target": "hooks/post-review-tdd-delegate.sh",
-      "sha256": "b7216bfd8a91dc6dd5eeaa23fd408f29c98aa25b41497cb5753289d7f8e065d8"
+      "sha256": "3a5402814a0408400b3c094691ccf90ead5d2d44aea20a06d77683f874a12e29"
     },
     {
       "source": "src/plugin/hooks/post-work-order.sh",
@@ -771,12 +786,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "bf6f6d8824a49e02c5e1548d10d3a6ee557c6363f826bc5c6b49da59cf6627b1"
+      "sha256": "628714ad04c78311595585e82f877cb7bdfe155717422bfd877df6c8bb59def0"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "7619f869fd1b85050c9ff577e1f2585abd6a92f2c976eada39243fb7869b15cf"
+      "sha256": "c3799285defcd753aadf0056400bc15dcbf722349d91cd9a00cfc44fa20b44a4"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
@@ -811,17 +826,17 @@
     {
       "source": "src/plugin/skills/zensu-adopt-session/SKILL.md",
       "target": "skills/zensu-adopt-session/SKILL.md",
-      "sha256": "409dcd3d91541ee99800edbe587cbdd2f3bc7906c8e8a8ecd69ec914403fd59a"
+      "sha256": "d4dd62796ba3ce89506a0649d22597d5bdaa8851819def692e0665a7c3c2955a"
     },
     {
       "source": "src/plugin/skills/zensu-autopilot-adopt/SKILL.md",
       "target": "skills/zensu-autopilot-adopt/SKILL.md",
-      "sha256": "1d2ee8aa4076b158d80a13384bc4f736061a4256e168e5394971c11be5b4b38b"
+      "sha256": "5fb9a7946562633bb48b16b0d4c2954a40d98a9e86bdfa48b04113dbe0a1ebd2"
     },
     {
       "source": "src/plugin/skills/zensu-autopilot-release/SKILL.md",
       "target": "skills/zensu-autopilot-release/SKILL.md",
-      "sha256": "924658f3b7878e7ac30f2e11f46f7f688f9e7d4c697bc6033dbf88ab96887f9e"
+      "sha256": "a79a1f9dc16781d00cc90dea3f49f1b3a7bc4bb276e860aa6c65f803d2547a3d"
     },
     {
       "source": "src/plugin/skills/zensu-autopilot/rules/auth.md",
@@ -851,17 +866,17 @@
     {
       "source": "src/plugin/skills/zensu-autopilot/SKILL.md",
       "target": "skills/zensu-autopilot/SKILL.md",
-      "sha256": "303759166ef788f831563d529272061adf143722dc566bc0dfb0c142253f237a"
+      "sha256": "ac67e202c524587403eed679368e720d01237f8e43e38f0920cf59f8b96d139f"
     },
     {
       "source": "src/plugin/skills/zensu-bootstrap/SKILL.md",
       "target": "skills/zensu-bootstrap/SKILL.md",
-      "sha256": "073a2dfcdca65a943f4455066c5282f8c1bbe3961fd2e09cb4f03033f68da097"
+      "sha256": "a09a2eb219af2da8cc8c040e6d66fda28412f5abe6611c505f2c8a64f39efc3b"
     },
     {
       "source": "src/plugin/skills/zensu-converge/SKILL.md",
       "target": "skills/zensu-converge/SKILL.md",
-      "sha256": "610c22db6c4f5a1dab1523fdacc2c77d30764943f66defbcbc384eeda0526ef4"
+      "sha256": "a2cb09b9f5317885a0f76444bca755e721dbb701b14abd20ddcad64350239f24"
     },
     {
       "source": "src/plugin/skills/zensu-cover/rules/drivers.md",
@@ -886,17 +901,17 @@
     {
       "source": "src/plugin/skills/zensu-cover/SKILL.md",
       "target": "skills/zensu-cover/SKILL.md",
-      "sha256": "dcdb0a7a5e8881c98db1c9ffb5ce11fa56a28c90ad78b79a47f1856e7ab06831"
+      "sha256": "53acba902d629643c62af27fe6b5866a406250a08b7f04b0df37766975db00a8"
     },
     {
       "source": "src/plugin/skills/zensu-delivery-route/SKILL.md",
       "target": "skills/zensu-delivery-route/SKILL.md",
-      "sha256": "04393df6c1d552f341c83ad1814fff281fcabc27930a04d90813a73483ff2724"
+      "sha256": "80da5c4df7ebee498b3d5664bb6cdcdcd14ed95f073b4151e21bade0fbddd94d"
     },
     {
       "source": "src/plugin/skills/zensu-docs/SKILL.md",
       "target": "skills/zensu-docs/SKILL.md",
-      "sha256": "85dc1523daa6d5cd6a1810fd3470d4fc1d780b465a0d9628da77a26c6d78aa88"
+      "sha256": "9d60b375ae2ab0ec1f966391f8bae4143b89c995f65c1638d4451735a75fe345"
     },
     {
       "source": "src/plugin/skills/zensu-doctor/references/autopilot-lease.md",
@@ -906,12 +921,12 @@
     {
       "source": "src/plugin/skills/zensu-doctor/SKILL.md",
       "target": "skills/zensu-doctor/SKILL.md",
-      "sha256": "cf1aec7e5badc8adf1aa9c31180274b70dd55e5341cd1d953039155403f8575a"
+      "sha256": "ec7ffff459ea48fbf0e2f753e6fbb61efcf01df36442864190e3fae1745f0a40"
     },
     {
       "source": "src/plugin/skills/zensu-full-suite/SKILL.md",
       "target": "skills/zensu-full-suite/SKILL.md",
-      "sha256": "ec1587bdcbe06564c23a485a42e3450d2c355237775208abe4dbdd10cd25ac54"
+      "sha256": "0c1fa9abefb6e41b06bb6294af0ee3f2189cedc87e786c03542be1b5eb464d45"
     },
     {
       "source": "src/plugin/skills/zensu-gauntlet-loop/references/harness.md",
@@ -926,37 +941,37 @@
     {
       "source": "src/plugin/skills/zensu-gauntlet-loop/SKILL.md",
       "target": "skills/zensu-gauntlet-loop/SKILL.md",
-      "sha256": "51c7ba17114af4438d747fc338b9b588c11c9b15a1414bda46d2a3167a53913e"
+      "sha256": "f716b909a3b914eef329126250cbae651f2c53a3a03d50070bb76d01d36b4f7f"
     },
     {
       "source": "src/plugin/skills/zensu-ghost-scan/SKILL.md",
       "target": "skills/zensu-ghost-scan/SKILL.md",
-      "sha256": "d75a781200f5a93d5edca67fb014bb0a0faf9688ea2681d6814978b2ea8b9e04"
+      "sha256": "4637735e50af5e0eb5ec276d55b75fb29196d019e2e2ede0a76776f1fd1ca5d0"
     },
     {
       "source": "src/plugin/skills/zensu-help/SKILL.md",
       "target": "skills/zensu-help/SKILL.md",
-      "sha256": "c4c08992c4b6c80956b7f9ca0c589a234e28e8098f5a3a4644700d6d5afd3ccb"
+      "sha256": "d0820e6211941a1efdd3b25880347fa7ce75093623acb778258afc3cc13c96f9"
     },
     {
       "source": "src/plugin/skills/zensu-implement/SKILL.md",
       "target": "skills/zensu-implement/SKILL.md",
-      "sha256": "36a1dfd44935bc1ae41f774dfe1694fe2ebd78ce7dab0fb36dfcf41dc82c7cf0"
+      "sha256": "fad2c736acbdb11008e101ce44a82afb09063617425237e8182db77db340487f"
     },
     {
       "source": "src/plugin/skills/zensu-pilot/SKILL.md",
       "target": "skills/zensu-pilot/SKILL.md",
-      "sha256": "78ea7cf9310298ee0d45ac8e7c1fa3c2ffaa03c8880c1cea9031d6d493cd61a2"
+      "sha256": "7b7002cf440edd48f465c363b6b872d14dc12397cbc3aa2467efde378567ee9a"
     },
     {
       "source": "src/plugin/skills/zensu-plan-review/SKILL.md",
       "target": "skills/zensu-plan-review/SKILL.md",
-      "sha256": "31f5ff1662205277570b2e1c5a03d9488774aa6c7af61055ee5eec3d7f6cbdbd"
+      "sha256": "4b63a0c317bd8136aa93bc41c93453fa644ea2ece24cc416b63674594d23ef5d"
     },
     {
       "source": "src/plugin/skills/zensu-pr-fix-findings/SKILL.md",
       "target": "skills/zensu-pr-fix-findings/SKILL.md",
-      "sha256": "0fd61902c383be6e9496c798dd0c96b4b5a0a8fa467b8a18ba9a744feb1ff7af"
+      "sha256": "fbc0c5507097e7eaf72cc384d324809eb7a5def301cf8cc73204c3ea8c87a094"
     },
     {
       "source": "src/plugin/skills/zensu-pr-team-review/references/cast.md",
@@ -1011,32 +1026,47 @@
     {
       "source": "src/plugin/skills/zensu-pr-team-review/SKILL.md",
       "target": "skills/zensu-pr-team-review/SKILL.md",
-      "sha256": "ef8a284564938f9ec4294ce2f9af8af0bd82ea8f423364909699940e20cde03d"
+      "sha256": "134c7acdb85b50cb18fb07187c0ea388f898f260008f81bab29ceee728f974ef"
     },
     {
       "source": "src/plugin/skills/zensu-pulse/SKILL.md",
       "target": "skills/zensu-pulse/SKILL.md",
-      "sha256": "cef1028d4be0c0fc82bef8946e454754d4dd47f3f119b1f82580f4d7628d7eb0"
+      "sha256": "f1f2f68b71fd4c1426a63cf2e8a2f1e5da373f624973da0157775885c9384ac1"
     },
     {
       "source": "src/plugin/skills/zensu-recover-chain/SKILL.md",
       "target": "skills/zensu-recover-chain/SKILL.md",
-      "sha256": "b36f1703b69dffb038cb54a49c884de684c7a76a37ba3967851e73c63161edc1"
+      "sha256": "10fa29ecf6a8bfca3e488f0a9937499c38be7a119a540bad352df03bae8b2564"
     },
     {
       "source": "src/plugin/skills/zensu-reset-review-limit/SKILL.md",
       "target": "skills/zensu-reset-review-limit/SKILL.md",
-      "sha256": "4514a5559bc0e57a88f7952c283b6d217380645c5bb2173c452723e7c2a97b50"
+      "sha256": "babc14f9a6f5411fe3c8f5df30ab7e8b53413bdc3f36078c9e58da4140cc175c"
     },
     {
       "source": "src/plugin/skills/zensu-security-review/SKILL.md",
       "target": "skills/zensu-security-review/SKILL.md",
-      "sha256": "7cc0b48aa99463f869aa7bb3bb9265b872b1e8261500d00780b8ec521f5ea45e"
+      "sha256": "21b17efe91dacdbfb354c0ee53e415ffa4b10cca5867b7589ffd524eeee5e266"
+    },
+    {
+      "source": "src/plugin/skills/zensu-self-review/references/fix-round.md",
+      "target": "skills/zensu-self-review/references/fix-round.md",
+      "sha256": "7c0dfb1ab962d5c2b3e4f453cf4d798d44b3e99dfbc515b58a0d23fc53bd37cb"
+    },
+    {
+      "source": "src/plugin/skills/zensu-self-review/references/reflection.md",
+      "target": "skills/zensu-self-review/references/reflection.md",
+      "sha256": "550121b398fba3558d4e7ff7a48848205d764366c8111bebd8c0becf4744ee3d"
+    },
+    {
+      "source": "src/plugin/skills/zensu-self-review/references/report.md",
+      "target": "skills/zensu-self-review/references/report.md",
+      "sha256": "40049ce6f0a1dea45448ec7a355bc7dc0ce031bfea78883ef2ed6ee5ad9b01da"
     },
     {
       "source": "src/plugin/skills/zensu-self-review/SKILL.md",
       "target": "skills/zensu-self-review/SKILL.md",
-      "sha256": "97af7e008c1d9d7fb9a5badd8bd683fcc7106a4e8d5f25f0e5c4ba68ac459f3a"
+      "sha256": "3aa23069fa3197fabe9c6462ffc5fa4110d565bd5d9b98295446ee36e89c0ff9"
     },
     {
       "source": "src/plugin/skills/zensu-session-trail/handover-contract.json",
@@ -1096,22 +1126,37 @@
     {
       "source": "src/plugin/skills/zensu-session-trail/SKILL.md",
       "target": "skills/zensu-session-trail/SKILL.md",
-      "sha256": "f563999ac802d64e606d9aed950b21fa7d91d30287f0a84156a017299bfe3082"
+      "sha256": "805ba8136c3c2b2069ec2a2e643a3a43c374e9270136d59fdbf612434f30843f"
     },
     {
       "source": "src/plugin/skills/zensu-setup/SKILL.md",
       "target": "skills/zensu-setup/SKILL.md",
-      "sha256": "5fd10ce88ac9ee0bb0a68a0f13e5b53e0cb3525c08787d7016c30e1f2dfce893"
+      "sha256": "9754909146994dbe6a54c6a9f36bcef20597a1e58f89af38aa67a672596188ae"
     },
     {
       "source": "src/plugin/skills/zensu-tdd-mode/SKILL.md",
       "target": "skills/zensu-tdd-mode/SKILL.md",
-      "sha256": "cdff5568cf748246a749d45073e680a2b0cd9d73ecb33cd6704ef1776463cf83"
+      "sha256": "5c23e717caa4ec6ac8a0aa0b4d1fc7b9e33a2430d94877781c33d7c7c257d214"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/audit-acceptance.md",
+      "target": "skills/zensu-tdd/references/audit-acceptance.md",
+      "sha256": "3b4e2a3b6e7a19236f14e23115f9676d5f8040d219ecf4f1e0c6b90be9bc1fee"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/audit-evidence.md",
+      "target": "skills/zensu-tdd/references/audit-evidence.md",
+      "sha256": "4886439536727fe98b8bba23d31b9ec8e1e54d0b8ce0ca0b97cf9bcb43a63074"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/audit-integrity.md",
+      "target": "skills/zensu-tdd/references/audit-integrity.md",
+      "sha256": "4deab485a7011413c9376872a15445d2d8d35310f2fbf69e93c41cf209e75e8f"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/audit.md",
       "target": "skills/zensu-tdd/references/audit.md",
-      "sha256": "7f6879a104df421d18d0fd4c885f42dcad34079b1e68a5ed2e7af32d1333a064"
+      "sha256": "ebb5210113f1095178445de8402ffed9e0b523e051f6f6d32d50707dc465eff8"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/discipline.md",
@@ -1121,27 +1166,82 @@
     {
       "source": "src/plugin/skills/zensu-tdd/references/execution.md",
       "target": "skills/zensu-tdd/references/execution.md",
-      "sha256": "9f501942faa1222661920fedd499ba21d33ea85dd9f080a43ad3b4739f7da20d"
+      "sha256": "4b5cb9dfda32f7a087b19bc044d2bf458196eb92c495a74d4a490d42b494bf3c"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/modes.md",
       "target": "skills/zensu-tdd/references/modes.md",
-      "sha256": "17bf1463a07e17a6a8af63941e8634bb6f9cd6fc3ff97c12f8a3d37c27592a67"
+      "sha256": "341e598d128c61425df8259f4d55e96be5f9418db7d3352c311fb1cc3f4ec699"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/planning.md",
       "target": "skills/zensu-tdd/references/planning.md",
-      "sha256": "23598e0b343dedefc55422c9218714958f41692437ea1ca9287c0447552c0198"
+      "sha256": "bd50e27aad6939f2bf984998aad1e00363ccd8264511b84fa171cd4b65714e19"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/review-chain.md",
       "target": "skills/zensu-tdd/references/review-chain.md",
-      "sha256": "48d18ce2c8d7e591a680208aaef8644577dfb4bde11c387ed7d4e75d4d6e0ad6"
+      "sha256": "a3693ccf543132ee8732054639527e6bf4af24e4f402433063764246379ab4eb"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/review-completion.md",
+      "target": "skills/zensu-tdd/references/review-completion.md",
+      "sha256": "0e11d7d20c0930900e736c0067166bd1fcaded4c0d307902567dc6a34aa308b4"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/review-packet.md",
+      "target": "skills/zensu-tdd/references/review-packet.md",
+      "sha256": "258b6283eca90948d8f26d9ec4bb7ba2a85888a85bff7f87cc19bbfcdf57b4f5"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/review-panel.md",
+      "target": "skills/zensu-tdd/references/review-panel.md",
+      "sha256": "6aa43ff4f885d570e989dd6b3c6391d2940af496fdaff0807aca44b8bc24ede2"
+    },
+    {
+      "source": "src/plugin/skills/zensu-tdd/references/review-verification.md",
+      "target": "skills/zensu-tdd/references/review-verification.md",
+      "sha256": "2df1821bc73b34af870327f5f3c221b44f58857535560c1140f6de3fa3453c60"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/SKILL.md",
       "target": "skills/zensu-tdd/SKILL.md",
-      "sha256": "3e8d8469421b0bd9009c52d70c7f84400b484315321a0ae08c62e65c9efa19d8"
+      "sha256": "64f56f416cb6720cf30df096c623f4e9541dafcaf124df41865c2c1aeef4a3be"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/references/browser-policy.md",
+      "target": "skills/zensu-verify-feature/references/browser-policy.md",
+      "sha256": "9fb190a5f816b6466df1f84563e63c3e3920ba82ba687092949c6258f2059a0a"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/references/browser-session.md",
+      "target": "skills/zensu-verify-feature/references/browser-session.md",
+      "sha256": "d50b2529e1321cfeb7d75c50c5d4c58f304df4d817eee33fb9200aae384e3efa"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/references/chain.md",
+      "target": "skills/zensu-verify-feature/references/chain.md",
+      "sha256": "ca203c40819e9bc45ab24a2f97456e94c64724490a0126c8865e2c2b2f2fab2f"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/references/execution.md",
+      "target": "skills/zensu-verify-feature/references/execution.md",
+      "sha256": "8e567ddfd9e2326c48b08dffeb0f96d44dfafb950725b706aec47510510954a4"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/references/runtime.md",
+      "target": "skills/zensu-verify-feature/references/runtime.md",
+      "sha256": "e6805882d99ce40c6b525ea6fca2e97859e2121c14f34427c7f32c83315d7059"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/references/scope.md",
+      "target": "skills/zensu-verify-feature/references/scope.md",
+      "sha256": "261fbd5e72b98b3f4e2992d554b5be7009c4deb7b8f020ca099eaa190262cad7"
+    },
+    {
+      "source": "src/plugin/skills/zensu-verify-feature/rules/acceptance-evidence.md",
+      "target": "skills/zensu-verify-feature/rules/acceptance-evidence.md",
+      "sha256": "78f90bce236576ba85dccbf300f1a3ada9440b0560799fd21f1bae38a2de54ba"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/rules/attach.md",
@@ -1151,37 +1251,37 @@
     {
       "source": "src/plugin/skills/zensu-verify-feature/rules/browser-verification.md",
       "target": "skills/zensu-verify-feature/rules/browser-verification.md",
-      "sha256": "d79a4baf983a686545ed7a2f018ac9875da3779885a6aa3efa6094bd773f4279"
+      "sha256": "8c799393cd9e3751ff67f7c08e3530afdade9440e1fe2f26d928055d73ae4515"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/rules/cli-verification.md",
       "target": "skills/zensu-verify-feature/rules/cli-verification.md",
-      "sha256": "721a0eea92201b21c74a6bb7da0f8d3f4110672b7b6063183b2d9bf5c6e726d7"
+      "sha256": "a6eec52669ab3c4d4af7f5ec7dcc70e786408b07771263e9d3563498976445dc"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/rules/desktop-verification.md",
       "target": "skills/zensu-verify-feature/rules/desktop-verification.md",
-      "sha256": "ac5620b1db4577ef736faf0e7dadce90cbb12a571531881222966b83e75b1784"
+      "sha256": "14942bda1f5cd26d405beebf8bb99a798bf84ea8acf9e3ef5f3078aabef99b24"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/rules/drivers.md",
       "target": "skills/zensu-verify-feature/rules/drivers.md",
-      "sha256": "8dbce1fdf4e0479601137c2d507d9cf3a2d8df854e61ef8d318bcecaa0b6cd15"
+      "sha256": "0c75d604d45621be781e1537753e1c065700a3dc189d941585135b5757bb78d6"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/rules/mobile-verification.md",
       "target": "skills/zensu-verify-feature/rules/mobile-verification.md",
-      "sha256": "b1f9a3b2e90dd7c08c13800adc82458453be8e776022d0c0a8554a27ced41ad3"
+      "sha256": "2f7e4127fb5795ce071495de948c0a98d3756d0043a85179fbfa06a4e7986b02"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/rules/service-verification.md",
       "target": "skills/zensu-verify-feature/rules/service-verification.md",
-      "sha256": "e1781ea4b21c4811ac55c6ed637e340925759c556d2ff2d16bea74a90c0dba2c"
+      "sha256": "6725a39eb0cb6df03b8d33c96296a8b1779713e655701c3cc11630e5e6951c14"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/rules/setup.md",
       "target": "skills/zensu-verify-feature/rules/setup.md",
-      "sha256": "b82dc5f8e3463a5c60557638aa77db9e0fee88903db20780d42c5f0988b3dba5"
+      "sha256": "c993271b734150ae9c82b00f3a7d29def7b0e6a8c505acd96421c3343f096320"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/scripts/verify-run-resources.js",
@@ -1191,7 +1291,7 @@
     {
       "source": "src/plugin/skills/zensu-verify-feature/SKILL.md",
       "target": "skills/zensu-verify-feature/SKILL.md",
-      "sha256": "2038c89b7349dae5e5ddbdd64b0fac239296b3b26d0c3c60983b0cf06e1f4608"
+      "sha256": "e7954278216cb095cdadf670005fb466ff6f4c48a3a782565b48fb6959d4729b"
     },
     {
       "source": "src/plugin/skills/zensu-wargame/references/goal-contract.md",
@@ -1261,7 +1361,7 @@
     {
       "source": "src/plugin/skills/zensu-wargame/SKILL.md",
       "target": "skills/zensu-wargame/SKILL.md",
-      "sha256": "f91cff72dfbbec0cbc1c555e9f121a1e69a0534686e34ff8568a8ed0e1cfe2f0"
+      "sha256": "d0b12f23976113450ef40ea6c3e49ccc4760713a464ee4d396b2cc3ab71c55e8"
     },
     {
       "source": "src/plugin/skills/zensu-work/references/protocol.md",
@@ -1271,12 +1371,12 @@
     {
       "source": "src/plugin/skills/zensu-work/SKILL.md",
       "target": "skills/zensu-work/SKILL.md",
-      "sha256": "1f196b3bc8a98843ba5899e6cef94cb738c411a86a61e0ee3d88fffe3e91abb4"
+      "sha256": "ccd71e9b1d22328f771bf49278a4983b55407225fe6c15cacb19e4f34cfaa628"
     },
     {
       "source": "src/plugin/skills/zensu-zen-mode/SKILL.md",
       "target": "skills/zensu-zen-mode/SKILL.md",
-      "sha256": "57cbefc21451f074225d4c6d86345b22433d1c848e174e339d1be06cf7d5d432"
+      "sha256": "cfb8f275059dda87e74ff51fcca82413615e9603a9daa73f2168a06e943ee044"
     },
     {
       "source": "src/plugin/templates/autopilot-pr-body.md",

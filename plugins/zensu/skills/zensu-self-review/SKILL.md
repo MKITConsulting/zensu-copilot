@@ -20,6 +20,7 @@ This is the Copilot CLI edition. The procedures below use native tool schemas an
 - When this workflow requires native plan approval, first write the complete plan to the exact `plan.md` path supplied by Copilot for this session, using an exposed native file-editing tool. Include the full specification, acceptance criteria and any required run marker in that file. Never guess its path from cwd or treat a repository audit plan as the native approval file. If Copilot has not supplied the path, keep approval pending. Then call `exit_plan_mode` with a concise overview in its `summary` string; the summary does not replace the plan file. Only explicit acceptance starts implementation; feedback, cancellation, exit_only and successful transport do not constitute acceptance. The native human-response receipt must match this tool call and return the exact approved file bytes in `response.planContent`. Missing receipts leave approval pending; report the missing native acceptance and resume the native approval interaction when available. Never manufacture approval with an assistant command or flag.
 - The native dispatcher binds COPILOT_PLUGIN_ROOT, COPILOT_PLUGIN_DATA, COPILOT_SESSION_ID and COPILOT_PROJECT_DIR to each bash invocation. Never guess a session ID or use the latest session in a directory.
 - Run helper shell commands exactly as rendered. The native hook binds the Copilot session and installation; do not override those selectors.
+- The visible `# zensu-copilot-context-v1` header and following export line are inserted by the native hook. Submit only the original Bash command; never copy, reconstruct, strip or alter the injected binding, and do not repeat a successful command just because it appears in the transcript.
 - Use the native custom-agent review panel, with the complete evidence packet, configured aspects, judges, one-shot tickets and convergence engine.
 - Stop continuation is bounded by Copilot. If the host ends a turn with a pending chain, preserve the pending state and resume; never mark it complete to fit a limit.
 
@@ -59,7 +60,7 @@ survived; step 1 below adds what the worktree shows.
 ## What This Skill Does
 
 1. Lists the files you changed this session (conversation context + the
-   `/zensu-tdd` Phase 6 step 5b b) enumeration run UNCHANGED — a bare
+   canonical `review-packet-v1.js changes` enumeration — a bare
    `git diff` omits new untracked files, which would leave them unreviewed
    here too).
 2. Re-reviews each change across seven dimensions against the project conventions.
@@ -71,6 +72,10 @@ survived; step 1 below adds what the worktree shows.
 5. Owns the chain terminus: runs the standalone or exact Autopilot-bound
    `--chain-done` form for the current generation and renders the final report.
 
+## Continue one invocation
+
+Once this handoff is loaded, stay in this invocation until closure or an explicit blocker. An edit, a missing procedure, or evidence refresh is not a reason to invoke `/zensu-self-review` again. If an instruction is missing from context, use native `view` on the exact bounded reference listed below; do not reload the skill through the native `skill` tool. After the one fix round, continue with evidence refresh, the latch and the terminus in `references/fix-round.md` using the same captured ticket and bindings. Never restart Phases 1–3 to recover an instruction. A new host handoff after interruption still runs the generation guard and cannot grant another fix round.
+
 ## Generation guard
 
 The automatic handoff MUST include exactly one line
@@ -79,6 +84,15 @@ anything else. It is the generation token for every state mutation in this
 skill. If the line is missing, malformed, or ambiguous, do not run
 `--self-review-fixed` or `--chain-done`; report that the self-review handoff is
 unbound and let the Stop hook reconstruct the current handoff.
+
+Before reading project files, run the read-only terminal check:
+`COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --chain-report --claimed-review-ticket "<review-ticket>"`.
+If it returns `status: closed` with `nextAction: render-report-only`, this exact generation
+already finished. Render the existing recorded outcome and stop. Do not restart reflection,
+verification, fixes, another skill invocation or another terminus. Do not reinterpret a
+missing old report as permission to repeat the workflow; state any unavailable report detail
+as unverified. A rejected ticket or failed command stops this handoff without mutation.
+For `status: pending`, continue with the binding checks below.
 
 An Autopilot-bound handoff MUST additionally include exactly one complete
 official three-line envelope, with each line occurring exactly once:
@@ -118,346 +132,19 @@ Every bound command uses the same captured run/attempt/chain. A non-zero exit
 means this self-review belongs to a stale generation: stop without changing or
 finalizing the current chain.
 
-## Phase 1: List Changed Files
+## Execution references
 
-List every file you changed or created in this session. You know these from your
-own context — no parsing needed. Cross-check by running the `/zensu-tdd`
-Phase 6 step 5b b) enumeration UNCHANGED — resolve the bound project root with
-`PROJECT_ROOT="$(COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "$ROOT/hooks/lib/zensu-log.sh" --project-root)"`
-and `TOP="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"` HERE, never from
-the working directory, which after `/zensu-adopt-session --reanchor` is no longer
-the bound root, and require `[ -n "$PROJECT_ROOT" ] && [ -n "$TOP" ] && [ -d "$TOP" ]`
-before ANY `git -C "$TOP"` (an empty value makes `git -C ""` enumerate whatever
-repo the cwd happens to be; an unresolvable root takes 5b's no-work-tree branch,
-never an unanchored run) —
-then use `git -C "$TOP" -c core.quotePath=false diff --name-only HEAD` plus
-`git -C "$TOP" -c core.quotePath=false ls-files --others --exclude-standard`
-(without `core.quotePath=false` git C-quotes non-ASCII paths and no fixed-string
-comparison can match them), with 5b's unborn-HEAD
-form where HEAD does not exist yet AND its `[ -n "$BASELINE_SHA" ]`-guarded
-`git -C "$TOP" diff --name-only "$BASELINE_SHA"..HEAD` extension when this
-session committed mid-run — without that branch a mid-run commit empties both
-commands and this stage would skip itself as "no changes". If the union comes
-back empty while your own context names files you changed (the cold-start +
-mid-run-commit case, where no `BASELINE_SHA` survives), do NOT take the
-no-changes branch: review the files from context and say so in the summary.
-This catches files you created but never staged.
+Complete the generation guard above before reading project files. If it reports `closed`, render the recorded outcome and stop; do not load or execute the reflection/fix stages again. For a pending validated handoff, follow these bounded references in order:
 
-If there are NO changes this session, close only the verified generation. For a
-standalone handoff run
-`COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --chain-done --claimed-review-ticket "<review-ticket>"`.
-For an Autopilot-bound handoff run
-`COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --chain-done --autopilot-run "$RUN_ID" --autopilot-attempt "$ATTEMPT" --chain-id "$CHAIN_ID" --claimed-review-ticket "<review-ticket>" --outcome no-changes`.
-State "No changes — self-review skipped" only after the command succeeds. This
-branch is a chain terminus and carries the same disclosure duty as the Final
-report, so before stopping also run the `--bypass-list` command from the `## Open`
-section below and render its output as
-`Gates bypassed during this session: <output>`, under the same rules stated
-there. A gate escape needs no file change to be recorded — `ZENSU_MCP_GATE` is
-reachable without one — so a zero-change chain is
-exactly where an undisclosed escape would otherwise hide. Then stop. Every command uses Copilot's natively rendered `COPILOT_PLUGIN_ROOT`
-directly inside a quoted shell parameter; never paste its value into shell source.
+| Reference | Required stage | Read when |
+|---|---|---|
+| [references/reflection.md](references/reflection.md) | Phases 1–3: canonical change enumeration, seven-dimension review, findings ledger and acceptance evidence | After the generation and optional Autopilot binding checks pass |
+| [references/fix-round.md](references/fix-round.md) | Phase 4: at most one fix round, evidence refresh and generation-bound terminus | Reflection and the must-fix list are complete |
+| [references/report.md](references/report.md) | Final report, exact verdict disclosures and bypass-ledger rules | Rendering the final report, or the explicit no-change branch needs its bypass disclosure |
 
-## Phase 2: Analyze
+Read only the reference required by the current branch. Preserve the captured ticket, run log, bound root, baseline and any validated Autopilot envelope across these reads. Splitting instructions does not start another skill invocation or grant another fix round. Use native `view` on each exact path. If a read returns `File too large` or truncation, finish it using bounded `view_range` reads before acting; never treat an unread gate as optional.
 
-view the current content of each changed file with the view tool. view the project
-root `AGENTS.md` so you apply the governing conventions. Score each change on:
-
-- **Architecture**: does the approach fit the existing structure? Are better patterns available?
-- **Consistency**: does the code follow the patterns used elsewhere in the codebase?
-- **Edge-cases**: missing boundary conditions, error handling, or validation?
-- **Test coverage**: are the tests sufficient? Are scenarios missing?
-- **Security**: potential vulnerabilities (injection, missing auth checks, secret leakage)?
-- **Simplification**: unnecessary complexity that could be reduced?
-- **Conventions**: are the AGENTS.md rules honored (language, comments, watermarks)?
-
-## Phase 3: Report
-
-Structure the reflection as:
-
-- **Positive**: what was solved well.
-- **Improvements**: concrete suggestions with `file:line` references.
-- **Risks**: potential problems that were overlooked.
-
-Be honest and direct. If everything looks good, say so briefly. Do not invent
-problems where none exist.
-
-Classify each finding: a **must-fix** is a Risk that would ship a defect — a real
-bug, a security hole, or a broken convention the gate would reject. Everything else
-is advisory and is buffered into the final report, not fixed here.
-A CRITICAL finding from a re-review is a must-fix only when its FINDING REPRODUCTION line reads REPRODUCED,
-whenever the chain logged one for it; NOT-REPRODUCED and NOT-TESTABLE findings go to `## Open`.
-
-The review chain may have deferred findings instead of re-reviewing them, but only while
-`hooks.reviewConvergence` is enabled: resolve it against the `TOP` from Phase 1, because this
-bash carries no `COPILOT_PROJECT_DIR` and would otherwise skip the project config the review
-hook reads, with
-`ZENSU_ROOT="${COPILOT_PLUGIN_ROOT}" COPILOT_PROJECT_DIR="$TOP" bash -c 'source "$ZENSU_ROOT/hooks/lib/zensu-config.sh"; zensu_hook_enabled reviewConvergence && echo on || echo off'`,
-and on `off` skip this paragraph and add no ledger rows to `## Open`. On `on`, run
-`node "${COPILOT_PLUGIN_ROOT}/hooks/lib/review-ledger-v1.js" --report --log <run-log> --root "$TOP"`
-over the run log of the `/zensu-tdd` chain this stage closes: the log that chain has been
-writing to in this session, never a log resolved by recency. When that path is not known in
-this session, skip the ledger. On `status=ok` or `status=partial`, every entry in state
-`routed-unfixed` or `parked`, and every `deferred` entry rated IMPORTANT or CRITICAL, is a candidate;
-an entry carried from an earlier generation keeps its `G<g>:` prefix in every use.
-Before a candidate becomes a must-fix, `view` its cited region (`offset` = max(1, line − 10),
-`limit` = 25) and keep it only when that code still shows what its summary describes; an
-entry the region no longer supports, or one whose anchor is `-`, goes to `## Open` with that
-reason. A `parked` or `routed-unfixed` candidate the region still supports is a must-fix,
-whatever the must-fix bar above says: fix it in the one fix round below, and keep it in
-`## Open` only for a named blocker — the one fix round already spent, or a fix that needs a
-product decision. Fix every other must-fix the same way, or keep it in `## Open` with the
-reason it stays open. After a fix lands, append the same `FINDING LEDGER` line, with its id
-exactly as listed and the state `fixed`, through
-`COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" append --log <run-log> --message-stdin`
-fed by a heredoc whose delimiter is quoted, never through `--message`, so no finding text is
-shell-expanded and the report no longer lists it as open. When the log's secret scan refuses
-such a line, rewrite its summary without the value; never resend it with the
-`zensu-secret-allow` marker or `ZENSU_SECRET_SCAN=off`. `status=partial` also adds the
-`## Open` row `FINDINGS LEDGER PARTIAL — <reason>`; `status=degraded` adds no candidates and
-the row `FINDINGS LEDGER UNAVAILABLE — <reason>`.
-
-**Acceptance re-verification** (standalone handoffs only; an Autopilot-bound chain is not
-gated here, and its terminus line says whether its VALIDATE stage runs). Before you settle the
-must-fix list, run
-`COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --acceptance-status --log <run-log>`
-over the run log named in the paragraph above. Exit 0 means every active `AC-###`
-criterion has a `pass` on the current tree. Otherwise follow the remedy its summary line
-names, never the exit code alone. A `run:` segment means invoke `/zensu-verify-feature` with
-`--chain --log <run-log>` (read `{plugin_root}/skills/zensu-verify-feature/SKILL.md` with native view and execute it in this main thread with the stated input), which drives only the
-criteria that are `missing`, `stale` or `partial`. A `fix:` segment means a criterion fails
-on this tree: it is a must-fix candidate for the one fix round below, exactly like a `parked`
-ledger entry, and so is a criterion that verification returns as `fail` or `partial`. An
-`add:` or `restore:` segment, or a summary with no remedy (`unresolved`, `unavailable`), is
-not yours to verify away: carry it into the report and leave it to the user. A fix round that
-edits anything makes every record stale, so pass 2 of this stage runs this paragraph again.
-Never drive a criterion again while it already has a `fail` on the current tree and nothing
-was edited since. When the run-log path is not known in this session, skip this read: the
-terminus refuses with the remedy.
-
-## Phase 4: Fix Round or Finalize
-
-view the one-fix-round latch: `selfReviewFixed` in the session chain-state.
-
-- **If `selfReviewFixed` is false AND there is at least one must-fix finding** — take
-  EXACTLY ONE fix round, in this main thread, under the still-active PreToolUse
-  phase-gate. For each must-fix: RED test, then IMPL, then GREEN (re-enter the
-  `/zensu-tdd` Phase 4 discipline). In a vanilla-mode session — verify with
-  `COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --mode` (echoes `vanilla`) — apply each
-  must-fix directly instead: no RED→GREEN cycle required, the gate passes through.
-  Run every test, build or other project command of this round as
-  `cd "<project root>" && <command>`, where `<project root>` is the path `--project-root`
-  printed in Phase 1: the bash tool returns to the session's start directory, which after
-  `/zensu-adopt-session --reanchor` is not the bound root. `--evidence-run` needs no prefix.
-  Then log `{step_id} IMPL completed — files: {list}` for the fixes and re-run
-  the `/zensu-tdd` Phase 6 **step 1 full suite** over the amended tree through the
-  evidence runner:
-  `COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --evidence-run --scope full --cmd '<full test command>' --log <run-log>`
-  — this is the chain's last edit, so this is
-  the run whose verdict describes the tree that ships, and Phase 5 checkpoints are
-  scoped and cannot stand in for it.
-  **In CI mode** — `COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --full-suite-policy`
-  prints `full suite: ci` — run the Phase 6 affected-suite command instead:
-  `COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --evidence-run --scope scoped --cmd '<the tests affected by the change>' --log <run-log>`,
-  covering the suites of every file this chain changed, never `--scope full`: the
-  runner refuses it, and the repository's CI pull-request pipeline runs the full suite.
-  This stage is often forced cold and never ran `/zensu-tdd` Phase 1, so resolve the
-  suite command in THIS order. (1) `evidence.fullSuiteCommand` — when the project
-  configures it, drop `--cmd` and the runner uses it. (2) The project's own
-  metadata — `AGENTS.md`, `package.json` `scripts`. (3) Only if both yield nothing,
-  the `cmd:` of the newest `EVIDENCE RUN — scope=full` line in the run log (that log
-  resolved as the finalize branch below resolves it). Never the reverse: a run log
-  is COMMITTED in consuming repos and is selected here by mtime, so a command mined
-  from it is repository content you would be executing — and it is REDACTED
-  (`<project>`, `~`, `<home>`), so a command carrying a placeholder is not runnable
-  and counts as "yields nothing". When the metadata and the log disagree, run the
-  metadata one and log `FULL SUITE COMMAND MISMATCH — metadata={a} log={b}` into
-  `## Open`. When nothing yields a command, log `FULL SUITE UNRESOLVED — {reason}`,
-  carry it into `## Open` and claim NO test verdict. The runner's own summary line
-  is this run's verdict. Then
-  invoke the `/zensu-tdd` Phase 6 step 5b **native file editing Landing Audit** UNCHANGED —
-  when that procedure is not in your context, `view` it from
-  `${COPILOT_PLUGIN_ROOT}/skills/zensu-tdd/references/audit.md`, whose `{plugin_root}` is
-  `${COPILOT_PLUGIN_ROOT}`; re-invoking the `/zensu-tdd` skill is forbidden below —
-  writing its mandatory start marker as `EDIT LANDING AUDIT STARTED — round
-  self-review` (a label disjoint from `phase6` and `fix-{N}`, so its
-  round-scoped window covers exactly this round's claims). Re-derive the inputs here — this stage can be forced cold by the
-  Stop hook, so resolve `TOP` yourself and, when this session committed mid-run
-  but no `BASELINE_SHA` is available, take the audit's documented
-  `PENDING PREDICATE (no session baseline)` branch — clearable by a passing
-  step (d) predicate re-read, NOT the terminal `UNVERIFIED` — rather than
-  widening the enumeration. With no mid-run commit the ordinary union applies
-  and nothing degrades. A mechanical or bulk replacement
-  that matched nothing would otherwise leave the chain unnoticed. This stage
-  gets no second fix round, so the only terminus remedy for an unlanded claim
-  is `CLAIM WITHDRAWN — {step_id}: {file}` plus carrying every
-  `EDIT NOT LANDED` line into the CHAIN-END SUMMARY verbatim; never close the
-  chain as if the claim had landed. Then set the latch with
-  `COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --self-review-fixed --claimed-review-ticket "<review-ticket>"` and re-run
-  `/zensu-self-review` (pass 2 to confirm). The pass-2 invocation MUST carry the
-  same captured `SELF-REVIEW-TICKET: <review-ticket>` line again and, for a
-  bound handoff, the same captured official envelope exactly once:
-  `ZENSU-DELEGATED-CALLER: autopilot`,
-  `AUTOPILOT-BINDING: run=<runId> attempt=<attempt> chain=<chainId>`, and
-  `AUTOPILOT-STAGE: <returnStage>`. Do not re-read, re-derive, or omit either generation token or any envelope line. In this branch you MUST NOT:
-  - run `--tdd-complete` (implementation is already complete);
-  - spawn the `zensu:code-reviewer` agent — self-review is terminal, so do not spawn it;
-  - re-invoke the whole `/zensu-tdd` skill (its Phase 6 tail would re-spawn the reviewer).
-
-- **Otherwise** (no must-fix, OR `selfReviewFixed` is already true) — finalize:
-  1. Standalone handoffs keep the unqualified terminus: run `COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --chain-done --claimed-review-ticket "<review-ticket>"`. For a verified Autopilot binding, run `COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --chain-done --autopilot-run "$RUN_ID" --autopilot-attempt "$ATTEMPT" --chain-id "$CHAIN_ID" --claimed-review-ticket "<review-ticket>"`. This is the ticket- and generation-bound chain terminus, and it applies the full-suite gate: it prints a `FULL SUITE — <state> | …` line on stderr and refuses (exit 1) on a missing, red, running, interrupted or stale full-suite record — in CI mode on a missing, red, running, interrupted or stale local test run, and it passes as `deferred-ci` with a second `FULL SUITE — CI contract` line. On such a refusal the chain stays open: run the command its `run:` segment names, or wait for a `running` record to land, then run this step again. It applies the acceptance gate as well: it prints `ACCEPTANCE — <state> | …` lines and refuses while any active criterion lacks a `pass` on the current tree; on that refusal follow the remedy the line names: a `run:` segment means run `/zensu-verify-feature --chain` with the log it names, then this step again; a `fix:` segment means a criterion fails on this tree and needs the one fix round; an `add:` or `restore:` segment, or a refusal with no remedy, goes into your report and to the user. If the refusal is `failed` and the one fix round is already spent, do not edit again: carry the refusal line into your report, stop, and leave `ZENSU_FULL_SUITE_GATE` to the user. The same holds for a criterion that is still `fail` or `partial` after the spent round: carry the `ACCEPTANCE — …` refusal into your report, stop, and leave `ZENSU_ACCEPTANCE_GATE` to the user. Any other failure is stale: stop and do not render a successful final report.
-  2. **Carry the full-suite verdict.** Copy every `FULL SUITE — …` line the terminus
-     printed — the verdict, plus the `flaky` line and the gate-mode disclosure when
-     present — into the `Full suite` verdict cell verbatim. Copy every `ACCEPTANCE — …`
-     line the same way into the `Acceptance` verdict cell.
-  3. Render the final report (below), then stop.
-
-### Final report
-
-Render a CHAIN-END SUMMARY as TABLES, not prose: every section below is a table
-plus at most one line of text, never a paragraph — the sole exception is
-`## Open`, which ends with the bypass-ledger line followed, when it applies, by the
-converge offer. Keep it scannable — no restating, no narration of the process, no
-filler.
-
-Mark every status and verdict cell with a leading marker: 🟢 good (passed, clean, done, met), 🟡 attention (partial, advisory, skipped, not measured), 🔴 bad (failed, must-fix, dropped, contradicted, blocked, not landed, unverified, unresolved predicate, verification degraded, a gate bypassed), ⚪ not applicable — admissible ONLY where the source of the value itself says the item does not apply, which today means exactly one case: a requirement row the plan already marks deprecated. An outcome that was merely not run is 🟡, never ⚪. The marker PREFIXES the cell value and NEVER replaces it: every verbatim literal keeps its own words unchanged after its marker, subject only to the pipe-escaping rule below, which the renderer undoes so the reader still sees the original text. A marker never stands alone and is never separated from the words it marks by a line break. The ## Open table has no status or verdict column and takes no marker.
-
-Sections IN THIS ORDER, the TL;DR LAST (pull from your own context; do
-NOT re-spawn any agent):
-
-```
-## Problem
-Exactly ONE sentence: the feature, bug, or need this session addressed.
-
-## What I built
-Table, columns: # | Deliverable | Status | Link. One row per deliverable, max 15
-words per cell, Status is 🟢 done / 🟢 merged / 🟢 built-tested / 🔴 blocked, Link
-is a PR URL or `—`.
-
-Then a second table, columns: Check | Verdict, with exactly these rows — Feature,
-Files modified, Tests created, Full suite, Acceptance, Build, Coverage, native file editing landing,
-Finding verification, Gates bypassed, Plan, Log. (The delegate renderer also
-carries `Mtime audit` after `native file editing landing`; every other row and their order are
-shared.) Verdict cells are values, not
-sentences. Mark a cell when its value is a STATE; leave it unmarked when the value
-is a title, a path, or a bare count with no target — that is Feature, Files
-modified, Plan and Log, and every other row above is marked. A count measured
-AGAINST a target IS a state, so `{N}/{M} GREEN` and `{N}/{M} files >= {threshold}`
-take 🟢 when the target was met, 🔴 when it was not, 🟡 when the run was skipped.
-**Gates bypassed** takes 🟢 ONLY for the literal `none` read from a valid document
-and 🔴 for anything else, including a named escape, the `UNREADABLE — …` form and
-any wording this renderer does not recognize; it repeats the
-`## Open` bypass-ledger line rather than replacing it. Run the `--bypass-list`
-command from `## Open` ONCE before rendering this table and feed its output to
-both places — never substitute `none` for a value you did not read. **Finding verification**
-carries the `FINDING VERIFICATION — {n} verified, …` line and any
-`FINDING VERIFICATION DEGRADED — <reason>` line verbatim, 🔴 when a DEGRADED
-line is present or the unsupported or phantom count is non-zero (an
-off-changeset finding is not by itself a defect), 🟡 not run
-(hooks.findingVerification disabled) when the gate was skipped and emitted no
-line at all, and 🟢 only when the gate RAN and neither condition holds —
-never ⚪. Two further rows carry text VERBATIM and
-must never be dropped, paraphrased, or shortened: **native file editing landing** takes the step 5b
-close marker plus any `EDIT NOT LANDED` line and the `UNVERIFIED (no claims logged)`
-or unresolved `PENDING PREDICATE` close (those are NOT clean states, and both
-take 🔴, never 🟡) — a claimed edit
-that never produced a change must not vanish between the Phase 6 report and this
-summary; **Full suite** takes the `FULL SUITE — …` lines `--chain-done` printed
-(Phase 4 finalize step 2): 🟢 only for `pass`; 🟡 for `pass-tree-unverified`,
-`deferred-ci`, `not-applicable`, `not checked` and an advisory `missing`; 🔴 for every other
-state, advisory or not, including `escaped`. Both verbatim cells follow the `## Open` escaping rule
-(`\` first, then `|`), for the same reason: an unescaped pipe splits the row and
-the renderer drops the cells past the last column. **Acceptance** carries text VERBATIM
-under the same rule: the `ACCEPTANCE — …` lines `--chain-done` printed (Phase 4 finalize
-step 2), 🟢 only for `pass`; 🟡 for `pass-tree-unverified`, `not-applicable`,
-`not-checked` and an advisory `incomplete` that lists only missing criteria; 🔴 for
-every other state, advisory or not, including `escaped`.
-
-When the session plan carries a ## Requirements table, add a third table, columns:
-ID | Status, keyed by its stable IDs (AC-###/FR-###: 🟢 met / 🟡 partial /
-🔴 contradicted / 🔴 dropped / ⚪ deprecated). ⚪ is bound to PROVENANCE, never to
-judgement: use it only when that requirement row in the plan already carries
-that status. A requirement this session did not implement is 🔴 dropped even if it
-was retired mid-session. One row per requirement, no commentary. When the plan
-carries NO `## Requirements` table, omit the table and write the single line
-`🟡 Requirements: no ## Requirements table in the session plan — per-requirement
-status not tracked`, so an untracked chain never reads like a fully met one.
-
-## How I built it
-Exactly ONE line: the TDD discipline followed, the final zensu:code-reviewer verdict
-(PASS / suggestions-only / max-rounds reached), findings by severity, files reviewed.
-
-Then a table, columns: Round | Findings | Fixed | Result. One row per code-review
-round 1..N including rounds that fixed nothing; a round with ZERO findings reads
-🟢 `PASS — 0 findings, nothing to fix`, and a round that had findings never claims
-that literal. Mark each Result 🟢 for a clean round AND for
-an ordinary round whose findings were all fixed and re-verified, 🟡 for a max-rounds
-convergence that left findings open AND for a round whose findings were deliberately
-deferred as suggestions rather than fixed, 🔴 for a round whose fixes did not
-land. Always include the final clean verification
-round. Skip this section only if no review round ran at all.
-
-## Self-Review Summary
-Table, columns: Dimension | Verdict | Note. One row per reviewed dimension
-(architecture, consistency, edge-cases, test coverage, security, simplification,
-conventions), Verdict is 🟢 clean / 🟡 advisory / 🔴 must-fix, Note max 12 words. Close with
-ONE line: whether the single fix round ran and what it changed, and, when the findings
-ledger yielded candidates, how many of them this stage fixed without a re-review.
-
-## Open
-Table, columns: Item | Type | Next step. One row per deferred suggestion or
-max-rounds finding requiring a manual fix, one row per open findings-ledger entry
-(state `deferred`, `parked` or `routed-unfixed`, under the id the ledger lists, a
-`G<g>:` prefix included) when `hooks.reviewConvergence` is enabled and
-`review-ledger-v1.js --report` answers `status=ok` or `status=partial` — never a
-second row for an id already listed — plus the `FINDINGS LEDGER PARTIAL` or
-`FINDINGS LEDGER UNAVAILABLE` row the must-fix step names, one row per `FULL SUITE COMMAND MISMATCH`
-or `FULL SUITE UNRESOLVED` line, and one row per advisory `FULL SUITE —` line that
-did not pass, carrying that line verbatim under this escaping rule, applied in this order: first write every `\`
-as `\\`, then every `|` as `\|`. An unescaped pipe splits the row and the
-renderer drops the cells past the third, the very verdict clause the row
-exists to surface; the other order turns an already-escaped `\|`
-inside a shell command back into a delimiter. The same rule applies to every
-carried line in this report — the `Full suite`, `Acceptance` and `native file editing landing`
-verdict cells in `## What I built`. Add one row per advisory `ACCEPTANCE —` line that did
-not pass and one per `EXTERNAL REVIEW DEGRADED — …` line, each verbatim under the same rule.
-native file creation the single line `Nothing open.` only when that table has
-no rows at all, because a carried line is always a row.
-
-Always render the bypass-ledger audit line next, in both cases — whether or not
-the table has rows: run
-`COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-log.sh" --bypass-list` and render its output as
-`Gates bypassed during this session: <output>`. The verb echoes `none` only when
-it read a valid workflow document that recorded no escape; that is the ONLY
-spelling that may claim a clean ledger. On exit 3 it prints an `UNREADABLE — …`
-line on stdout, and that line is carried verbatim under the same ordered `\` then
-`|` escaping rule as every other carried line. On any OTHER non-zero exit —
-notably exit 2, session identity unavailable — stdout is EMPTY and the diagnosis
-went to stderr; render `UNREADABLE — <the stderr line>` there, never an empty
-value and never `none`. Never substitute `none` for a value you did not read: an
-unread ledger is not a clean ledger.
-
-This line covers the surfaces this stage renders. It is NOT a session-wide
-guarantee. The authoritative residual list is the "What the ledger does and does
-not prove" paragraph in `docs/configuration.md`; do not restate it here. The one
-residual that matters for THIS line: a workflow document that is edited but still
-schema-valid renders `none`, because validation is structural and the `bypasses`
-array carries no authenticity signal. Do not describe the ledger as proof that no
-gate was escaped — it is proof only of what a readable document recorded.
-
-Then, for a STANDALONE handoff only, when the session plan carries a
-`## Requirements` table, close `## Open` with ONE more line, exactly:
-`Optional next step: /zensu-converge — flow-back audit of the code against the plan's Requirements table.`
-It is an offer only — never run it unasked — and it never gates, delays, or
-precedes the `--chain-done` terminus, which already landed before this report
-renders. Omit the line entirely for an Autopilot-bound handoff:
-`/zensu-autopilot` runs converge report-only at its own step 2b and that run is
-non-interactive. Omit it too when the session plan carries no `## Requirements`
-table, because converge would have nothing to anchor on.
-
-## TL;DR
-Exactly ONE sentence, and it is the last section: what shipped and the test verdict.
-```
+The bound progress artifact's `Native workflow status` block tracks audit acceptance, review convergence and chain closure. Completion helpers own those rows. Do not add a duplicate `Chain close and final report` checkbox or claim report delivery before rendering. Read the current artifact before changing unrelated task rows, preserve blocked tasks, and carry any progress synchronization warning into the final report. Present the report in the assistant response after the terminus succeeds; the progress file records workflow state only.
 
 ## Strict Scope
 

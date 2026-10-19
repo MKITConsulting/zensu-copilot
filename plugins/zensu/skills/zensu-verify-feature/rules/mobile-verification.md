@@ -4,7 +4,7 @@ Loaded for rows whose driver is `mobile`. Simulators and emulators only: never a
 and never a simulator or emulator the user already has. The run creates or starts its own device,
 installs the worktree's build on it, and removes the device at teardown through the run-resource
 helper (`rules/drivers.md` section 5). Replace `<absolute-plugin-root>` with the concrete `ROOT`
-from `SKILL.md`.
+from `references/runtime.md`.
 
 ## 1. iOS family: iPhone, iPad, Apple Watch, Apple TV, Apple Vision Pro
 
@@ -82,7 +82,7 @@ is PARTIAL and names the missing tool.
   `content_size <category>` and `increase_contrast enabled|disabled`.
 - Push notifications, simulated location and media: `xcrun simctl push`, `location` and
   `addmedia`; read `xcrun simctl help <subcommand>` for their arguments.
-- A backend the app calls runs through the recipe (`SKILL.md` Phase 2). The simulator shares the
+- A backend the app calls runs through the recipe (`references/runtime.md` Phase 2). The simulator shares the
   Mac's network, so a loopback backend is reachable from the app; point the app at it through the
   launch argument, `SIMCTL_CHILD_` variable or build configuration the recipe names.
 - A build configured for a deployed backend contacts it at launch. Measured: an in-app purchase

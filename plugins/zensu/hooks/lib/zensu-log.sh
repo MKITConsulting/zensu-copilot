@@ -71,6 +71,13 @@ zensu_state_failure_hint() {
   esac
 }
 
+zensu_sync_workflow_progress() {
+  node "${COPILOT_PLUGIN_ROOT}/hooks/lib/workflow-artifacts-v1.js" sync --session "$1" >/dev/null || {
+    echo "WORKFLOW PROGRESS — unresolved; workflow evidence is unchanged, but the progress artifact could not be synchronized" >&2
+    return 1
+  }
+}
+
 # A chain terminus is a disclosure point: a gate escape needs no file change to
 # be recorded, so the zero-change spelling is exactly where one would otherwise
 # go unreported. The line goes to stderr, the operator channel every other
@@ -326,10 +333,44 @@ _zensu_acceptance_gate() {
   return 1
 }
 
+_zensu_terminal_edit_landing_gate() {
+  local session="$1" receipt state bound changes
+  if [ "${ZENSU_EDIT_LANDING_GATE:-on}" = "off" ]; then
+    tdd_record_bypass "$session" ZENSU_EDIT_LANDING_GATE >/dev/null 2>&1 || true
+    return 0
+  fi
+  receipt="$(tdd_edit_landing_receipt "$session")" || return 1
+  state="$(tdd_state_file "$session")" || return 1
+  # The legacy zero-change exception remains possible only without a bound
+  # execution log or receipt and with a positively observed empty change set.
+  if [ ! -e "$receipt" ] && [ ! -L "$receipt" ]; then
+    bound="$(ZEL_STATE="$state" node -e 'try { const s=JSON.parse(require("node:fs").readFileSync(process.env.ZEL_STATE,"utf8")); process.stdout.write(s.workflowArtifacts ? "bound" : "unbound"); } catch (_) { process.exit(1); }')" || return 1
+    changes="$(_zensu_unqualified_change_count "$COPILOT_PROJECT_DIR")"
+    if [ "$bound" = "unbound" ] && [ "$changes" = "0" ]; then return 0; fi
+  fi
+  if ! ZENSU_ELR_RECEIPT="$receipt" ZENSU_ELR_PROJECT_ROOT="$COPILOT_PROJECT_DIR" ZENSU_ELR_SESSION="$session" \
+    node "${COPILOT_PLUGIN_ROOT}/hooks/lib/edit-landing-receipt-v1.js" fresh; then
+    echo "zensu-log.sh --chain-done: the chain stays open; run the edit-landing audit for this generation with current predicate proofs, then retry closure." >&2
+    ZENSU_ELR_RECEIPT="$receipt" ZENSU_ELR_PROJECT_ROOT="$COPILOT_PROJECT_DIR" ZENSU_ELR_SESSION="$session" \
+      node "${COPILOT_PLUGIN_ROOT}/hooks/lib/edit-landing-receipt-v1.js" recovery >&2 || true
+    return 1
+  fi
+}
+
 _evr_dir=""
 _avr_dir=""
 
 case "${1:-}" in
+  --execution-start)
+    shift
+    node "${COPILOT_PLUGIN_ROOT}/hooks/lib/workflow-artifacts-v1.js" start "$@"
+    exit $?
+    ;;
+  --chain-report)
+    shift
+    node "${COPILOT_PLUGIN_ROOT}/hooks/lib/workflow-artifacts-v1.js" report "$@"
+    exit $?
+    ;;
   --evidence-run)
     evr_cmd=""
     evr_cmd_seen=false
@@ -2140,7 +2181,9 @@ case "${1:-}" in
             exit 2
           fi
           tdd_mark_impl_complete_standalone "$session_val"
-          exit $?
+          complete_rc=$?
+          [ "$complete_rc" -ne 0 ] || zensu_sync_workflow_progress "$session_val" || true
+          exit "$complete_rc"
         fi
         [ -n "$autopilot_run_val" ] && [ -n "$autopilot_attempt_val" ] && [ -n "$chain_id_val" ] || {
           echo "zensu-log.sh --tdd-complete: bound chain requires --autopilot-run, --autopilot-attempt, and --chain-id" >&2
@@ -2163,7 +2206,9 @@ case "${1:-}" in
         }
         IFS=$'\t' read -r complete_run complete_attempt complete_chain <<<"$complete_link"
         tdd_mark_impl_complete_bound "$session_val" "$complete_run" "$complete_attempt" "$complete_chain"
-        exit $?
+        complete_rc=$?
+        [ "$complete_rc" -ne 0 ] || zensu_sync_workflow_progress "$session_val" || true
+        exit "$complete_rc"
         ;;
       --review-ticket) tdd_issue_review_ticket "$session_val" ;;
       --current-review-ticket) tdd_claimed_review_ticket "$(tdd_state_file "$session_val")" ;;
@@ -2325,6 +2370,7 @@ case "${1:-}" in
                 (''|0|unknown)
                   if _zensu_full_suite_ticket_matches "$session_val" "$claimed_ticket_val"; then
                     chain_gate_rc=0
+                    _zensu_terminal_edit_landing_gate "$session_val" || chain_gate_rc=1
                     _zensu_full_suite_gate "$session_val" || chain_gate_rc=1
                     _zensu_acceptance_gate "$session_val" || chain_gate_rc=1
                     [ "$chain_gate_rc" -eq 0 ] || exit 1
@@ -2348,6 +2394,7 @@ case "${1:-}" in
               [ -n "$_avg_lines" ] && printf '%s\n' "$_avg_lines" >&2
             else
               chain_change_count="$(_zensu_unqualified_change_count "$COPILOT_PROJECT_DIR")"
+              _zensu_terminal_edit_landing_gate "$session_val" || exit 1
               tdd_mark_unclaimed_review "$session_val" chainDone "$chain_change_count" || {
                 chain_done_rc=$?
                 [ "$chain_done_rc" -eq 4 ] || {
@@ -2364,6 +2411,8 @@ case "${1:-}" in
             fi
           fi
           zensu_render_terminus_bypasses "$session_val"
+          zensu_sync_workflow_progress "$session_val" || true
+          echo "CHAIN CLOSED — render-report-only for this generation; do not reinvoke self-review or reopen it."
           exit 0
         fi
         [ -n "$autopilot_run_val" ] && [ -n "$autopilot_attempt_val" ] && [ -n "$chain_id_val" ] || {
@@ -2394,6 +2443,7 @@ case "${1:-}" in
           pass)
             if [ "$claimed_ticket_seen" != "true" ] \
               || _zensu_full_suite_ticket_matches "$session_val" "$claimed_ticket_val"; then
+              _zensu_terminal_edit_landing_gate "$session_val" || exit 1
               _zensu_full_suite_gate "$session_val" || exit 1
               _zensu_acceptance_gate "$session_val" 1 "$(_zensu_autopilot_validate_option "$done_run")" || exit 1
             fi
@@ -2415,6 +2465,8 @@ case "${1:-}" in
           [ -n "$_fsg_lines" ] && printf '%s\n' "$_fsg_lines" >&2
           [ -n "$_avg_lines" ] && printf '%s\n' "$_avg_lines" >&2
           zensu_render_terminus_bypasses "$session_val"
+          zensu_sync_workflow_progress "$session_val" || true
+          echo "CHAIN CLOSED — render-report-only for this generation; do not reinvoke self-review or reopen it."
         fi
         exit "$chain_done_rc"
         ;;
@@ -2494,6 +2546,9 @@ case "${1:-}" in
         ;;
     esac
     state_verb_rc=$?
+    if [ "$state_verb_rc" -eq 0 ] && [ "$verb" = "--code-review-done" ]; then
+      zensu_sync_workflow_progress "$session_val" || true
+    fi
     [ "$state_verb_rc" -eq 0 ] || zensu_state_failure_hint "$verb" "$session_val"
     exit "$state_verb_rc"
     ;;

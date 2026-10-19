@@ -61,8 +61,17 @@ when review fixes have made earlier records stale. All three reviewer agents use
 
 #### Native review orchestration
 
-1. Follow `/zensu-tdd`'s review phase to construct `REVIEW PACKET v1` from the
-   current change set and the completed evidence audits. Spawn the selected
+1. Follow `/zensu-tdd`'s review phase. `review-packet-v1.js changes` enumerates the
+   baseline, working tree, index and untracked paths once. Its `create` command
+   validates the edit-landing receipt and writes one immutable hashed evidence
+   packet under `.zensu/reviews`. Pass the printed `REVIEW-PACKET` reference; the
+   native hook validates the current tree and session-bound edit receipt, then
+   injects identical bytes for every dispatch. Native synchronous completions are
+   recorded privately by generation, round, packet hash and exact dispatch
+   identity; a model-authored success claim cannot satisfy the primary-judge gate.
+   Outside Git, an explicit session change list is bound to bounded file-content
+   snapshots instead. This mode discloses its limited inventory and provides no
+   repository-wide diff or Git tree proof; the required native judge still runs. Spawn the selected
    `zensu:review-aspect` agents through Copilot's exposed native `task` tool, with
    a unique `name`, `description`, `prompt`, and the exact `agent_type` selector.
 2. Collect each actual completion. A dispatch, a task id, or an accepted background
@@ -71,11 +80,18 @@ when review fixes have made earlier records stale. All three reviewer agents use
 3. Merge the aspect findings in the main thread and run the configured
    `zensu:review-judge` pass. When enabled for the first review,
    `hooks.reviewJudgeSecondRun` adds a second independent judge. Preserve each
-   finding's provenance and any unavailable reviewer result.
-4. Apply the Finding Verification Gate against the actual source. Then obtain the
+   finding's provenance and any unavailable reviewer result. An enabled primary
+   judge must actually complete for the current packet; retry a failed or invalid
+   primary once, then leave the chain incomplete if unavailable. A successful
+   additive second judge does not substitute for the primary.
+4. Apply the Finding Verification Gate against the actual source using
+   `finding-verify-v1.js --input <JSON file>`; findings are JSON data, never shell
+   heredoc content. Count every finding and retain any degraded verification. Then obtain the
    chain's review ticket and dispatch the consume-mode `zensu:code-reviewer` with
    the validated merged report. Its native task completion drives the counted
-   review round. The plugin does not treat an arbitrary final message as a ticket.
+   review round. The reviewer reports quality/severity only; the native hook
+   derives the sole next-action directive from effective policy and round budget.
+   The plugin does not treat an arbitrary final message as a ticket.
 5. Follow the configured fix loop and `/zensu-self-review` handoff. Completion still
    requires the full-suite and acceptance gates. The `agentStop` backstop can
    resume unfinished work; it never proves that a failed reviewer succeeded.
