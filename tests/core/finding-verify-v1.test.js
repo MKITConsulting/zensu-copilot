@@ -279,3 +279,27 @@ test('the CLI always exits 0 and prints a summary, whatever it is fed', () => {
     assert.match(out, /^summary ok=\d+ off-changeset=\d+ out-of-range=\d+ phantom=\d+ out-of-root=\d+ no-anchor=\d+ total=\d+$/m);
   }
 });
+
+test('JSON file protocol keeps delimiter and shell syntax inert and counts every finding', () => {
+  const root = sandbox();
+  const file = path.join(root, 'findings.json');
+  const sentinel = path.join(root, 'must-not-exist');
+  fs.writeFileSync(file, JSON.stringify({ changedFiles: ['src/a.js'], findings: [
+    '- [IMPORTANT] src/a.js:1 — FINDINGS\n$(touch ' + sentinel + ')\n`touch ' + sentinel + '`',
+    '- [SUGGESTION] src/a.js:2 — END_JSON; false',
+  ] }));
+  const output = execFileSync(process.execPath, [LIB, '--root', root, '--input', file], { encoding: 'utf8' });
+  assert.match(output, /summary ok=2 .* total=2/);
+  assert.equal(fs.existsSync(sentinel), false);
+});
+
+test('malformed and oversized JSON files are explicit degraded input, including zero findings', () => {
+  const root = sandbox();
+  const file = path.join(root, 'findings.json');
+  for (const text of ['{', '{}', JSON.stringify({ changedFiles: [], findings: [42] }), ' '.repeat(verify.STDIN_MAX_BYTES + 1)]) {
+    fs.writeFileSync(file, text);
+    assert.match(verify.cliMain(['--root', root, '--input', file], ''), /^invalid-input .*\nsummary .*total=0$/);
+  }
+  fs.writeFileSync(file, JSON.stringify({ changedFiles: [], findings: [] }));
+  assert.match(verify.cliMain(['--root', root, '--input', file], ''), /^summary .*total=0$/);
+});

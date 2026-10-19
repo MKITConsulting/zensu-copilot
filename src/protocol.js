@@ -151,10 +151,39 @@ function searchCalls(name, input, errors) {
   return [...new Set(roots.filter(safeIdentity))].map(root => ({ toolName: name, toolArgs: { ...input, paths: [root] } }));
 }
 
+function rgArguments(input, errors) {
+  // Native rg is the host's grep alias, not a shell command. Keep its bounded
+  // read-only schema explicit before giving it the existing grep policies.
+  const booleans = new Set(['-i', '-n', 'multiline']);
+  const counts = new Set(['-A', '-B', '-C', 'head_limit']);
+  const filters = new Set(['glob', 'include', 'exclude']);
+  for (const [key, value] of Object.entries(input)) {
+    if (key === 'paths' || key === 'pattern') continue; // searchCalls validates these.
+    if (booleans.has(key)) {
+      if (typeof value !== 'boolean') errors.push('rg-read-flag-invalid');
+    } else if (counts.has(key)) {
+      if (!Number.isSafeInteger(value) || value < 0) errors.push('rg-read-count-invalid');
+    } else if (filters.has(key)) {
+      const values = Array.isArray(value) ? value : [value];
+      if (!values.length || values.length > MAX_SEARCH_ROOTS || values.some(item => !safeIdentity(item))) errors.push('rg-path-filter-invalid');
+    } else if (key === 'type') {
+      if (!safeIdentity(value)) errors.push('rg-file-type-invalid');
+    } else if (key === 'output_mode') {
+      if (!['content', 'files_with_matches', 'count'].includes(value)) errors.push('rg-output-mode-invalid');
+    } else errors.push('unsupported-rg-argument');
+  }
+}
+
 function normalizeTool(name, rawArgs) {
   const errors = [];
   const input = name === 'apply_patch' && typeof rawArgs === 'string' && rawArgs.startsWith('*** Begin Patch')
     ? { patch: rawArgs } : readArgs(rawArgs, errors);
+  if (name === 'rg') {
+    rgArguments(input, errors);
+    // Only the policy view is canonicalized. The host executes its original rg
+    // call; no command, arguments or permissions are rewritten here.
+    name = 'grep';
+  }
   let calls = [];
   if (!nonempty(name)) errors.push('tool-name-missing');
   if (LEGACY_TOOLS.has(name)) errors.push('unsupported-host-tool');

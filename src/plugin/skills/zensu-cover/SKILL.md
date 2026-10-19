@@ -20,6 +20,7 @@ This is the Copilot CLI edition. The procedures below use native tool schemas an
 - When this workflow requires native plan approval, first write the complete plan to the exact `plan.md` path supplied by Copilot for this session, using an exposed native file-editing tool. Include the full specification, acceptance criteria and any required run marker in that file. Never guess its path from cwd or treat a repository audit plan as the native approval file. If Copilot has not supplied the path, keep approval pending. Then call `exit_plan_mode` with a concise overview in its `summary` string; the summary does not replace the plan file. Only explicit acceptance starts implementation; feedback, cancellation, exit_only and successful transport do not constitute acceptance. The native human-response receipt must match this tool call and return the exact approved file bytes in `response.planContent`. Missing receipts leave approval pending; report the missing native acceptance and resume the native approval interaction when available. Never manufacture approval with an assistant command or flag.
 - The native dispatcher binds COPILOT_PLUGIN_ROOT, COPILOT_PLUGIN_DATA, COPILOT_SESSION_ID and COPILOT_PROJECT_DIR to each bash invocation. Never guess a session ID or use the latest session in a directory.
 - Run helper shell commands exactly as rendered. The native hook binds the Copilot session and installation; do not override those selectors.
+- The visible `# zensu-copilot-context-v1` header and following export line are inserted by the native hook. Submit only the original Bash command; never copy, reconstruct, strip or alter the injected binding, and do not repeat a successful command just because it appears in the transcript.
 - Use the native custom-agent review panel, with the complete evidence packet, configured aspects, judges, one-shot tickets and convergence engine.
 - Stop continuation is bounded by Copilot. If the host ends a turn with a pending chain, preserve the pending state and resume; never mark it complete to fit a limit.
 
@@ -149,7 +150,7 @@ itself, and runs them one at a time where the probe reports a shared test DB or 
    through a single `zensu:code-reviewer` spawn, and fix the findings in-thread. Give each
    `zensu:review-aspect` spawn and the `zensu:code-reviewer` spawn the same `REVIEW PACKET v1`
    that `/zensu-tdd` step 10.2c defines
-   (`${COPILOT_PLUGIN_ROOT}/skills/zensu-tdd/references/review-chain.md`), including its rule for a
+   (`${COPILOT_PLUGIN_ROOT}/skills/zensu-tdd/references/review-packet.md`), including its rule for a
    review that did not run Phase 6. This skill fills these fields:
    - `requirements_baseline`: the `AC-###` IDs resolved under `--from-acs`, each deprecated
      one marked as such, else `none`.

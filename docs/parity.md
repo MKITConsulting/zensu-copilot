@@ -2,7 +2,7 @@
 
 The baseline is Zensu Claude Code **0.27.0**, commit
 `65d6aba7e3f6c0d98af2a02c9b4854c1f0c78980`. The build retains all 32 skill
-entry points and six specialist agents. Version 0.2.0 owns and directly implements the workflow engine against native
+entry points and six specialist agents. Version 0.2.1 owns and directly implements the workflow engine against native
 Copilot contracts; no source-host adapter is built or loaded. Retained workflow instructions are not evidence that a
 live Copilot run has satisfied every acceptance criterion.
 
@@ -177,6 +177,49 @@ direct native panels for review; upstream Claude E2E/Promptfoo runs do not
 validate this port.
 
 ## Evidence levels
+
+Native workflow reliability uses owned Copilot helpers:
+
+- `review-packet-v1.js` enumerates the cumulative change set and creates one
+  immutable evidence packet. The native dispatcher injects identical canonical
+  bytes into each reviewer call; reviewer-specific metadata stays outside it.
+- The required primary judge must complete on that generation, round and tree
+  before consume review. An additive second judge or a successful launch cannot
+  satisfy this stage. Disabled-judge and lean-panel rules remain explicit.
+  Session Control supplies the authoritative project anchor even when the native
+  host retains its original working directory after reanchoring.
+- Finding verification accepts a JSON file, so finding text is not shell input.
+  Quality verdicts describe findings; the native post-review hook supplies the
+  workflow route under the effective severity policy.
+- Execution-start and terminal helpers reconcile the bound progress artifact.
+  A closed-generation result is report-only; it never grants new review work or
+  converts unverified tests into completion evidence.
+- Edit-landing receipts retain the generation's append-only claims, original
+  audit context and file snapshots, including after failed audits. Current
+  literal predicates and file hashes can resolve pending claims; omitting
+  arguments cannot clear them. Terminal closure requires a clean, current
+  receipt. An active authoritative native session refuses an omitted `--session`
+  before grading, with an exact quoted recovery command. This refusal validates
+  the existing native session record without adopting or promoting an identity.
+  Standalone audits outside active workflows disclose that they write no workflow
+  receipt; read-only inventory remains available separately.
+- Copied shell-binding comments are safely rebound before policy checks.
+  Complete native export blocks are recognized exactly; ordinary command bytes
+  remain intact and incomplete protected-selector exports are refused.
+- Verification loads bounded reference files and permits one observed acceptance
+  run to support several separately recorded criteria on the same current tree.
+  Synthetic diagnostics are allowlisted; raw subject/network output remains
+  suppressed.
+- Audit, review-chain and terminal self-review instructions also use bounded
+  references. Native startup explains how to continue a size-limited `view`
+  through explicit line ranges; successful transport alone is not a full read.
+- Copilot's observed `rg` alias is validated against its read-only argument schema
+  and uses the same policy checks as `grep`. Its native execution and arguments
+  are preserved; private paths, traversal and evidence leases keep their limits.
+
+These are native implementation contracts. Their fixture and live results are
+recorded separately; shared-source audits of other ports do not certify those
+hosts or change their installations.
 
 - **Packaged:** all 32 native skills, six agents and 11 event registrations;
   source files are copied without transformations and the build works without

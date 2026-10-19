@@ -1,0 +1,81 @@
+{
+  "schema": "zensu.copilot-workflow-retest-plan.v1",
+  "status": "complete-native-workflow-passed",
+  "originalBaselineCommit": "1f1d96a026b1f63f716518f185e4cb2119c94c10",
+  "originalAudit": "../copilot-workflow-2026-10-19.json",
+  "sameAcceptanceCriteria": [
+    "AC-001",
+    "AC-002",
+    "AC-003",
+    "AC-004"
+  ],
+  "pluginSelection": {
+    "cli": "GitHub Copilot CLI 1.0.98",
+    "flag": "--plugin-dir <frozen-run-directory>/plugin/zensu",
+    "processEnvironment": {
+      "COPILOT_PLUGIN_DIR_ONLY": "true",
+      "COPILOT_AUTO_UPDATE": "false"
+    },
+    "reason": "Different cache paths can load duplicate hooks even when both manifests use the same plugin name. Explicit plugin-only discovery selects just the frozen patched payload.",
+    "preflightObservation": "Local CLI plugin list --json reported installed zensu disabled for the process and external zensu enabled. No persisted enable/disable command was used.",
+    "officialSources": [
+      "https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/plugin-directories",
+      "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference"
+    ]
+  },
+  "requiredEvidence": [
+    "fresh session identity and hook captures rooted only in frozen plugin",
+    "actual implementation in unchanged baseline project",
+    "full five-aspect native review panel with completed results",
+    "substantive primary and independent additive judge results",
+    "deterministic finding verification and native ticket-bound consume review",
+    "policy-correct terminal self-review and successful bound chain close",
+    "current-tree canonical suite and four live acceptance verdicts",
+    "independent packaged consumer assertions",
+    "unchanged frozen plugin, marketplace installation and monitored global configuration"
+  ],
+  "notClaimed": [
+    "live pass before model execution",
+    "all-plugins parity",
+    "CLI backend validation",
+    "unsupported post-self-review panel rerun"
+  ],
+  "otherHosts": {
+    "Antigravity": "attempted; blocked by host quota before model execution",
+    "Codex": "blocked before launch by installed plugin root/session safety preflight",
+    "Kiro": "not launched; account is null",
+    "Standalone Zensu CLI": "not applicable to local invoice implementation/review workflow",
+    "Claude source": "read-only inspection complete; no live launch"
+  },
+  "activeRun": {
+    "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w",
+    "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+    "frozenBuildSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076",
+    "startedAt": "2026-10-19T20:02:09.187259+00:00",
+    "status": "passed",
+    "finishedAt": "2026-10-19T20:46:06.534460+00:00",
+    "analysis": "final-native-analysis.json",
+    "observations": "final-run-observations.json"
+  },
+  "historicalRuns": [
+    {
+      "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0",
+      "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+      "checkpoint": "first-package-checkpoint.json",
+      "nativeAnalysis": "first-native-analysis.json",
+      "nativeStatus": "failed-workflow-app-acceptance-passed"
+    },
+    {
+      "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-azixytvp",
+      "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+      "checkpoint": "second-package-checkpoint.json",
+      "nativeAnalysis": "second-native-analysis.json",
+      "nativeStatus": "interrupted-superseded"
+    }
+  ],
+  "controllerPostRunFix": {
+    "report": "harness-pwd-fixture.json",
+    "appliedAfterNativeExit": true,
+    "fourthNativeRun": false
+  }
+}

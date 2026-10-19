@@ -1,0 +1,78 @@
+{
+  "schema": "zensu.cross-host-live-audit.v1",
+  "host": "Antigravity CLI 1.4.2",
+  "status": "blocked-host-quota-before-model-execution",
+  "root": "/private/tmp/zensu-cross-host-agy-10h2m6qs",
+  "sessionId": "fc1e88ba-5f57-4047-b896-678fc9bc2123",
+  "result": {
+    "conversation_id": "fc1e88ba-5f57-4047-b896-678fc9bc2123",
+    "status": "ERROR",
+    "response": "",
+    "error": "Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 145h48m26s.",
+    "duration_seconds": 11.461955,
+    "num_turns": 1,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "thinking_tokens": 0,
+      "cache_read_tokens": 0,
+      "total_tokens": 0
+    }
+  },
+  "state": {
+    "active": false,
+    "vanilla": false,
+    "implComplete": false,
+    "chainDone": false,
+    "codeReviewDone": false,
+    "selfReviewFixed": false,
+    "workflowActive": false,
+    "workflowTools": [],
+    "bypasses": [],
+    "reviewTicket": "",
+    "reviewTicketConsumed": true,
+    "reviewRound": 0,
+    "stopBlockCount": 0,
+    "deferredReviewClaim": "",
+    "phase": "UNINITIALIZED",
+    "step_id": "",
+    "history": [],
+    "schema": "zensu.workflow-state",
+    "schema_version": 1,
+    "session_id_hash": "sha256:721642e3fce69656287a78d9d44b0e1a59c64bdaf7a617ce9cb1c74f542c1cfe",
+    "workflow_state": "idle",
+    "revision": 1,
+    "last_event": "session-start",
+    "updated_at": "2026-10-19T18:54:11.901Z",
+    "actor": "main-v1"
+  },
+  "trackedProjectStatus": "",
+  "globalConfigurationUnchanged": true,
+  "sampledInstalledFilesUnchanged": true,
+  "exit": {
+    "exitCode": 3,
+    "elapsedSeconds": 19.39
+  },
+  "scope": {
+    "sameInvoiceAcceptanceCriteria": 4,
+    "implementationAttempted": false,
+    "reviewAttempted": false,
+    "pluginBootstrapObserved": true,
+    "notClaimed": [
+      "implementation pass",
+      "review pass",
+      "chain completion",
+      "resolved implementation mode"
+    ]
+  },
+  "artifacts": [
+    "prompt.txt",
+    "command.json",
+    "output.jsonl",
+    "agy.log",
+    "hooks.log",
+    "hook-decisions.jsonl",
+    "installed-plugin.json",
+    "global-hashes-before.json"
+  ]
+}

@@ -31,6 +31,8 @@ test('packaged native startup registers a real copilot host and keeps sessions i
   const f = fixture(t);
   const result = f.run('sessionStart', { source: 'startup' });
   assert.match(result.additionalContext, /Copilot/);
+  assert(result.additionalContext.includes(native.SHELL_BINDING_NOTICE));
+  assert(result.additionalContext.includes(native.NATIVE_READ_NOTICE));
   assert.doesNotMatch(result.additionalContext, /runtime failed|Zensu .*exit [1-9]|session-control adapter:/);
   const records = path.join(f.env.COPILOT_PLUGIN_DATA, 'session-control/v1/records');
   const first = JSON.parse(fs.readFileSync(path.join(records, fs.readdirSync(records)[0]), 'utf8'));
@@ -47,9 +49,32 @@ test('native bash binding runs a native session helper and preserves shell comma
   const result = f.run('preToolUse', { toolName: 'bash', toolArgs: { command } });
   assert.notEqual(result.permissionDecision, 'deny', result.permissionDecisionReason);
   assert.equal(native.unbindShell(result.modifiedArgs.command), command);
+  // Both a complete binding and a copied comment alone are safely rebound.
+  const rebound = f.run('preToolUse', { toolName: 'bash', toolArgs: { command: result.modifiedArgs.command } });
+  assert.equal(rebound.modifiedArgs.command, result.modifiedArgs.command);
+  const recovered = f.run('preToolUse', { toolName: 'bash', toolArgs: {
+    command: '# zensu-copilot-context-v1\nprintf stale',
+  } });
+  assert.equal(recovered.permissionDecision, undefined);
+  assert.equal(native.unbindShell(recovered.modifiedArgs.command), 'printf stale');
   const execution = spawnSync('bash', ['-c', result.modifiedArgs.command], { env: f.env, cwd: f.project, encoding: 'utf8' });
   assert.equal(execution.status, 0, execution.stderr);
   assert.match(execution.stdout, /scv1_[a-f0-9]{64}/);
+});
+
+test('copied shell headers preserve ordinary exports and reject partial protected bindings', () => {
+  const header = '# zensu-copilot-context-v1\n';
+  const command = "export TASK_LABEL='hello world'\nprintf '%s\\n' \"$TASK_LABEL\"\n";
+  assert.equal(native.unbindShell(header + command), command);
+  for (const partial of ['export', 'export   ', "export COPILOT_SESSION_ID='foreign'", 'export PLUGIN_ROOT',
+    "export TASK_LABEL='ok' ZENSU_RUNTIME_HOST='foreign'"]) {
+    assert.throws(() => native.unbindShell(header + partial + '\nprintf x'), /Malformed session binding/);
+  }
+  const context = { pluginRoot: "/tmp/plugin's root", pluginData: '/tmp/data', sessionId: 'old-session', cwd: '/tmp/project', copilotHome: '/tmp/copilot' };
+  assert.equal(native.unbindShell(native.shellBinding(context, command)), command);
+  const fresh = native.shellBinding({ ...context, sessionId: 'current-session' }, native.unbindShell(native.shellBinding(context, command)));
+  assert.match(fresh, /COPILOT_SESSION_ID='current-session'/);
+  assert.doesNotMatch(fresh, /old-session/);
 });
 
 test('actual policy blocks reviewer writes and protects private runtime data', t => {

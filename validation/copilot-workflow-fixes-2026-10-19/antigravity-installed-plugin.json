@@ -1,0 +1,14 @@
+{
+  "root": "/Users/marcelkarras/.gemini/config/plugins/zensu",
+  "version": "0.2.0",
+  "files": {
+    "plugin.json": "b88c950444b6681578d982fee6f2fc2a915b7f5c675ac9386e7321710206b54f",
+    "skills/tdd/SKILL.md": "0445d50099b007e389c0c8e61a6f0c83caec40a4bb1ade3f16f20250e3cf490c",
+    "skills/tdd/references/review-chain.md": "22ad3fa72ca910a0cb8c0515cb1fe09f38256a5075f99ec9d524f2762e81a798",
+    "skills/tdd/references/native-reviewers.md": "660f7e0f518dd8b0bf0b7fb5a5177174c6fc1f19830bc78693fdd69a8e5d40e2",
+    "skills/verify-feature/SKILL.md": "88cd73279b409060c4dca610f1e806474de5db8b52919372f9d55644e4bd0c4e",
+    "skills/self-review/SKILL.md": "d19fbc244e5329586e91ed1ddb229ac18d220a4f30debb05f72a0bd4a76ca7d8",
+    "hooks/antigravity/native-review.js": "e58b22cdfd65450836dddd7c758cf4ffe1873147032f9a4864b980e61e986e50",
+    "hooks/lib/zensu-log.sh": "e27b08369ae94593147795c58024fd950eaf38253ebf1bc46a92ef9e800c7509"
+  }
+}

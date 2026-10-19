@@ -1,0 +1,359 @@
+{
+  "schema": "zensu-installed-host-preflight-v1",
+  "generatedAt": "2026-10-19T18:55:14.730541+00:00",
+  "host": "codex",
+  "status": "blocked-before-live-launch",
+  "installedPluginRoot": "/Users/marcelkarras/.codex/plugins/cache/zensu/zensu/0.3.2",
+  "installedVersion": "0.3.2",
+  "installedSkills": [
+    "autopilot",
+    "bootstrap",
+    "ghost-scan",
+    "implement",
+    "plan-review",
+    "pr-fix-findings",
+    "pr-team-review",
+    "pulse",
+    "reset-review-limit",
+    "security-review",
+    "self-review",
+    "tdd",
+    "zensu-help"
+  ],
+  "installedSkillCount": 13,
+  "installedAgents": [
+    "zensu-code-reviewer.toml",
+    "zensu-plm.toml",
+    "zensu-review-aspect.toml"
+  ],
+  "requestedSpec": {
+    "sameFunctionalSpecAs": "/private/tmp/zensu-workflow-live-z3lbjucv/prompt.txt",
+    "baselineCommit": "1f1d96a026b1f63f716518f185e4cb2119c94c10",
+    "expectedACCount": 4
+  },
+  "launch": null,
+  "implementationRan": false,
+  "reviewsRan": false,
+  "chainClosed": false,
+  "blockers": [
+    {
+      "id": "CODEX-INSTALLED-ROOT-SHARED",
+      "reason": "Registered SessionStart pulse reads and conditionally overwrites the shared HOME/.zensu/plugin-root selector before the pulseSession enable check. The installed tdd skill requires reading that selector and using it for every subsequent helper call. Starting this installed workflow cannot establish compliance with the requested no-global-changes/no-Claude-access boundary without changing or bypassing its root-selection contract.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/.codex/plugins/cache/zensu/zensu/0.3.2/hooks/session-start-pulse.sh",
+          "lines": [
+            5,
+            14
+          ],
+          "text": "5: : \"${CLAUDE_PLUGIN_ROOT:=${ZENSU_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-$(cd \"$(dirname \"$0\")/..\" && pwd)}}}\"\n6: source \"${CLAUDE_PLUGIN_ROOT}/hooks/lib/zensu-config.sh\"\n7: \n8: mkdir -p \"$HOME/.zensu\"\n9: current=\"$(cat \"$HOME/.zensu/plugin-root\" 2>/dev/null || true)\"\n10: if [ \"$current\" != \"$CLAUDE_PLUGIN_ROOT\" ]; then\n11:   printf '%s\\n' \"$CLAUDE_PLUGIN_ROOT\" > \"$HOME/.zensu/plugin-root\"\n12: fi\n13: \n14: zensu_hook_enabled pulseSession || exit 0"
+        },
+        {
+          "path": "/Users/marcelkarras/.codex/plugins/cache/zensu/zensu/0.3.2/skills/tdd/SKILL.md",
+          "lines": [
+            155,
+            159
+          ],
+          "text": "155: ## Phase 0: Pre-flight\n156: \n157: 1. **Resolve plugin root once.** Run `bash -c 'cat \"$HOME/.zensu/plugin-root\"'` via the Bash tool and store its trimmed output (no trailing newline) as `{PLUGIN_ROOT}` for the entire session. Use `{PLUGIN_ROOT}` in ALL subsequent helper invocations: `bash {PLUGIN_ROOT}/hooks/lib/zensu-log.sh \u2026`. If the command exits non-zero or the output is empty, abort with: `FATAL: plugin root unresolvable \u2014 run a fresh session to trigger SessionStart hook AND ensure hooks.pulseSession is not set to false in ~/.zensu/config.json`. **Never search the filesystem** for the helper; the SessionStart hook (`hooks/session-start-pulse.sh`) is the single source of truth for the plugin-root path.\n158: 2. Run `date +%Y-%m-%d-%H%M` \u2192 store as `{SESSION_TS}` for all filenames. Additionally capture `SESSION_EPOCH=$(date +%s)` and keep it for the entire TDD session \u2014 the log helper consumes it for `relative` timestamp style.\n159: 3. **Activate the TDD session.** Run `bash {PLUGIN_ROOT}/hooks/lib/zensu-log.sh --tdd-begin`. This sets the per-session chain-state `active` flag, which turns on the PreToolUse phase-gate and the Bash witness for THIS main-thread session (they were silent until now). Without this call, your edits are NOT gated and the witness records nothing \u2014 so do it before any test/production edit. The command echoes the session mode: `mode: strict` \u2192 run all phases as written; `mode: vanilla` \u2192 apply the deltas in ## Vanilla Implementation Mode. The mode is frozen per session into the state file \u2014 config flips mid-session change nothing. If `--tdd-begin` exits non-zero (stderr names the failed state write and the session is not, or wrongly, armed): STOP \u2014 make no edits, fix the state-dir problem, and re-run `--tdd-begin` until it echoes a `mode:` line."
+        }
+      ]
+    },
+    {
+      "id": "CODEX-INSTALLED-FOREIGN-SESSION-FALLBACK",
+      "reason": "Native CODEX_THREAD_ID and local identity caches precede a legacy resolver that reads Claude project transcripts when those native values are unavailable. This is a reachable fallback, not evidence that a normal launch did access Claude; no helper was executed.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/.codex/plugins/cache/zensu/zensu/0.3.2/hooks/lib/zensu-session.sh",
+          "lines": [
+            45,
+            80
+          ],
+          "text": "45:   local sanitized key cache cached helper_out from_env\n46:   if [ -n \"$from_json\" ]; then\n47:     sanitized=\"$(_zensu_sanitize_sid \"$from_json\")\"\n48:     if [ -n \"$sanitized\" ]; then\n49:       echo \"$sanitized\"\n50:       return 0\n51:     fi\n52:   fi\n53:   from_env=\"${CODEX_THREAD_ID:-${CLAUDE_SESSION_ID:-}}\"\n54:   if [ -n \"$from_env\" ]; then\n55:     sanitized=\"$(_zensu_sanitize_sid \"$from_env\")\"\n56:     if [ -n \"$sanitized\" ]; then\n57:       echo \"$sanitized\"\n58:       return 0\n59:     fi\n60:   fi\n61:   cache=\"${CLAUDE_PROJECT_DIR:-.}/.zensu/state/session-id-current.txt\"\n62:   if [ -f \"$cache\" ]; then\n63:     cached=\"$(cat \"$cache\" 2>/dev/null)\"\n64:     cached=\"${cached//$'\\n'/}\"\n65:     cached=\"${cached//$'\\r'/}\"\n66:     sanitized=\"$(_zensu_sanitize_sid \"$cached\")\"\n67:     if [ -n \"$sanitized\" ]; then\n68:       echo \"$sanitized\"\n69:       return 0\n70:     fi\n71:   fi\n72:   if helper_out=\"$(zensu_resolve_session_via_helper)\"; then\n73:     helper_out=\"$(_zensu_sanitize_sid \"$helper_out\")\"\n74:     if [ -n \"$helper_out\" ]; then\n75:       echo \"$helper_out\"\n76:       return 0\n77:     fi\n78:   fi\n79:   key=\"$(zensu_session_key)\"\n80:   cache=\"${CLAUDE_PROJECT_DIR:-.}/.zensu/state/session-id-${key}.txt\""
+        },
+        {
+          "path": "/Users/marcelkarras/.codex/plugins/cache/zensu/zensu/0.3.2/hooks/lib/resolve-session-id.js",
+          "lines": [
+            27,
+            36
+          ],
+          "text": "27: function projectsBase() {\n28:   if (process.env.ZENSU_PROJECTS_DIR) return process.env.ZENSU_PROJECTS_DIR;\n29:   return path.join(os.homedir(), '.claude', 'projects');\n30: }\n31: \n32: function listCandidates(dir) {\n33:   let entries;\n34:   try {\n35:     entries = fs.readdirSync(dir);\n36:   } catch (_) {"
+        },
+        {
+          "path": "/Users/marcelkarras/.codex/plugins/cache/zensu/zensu/0.3.2/hooks/lib/resolve-session-id.js",
+          "lines": [
+            86,
+            109
+          ],
+          "text": "86: function main() {\n87:   const helperStartMs = Date.now();\n88:   const projectDir = process.env.CLAUDE_PROJECT_DIR || gitToplevel() || process.cwd();\n89:   const subdir = sanitizeProjectDir(projectDir);\n90:   const projectsDir = path.join(projectsBase(), subdir);\n91: \n92:   let files = listCandidates(projectsDir);\n93: \n94:   const parsedCutoffMs = parseCutoffMs(process.argv[2]);\n95:   const cutoffMs = parsedCutoffMs !== null ? parsedCutoffMs : helperStartMs;\n96:   files = files.filter((f) => f.mtimeMs <= cutoffMs);\n97: \n98:   if (files.length === 0) {\n99:     process.stdout.write('');\n100:     return 0;\n101:   }\n102: \n103:   if (files.length > 1 && process.env.ZENSU_OWN_CMD) {\n104:     const needle = process.env.ZENSU_OWN_CMD;\n105:     for (const f of files) {\n106:       const tail = readTail(f.full, 4096);\n107:       if (tail.indexOf(needle) !== -1) {\n108:         process.stdout.write(f.name.replace(/\\.jsonl$/, ''));\n109:         return 0;"
+        }
+      ]
+    }
+  ],
+  "surfaceDifferences": [
+    "Installed 0.3.2 has 13 skills; no installed verify-feature skill.",
+    "Installed native agent inventory has review-aspect, code-reviewer and plm only; no review-judge agent.",
+    "Installed tdd chain instructs five aspect reviewers, merged consume review, fix/re-review loop and explicit terminal self-review; it does not contain the Copilot primary/additive judge stages.",
+    "Installed zensu-log helper exposes phase/mode/state flag and timestamp operations; no acceptance-record/evidence-run command is present in this helper."
+  ],
+  "constraintsObserved": {
+    "noClaudePathsAccessed": true,
+    "sharedPluginRootSelectorNotRead": true,
+    "noInstalledFilesChanged": true,
+    "noGlobalConfigurationChanged": true,
+    "noActiveSessionsTouched": true,
+    "noCompatibilityWorkaround": true,
+    "noLiveSuccessClaim": true
+  },
+  "files": [
+    {
+      "path": ".codex-plugin/plugin.json",
+      "bytes": 1056,
+      "sha256": "b0b65f1a4e255a9c8150cab862a6b261fb764bdbdf139e06e96fd6762ab66a9c"
+    },
+    {
+      "path": "AGENTS.zensu.md",
+      "bytes": 3777,
+      "sha256": "689c0f1f0f92d390a84b7583314b92fa08a6dc22e72e2e752196b57eac248c71"
+    },
+    {
+      "path": "agents/zensu-code-reviewer.toml",
+      "bytes": 12402,
+      "sha256": "519a58997f706bfda6fddc02700afb5a545829240839c4341674598ab367bfbb"
+    },
+    {
+      "path": "agents/zensu-plm.toml",
+      "bytes": 17911,
+      "sha256": "990cfa9a13cde913726921563db3164385be192016a486b7c065007159236d75"
+    },
+    {
+      "path": "agents/zensu-review-aspect.toml",
+      "bytes": 4478,
+      "sha256": "28ba5001462145dd2cc6c38aea35916fbe591893f00c7e8836b86026d32e5333"
+    },
+    {
+      "path": "config.example.json",
+      "bytes": 495,
+      "sha256": "4f6b73586270bdef09c2186eecdcdb0470aee10376531cde677e389d25cd4a10"
+    },
+    {
+      "path": "docs/documentation-guide.md",
+      "bytes": 5752,
+      "sha256": "392bdc70f582798a780209a8f205f9da447673302d7d87d4d611991ad57f1bb6"
+    },
+    {
+      "path": "docs/tdd-manager-workflow.md",
+      "bytes": 26815,
+      "sha256": "4bf4489958bc5462865e337ad24a82239cdb019eb5a279a862e96051e4bd3e28"
+    },
+    {
+      "path": "hooks/hooks.json",
+      "bytes": 2185,
+      "sha256": "12e8a96f93d105b654a9c4059f61ded995175dac155630da5683d6b98d858fc0"
+    },
+    {
+      "path": "hooks/lib/bash-source-write-parse.js",
+      "bytes": 10917,
+      "sha256": "f56f5bdb0886feedb01bef9f124c173cf77e6b7d8c9fef96b7757cd15b730c8b"
+    },
+    {
+      "path": "hooks/lib/resolve-session-id.js",
+      "bytes": 2889,
+      "sha256": "78172cb2ae3f95daf61cfe41c19f3ad29741381a3d3cbf8f16b330d214b287ec"
+    },
+    {
+      "path": "hooks/lib/shell-command-extract.js",
+      "bytes": 1231,
+      "sha256": "488d1acc8f441dcbe90e75593a42b3311b961d13a7e0a6218ec2b0c36fc5afde"
+    },
+    {
+      "path": "hooks/lib/zensu-config.sh",
+      "bytes": 3646,
+      "sha256": "79dc6972d57de4569a8b9761a25f6a8dfbd3e6b9ebd200ca603654a11e8d6b59"
+    },
+    {
+      "path": "hooks/lib/zensu-log.sh",
+      "bytes": 5166,
+      "sha256": "eef4ab783cebe4b5cbafe4e5cf460b5fa8e241ded7bd51f043319db556ad849e"
+    },
+    {
+      "path": "hooks/lib/zensu-runtime.sh",
+      "bytes": 1579,
+      "sha256": "9aff17fc73a42194f610e36a163be4f415f16d6740263ea66207ab5ab4009309"
+    },
+    {
+      "path": "hooks/lib/zensu-session.sh",
+      "bytes": 2618,
+      "sha256": "d4d6b43d369a3522111ab3c8a4ec3f2cc17bd0c4534e78d074044fc7d846d60d"
+    },
+    {
+      "path": "hooks/lib/zensu-tdd-phase.sh",
+      "bytes": 13590,
+      "sha256": "e50df3621f9755115c92eca7182cdc8507ce2a92b972e99005ad93eefe00ea63"
+    },
+    {
+      "path": "hooks/plan-approved-delegate.sh",
+      "bytes": 7257,
+      "sha256": "3317c9e3116150f4c975c471db3bd201a3115f4e03458efa008ea27ac7964610"
+    },
+    {
+      "path": "hooks/post-bash-witness.sh",
+      "bytes": 6746,
+      "sha256": "219ee19a2da18dac2515b84fd0776db45a242eb6317ae7712072d7698d1e97b3"
+    },
+    {
+      "path": "hooks/post-review-tdd-delegate.sh",
+      "bytes": 13085,
+      "sha256": "4df3fb87c4cf94a6b6a73afce627cecb17016cc15d621f0be8993cbea3cf9400"
+    },
+    {
+      "path": "hooks/pre-bash-source-write-gate.sh",
+      "bytes": 3587,
+      "sha256": "b43feef5d42a33097b8ef250a6c9e781e0932e0e20d0499e2da316ce5ef7596a"
+    },
+    {
+      "path": "hooks/pre-edit-tdd-reminder.sh",
+      "bytes": 13281,
+      "sha256": "33d19771f867800b511596da78df299f8b21f1a429a4b7d7b0ec655ca9215cae"
+    },
+    {
+      "path": "hooks/session-start-banner.sh",
+      "bytes": 2792,
+      "sha256": "e846ee8957fc2777e831753f315bc69fd5b382b52d01055ae4e6faad055ef0b6"
+    },
+    {
+      "path": "hooks/session-start-capture-sid.sh",
+      "bytes": 1435,
+      "sha256": "45491bcb7ed93ef2aad4200e2f1aa0891fbb6fbf2e40891a4da6f04f5f29be9f"
+    },
+    {
+      "path": "hooks/session-start-primer.sh",
+      "bytes": 3584,
+      "sha256": "69063c51d281e5c24d1b835fc004010c982d4a690e40cfb61bed1101ff26ccfd"
+    },
+    {
+      "path": "hooks/session-start-pulse.sh",
+      "bytes": 698,
+      "sha256": "1b1b9b2d333847c1794c0bc203e2988d80cffa5f43135f61cf6bacf3462ea280"
+    },
+    {
+      "path": "hooks/stop-chain-enforcer.sh",
+      "bytes": 6240,
+      "sha256": "beac8336cfbf1d6ec46fdbbb1479706084fc8bcc252abe64a46e86dfa34f30c0"
+    },
+    {
+      "path": "hooks/user-prompt-context-nudge.sh",
+      "bytes": 5896,
+      "sha256": "7ae6d83fb2156112fb1095759074f36ff198869e4cfb0be3d129cb8c58c87c6f"
+    },
+    {
+      "path": "hooks/user-prompt-intent-router.sh",
+      "bytes": 2646,
+      "sha256": "cf8c0c352cd1a5d48f2382aa8e5a868b4eae940090ae3eb03e7f2155c00f0a1c"
+    },
+    {
+      "path": "hooks/user-prompt-tdd-reminder.sh",
+      "bytes": 6398,
+      "sha256": "b6b72acd034ee8c4d5d80c9306e23b03c422114238df35786a2440bb8329e624"
+    },
+    {
+      "path": "skills/autopilot/SKILL.md",
+      "bytes": 11901,
+      "sha256": "b7f9e4beb3e51d247c62100fb8ed47c9580c7bdee51942ce5dcf79b330ffbbc8"
+    },
+    {
+      "path": "skills/autopilot/rules/auth.md",
+      "bytes": 6193,
+      "sha256": "1bc48df55d0bfae36f865a3f9e043dd39e4cb2b69633155cae57c8cd492ab28b"
+    },
+    {
+      "path": "skills/autopilot/rules/config.md",
+      "bytes": 4942,
+      "sha256": "daa6e3c5970ca7bdb7a2ce9524a5caec23c4469fee8b5b29fbb29bd43c6bcad6"
+    },
+    {
+      "path": "skills/autopilot/rules/drivers.md",
+      "bytes": 6168,
+      "sha256": "2bddc2de56811b83a1b6cdd87c87c9cb6bebc51552dfcda35cdb919cce4b79ab"
+    },
+    {
+      "path": "skills/autopilot/rules/probe.md",
+      "bytes": 5982,
+      "sha256": "a5a23363f2d502c8a011186810c00997f91a3007239cf80838924f10621565db"
+    },
+    {
+      "path": "skills/bootstrap/SKILL.md",
+      "bytes": 8086,
+      "sha256": "34fc3f9dd65ed0b096468ac839391364320f64f51c64bcc1bf582112f0fa20ff"
+    },
+    {
+      "path": "skills/ghost-scan/SKILL.md",
+      "bytes": 21118,
+      "sha256": "c5c9e47453a5f13e1c425e245dc5aa5f2d36b776ef9c1cf431510137cdbb6fb7"
+    },
+    {
+      "path": "skills/implement/SKILL.md",
+      "bytes": 9307,
+      "sha256": "f0747c78f353b640366122a1cf5966f8bfedaca2c52bfa3ce35c131acd2ce41c"
+    },
+    {
+      "path": "skills/plan-review/SKILL.md",
+      "bytes": 18372,
+      "sha256": "b707aeeafc51706b2d2aac96c47bb58701bfc81953374244cb07c58f408f5d16"
+    },
+    {
+      "path": "skills/pr-fix-findings/SKILL.md",
+      "bytes": 4205,
+      "sha256": "6b550b151c77a54994dd7929bcc39e04c36ca9222f161437184497035ab0144c"
+    },
+    {
+      "path": "skills/pr-team-review/SKILL.md",
+      "bytes": 11528,
+      "sha256": "0f77af19b6f036d5ea93b2de4dfb2d303e6aa7408ced895d010d1620f2f21fa2"
+    },
+    {
+      "path": "skills/pr-team-review/rules/github-publish.md",
+      "bytes": 4728,
+      "sha256": "d775ad781f6060d2c3ee44eb33445542307c5419cc35148f985c032a7369626f"
+    },
+    {
+      "path": "skills/pr-team-review/rules/reviewer-personas.md",
+      "bytes": 12344,
+      "sha256": "ee58d40e02e792e5bc360a6cdcd65b81fd2bbe1ed4c098d811488e0b1dd4ec22"
+    },
+    {
+      "path": "skills/pr-team-review/rules/workflow.md",
+      "bytes": 9903,
+      "sha256": "8fd592605a71f2f8a98a941cbb9a49873044d2f4fcba726e4a7a5c71d8525e6d"
+    },
+    {
+      "path": "skills/pulse/SKILL.md",
+      "bytes": 3499,
+      "sha256": "1b1c0174923f4c7d8f2702111f2827de789a814ff4e7106f4eaa0277efe23b15"
+    },
+    {
+      "path": "skills/reset-review-limit/SKILL.md",
+      "bytes": 8722,
+      "sha256": "f0bbc901f16db99696cb17e0e401cf82cd8b6c4159d5f2be79c45c0f0e428fc9"
+    },
+    {
+      "path": "skills/security-review/SKILL.md",
+      "bytes": 5857,
+      "sha256": "d53839633feb49c74b4c935553a61eb9286d5c2ff91eaf923c176a4c4cb033f0"
+    },
+    {
+      "path": "skills/self-review/SKILL.md",
+      "bytes": 7645,
+      "sha256": "c2c9e9ab475d6d35be9bb51d676f33d2ff667e298de95805ee26512b15547b4e"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "bytes": 51828,
+      "sha256": "5d167b40ca0b34da27787304ed9731db996586dc691757121bd0a380da5bd4c6"
+    },
+    {
+      "path": "skills/zensu-help/SKILL.md",
+      "bytes": 8083,
+      "sha256": "8e8ee37fc6ec6ab0cf2dad60ecfb9762df4371e49a7e5f56a6fe2e234218e299"
+    }
+  ]
+}

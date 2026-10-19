@@ -1,0 +1,780 @@
+{
+  "schema": "zensu.shared-workflow-cause-audit.v1",
+  "createdAt": "2026-10-19T18:55:52.167026+00:00",
+  "status": "read-only-audit-complete",
+  "noSourceOrGlobalConfigurationChanges": true,
+  "repositories": {
+    "zensu-codex": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex",
+      "head": "50ae69219925f0a55d31686c7a50e57963b2a4e1",
+      "status": []
+    },
+    "zensu-antigravity": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity",
+      "head": "842c29b34e46e9301c7f1879cb7be5644baa1011",
+      "status": []
+    },
+    "zensu-kiro": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro",
+      "head": "0ba84569ff8bb2dae897df67044effc1ddda94fd",
+      "status": []
+    },
+    "zensu-cli": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-cli",
+      "head": "894d7c84653c9f4c2bbf25904ebe2506d3224dc4",
+      "status": [
+        " M .gitignore",
+        "?? .git-worktrees/"
+      ]
+    },
+    "zensu-claude-code": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code",
+      "head": "fcc3ee58c2e9c5c44fa3129cffafdc5a39f834c4",
+      "status": [
+        "?? AGENTS.md",
+        "?? evals/reset-review-limit/.zensu/",
+        "?? evals/tdd-manager-pretool/package-lock.json",
+        "?? evals/tdd-manager-pretool/package.json",
+        "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/server",
+        "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/package-lock.json"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "finding": "WF-001",
+      "antigravity": "not-applicable: different native session-helper binding",
+      "codexCheckout": "not-applicable: exact-session reader in checkout; legacy pointer in installed version",
+      "kiroCheckout": "not-applicable: no Copilot injected prefix",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/SKILL.md",
+          "line": 13
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/skills/tdd/SKILL.md",
+          "line": 15
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/skills/zensu-tdd/SKILL.md",
+          "line": 13
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/SKILL.md",
+          "line": 92,
+          "sourceSha256": "e67537c66b45d18a4a518c5070cc82fef498a7b1fa1c76ea149f3a008e1e85cd"
+        }
+      ],
+      "note": "Copilot wrapper failure was not generalized to unrelated host bindings.",
+      "claudeCheckout": "not-applicable: Claude does not use the Copilot native bash context wrapper. Its source uses native Claude session identity."
+    },
+    {
+      "finding": "WF-002",
+      "antigravity": "source-confirmed stale 5b(b) reference",
+      "codexCheckout": "related omission: bare git diff HEAD excludes untracked and mid-run commits",
+      "kiroCheckout": "related omission: bare git diff HEAD excludes untracked and mid-run commits",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/self-review/SKILL.md",
+          "line": 88
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/self-review/SKILL.md",
+          "line": 148
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/references/audit.md",
+          "line": 51
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/skills/tdd/SKILL.md",
+          "line": 420
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/skills/self-review/SKILL.md",
+          "line": 47
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/skills/zensu-tdd/SKILL.md",
+          "line": 418
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/skills/zensu-self-review/SKILL.md",
+          "line": 45
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 7,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 44,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 107,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/audit.md",
+          "line": 51,
+          "sourceSha256": "d4edf48c663cfa0d92a8c5ccb094633aa02993bf96085accf9e9fe6497374346"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/audit.md",
+          "line": 52,
+          "sourceSha256": "d4edf48c663cfa0d92a8c5ccb094633aa02993bf96085accf9e9fe6497374346"
+        }
+      ],
+      "note": "",
+      "claudeCheckout": "source-confirmed: The chain and self-review still reference step 5b b) as an enumeration; that section is now verdict handling. Self-review contains an inline fallback but the referenced shared recipe is stale."
+    },
+    {
+      "finding": "WF-003",
+      "antigravity": "not-present in current native review-chain: it correctly requires actual audit/plan correction",
+      "codexCheckout": "not-applicable: no edit-landing receipt helper",
+      "kiroCheckout": "not-applicable: no edit-landing receipt helper",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/references/review-chain.md",
+          "line": 20
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/references/audit.md",
+          "line": 53
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/audit.md",
+          "line": 53,
+          "sourceSha256": "d4edf48c663cfa0d92a8c5ccb094633aa02993bf96085accf9e9fe6497374346"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 6,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        }
+      ],
+      "note": "The exact contradictory land-or-withdraw shortcut is absent in current Antigravity review-chain; its detailed audit correctly says withdrawal does not clear a failed receipt.",
+      "claudeCheckout": "source-confirmed-partial: The audit correctly says withdrawal never clears the receipt, but review-chain step 1 still instructs land or withdraw and rerun. The internal contract remains contradictory."
+    },
+    {
+      "finding": "WF-004",
+      "antigravity": "source-confirmed documentation contradiction: config advertises unsupported Workflow import",
+      "codexCheckout": "not-applicable: no external-review import surface found",
+      "kiroCheckout": "not-applicable: no external-review import surface found",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/docs/configuration.md",
+          "line": 123
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/docs/configuration.md",
+          "line": 126
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/references/review-chain.md",
+          "line": 140
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/SKILL.md",
+          "line": 92,
+          "sourceSha256": "e67537c66b45d18a4a518c5070cc82fef498a7b1fa1c76ea149f3a008e1e85cd"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/templates/workflows/zensu-review-v1.js",
+          "line": 1,
+          "sourceSha256": "88b996bc3a8fa5ab09feeb8f9967294cb6d435e672dc37bce5e81c1b301282b2"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/external-review-v1.js",
+          "line": 1,
+          "sourceSha256": "4ccbdcd84856880cbc173295bf930370a17a8bdedd4101d5c7c017b354470ab8"
+        }
+      ],
+      "note": "Antigravity ships external-review helper/template files, unlike Copilot, but native execution explicitly says imports unavailable. Do not simply delete shared helper files.",
+      "claudeCheckout": "different-supported-surface: Claude intentionally ships an external review template and importer. This is supported source functionality rather than Copilot-only obsolete advertising; no removal was proposed or performed."
+    },
+    {
+      "finding": "WF-005",
+      "antigravity": "already addressed: verification split into bounded mandatory instruction files",
+      "codexCheckout": "related oversized TDD entrypoint 55916 bytes; verify-feature absent",
+      "kiroCheckout": "related oversized TDD entrypoint 50197 bytes; verify-feature absent",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/verify-feature/SKILL.md",
+          "line": 41
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/skills/tdd/SKILL.md",
+          "line": 1
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/skills/zensu-tdd/SKILL.md",
+          "line": 1
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 1,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 1,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        }
+      ],
+      "note": "Antigravity verify-feature files are 14317,19805,8871 bytes. No non-Copilot live read-limit failure observed.",
+      "claudeCheckout": "related-source-risk-host-unverified: The verification skill is 40221 bytes and 568 lines; review-chain reference is 33629 bytes in 16 long lines. No live Claude read-limit failure is asserted; host-specific limits remain untested."
+    },
+    {
+      "finding": "WF-006",
+      "antigravity": "source-confirmed blanket stdout/stderr suppression",
+      "codexCheckout": "not-applicable: acceptance recorder/verification skill absent",
+      "kiroCheckout": "not-applicable: acceptance recorder/verification skill absent",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/verify-feature/SKILL.md",
+          "line": 148
+        },
+        {
+          "repo": "zensu-cli",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-cli/internal/cmd/erroroutput.go",
+          "line": 41
+        },
+        {
+          "repo": "zensu-cli",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-cli/internal/cmd/erroroutput_test.go",
+          "line": 112
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 103,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 104,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 105,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        }
+      ],
+      "note": "CLI already preserves bounded structured error details under --json; it does not own plugin evidence redirection policy.",
+      "claudeCheckout": "source-confirmed: Chain exit checks instruct discarding stdout and stderr even for synthetic library/CLI assertions, removing diagnostics. Credential privacy remains valid but does not require discarding synthetic assertion failures."
+    },
+    {
+      "finding": "WF-007",
+      "antigravity": "source-confirmed manual execution marker and progress procedure; omission not live reproduced",
+      "codexCheckout": "source-confirmed manual execution marker; omission not live reproduced",
+      "kiroCheckout": "source-confirmed manual execution marker; omission not live reproduced",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/references/execution.md",
+          "line": 22
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/self-review/instructions-02.md",
+          "line": 72
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/skills/tdd/SKILL.md",
+          "line": 292
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/hooks/lib/zensu-log.sh",
+          "line": 90
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/skills/zensu-tdd/SKILL.md",
+          "line": 290
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/hooks/lib/zensu-log.sh",
+          "line": 156
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/execution.md",
+          "line": 22,
+          "sourceSha256": "708c78cd7acf5c69ae95d7eea93af2a39d82f3131e3f6397d30f52a0b149c63c"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/SKILL.md",
+          "line": 114,
+          "sourceSha256": "e67537c66b45d18a4a518c5070cc82fef498a7b1fa1c76ea149f3a008e1e85cd"
+        }
+      ],
+      "note": "",
+      "claudeCheckout": "related-manual-contract: Execution-start marker is a manual instruction. Claude uses native TaskUpdate for the progress dashboard, so Copilot GFM reconciliation is not the same surface. No marker omission is claimed live."
+    },
+    {
+      "finding": "WF-008",
+      "antigravity": "source-confirmed manual immutable packet; no canonical packet hash checked",
+      "codexCheckout": "source-confirmed manual immutable packet; no canonical packet hash checked",
+      "kiroCheckout": "related manually replicated summary/list, not the same byte-identical evidence packet contract",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/references/review-chain.md",
+          "line": 41
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/hooks/antigravity/native-review.js",
+          "line": 27
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/skills/tdd/SKILL.md",
+          "line": 421
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/skills/zensu-tdd/SKILL.md",
+          "line": 419
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 9,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 10,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        }
+      ],
+      "note": "Antigravity verifies child prompt prefix/tree/runtime/child final hash, not equality of each reviewer evidence packet.",
+      "claudeCheckout": "source-confirmed-prose-only: The chain requests an immutable prompt block and repeated same packet. No review-packet-v1 helper exists in this checkout; byte identity is a prompt contract rather than canonical packet hash injection."
+    },
+    {
+      "finding": "WF-009",
+      "antigravity": "source-confirmed ambiguous marker plus primary-unavailable fallback; completed primary judge absent from final aspect report validator",
+      "codexCheckout": "not-applicable: no judge stage",
+      "kiroCheckout": "not-applicable: no judge stage",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/agents/zensu-review-judge.md",
+          "line": 46
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/references/native-reviewers.md",
+          "line": 123
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/hooks/antigravity/native-review.js",
+          "line": 17
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/hooks/antigravity/review-children.js",
+          "line": 32
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 12,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 14,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        }
+      ],
+      "note": "Real primary rejection was observed only in Copilot; Antigravity quota stopped model execution.",
+      "claudeCheckout": "related-primary-completion-gap: Second judge unavailable behavior is explicit, but the native-panel primary path lacks an equivalent mandatory substantive primary completion receipt before consume. The import path falls back to the panel for a failed/no-gap primary. This is a source gap, not a live failure."
+    },
+    {
+      "finding": "WF-010",
+      "antigravity": "source-confirmed quoted heredoc with FINDINGS payload marker",
+      "codexCheckout": "not-applicable: no deterministic finding verifier",
+      "kiroCheckout": "not-applicable: no deterministic finding verifier",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/tdd/references/review-chain.md",
+          "line": 150
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 13,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/finding-verify-v1.js",
+          "line": 64,
+          "sourceSha256": "cff81cd48b3f363cd39860bcc5afb46cac8257efd633ef98a3f9e0ccc451c311"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/finding-verify-v1.js",
+          "line": 72,
+          "sourceSha256": "cff81cd48b3f363cd39860bcc5afb46cac8257efd633ef98a3f9e0ccc451c311"
+        }
+      ],
+      "note": "Antigravity does explicitly validate submitted count at line154, but quoted-delimiter-only safety still permits delimiter collision.",
+      "claudeCheckout": "source-confirmed: Finding verification still requires CHANGED-FILES/FINDINGS marker-form heredoc input. The parser recognizes delimiter lines and lacks a structured --input JSON interface; total= checking only mitigates some malformed inputs."
+    },
+    {
+      "finding": "WF-011",
+      "antigravity": "source-confirmed same verdict rubric independent of effective routing",
+      "codexCheckout": "source-confirmed IMPORTANT may receive PASS WITH SUGGESTIONS while hook routes fix",
+      "kiroCheckout": "source-confirmed IMPORTANT may receive PASS WITH SUGGESTIONS while hook routes fix",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/agents/zensu-code-reviewer.md",
+          "line": 92
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/reference/code-reviewer.md",
+          "line": 63
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/hooks/post-review-tdd-delegate.sh",
+          "line": 136
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/agents/prompts/zensu-code-reviewer.md",
+          "line": 138
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/hooks/post-review-tdd-delegate.sh",
+          "line": 186
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/agents/code-reviewer.md",
+          "line": 84,
+          "sourceSha256": "ecd2d476cffc2fffae0dec07ea7609ca53be6fa3e18f33ccdccaec4d42622db5"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/agents/code-reviewer.md",
+          "line": 94,
+          "sourceSha256": "ecd2d476cffc2fffae0dec07ea7609ca53be6fa3e18f33ccdccaec4d42622db5"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/post-review-tdd-delegate.sh",
+          "line": 368,
+          "sourceSha256": "7b9bc7d62de8865962a1007fe7eecab283d4d58efb6fadd55b6de2e3b0d70760"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/post-review-tdd-delegate.sh",
+          "line": 549,
+          "sourceSha256": "7b9bc7d62de8865962a1007fe7eecab283d4d58efb6fadd55b6de2e3b0d70760"
+        }
+      ],
+      "note": "No repeated model-authored conflicting extra directive was observed on other hosts.",
+      "claudeCheckout": "related-separate-contracts: Reviewer quality verdict maps any CRITICAL to NEEDS CHANGES and remaining findings to PASS WITH SUGGESTIONS while post-hook routes by configured severity. The reviewer contract does not explicitly explain the quality-versus-route distinction; no contradictory actual Claude output is claimed."
+    },
+    {
+      "finding": "WF-012",
+      "antigravity": "source-confirmed per-criterion instruction without shared-run guidance; recorder can reuse evidence",
+      "codexCheckout": "not-applicable: no acceptance-scope recorder",
+      "kiroCheckout": "not-applicable: no acceptance-scope recorder",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/verify-feature/SKILL.md",
+          "line": 152
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/verify-feature/SKILL.md",
+          "line": 158
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/hooks/lib/acceptance-verify-v1.js",
+          "line": 471
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/hooks/lib/acceptance-verify-v1.js",
+          "line": 520
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 96,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 108,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 113,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/acceptance-verify-v1.js",
+          "line": 494,
+          "sourceSha256": "17ce7ce9abd8d8ee23d725449399851e9f46d6da2356a6859b10b5835f4fc871"
+        }
+      ],
+      "note": "Do not claim duplicate reruns occurred live outside Copilot.",
+      "claudeCheckout": "source-confirmed-guidance-gap: Per-criterion driver and immediate-record instructions omit sharing a single observed aggregate check across matching criteria. The recorder accepts a supplied evidence run per criterion and does not consume it, so guidance can improve without changing the typed CLI backend."
+    },
+    {
+      "finding": "WF-013",
+      "antigravity": "source-confirmed no closed-generation report-only fast path",
+      "codexCheckout": "source-confirmed no closed-generation report-only fast path",
+      "kiroCheckout": "source-confirmed no closed-generation report-only fast path",
+      "standaloneCli": "not-applicable: local host review-chain runtime is outside the typed REST client",
+      "evidence": [
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/self-review/SKILL.md",
+          "line": 100
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/skills/self-review/instructions-02.md",
+          "line": 72
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/skills/self-review/SKILL.md",
+          "line": 44
+        },
+        {
+          "repo": "zensu-codex",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex/plugins/zensu/skills/self-review/SKILL.md",
+          "line": 102
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/skills/zensu-self-review/SKILL.md",
+          "line": 42
+        },
+        {
+          "repo": "zensu-kiro",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro/skills/zensu-self-review/SKILL.md",
+          "line": 99
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 57,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 77,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        },
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 98,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        }
+      ],
+      "note": "Only Copilot live behavior proves redundant post-close invocation; elsewhere this is a shared guard opportunity.",
+      "claudeCheckout": "source-confirmed-missing-guard: Self-review guards generation and delegated ownership, but has no standalone closed-generation report-only fast path before rereading work. No live Claude rerun is asserted."
+    }
+  ],
+  "ownership": {
+    "zensu-codex": "Owned payload plugins/zensu; reference/*.md canonical agent definitions, native TOML mirror. No source importing build was found. Do not edit installed cache.",
+    "zensu-antigravity": "Owned skills/agents/hooks; hooks/antigravity is host adapter boundary; hooks.json generated by install.sh from hooks.json.template, do not edit generated file. package-native.sh copies curated tracked payload. Verification skill already split into mandatory instructions.",
+    "zensu-kiro": "Owned skills/zensu-* and hooks; agents/prompts/*.md canonical, agents/ide/*.md body must match, CLI JSON references prompts. steering/zensu-conventions.md canonical for orchestrator/POWER mirrors; install copies payload. Libraries are upstream copies with explicitly documented host deltas.",
+    "zensu-cli": "Go module github.com/MKITConsulting/zensu-cli; internal/cmd typed REST commands, no local workflow/reviewer/evidence engine. CLI skill describes plugin-provided chains. Pre-existing dirty files preserved."
+  },
+  "installedProvenance": {
+    "codex": {
+      "version": "0.3.2",
+      "root": "/Users/marcelkarras/.codex/plugins/cache/zensu/zensu/0.3.2",
+      "sampledFilesMatchingCheckout": 0,
+      "sampledFiles": 4,
+      "difference": "Installed version uses legacy shared ~/.zensu/plugin-root and legacy session resolver. Checkout uses exact-session v3 reader. Both have13skills/3agents and no judge or verify-feature recorder. Inspect installed binding before live run; do not follow Claude paths."
+    },
+    "antigravity": {
+      "version": "0.2.0",
+      "root": "/Users/marcelkarras/.gemini/config/plugins/zensu",
+      "sampledFilesMatchingCheckout": 5,
+      "sampledFiles": 5
+    }
+  },
+  "hostReadiness": {
+    "codex": {
+      "version": "0.157.1",
+      "login": "ChatGPT",
+      "pluginEnabled": true,
+      "preflight": "blocked-before-live-launch: shared plugin-root writes and reachable foreign-session fallback violate the requested no-global-changes/no-Claude-access boundary",
+      "evidence": "codex-installed-preflight.json"
+    },
+    "antigravity": {
+      "version": "1.4.2",
+      "modelsQuery": "host-side succeeded",
+      "liveRun": "blocked by individual quota before any model token",
+      "evidence": "antigravity-live-attempt.json"
+    },
+    "kiro": {
+      "version": "2.32.0",
+      "whoamiExit": 1,
+      "account": null,
+      "modelRunStarted": false
+    },
+    "zensuCli": {
+      "version": "0.9.0",
+      "standaloneInvoiceWorkflow": "not applicable"
+    }
+  },
+  "limits": [
+    "The current Claude source checkout was inspected read-only under the user's other-repository scope; see claude-source-audit.json. No Claude configuration, sessions, installed plugins, credentials or model process were accessed.",
+    "No other-host source edits authorized or performed.",
+    "Antigravity quota prevented workflow execution; Kiro has no authenticated account.",
+    "Codex source audit is separated from installed0.3.2 behavior.",
+    "CLI backend operations were not executed for a local invoice implementation task.",
+    "The installed Codex workflow was not launched; startup side effects and foreign fallback were found by reading installed Codex-owned files, not by accessing Claude paths."
+  ],
+  "claudeSourceAudit": {
+    "report": "claude-source-audit.json",
+    "kind": "current external source checkout inspected read-only; separate from immutable upstream snapshot",
+    "noLiveLaunch": true
+  },
+  "additionalSharedCauseFollowup": [
+    {
+      "id": "FOLLOWUP-AUDIT-CONTEXT-DOWNGRADE",
+      "relatedOriginalFinding": "WF-003",
+      "status": "source-confirmed-and-isolated-fixture-reproduced-live-workflow-reproduction-only-in-Copilot",
+      "observation": "The first native Copilot retest cleared 12 pending predicates by rerunning the audit without dirty-before. Exact copied Claude and Antigravity source helpers reproduce the same omitted-context downgrade and loss of the pending receipt after a Git fault in isolated deterministic fixtures. The fixed frozen Copilot helper preserves scope in the identical lower-level controls. No sibling source was changed or host/model session launched for this follow-up.",
+      "evidence": [
+        {
+          "repo": "zensu-claude-code",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/zensu-edit-landing.sh",
+          "sha256": "eafac2adf975b9c71a0341bdd92d1d014c1937eeec541883d62251c8435aaf84",
+          "lines": [
+            94,
+            288,
+            648,
+            1071
+          ],
+          "observedBehavior": "Optional dirty-before input returns false when omitted; dirty paths are pending only when input is present; each run rewrites the receipt. No durable downgrade guard is present in this inspected helper."
+        },
+        {
+          "repo": "zensu-antigravity",
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/hooks/lib/zensu-edit-landing.sh",
+          "sha256": "364c32c15bea8c93b897521f76736cfcb62cfb438bdf6bfa0c041bceb77d1dea",
+          "lines": [
+            94,
+            288,
+            648,
+            1071
+          ],
+          "observedBehavior": "Optional dirty-before input returns false when omitted; dirty paths are pending only when input is present; each run rewrites the receipt. No durable downgrade guard is present in this inspected helper."
+        }
+      ],
+      "copilotNativeEvidence": "first-native-analysis.json",
+      "codexCheckout": "not-applicable: inspected older checkout lacks this edit-landing engine",
+      "kiroCheckout": "not-applicable: inspected older checkout lacks this edit-landing engine",
+      "standaloneCli": "not-applicable: typed REST client has no local audit receipt engine",
+      "deterministicEvidence": "shared-audit-context-fixture.json"
+    }
+  ],
+  "sourceRepositoryPostcheck": {
+    "file": "other-repositories-postcheck.json",
+    "checkedAt": "2026-10-19T20:50:11.434345+00:00",
+    "allHeadsUnchanged": true,
+    "allStatusesUnchanged": true,
+    "limitation": "HEAD/status equality establishes no observed checkout change, not byte-for-byte identity of preexisting untracked or modified file contents."
+  },
+  "sharedCauseDeterministicReproduction": {
+    "report": "shared-audit-context-fixture.json",
+    "finding": "FOLLOWUP-AUDIT-CONTEXT-DOWNGRADE",
+    "hosts": [
+      "zensu-claude-code",
+      "zensu-antigravity"
+    ],
+    "result": "Both source-copy helpers drop unresolved dirty-before context on an omitted-flag retry and after an intervening Git fault.",
+    "liveNativeWorkflow": false,
+    "otherRepositoriesModified": false,
+    "fixedControl": {
+      "host": "zensu-copilot",
+      "result": "Identical explicit-receipt fixture on frozen hook-library copy preserves pending dirty context on omission and after a Git fault.",
+      "workflowBinding": "Not active in this lower-level control; 19 bound-scope tests and final native run provide separate evidence."
+    }
+  }
+}

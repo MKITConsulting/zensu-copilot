@@ -1,0 +1,332 @@
+{
+  "schema": "zensu.native-workflow-observations.v1",
+  "kind": "actual-native-Copilot-run-not-fixture",
+  "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0",
+  "sessionId": "73eda529-69c3-41bf-acbc-a257d1eca1cc",
+  "frozenBuildSha256": "3a5392d07ab1bdb14238ee787ca91505b6d6f71b2e61e74d4f70ffa3daf6815c",
+  "sourceCheckpoint": "first-package-checkpoint.json",
+  "status": "historical-workflow-failure-despite-native-closure-flags-and-app-acceptance",
+  "completion": {
+    "process": {
+      "exitCode": 0,
+      "interruptedBySignal": null,
+      "elapsedSeconds": 1824.67,
+      "finishedAt": "2026-10-19T19:41:35.915209+00:00"
+    },
+    "nativeChainClosed": true,
+    "finalEditLandingClean": true,
+    "reviewRound": 1,
+    "terminalSelfReviewFixUsed": true,
+    "completedNativeReviewers": 8,
+    "completedRoles": [
+      {
+        "role": "aspect",
+        "aspect": "conventions",
+        "callId": "call_k2ezfJ03Nyy5cZe6H0cFFVbe"
+      },
+      {
+        "role": "aspect",
+        "aspect": "bugs",
+        "callId": "call_ILqaIfoCToxqJEeJx70WA612"
+      },
+      {
+        "role": "aspect",
+        "aspect": "architecture",
+        "callId": "call_mmsDtYMPnHmHSS5EQsWTTikT"
+      },
+      {
+        "role": "aspect",
+        "aspect": "tests",
+        "callId": "call_QF8gzg3AQpxGQsPO2J6JbxE3"
+      },
+      {
+        "role": "aspect",
+        "aspect": "security",
+        "callId": "call_zdDXeAZ26sFWYXq0hABAkAoU"
+      },
+      {
+        "role": "primary",
+        "aspect": null,
+        "callId": "call_0ZuGTAJg08aTbNQZ2qW9whAw"
+      },
+      {
+        "role": "secondary",
+        "aspect": null,
+        "callId": "call_qUUR3fFTwVfZETN8yBlStGk2"
+      },
+      {
+        "role": "consume",
+        "aspect": null,
+        "callId": "call_pPOOrkcvEWc5ACUHl5x2ePWh"
+      }
+    ],
+    "currentTreeAcceptance": "4/4 active criteria pass",
+    "requiredIndependentChecks": {
+      "passed": 14,
+      "total": 14
+    },
+    "priorImplementationComparison": "different",
+    "globalAndMarketplaceUnchanged": true,
+    "frozenPayloadUnchanged": true,
+    "validCompleteWorkflow": false,
+    "assessment": "Native closure flags and process exit were observed, but audit context omission and duplicate terminal skill calls fail complete workflow validation."
+  },
+  "analysis": "first-native-analysis.json",
+  "independentConsumer": "first-independent-consumer.json",
+  "residualObservations": {
+    "oversizedReads": {
+      "status": "fail",
+      "reason": "Actual native oversized-read responses, including audit references, are counted even if later recovered.",
+      "evidence": [
+        {
+          "callId": "call_NPrskcY3CJhu2DK8ffkUDm3Z",
+          "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu/skills/zensu-tdd/references/audit.md"
+        },
+        {
+          "callId": "call_LYIfodb42Jgag26evwaf3Asn",
+          "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu/skills/zensu-tdd/references/review-chain.md"
+        },
+        {
+          "callId": "call_BSVWx6eIeuD8ZH9L8RbhBfIz",
+          "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu/skills/zensu-tdd/references/audit.md"
+        },
+        {
+          "callId": "call_npwK9pxtoUtoyXPcnHUW5B1k",
+          "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/plugin/zensu/skills/zensu-tdd/SKILL.md"
+        }
+      ]
+    },
+    "contradictoryOriginalProgressRows": {
+      "status": "fail",
+      "reason": "Both managed native status and original stage rows must agree; a managed checkbox alone is insufficient.",
+      "evidence": [
+        "Chain close and final report \u2014 close only with the bound native ticket and render the report once."
+      ]
+    },
+    "preHookContextReplayProvenance": {
+      "status": "unassessed",
+      "captureCount": 87,
+      "reason": "Only actual malformed-binding errors fail. Pre-hook repeated prefixes are observable replay candidates, but can be a host retry echo and do not establish model authorship. Injected execution_start prefixes are expected."
+    },
+    "deniedReviewerStarts": 5,
+    "reportFormattingWarnings": [
+      {
+        "callId": "call_QF8gzg3AQpxGQsPO2J6JbxE3",
+        "warnings": [
+          "Finding has no explicit Fix: label; substantive cited evidence is present."
+        ]
+      }
+    ],
+    "editLandingHistory": [
+      {
+        "line": 38,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 39,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 40,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 41,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 42,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 43,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 44,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 45,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 46,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 47,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 48,
+        "marker": "PENDING PREDICATE"
+      },
+      {
+        "line": 49,
+        "marker": "PENDING PREDICATE"
+      }
+    ],
+    "auditContextDowngrade": {
+      "status": "fail",
+      "reason": "A pending dirty-before audit cannot become proven by omitting its context. Native closure and a later clean receipt do not erase this downgrade.",
+      "evidence": [
+        {
+          "audits": [
+            {
+              "callId": "call_RsShuQeyAmzSXtxePeJeUjJd",
+              "startedAt": "2026-10-19T19:19:06.634Z",
+              "completedAt": "2026-10-19T19:19:08.181Z",
+              "toolSucceeded": true,
+              "wholeShellExitCode": 0,
+              "dirtyBeforeContextSupplied": false,
+              "pending": 0,
+              "resultSha256": "7c255d2db66df195221e71bb87565a8e6564245d0d5b9c02399b6cb84ccf3e6e",
+              "commandSha256": "2d2f9fe4c88f1ca8a4d9831f44c704a3b68472747fadcd6cd5ac730fcf2a9b3d"
+            },
+            {
+              "callId": "call_7q7GOLYCPb3qHVqvK4rLjmjG",
+              "startedAt": "2026-10-19T19:24:41.176Z",
+              "completedAt": "2026-10-19T19:24:42.555Z",
+              "toolSucceeded": true,
+              "wholeShellExitCode": 0,
+              "dirtyBeforeContextSupplied": false,
+              "pending": 0,
+              "resultSha256": "db04a20fc22d5b005b94c6dfee5278eb20632b3b8161d8a619fb509a8d93beb0",
+              "commandSha256": "2d2f9fe4c88f1ca8a4d9831f44c704a3b68472747fadcd6cd5ac730fcf2a9b3d"
+            },
+            {
+              "callId": "call_oN8H5RCMz25TMfkohUbr6DvC",
+              "startedAt": "2026-10-19T19:37:00.977Z",
+              "completedAt": "2026-10-19T19:37:02.845Z",
+              "toolSucceeded": true,
+              "wholeShellExitCode": 1,
+              "dirtyBeforeContextSupplied": true,
+              "pending": 12,
+              "resultSha256": "9c10519cfc45e5cd2e535bd371b366d41ebd69555305645df4c4a8311d7a7312",
+              "commandSha256": "47619550ede22287ac092e847cdc37a526d4ce3f802af04f13b19e59019f18ad"
+            },
+            {
+              "callId": "call_NXVBI48qfPCrDVlAZ0md2G2J",
+              "startedAt": "2026-10-19T19:37:21.697Z",
+              "completedAt": "2026-10-19T19:37:23.714Z",
+              "toolSucceeded": true,
+              "wholeShellExitCode": 0,
+              "dirtyBeforeContextSupplied": false,
+              "pending": 0,
+              "resultSha256": "a38dec73ba97e43ade79645ee9ef2c15c7e4f20cb645da083a59ffaf987197d4",
+              "commandSha256": "0c957bbf10611993311af300801feb1428f7f69655a1b8787d97232f471003be"
+            }
+          ],
+          "contextDowngradeCalls": [
+            "call_NXVBI48qfPCrDVlAZ0md2G2J"
+          ]
+        }
+      ]
+    },
+    "duplicateTerminalReview": {
+      "status": "fail",
+      "reason": "Native self-review loads after convergence and before closure. Repeated explicit skill invocations fail. Bounded native file reads are not themselves extra invocations. A later entry read requires a closed report-only response and no further work.",
+      "evidence": [
+        {
+          "reads": [
+            {
+              "skill": "zensu-self-review",
+              "callId": "call_rQjwTg3ervOz9SXILYaeBqWA",
+              "startedAt": "2026-10-19T19:32:07.825Z",
+              "completedAt": "2026-10-19T19:32:08.081Z"
+            },
+            {
+              "skill": "zensu-self-review",
+              "callId": "call_m0JvO5RDyUthlH2IEgWuj3EN",
+              "startedAt": "2026-10-19T19:34:24.276Z",
+              "completedAt": "2026-10-19T19:34:24.541Z"
+            }
+          ],
+          "explicitSkillInvocations": 2,
+          "postCloseEntryReads": [],
+          "postCloseWork": [],
+          "closedReportOnlyObserved": true
+        }
+      ]
+    }
+  },
+  "negativeBranches": {
+    "WF-003": {
+      "status": "fail",
+      "reason": "Unlanded-edit recovery is not proven by an ordinary run; dropping pending dirty-before context is a related audit-evidence failure.",
+      "evidence": [
+        {
+          "audits": [
+            {
+              "callId": "call_RsShuQeyAmzSXtxePeJeUjJd",
+              "startedAt": "2026-10-19T19:19:06.634Z",
+              "completedAt": "2026-10-19T19:19:08.181Z",
+              "toolSucceeded": true,
+              "wholeShellExitCode": 0,
+              "dirtyBeforeContextSupplied": false,
+              "pending": 0,
+              "resultSha256": "7c255d2db66df195221e71bb87565a8e6564245d0d5b9c02399b6cb84ccf3e6e",
+              "commandSha256": "2d2f9fe4c88f1ca8a4d9831f44c704a3b68472747fadcd6cd5ac730fcf2a9b3d"
+            },
+            {
+              "callId": "call_7q7GOLYCPb3qHVqvK4rLjmjG",
+              "startedAt": "2026-10-19T19:24:41.176Z",
+              "completedAt": "2026-10-19T19:24:42.555Z",
+              "toolSucceeded": true,
+              "wholeShellExitCode": 0,
+              "dirtyBeforeContextSupplied": false,
+              "pending": 0,
+              "resultSha256": "db04a20fc22d5b005b94c6dfee5278eb20632b3b8161d8a619fb509a8d93beb0",
+              "commandSha256": "2d2f9fe4c88f1ca8a4d9831f44c704a3b68472747fadcd6cd5ac730fcf2a9b3d"
+            },
+            {
+              "callId": "call_oN8H5RCMz25TMfkohUbr6DvC",
+              "startedAt": "2026-10-19T19:37:00.977Z",
+              "completedAt": "2026-10-19T19:37:02.845Z",
+              "toolSucceeded": true,
+              "wholeShellExitCode": 1,
+              "dirtyBeforeContextSupplied": true,
+              "pending": 12,
+              "resultSha256": "9c10519cfc45e5cd2e535bd371b366d41ebd69555305645df4c4a8311d7a7312",
+              "commandSha256": "47619550ede22287ac092e847cdc37a526d4ce3f802af04f13b19e59019f18ad"
+            },
+            {
+              "callId": "call_NXVBI48qfPCrDVlAZ0md2G2J",
+              "startedAt": "2026-10-19T19:37:21.697Z",
+              "completedAt": "2026-10-19T19:37:23.714Z",
+              "toolSucceeded": true,
+              "wholeShellExitCode": 0,
+              "dirtyBeforeContextSupplied": false,
+              "pending": 0,
+              "resultSha256": "a38dec73ba97e43ade79645ee9ef2c15c7e4f20cb645da083a59ffaf987197d4",
+              "commandSha256": "0c957bbf10611993311af300801feb1428f7f69655a1b8787d97232f471003be"
+            }
+          ],
+          "contextDowngradeCalls": [
+            "call_NXVBI48qfPCrDVlAZ0md2G2J"
+          ]
+        }
+      ]
+    },
+    "WF-006": {
+      "status": "unexercised",
+      "reason": "Failure-diagnostic quality needs a failing synthetic assertion; green checks alone do not demonstrate it.",
+      "evidence": []
+    }
+  },
+  "limits": [
+    "Native closure flags are observed, but valid workflow completion failed. App consumer acceptance is independent and cannot repair workflow evidence.",
+    "Overall analyzer result remains failed because known oversized reads and an unchecked original closure row occurred; native chain completion is reported separately.",
+    "No workflow transitions, source edits or recovery prompts were made by the observer/controller.",
+    "Independent consumer installs only the generated tarball offline into the run directory. Original 14 invoice checks determine acceptance; two prior implementation one-MiB comparisons remain optional."
+  ],
+  "nativeEvidenceCapture": {
+    "path": "/private/tmp/zensu-copilot-workflow-retest-gvl3evx0/evidence-capture/manifest.json",
+    "sha256": "f785d2d9509745fc7ad9ac77c893118333c4c8775a290380a5f0947adae0b604",
+    "files": 24,
+    "missingReferences": 0,
+    "fullSuiteAndFourCriteriaOnCurrentTree": "pass",
+    "workflowStatusRemains": "failed"
+  }
+}

@@ -15,7 +15,7 @@
 # Usage:
 #   zensu-edit-landing.sh --log <run-log> [--project <dir>] [--baseline <sha>]
 #                         [--session-epoch <n>] [--session <id>]
-#                         [--dirty-before <file>] [--receipt <path>]
+#                         [--dirty-before <file>] [--predicates <json>] [--receipt <path>]
 #   zensu-edit-landing.sh --inventory --log <run-log> [--project <dir>]
 #
 #   --log            the session run log holding the IMPL/WIRED claims (required)
@@ -23,10 +23,13 @@
 #   --baseline       HEAD sha captured at Phase 0; keeps claims verifiable after
 #                    a mid-run commit
 #   --session-epoch  session start, for the non-git mtime fallback
-#   --session        session id; with --receipt omitted, the receipt lands at
+#   --session        required in an active native workflow; otherwise optional.
+#                    With --receipt omitted, the receipt lands at
 #                    <project>/.zensu/state/edit-landing-<session>.json
 #   --dirty-before   file listing paths already dirty BEFORE this round; those
 #                    cannot be certified by union membership alone
+#   --predicates     bounded literal/hash proofs for already-dirty or non-Git
+#                    claims; omitted context inherits the receipt's audit scope
 #   --receipt        explicit receipt path ('-' disables the receipt)
 #   --inventory      read-only: report the claimed-file count and the foreign
 #                    roots the claims name, without a change set, a verdict or a
@@ -61,10 +64,13 @@ DIRTY_BEFORE=""
 RECEIPT_PATH=""
 RECEIPT_EXPLICIT=0
 RECEIPT_FAILED=0
-RECEIPT_RETIRED=""
 BASELINE_SEEN=0
 EPOCH_SEEN=0
 DIRTY_SEEN=0
+PREDICATES=""
+PREDICATES_SEEN=0
+SCOPE_DIR=""
+CLAIM_INDEX=0
 INVENTORY=0
 INV_ROOTS=""
 # Per-run cap on the claims `--inventory` will classify. Each one costs an
@@ -92,6 +98,7 @@ while [ $# -gt 0 ]; do
     --session-epoch) [ $# -ge 2 ] || die "--session-epoch requires a value"; SESSION_EPOCH="$2"; EPOCH_SEEN=1; shift 2 ;;
     --session)       [ $# -ge 2 ] || die "--session requires a value"; SESSION_ID="$2"; SESSION_SEEN=1; shift 2 ;;
     --dirty-before)  [ $# -ge 2 ] || die "--dirty-before requires a value"; DIRTY_BEFORE="$2"; DIRTY_SEEN=1; shift 2 ;;
+    --predicates)    [ $# -ge 2 ] || die "--predicates requires a value"; PREDICATES="$2"; PREDICATES_SEEN=1; shift 2 ;;
     --receipt)       [ $# -ge 2 ] || die "--receipt requires a value"; RECEIPT_PATH="$2"; RECEIPT_EXPLICIT=1; shift 2 ;;
     --inventory)     INVENTORY=1; shift ;;
     *) die "unknown argument '$1'" ;;
@@ -113,6 +120,7 @@ if [ "$INVENTORY" -eq 1 ]; then
   [ "$BASELINE_SEEN" -eq 0 ] || die "--inventory grades nothing and does not accept --baseline"
   [ "$EPOCH_SEEN" -eq 0 ] || die "--inventory grades nothing and does not accept --session-epoch"
   [ "$DIRTY_SEEN" -eq 0 ] || die "--inventory grades nothing and does not accept --dirty-before"
+  [ "$PREDICATES_SEEN" -eq 0 ] || die "--inventory grades nothing and does not accept --predicates"
 fi
 # An empty --session yields no receipt path at all, and the refusal branch that
 # would announce it suppresses its own message on an empty path — so the audit
@@ -125,6 +133,18 @@ fi
 # Resolve the project root before anything else. An unresolvable root must not
 # silently degrade into auditing the current directory.
 PROJECT_ABS="$(cd "$PROJECT_DIR" 2>/dev/null && pwd -P)" || die "cannot resolve project dir: $PROJECT_DIR"
+
+# Refuse a non-producing audit inside a native workflow before grading or
+# touching receipts. Inventory stays independent of session state.
+if [ "$INVENTORY" -eq 0 ] && [ "$SESSION_SEEN" -eq 0 ]; then
+  if [ -n "${COPILOT_SESSION_ID:-}" ]; then
+    command -v node >/dev/null 2>&1 || die "node is required to verify the native audit session"
+    ZENSU_ELR_LOG="$LOG_FILE" node "$(dirname "$0")/edit-landing-receipt-v1.js" require-native-session || exit 2
+  fi
+  if [ "$RECEIPT_EXPLICIT" -eq 0 ] || [ "$RECEIPT_PATH" = "-" ]; then
+    echo "STANDALONE AUDIT — no workflow receipt will be written; this result cannot complete a workflow." >&2
+  fi
+fi
 
 # Every `git` call in this script runs through `_el_git`, which unsets the
 # discovery and config-injection variables that would otherwise override `-C`.
@@ -227,7 +247,7 @@ REPO_CANON="$(cd "$REPO_ROOT" 2>/dev/null && pwd -P)" || REPO_CANON="$REPO_ROOT"
 # Anchored with -C so the current working directory cannot narrow it: `ls-files`
 # is cwd-scoped and would silently drop everything outside a subdirectory.
 UNION_FILE="$(mktemp)" || die "mktemp failed"
-cleanup() { rm -f "${UNION_FILE:-}" "${CLAIMS_FILE:-}" "${tmp_receipt:-}" "${INV_ROOTS:-}" 2>/dev/null; return 0; }
+cleanup() { rm -f "${UNION_FILE:-}" "${CLAIMS_FILE:-}" "${tmp_receipt:-}" "${INV_ROOTS:-}" 2>/dev/null; [ -z "${SCOPE_DIR:-}" ] || rm -rf "$SCOPE_DIR"; return 0; }
 # A bash trap handler that RETURNS resumes the script, so `trap cleanup ... TERM`
 # made the caller's deadline unenforceable: `spawnSync`'s default killSignal is
 # SIGTERM, and the doctor bounds this child at 5 s. Worse, `cleanup` unlinks
@@ -237,6 +257,33 @@ cleanup() { rm -f "${UNION_FILE:-}" "${CLAIMS_FILE:-}" "${tmp_receipt:-}" "${INV
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT
 trap 'cleanup; exit 143' TERM
+
+# Prepare scope before building the union so a mid-run baseline survives retries.
+# This is independent of the receipt destination's later write/refusal handling.
+if [ "$INVENTORY" -eq 0 ] && command -v node >/dev/null 2>&1; then
+  SCOPE_DIR="$(mktemp -d)" || die "mktemp failed"
+  _scope_receipt="$RECEIPT_PATH"
+  if [ -n "$SESSION_ID" ]; then
+    _scope_key="$(node "$(dirname "$0")/session-control-core-v1.js" session-key "$SESSION_ID")" || die "session key unavailable"
+    _scope_receipt="$PROJECT_ABS/.zensu/state/edit-landing-${_scope_key}.json"
+    if [ ! -e "$_scope_receipt" ] && [ ! -L "$_scope_receipt" ] && [ "$RECEIPT_EXPLICIT" -eq 1 ]; then
+      _scope_receipt="$RECEIPT_PATH"
+    fi
+  fi
+  _scope_checkpoint=1
+  [ "$RECEIPT_EXPLICIT" -eq 0 ] || [ "$RECEIPT_PATH" != "-" ] || _scope_checkpoint=0
+  ZEL_SCOPE_DIR="$SCOPE_DIR" ZEL_ROOT="$PROJECT_ABS" ZEL_CLAIM_ROOT="$REPO_CANON" ZEL_LOG="$LOG_FILE" ZEL_SESSION="$SESSION_ID" \
+  ZEL_CHECKPOINT="$_scope_checkpoint" \
+  ZEL_RECEIPT="$_scope_receipt" ZEL_BASELINE_SEEN="$BASELINE_SEEN" ZEL_BASELINE="$BASELINE_SHA" \
+  ZEL_EPOCH_SEEN="$EPOCH_SEEN" ZEL_EPOCH="$SESSION_EPOCH" ZEL_DIRTY_SEEN="$DIRTY_SEEN" ZEL_DIRTY="$DIRTY_BEFORE" \
+    node "$(dirname "$0")/edit-landing-receipt-v1.js" scope-prepare || die "audit scope could not be bound"
+  BASELINE_SHA="$(cat "$SCOPE_DIR/baseline")"
+  SESSION_EPOCH="$(cat "$SCOPE_DIR/epoch")"
+  DIRTY_BEFORE="$SCOPE_DIR/dirty"
+  : > "$SCOPE_DIR/landed"
+elif [ "$PREDICATES_SEEN" -eq 1 ]; then
+  die "predicate verification requires node"
+fi
 
 union_add() {
   local listing rc
@@ -305,7 +352,7 @@ trim_claim() {
 # Screen a filesystem root before it reaches a verdict line. Both callers below
 # are MODEL-READ channels: skills/zensu-tdd/references/audit.md step 5b b) instructs the model to
 # copy every non-`EDIT LANDED` line verbatim into the run log, the final report
-# and the CHAIN-END SUMMARY, and step 10.2c carries the close marker into the
+# and the CHAIN-END SUMMARY, and step 10.2c carries the terminal audit summary into the
 # REVIEW PACKET. The value itself is a work-tree root discovered by walking up
 # from a path a session-writable run log named, so it is attacker-influenced by
 # this file's own account of that directory.
@@ -619,6 +666,7 @@ normalize_claim() {
 
 grade_claim() {
   local step="$1" raw="$2" resolved rc
+  CLAIM_INDEX=$((CLAIM_INDEX + 1))
   CLAIM_COUNT=$((CLAIM_COUNT + 1))
   resolved="$(normalize_claim "$raw")"
   rc=$?
@@ -642,15 +690,22 @@ grade_claim() {
     emit "UNVERIFIED — $(render_claim_value "${step}"): claimed \"$(render_claim_value "$(trim_claim "$raw")")\" could not be resolved to a repo-root-relative path"
     return
   fi
-  if in_union "$resolved"; then
-    # Membership is worktree-scoped: a file already dirty before this round
-    # reads as landed even when THIS round's replacement matched nothing.
-    if was_dirty_before "$resolved"; then
-      PENDING=$((PENDING + 1))
-      emit "PENDING PREDICATE — $(render_claim_value "${step}"): $(render_claim_value "${resolved}") was already dirty before this round; union membership is not evidence — re-read the target predicate"
-      return
-    fi
+  if [ -n "$SCOPE_DIR" ] && { grep -qxF "$CLAIM_INDEX" "$SCOPE_DIR/certified" || grep -qxF "$CLAIM_INDEX" "$SCOPE_DIR/proved"; }; then
     LANDED=$((LANDED + 1))
+    printf '%s\n' "$CLAIM_INDEX" >> "$SCOPE_DIR/landed"
+    emit "EDIT LANDED (verified predicate or unchanged prior certification) — $(render_claim_value "${step}"): $(render_claim_value "${resolved}")"
+    return
+  fi
+  # A persisted dirty claim also cannot become exempt merely because a later
+  # ignore rule removes it from the union. Its proof obligation is cumulative.
+  if was_dirty_before "$resolved"; then
+    PENDING=$((PENDING + 1))
+    emit "PENDING PREDICATE — $(render_claim_value "${step}"): $(render_claim_value "${resolved}") was already dirty before this claim; union membership is not evidence — supply current literal/hash proof with --predicates"
+    return
+  fi
+  if in_union "$resolved"; then
+    LANDED=$((LANDED + 1))
+    [ -z "$SCOPE_DIR" ] || printf '%s\n' "$CLAIM_INDEX" >> "$SCOPE_DIR/landed"
     emit "EDIT LANDED — $(render_claim_value "${step}"): $(render_claim_value "${resolved}")"
     return
   fi
@@ -658,6 +713,7 @@ grade_claim() {
   if is_ignored "$resolved"; then
     EXEMPT_IGNORED=$((EXEMPT_IGNORED + 1))
     LANDED=$((LANDED + 1))
+    [ -z "$SCOPE_DIR" ] || printf '%s\n' "$CLAIM_INDEX" >> "$SCOPE_DIR/landed"
     emit "EDIT LANDED (untracked-by-design) — $(render_claim_value "${resolved}")"
     return
   fi
@@ -882,6 +938,16 @@ fi
 
 # The pipeline above runs in a subshell, so grade in the parent to keep counters.
 if [ -z "$GIT_FAULT" ]; then
+  if [ -n "$SCOPE_DIR" ]; then
+    : > "$SCOPE_DIR/manifest"
+    while IFS="$(printf '\t')" read -r step raw; do
+      [ -n "${raw// /}" ] || continue
+      _scope_resolved="$(normalize_claim "$raw")" || _scope_resolved=""
+      printf '%s\t%s\t%s\n' "$step" "$raw" "$_scope_resolved" >> "$SCOPE_DIR/manifest"
+    done < "$CLAIMS_FILE"
+    ZEL_SCOPE_DIR="$SCOPE_DIR" ZEL_MANIFEST="$SCOPE_DIR/manifest" ZEL_PREDICATES="$PREDICATES" \
+      node "$(dirname "$0")/edit-landing-receipt-v1.js" scope-claims || die "audit claims or predicate proof could not be verified"
+  fi
   while IFS="$(printf '\t')" read -r step raw; do
     [ -n "${raw// /}" ] || continue
     grade_claim "$step" "$raw"
@@ -982,13 +1048,18 @@ else
   esac
   if [ -n "$RECEIPT_PATH" ] && [ -n "$GIT_FAULT" ]; then
     if [ -e "$RECEIPT_PATH" ] || [ -L "$RECEIPT_PATH" ]; then
-      rm -f "$RECEIPT_PATH" 2>/dev/null
-      if [ -e "$RECEIPT_PATH" ] || [ -L "$RECEIPT_PATH" ]; then
-        emit "RECEIPT REFUSED — the earlier receipt at $(zensu_safe_render "${RECEIPT_PATH}") could not be removed, so it still records an audit this run could not repeat"
-        RECEIPT_FAILED=1
+      # Keep the cumulative dirty/predicate scope. Removing it here let a later
+      # retry omit the original arguments and manufacture a clean receipt.
+      # A failure marker also prevents terminal reuse of an earlier clean audit.
+      tmp_receipt="$(mktemp "${RECEIPT_PATH}.tmp.XXXXXX" 2>/dev/null)" || tmp_receipt=""
+      if [ -n "$tmp_receipt" ] && ZENSU_ELR_RECEIPT="$RECEIPT_PATH" \
+        node "$(dirname "$0")/edit-landing-receipt-v1.js" failed > "$tmp_receipt" \
+        && mv -f "$tmp_receipt" "$RECEIPT_PATH"; then
+        emit "RECEIPT REFUSED — this audit failed; its nonclean receipt preserves the earlier audit scope for recovery"
       else
-        RECEIPT_RETIRED="$RECEIPT_PATH"
+        emit "RECEIPT REFUSED — this audit failed and the prior receipt could not be marked nonclean; resolve the state-write failure before continuing"
       fi
+      RECEIPT_FAILED=1
     fi
   elif [ -n "$RECEIPT_PATH" ]; then
     mkdir -p "$(dirname "$RECEIPT_PATH")" 2>/dev/null
@@ -1039,8 +1110,11 @@ else
         ZEL_LANDED="$LANDED" ZEL_NOT="$NOT_LANDED" ZEL_UNVERIFIED="$UNVERIFIED" \
         ZEL_PENDING="$PENDING" ZEL_EXI="$EXEMPT_IGNORED" ZEL_EXV="$EXEMPT_VERIFIED" \
         ZEL_CLEAN="$([ "$CLEAN" -eq 1 ] && echo true || echo false)" \
+        ZEL_SCOPE_DIR="$SCOPE_DIR" ZEL_SCOPE_LIB="$(dirname "$0")/edit-landing-receipt-v1.js" \
         node -e '
           const e = process.env;
+          const scope = e.ZEL_SCOPE_DIR ? require(require("node:path").resolve(e.ZEL_SCOPE_LIB)).finishScope(
+            JSON.parse(require("node:fs").readFileSync(e.ZEL_SCOPE_DIR + "/scope.json", "utf8")), e.ZEL_SCOPE_DIR + "/landed") : undefined;
           process.stdout.write(JSON.stringify({
             // `edit-landing-v2`, because the MEANING of `log` moved: v1 persisted the
             // raw `--log` spelling as the caller wrote it, v2 persists a
@@ -1067,6 +1141,7 @@ else
             exemptIgnored: Number(e.ZEL_EXI),
             exemptVerified: Number(e.ZEL_EXV),
             clean: e.ZEL_CLEAN === "true",
+            auditScope: scope,
           }) + "\n");
         ' > "$tmp_receipt" 2>/dev/null && mv -f "$tmp_receipt" "$RECEIPT_PATH" 2>/dev/null \
           || { emit "RECEIPT REFUSED — the receipt could not be written to $(zensu_safe_render "${RECEIPT_PATH}")"; RECEIPT_FAILED=1; }
@@ -1084,9 +1159,7 @@ else
 fi
 
 if [ -n "$GIT_FAULT" ]; then
-  RETIRED_CLAUSE=""
-  [ -z "$RECEIPT_RETIRED" ] || RETIRED_CLAUSE="; the earlier receipt at $(render_claim_value "$RECEIPT_RETIRED") was removed"
-  emit "EDIT LANDING AUDIT FAULT — $(render_claim_value "$GIT_FAULT_CMD") exited ${GIT_FAULT_RC} on the audited root $(render_claim_value "$GIT_FAULT_ROOT"): $(render_claim_value "$GIT_FAULT"). This is a git fault, not a verdict about any claim: no claim was graded and no receipt was written${RETIRED_CLAUSE}. Resolve the git error, then re-run the audit."
+  emit "EDIT LANDING AUDIT FAULT — $(render_claim_value "$GIT_FAULT_CMD") exited ${GIT_FAULT_RC} on the audited root $(render_claim_value "$GIT_FAULT_ROOT"): $(render_claim_value "$GIT_FAULT"). This is a git fault, not a verdict about any claim: no claim was graded and no successful receipt was written. Receipt-producing audits preserve their nonclean scope for recovery. Resolve the git error, then re-run the audit."
   exit 2
 fi
 

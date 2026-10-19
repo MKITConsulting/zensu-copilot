@@ -445,10 +445,10 @@ function pluginBlock() {
     if (wrong.length) line(BAD, 'native hooks: unexpected dispatcher registration: ' + wrong.join(', '));
     if (!missing.length && !wrong.length) line(OK, 'native hooks: all ' + NATIVE_DOCTOR_EVENTS.length + ' dispatcher registrations present; execution requires a live host check');
   }
-  var required = ['protocol.js', 'transcript.js', 'dispatcher.js', 'context.js', 'helper.js', 'approval.js'];
+  var required = ['protocol.js', 'transcript.js', 'dispatcher.js', 'context.js', 'helper.js', 'approval.js', 'review-gate.js'];
   var absent = required.filter(function (file) { return !nativeRegularFile(path.join(dir, 'hooks', 'native', file)); });
   if (absent.length) line(BAD, 'native runtime: missing or unsafe files: ' + absent.join(', '));
-  else line(OK, 'native runtime: dispatcher and its five support modules present');
+  else line(OK, 'native runtime: dispatcher and its ' + (required.length - 1) + ' support modules present');
   var build = readJson(path.join(dir, 'build.json'));
   if (!build.ok || build.data.schemaVersion !== 2 || !Array.isArray(build.data.skills)
     || build.data.skills.length !== 32 || new Set(build.data.skills).size !== 32) {

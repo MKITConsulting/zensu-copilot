@@ -78,7 +78,22 @@ test('independently loaded TDD references preserve dependency/evidence semantics
 });
 
 test('native review route keeps the complete panel, judges, verification, ticket and terminal chain', () => {
-  const result = reference('tdd/references/review-chain.md');
+  const index = reference('tdd/references/review-chain.md');
+  const stages = ['review-packet.md', 'review-panel.md', 'review-verification.md', 'review-completion.md'];
+  const bodies = stages.map(file => {
+    assert.ok(index.includes(`](${file})`), file);
+    const body = reference(`tdd/references/${file}`);
+    assert.ok(Buffer.byteLength(body) < 20 * 1024, `${file}: exceeds native view limit`);
+    return body;
+  });
+  assert.ok(Buffer.byteLength(index) < 20 * 1024);
+  assert.match(index, /Before executing each stage.*read its complete reference/);
+  assert.match(bodies[0], /onto its own line/);
+  assert.match(bodies[1], /Never put prose, a bullet, indentation, quotes or backticks before it/);
+  assert.match(bodies[1], /perspective: correctness\nREVIEW-PACKET:/);
+  assert.match(bodies[1], /merged_panel_findings:\n- \(no findings\)\njudge_run: second/);
+  assert.match(bodies[3], /PRE-MERGED FINDINGS \(fan-out\)\nREVIEW-TICKET: rt_actual_ticket\nREVIEW-PACKET:/);
+  const result = bodies.join('\n');
   assert.match(result, /Native review engine/);
   assert.match(result, /Spawn ONE parallel batch/);
   for (const marker of [
@@ -173,6 +188,8 @@ test('all six agents have distinct native identities and strictly read-only tool
     assert.doesNotMatch(result.split('---')[1], /bash|edit|create|task|model:|background:|maxTurns:/);
     assert.match(result, /<!-- zensu:evidence-discipline -->/);
     assert.match(result, /`view` uses `path`; `grep` and `glob` use `paths`/);
+    assert.match(result, /native `rg` as the `grep` tool alias/);
+    assert.match(result, /All `grep` path and read-lease restrictions below apply identically to `rg`/);
     assert.match(result, /never omit it, use the repository root, or widen a read lease/);
     assert.doesNotMatch(result, /never omit `path`|Never omit `path`/);
   }

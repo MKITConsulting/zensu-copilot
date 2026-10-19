@@ -1,0 +1,338 @@
+{
+  "schema": "zensu.native-workflow-multi-run-analysis.v1",
+  "runs": [
+    {
+      "schema": "zensu.native-workflow-final-analysis.v1",
+      "runDirectory": "/private/tmp/zensu-copilot-workflow-retest-azixytvp",
+      "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+      "observedAt": "2026-10-19T19:46:24.733266+00:00",
+      "status": "interrupted",
+      "nativeResultIsFinal": true,
+      "baselineCommit": "1f1d96a026b1f63f716518f185e4cb2119c94c10",
+      "controllerInterruption": {
+        "reason": "Superseded frozen plugin: newly confirmed audit-context downgrade vulnerability requires repair and a fresh workflow. Not a workflow pass.",
+        "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+        "signal": "SIGINT",
+        "time": "2026-10-19T19:43:52.197604+00:00"
+      },
+      "frozenBuildSha256": "7866a3fb8903da82fbf0b8a7d26bcf028338e2d5e8edba637d32546a251cc3a3",
+      "eventSources": [
+        {
+          "path": "output.jsonl",
+          "bytes": 6161158,
+          "sha256": "25fde361b2f5f9df21bae3d6aeb5e302f1ced256864131775bed95cb6a89d0ff"
+        }
+      ],
+      "checks": {
+        "sessionIsolation": {
+          "status": "pass",
+          "reason": "Exact main identity and only child sessions bound by its native subagent.started events; foreign captures are excluded.",
+          "evidence": []
+        },
+        "frozenPayload": {
+          "status": "pass",
+          "reason": "Current run-local payload compared with every frozen digest.",
+          "evidence": []
+        },
+        "pluginRoot": {
+          "status": "pass",
+          "reason": "Every captured plugin root must be this run's frozen payload.",
+          "evidence": [
+            "/private/tmp/zensu-copilot-workflow-retest-azixytvp/plugin/zensu"
+          ]
+        },
+        "globalIntegrity": {
+          "status": "pass",
+          "reason": "Compare captured before/after global and marketplace hashes; do not inspect ambient global files.",
+          "evidence": []
+        },
+        "workflowClosure": {
+          "status": "fail",
+          "reason": "Requires exact-session native state and a successful ticket-qualified chain-done call.",
+          "evidence": []
+        },
+        "editLanding": {
+          "status": "fail",
+          "reason": "Final current-session, bound-log edit-landing receipt must remain clean. Historical pending/unverified markers are retained separately and never overwritten by closure state.",
+          "evidence": [
+            {
+              "receipt": "project/.zensu/state/edit-landing-scv1_2f002d2d26e1ad3e2e18b53479f18a60e6a4fc2e42ef3dd714763f76a9bf173c.json",
+              "sha256": null,
+              "currentReceipt": null,
+              "historicalNonCleanMarkers": []
+            }
+          ]
+        },
+        "editLandingContext": {
+          "status": "fail",
+          "reason": "A pending dirty-before audit cannot become proven by omitting its context. Native closure and a later clean receipt do not erase this downgrade.",
+          "evidence": [
+            {
+              "audits": [],
+              "contextDowngradeCalls": []
+            }
+          ]
+        },
+        "executionStart": {
+          "status": "pass",
+          "reason": "One generation marker and a successful native start must precede the first observed source-edit tool.",
+          "evidence": [
+            {
+              "markerCount": 1,
+              "helperCompletedAt": "2026-10-19T19:39:27.682Z",
+              "firstObservedSourceEditAt": "2026-10-19T19:40:41.158Z",
+              "limitation": "Shell-based source mutations are not inferred from arbitrary command text."
+            }
+          ]
+        },
+        "progress": {
+          "status": "fail",
+          "reason": "Both managed native status and original stage rows must agree; a managed checkbox alone is insufficient.",
+          "evidence": []
+        },
+        "nativeReviewChain": {
+          "status": "fail",
+          "reason": "Requires completed native worker results, the first five-aspect panel, both first judges and primary-before-consume ordering.",
+          "evidence": []
+        },
+        "canonicalPackets": {
+          "status": "fail",
+          "reason": "Every reference is rehashed; native injected bytes must be identical within each packet generation.",
+          "evidence": []
+        },
+        "terminalSelfReview": {
+          "status": "fail",
+          "reason": "Native self-review loads after convergence and before closure. Repeated explicit skill invocations fail. Bounded native file reads are not themselves extra invocations. A later entry read requires a closed report-only response and no further work.",
+          "evidence": [
+            {
+              "reads": [],
+              "explicitSkillInvocations": 0,
+              "postCloseEntryReads": [],
+              "postCloseWork": [],
+              "closedReportOnlyObserved": false
+            }
+          ]
+        },
+        "reviewRouting": {
+          "status": "fail",
+          "reason": "Quality verdict must not invent a routing directive. Missing captured hook guidance requires manual assessment.",
+          "evidence": []
+        },
+        "acceptance": {
+          "status": "fail",
+          "reason": "Four observed per-criterion records plus a successful native current-tree 4/4 status are required.",
+          "evidence": []
+        },
+        "independentConsumer": {
+          "status": "fail",
+          "reason": "Original acceptance assertions, offline packaged installation and final source/installed digest equality; prior one-MiB comparisons are separate.",
+          "evidence": []
+        },
+        "eventCompleteness": {
+          "status": "pass",
+          "reason": "Invalid/trailing JSONL records prevent a complete final assertion.",
+          "evidence": [
+            {
+              "unparsedLines": 0
+            }
+          ]
+        },
+        "processExit": {
+          "status": "fail",
+          "reason": "A clean process exit is necessary but never sufficient for workflow success.",
+          "evidence": []
+        }
+      },
+      "originalFindings": {
+        "WF-001": {
+          "status": "unassessed",
+          "reason": "Only actual malformed-binding errors fail. Pre-hook repeated prefixes are observable replay candidates, but can be a host retry echo and do not establish model authorship. Injected execution_start prefixes are expected.",
+          "evidence": [
+            {
+              "capture": "hooks/1792438669508-81962-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438686147-84333-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438754570-96804-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438766163-2620-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438927783-30912-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438940394-33555-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438955920-34998-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438972231-38500-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438985215-41243-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792438992721-42527-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792439022860-48039-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            },
+            {
+              "capture": "hooks/1792439032062-49791-preToolUse.json",
+              "sessionId": "6a5877d5-57fe-411e-a8b6-8b8ff5f5230f",
+              "scope": "main"
+            }
+          ]
+        },
+        "WF-002": {
+          "status": "fail",
+          "reason": "Canonical packet use is observed; untracked/unborn/mid-commit edge cases remain deterministic-test coverage.",
+          "evidence": []
+        },
+        "WF-003": {
+          "status": "unexercised",
+          "reason": "Unlanded-edit recovery is not proven by an ordinary run; dropping pending dirty-before context is a related audit-evidence failure.",
+          "evidence": []
+        },
+        "WF-004": {
+          "status": "fail",
+          "reason": "Observed reviewers use native tasks; unsupported external import branches were not exercised.",
+          "evidence": []
+        },
+        "WF-005": {
+          "status": "pass",
+          "reason": "Actual native oversized-read responses, including audit references, are counted even if later recovered.",
+          "evidence": []
+        },
+        "WF-006": {
+          "status": "unexercised",
+          "reason": "Failure-diagnostic quality needs a failing synthetic assertion; green checks alone do not demonstrate it.",
+          "evidence": []
+        },
+        "WF-007": {
+          "status": "fail",
+          "reason": "Native start ordering and all completed-stage progress rows must agree.",
+          "evidence": []
+        },
+        "WF-008": {
+          "status": "fail",
+          "reason": "Exact injected payload hashes and byte hashes are compared within each review packet.",
+          "evidence": []
+        },
+        "WF-009": {
+          "status": "fail",
+          "reason": "Successful additive review never substitutes for substantive primary completion.",
+          "evidence": []
+        },
+        "WF-010": {
+          "status": "unexercised",
+          "reason": "Structured input and exact summary/input counts are required; unresolved shell variables or absent finding files stay unassessed. Delimiter-injection negative cases remain deterministic coverage.",
+          "evidence": []
+        },
+        "WF-011": {
+          "status": "fail",
+          "reason": "Quality reporting and the authoritative post-hook routing must remain distinct.",
+          "evidence": []
+        },
+        "WF-012": {
+          "status": "fail",
+          "reason": "A reused acceptance record with separate AC observations demonstrates sharing; distinct records alone do not prove redundant commands.",
+          "evidence": []
+        },
+        "WF-013": {
+          "status": "fail",
+          "reason": "Bound closure and final reporting must not restart the terminal skill.",
+          "evidence": [
+            {
+              "reads": [],
+              "explicitSkillInvocations": 0,
+              "postCloseEntryReads": [],
+              "postCloseWork": [],
+              "closedReportOnlyObserved": false
+            }
+          ]
+        }
+      },
+      "nativeTasks": [],
+      "milestones": [
+        {
+          "operation": "--tdd-begin",
+          "callId": "call_b6It8U7WHLXgBr93IotvF0E8",
+          "startedAt": "2026-10-19T19:37:22.182Z",
+          "completedAt": "2026-10-19T19:37:26.417Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "5d0077b5b5b386b472c6bedf38ce54c15b23dd69f8d420c11c03c14f7ef71d1f"
+        },
+        {
+          "operation": "--execution-start",
+          "callId": "call_7JOzpc6xTVa8DCMvPEmM1kkD",
+          "startedAt": "2026-10-19T19:39:26.101Z",
+          "completedAt": "2026-10-19T19:39:27.682Z",
+          "successful": true,
+          "exitCode": 0,
+          "exitCodeScope": "whole-shell-command-not-individual-subcommands",
+          "ticketQualified": false,
+          "resultSha256": "bbb2973791e8dcfb8ce14df3088263796714099c13f21bb2e687d29b4a780fee"
+        }
+      ],
+      "acceptanceRuns": [],
+      "integrity": {
+        "frozenPayload": {
+          "files": 273,
+          "mismatches": [],
+          "buildSha256": "7866a3fb8903da82fbf0b8a7d26bcf028338e2d5e8edba637d32546a251cc3a3"
+        },
+        "globalCaptureComparison": true,
+        "recordedPostcheck": {
+          "frozenPluginUnchanged": true,
+          "globalAndMarketplaceUnchanged": true
+        }
+      },
+      "priorImplementationComparison": null,
+      "state": {
+        "revision": 3,
+        "reviewGeneration": "366b98c8-6079-403a-82cc-b1cf5d8c2e68",
+        "implComplete": false,
+        "codeReviewDone": false,
+        "chainDone": false,
+        "reviewTicketConsumed": true,
+        "reviewRound": 0,
+        "selfReviewFixed": false
+      },
+      "limits": [
+        "No model, helper, shell, state transition or ambient credential/configuration read is performed.",
+        "Source-only and negative branches can remain unexercised; this report never upgrades fixtures to live evidence.",
+        "A superseded run remains its own result; multiple runs never share completion proof."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,393 @@
+{
+  "schema": "zensu-native-review-audit-proof-v1",
+  "observedAt": "2026-10-19T20:47:12.301158+00:00",
+  "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+  "method": "Read-only native captures, canonical receipt and current file bytes. No helper replay, injected prompt, state edit or permission change. Tree equality uses captured native evidence and receipt; this observer did not run Git tree creation.",
+  "packet": {
+    "path": "project/.zensu/reviews/run.CjZ3HW/round-1-packet.json",
+    "hash": "4e7c38abae831c4813e367448e928ce8f9be289c2ba163c1c4e1ff9f9485fe11",
+    "payloadHashValid": true,
+    "injectedBlockBytes": 6243,
+    "injectedBlockSha256": "567ad9df57a1395d02eead6fc5d264d3d5d073ffdf101ee5b29ecd59f90628bd"
+  },
+  "tasks": [
+    {
+      "capture": "hooks/1792441292837-64450-postToolUse.json",
+      "name": "invoice-review-security",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "packetExact": true,
+      "packetCount": 1,
+      "secondJudge": false,
+      "resultType": "success",
+      "result": "## Aspect: security\n- [IMPORTANT] src/cli.js:13 — Unbounded stdin is accumulated in memory before parsing, so a caller that supplies excessively large input can exhaust the CLI process’s memory. Evidence: the `for await` loop reads every chunk and line 14 appends each chunk to `document` without a size limit; `JSON.parse` then processes the accumulated string. Fix: enforce a maximum input size while reading and reject oversized input before parsing. Confidence: 88."
+    },
+    {
+      "capture": "hooks/1792441299253-64955-postToolUse.json",
+      "name": "invoice-review-conventions",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "packetExact": true,
+      "packetCount": 1,
+      "secondJudge": false,
+      "resultType": "success",
+      "result": "## Aspect: conventions\n- (no findings)"
+    },
+    {
+      "capture": "hooks/1792441299890-65218-postToolUse.json",
+      "name": "invoice-review-bugs",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "packetExact": true,
+      "packetCount": 1,
+      "secondJudge": false,
+      "resultType": "success",
+      "result": "## Aspect: bugs\n- (no findings)"
+    },
+    {
+      "capture": "hooks/1792441300533-65459-postToolUse.json",
+      "name": "invoice-review-architecture",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "packetExact": true,
+      "packetCount": 1,
+      "secondJudge": false,
+      "resultType": "success",
+      "result": "## Aspect: architecture\n- [IMPORTANT] package.json:10 — The package ships only `dist`, but its scripts define a manual `build` and no packaging hook to refresh that directory. If `src` changes and someone runs `npm pack` without first rebuilding, the tarball can contain stale or missing entry points. Confidence: 86. Evidence: `package.json` lists only `dist` under `files` (lines 10–12) and defines `build` separately (lines 13–17); `scripts/build.mjs` copies `src` into `dist`. Fix: add a `prepack` script that runs the build so packaged artifacts are generated from the current source."
+    },
+    {
+      "capture": "hooks/1792441303711-65843-postToolUse.json",
+      "name": "invoice-review-tests",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "packetExact": true,
+      "packetCount": 1,
+      "secondJudge": false,
+      "resultType": "success",
+      "result": "## Aspect: tests\n- [IMPORTANT] tests/cli.test.js:6 — The CLI tests execute `src/cli.js` directly, so they do not verify the package’s published `invoice-quote` entry point or that the built distribution includes a working CLI. A broken `bin` mapping or packaging change could pass these tests. Confidence: 91. Evidence: `tests/cli.test.js` resolves `../src/cli.js` and passes that path to `spawnSync`; `package.json` maps `invoice-quote` to `./dist/cli.js`. Fix: add a reproducible package smoke test that builds and packs the package, installs it in a temporary consumer, and invokes the installed `invoice-quote` executable."
+    },
+    {
+      "capture": "hooks/1792441360569-72580-postToolUse.json",
+      "name": "invoice-review-judge-primary",
+      "agent": "zensu:review-judge",
+      "mode": "sync",
+      "packetExact": true,
+      "packetCount": 1,
+      "secondJudge": false,
+      "resultType": "success",
+      "result": "## Aspect: judge\n- (no findings)"
+    },
+    {
+      "capture": "hooks/1792441375970-72983-postToolUse.json",
+      "name": "invoice-review-judge-second",
+      "agent": "zensu:review-judge",
+      "mode": "sync",
+      "packetExact": true,
+      "packetCount": 1,
+      "secondJudge": true,
+      "resultType": "success",
+      "result": "## Aspect: judge (second run)\n- [IMPORTANT] JUDGE-B1 src/cli.js:16 — `JSON.parse` can round a fractional JSON number to an integer before validation, so the CLI may accept an invalid price or quantity and compute a quote from the rounded value. For example, a value such as `1.0000000000000001` can parse as `1`, which passes the integer checks in `src/index.js`; this conflicts with the integer-input contract documented in `README.md`. Confidence: 84. Evidence: `src/cli.js` parses the document with `JSON.parse`, then passes its numeric fields to `quoteInvoice`; `src/index.js` validates only the resulting JavaScript numbers, and `tests/cli.test.js` covers ordinary fractions but not values rounded to integers during parsing. Fix: validate numeric tokens without losing their exact decimal form, or use an input representation that preserves exact integer validation before calling `quoteInvoice`."
+    },
+    {
+      "capture": "hooks/1792441541047-87701-postToolUse.json",
+      "name": "invoice-review-consume-r1",
+      "agent": "zensu:code-reviewer",
+      "mode": "sync",
+      "packetExact": true,
+      "packetCount": 1,
+      "secondJudge": false,
+      "resultType": "success",
+      "result": "# Code Review Report\n\n## Summary\n- Policy: reviewer-readonly-v1\n- Reviewer identity: zensu:code-reviewer\n- Perspectives: conventions, bugs, architecture, tests, security\n- Files reviewed: 6\n- Findings: 4 (0 critical, 4 important, 0 suggestions)\n- Verdict: NEEDS CHANGES\n\n## Main-Thread Evidence\n- Tests: `npm test` and `npm run lint` exited 0; the `invoice-quote` checkpoint passed; acceptance exited 0 with 4/4 active criteria passing.\n- Build: `npm run build` exited successfully. The packed tarball was installed offline into a disposable consumer; its API and invoice-quote bin were exercised successfully.\n- Coverage: `npm run coverage` passed. Node reported `src/cli.js` and `src/index.js` at 100.00% lines, 100.00% branches, and 100.00% functions, exceeding all configured 90% thresholds.\n\n## Critical Issues\nNone.\n\n## Important Issues\n- **[IMPORTANT] R1-F1 — `package.json:10`** — npm pack can publish stale or missing dist files when callers do not run the build first. Evidence: the package ships only dist and has a separate build script without a prepack hook. Fix: build automatically during pack. [VERIFIED]\n- **[IMPORTANT] R1-F2 — `src/cli.js:13-14`** — stdin is accumulated without a size limit before JSON parsing, permitting excessive memory use. Evidence: every stream chunk is appended to document. Fix: reject input beyond a documented finite limit. [VERIFIED]\n- **[IMPORTANT] R1-F4 — `src/cli.js:16`** — JSON.parse can round a fractional numeric token to a safe integer before quoteInvoice validates it, so 1.0000000000000001 may be accepted as 1. Evidence: the parsed number is passed to quoteInvoice without retaining its token. Fix: preserve and validate the exact numeric token before passing it to quoteInvoice. [VERIFIED]\n- **[IMPORTANT] R1-F3 — `tests/cli.test.js:6`** — CLI tests invoke src/cli.js directly and do not test the built package bin mapping. Evidence: cliPath resolves ../src/cli.js. Fix: add a package smoke test that packs, installs offline into a disposable consumer, and runs the installed bin. [VERIFIED]\n\n## Suggestions\nNone."
+    }
+  ],
+  "canonicalReceipt": {
+    "schema": "edit-landing-v2",
+    "session": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+    "log": ".zensu/logs/2026-10-19-2202_tdd-invoice-quote.log",
+    "claims": 11,
+    "landed": 11,
+    "notLanded": 0,
+    "unverified": 0,
+    "pending": 0,
+    "exemptIgnored": 0,
+    "exemptVerified": 0,
+    "clean": true,
+    "auditScope": {
+      "schema": "edit-landing-scope-v1",
+      "root": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+      "claimRoot": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+      "log": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu/logs/2026-10-19-2202_tdd-invoice-quote.log",
+      "sessionKey": "scv1_7562c56040493225f28bec41d7f2b1f56b603262e89d0ba525f1dfa9d24aeabb",
+      "generation": "e22cc3ab-9ebf-416f-901b-6ee4868a8926",
+      "baseline": "624e0efe69863accf58458a7ff662e2ca74b3460",
+      "epoch": "1792440157",
+      "dirty": [
+        ".zensu/plans/2026-10-19-2202_tdd-invoice-quote.md",
+        ".zensu/reviews/run.CjZ3HW/round-1-findings.json",
+        ".zensu/reviews/run.CjZ3HW/round-1-input.json",
+        ".zensu/reviews/run.CjZ3HW/round-1-packet.json",
+        "README.md",
+        "package.json",
+        "src/cli.js",
+        "src/index.js",
+        "tests/cli.test.js",
+        "tests/quote.test.js"
+      ],
+      "logPrefix": {
+        "bytes": 6096,
+        "sha256": "362740e7b8dd0f96db5ee4b5b36ab3a121db8010e18674cf29806f1653554360"
+      },
+      "claims": [
+        {
+          "step": "quote-api",
+          "raw": " src/index.js",
+          "path": "src/index.js",
+          "certified": true
+        },
+        {
+          "step": "quote-api",
+          "raw": " tests/quote.test.js",
+          "path": "tests/quote.test.js",
+          "certified": true
+        },
+        {
+          "step": "cli-package",
+          "raw": " src/cli.js",
+          "path": "src/cli.js",
+          "certified": true
+        },
+        {
+          "step": "cli-package",
+          "raw": " tests/cli.test.js",
+          "path": "tests/cli.test.js",
+          "certified": true
+        },
+        {
+          "step": "tests-docs",
+          "raw": " package.json",
+          "path": "package.json",
+          "certified": true
+        },
+        {
+          "step": "tests-docs",
+          "raw": " README.md",
+          "path": "README.md",
+          "certified": true
+        },
+        {
+          "step": "tests-docs",
+          "raw": " tests/cli.test.js",
+          "path": "tests/cli.test.js",
+          "certified": true
+        },
+        {
+          "step": "SR1",
+          "raw": " src/cli.js",
+          "path": "src/cli.js",
+          "certified": true
+        },
+        {
+          "step": "SR1",
+          "raw": " tests/cli.test.js",
+          "path": "tests/cli.test.js",
+          "certified": true
+        },
+        {
+          "step": "SR1",
+          "raw": " package.json",
+          "path": "package.json",
+          "certified": true
+        },
+        {
+          "step": "SR1",
+          "raw": " README.md",
+          "path": "README.md",
+          "certified": true
+        }
+      ],
+      "snapshots": {
+        "src/index.js": {
+          "path": "src/index.js",
+          "exists": true,
+          "bytes": 1591,
+          "sha256": "5d2bffc55c2a56b4a673173aa34703ab56ce50fcb08a3fb8c087754681daeb41"
+        },
+        "tests/quote.test.js": {
+          "path": "tests/quote.test.js",
+          "exists": true,
+          "bytes": 2882,
+          "sha256": "2f4f1cf33eafb42365cb9d7f7ca174bed66bf0db58361b9fc2a363df453ab620"
+        },
+        "src/cli.js": {
+          "path": "src/cli.js",
+          "exists": true,
+          "bytes": 5465,
+          "sha256": "8478d23c0d52ba021c92681f454cfd86c2d8c00c5c5365999b2b502b28aa1b3c"
+        },
+        "tests/cli.test.js": {
+          "path": "tests/cli.test.js",
+          "exists": true,
+          "bytes": 5692,
+          "sha256": "eb7b1bce4645406d78d279375a21b6da3ac4ada3ca913f98c4e8279d36f3afa4"
+        },
+        "package.json": {
+          "path": "package.json",
+          "exists": true,
+          "bytes": 634,
+          "sha256": "481d9c4197e94814c115c7d7b20e6930995363283ce97b3dbefdc0e8e4bec90c"
+        },
+        "README.md": {
+          "path": "README.md",
+          "exists": true,
+          "bytes": 1658,
+          "sha256": "3e0115d08c32e751988ad837474f0e7d2065557b37da688a244a3de5214c803b"
+        }
+      },
+      "observedFiles": [
+        "README.md",
+        "package.json",
+        "src/cli.js",
+        "src/index.js",
+        "tests/cli.test.js",
+        "tests/quote.test.js"
+      ],
+      "tree": {
+        "kind": "git",
+        "tree": "7bd0f7a42e0de6c2ab41298aeef7b8c82e540384"
+      }
+    }
+  },
+  "receiptChecks": {
+    "generationMatches": true,
+    "sessionMatches": true,
+    "allClaimsCertified": true,
+    "logPrefixHashMatches": true,
+    "logSuffix": "FINDING LEDGER — R1-F1 fixed IMPORTANT package.json:10 | pack may omit a fresh build\nFINDING LEDGER — R1-F2 fixed IMPORTANT src/cli.js:13 | unbounded stdin may exhaust memory\nFINDING LEDGER — R1-F3 fixed IMPORTANT tests/cli.test.js:6 | tests miss the installed package bin\nFINDING LEDGER — R1-F4 fixed IMPORTANT src/cli.js:16 | parsed decimals can pass integer validation\n",
+    "files": [
+      {
+        "path": "src/index.js",
+        "sha256": "5d2bffc55c2a56b4a673173aa34703ab56ce50fcb08a3fb8c087754681daeb41",
+        "snapshotHashMatches": true,
+        "snapshotBytesMatch": true,
+        "predicateLiterals": [
+          "export function quoteInvoice(items, discountBps = 0) {",
+          "const discountCents = Number("
+        ],
+        "allPredicateLiteralsPresent": true
+      },
+      {
+        "path": "tests/quote.test.js",
+        "sha256": "2f4f1cf33eafb42365cb9d7f7ca174bed66bf0db58361b9fc2a363df453ab620",
+        "snapshotHashMatches": true,
+        "snapshotBytesMatch": true,
+        "predicateLiterals": [
+          "test('quotes multiple items and rounds the discount to the nearest cent', () => {",
+          "test('supports the exact maximum safe subtotal', () => {"
+        ],
+        "allPredicateLiteralsPresent": true
+      },
+      {
+        "path": "src/cli.js",
+        "sha256": "8478d23c0d52ba021c92681f454cfd86c2d8c00c5c5365999b2b502b28aa1b3c",
+        "snapshotHashMatches": true,
+        "snapshotBytesMatch": true,
+        "predicateLiterals": [
+          "const MAX_INPUT_BYTES = 1024 * 1024;",
+          "function hasRoundedIntegerField(document) {"
+        ],
+        "allPredicateLiteralsPresent": true
+      },
+      {
+        "path": "tests/cli.test.js",
+        "sha256": "eb7b1bce4645406d78d279375a21b6da3ac4ada3ca913f98c4e8279d36f3afa4",
+        "snapshotHashMatches": true,
+        "snapshotBytesMatch": true,
+        "predicateLiterals": [
+          "test('CLI accepts exact decimal integer notation and rejects rounded integer tokens', () => {",
+          "test('CLI rejects input larger than one mebibyte without buffering the document', () => {",
+          "test('packed package bin works in an offline disposable consumer', () => {"
+        ],
+        "allPredicateLiteralsPresent": true
+      },
+      {
+        "path": "package.json",
+        "sha256": "481d9c4197e94814c115c7d7b20e6930995363283ce97b3dbefdc0e8e4bec90c",
+        "snapshotHashMatches": true,
+        "snapshotBytesMatch": true,
+        "predicateLiterals": [
+          "\"prepack\": \"npm run build\""
+        ],
+        "allPredicateLiteralsPresent": true
+      },
+      {
+        "path": "README.md",
+        "sha256": "3e0115d08c32e751988ad837474f0e7d2065557b37da688a244a3de5214c803b",
+        "snapshotHashMatches": true,
+        "snapshotBytesMatch": true,
+        "predicateLiterals": [
+          "Input is limited to 1 MiB, and numeric fields must be",
+          "exact safe integers; JSON decimals that round to an integer are rejected."
+        ],
+        "allPredicateLiteralsPresent": true
+      }
+    ],
+    "suffixContainsOnlyLedgerReports": true,
+    "canonicalReceiptUnchangedSinceVerified": true,
+    "currentFilesStillMatch": true
+  },
+  "nativePredicateEvidence": {
+    "initialConstruction": "hooks/1792442046953-54056-postToolUse.json",
+    "additionalProof": "hooks/1792442067429-56836-postToolUse.json",
+    "inputReadBeforeCleanup": true,
+    "cleanupCapture": "hooks/1792442605241-7573-postToolUse.json",
+    "currentInputPresent": false,
+    "clarification": "Temporary proof JSON was directly inspected before the native model cleaned it after closure. Literal checks above are independently recomputed from exact native construction arguments; the final receipt snapshots match the same observed hashes."
+  },
+  "terminalSequence": [
+    {
+      "capture": "hooks/1792442098887-61348-postToolUse.json",
+      "exit": 1,
+      "reason": "stale canonical receipt and stale acceptance"
+    },
+    {
+      "capture": "hooks/1792442510819-94285-postToolUse.json",
+      "exit": 1,
+      "reason": "stale canonical receipt after another non-producing audit"
+    },
+    {
+      "capture": "hooks/1792442573790-4029-postToolUse.json",
+      "exit": 0,
+      "reason": "model added explicit bound session and retained dirty-before plus predicates; canonical receipt updated"
+    },
+    {
+      "capture": "hooks/1792442588106-6269-postToolUse.json",
+      "exit": 0,
+      "reason": "current clean audit plus full suite and observed acceptance4/4; chain closed"
+    }
+  ],
+  "workflowState": {
+    "implComplete": true,
+    "codeReviewDone": true,
+    "selfReviewFixed": true,
+    "chainDone": true,
+    "reviewRound": 1,
+    "reviewGeneration": "e22cc3ab-9ebf-416f-901b-6ee4868a8926"
+  },
+  "captureHashes": {
+    "1792442046953-54056-postToolUse.json": "511da3dcde21ccb037f3bc6dd87d658733f5a40a46474fc3858a2c32a88e9d70",
+    "1792442067429-56836-postToolUse.json": "dd08305924e4ef36a90e9a39bb1455bda448f47aa5b3aafc7ed02d2e72c6cd03",
+    "1792442056023-55447-postToolUse.json": "a88028ad4545add3f2e9f397a8aab75b1f52e9789a3a71630b7b95fa4536416b",
+    "1792442098887-61348-postToolUse.json": "7db1f544cc9cad7b9cd922f3b60f4a892ec76a893e78fd6487b6f568106616e7",
+    "1792442510819-94285-postToolUse.json": "a764650204cc9eaf641b4a36c4a983647848787cfe3424ae0113063546e3a3b9",
+    "1792442573790-4029-postToolUse.json": "72c2c4c81675023c71c3f3fdcc8ac1a19932f9b3d6cdbba1eef2f8cfbfb3c697",
+    "1792442588106-6269-postToolUse.json": "d002bc12a3adfef4f439fa561a28d092a7d43f16455d2434916bf031271d0d4c",
+    "1792442605241-7573-postToolUse.json": "054a395efe1728c9b60f724247eca868aa5dd7dec916b7a36adb419e6d13f54a"
+  },
+  "residualUX": "See omitted-session-audit-ux.md. Standalone audit success without --session was confusing, but terminal refused both attempts and model recovered unaided.",
+  "processExit": {
+    "exitCode": 0,
+    "interruptedBySignal": null,
+    "elapsedSeconds": 2637.31,
+    "finishedAt": "2026-10-19T20:46:06.534460+00:00"
+  }
+}

@@ -1,0 +1,270 @@
+{
+  "schema": "zensu.audit-scope-independent-fixture.v1",
+  "kind": "deterministic-fixture-not-native-workflow",
+  "observedAt": "2026-10-19T19:57:37.116307+00:00",
+  "status": "pass",
+  "source": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/proof.json",
+  "sourceSha256": "87973d235de8189c0fea4b40b4f06bb6b415bca687352e317c0d4246a0200883",
+  "priorFailureSource": "/private/tmp/zensu-audit-scope-review-uws2Rw/proof.json",
+  "priorFailureSourceSha256": "7cadef27951f7a490cedc553d4fb98f350eb2f1a032c35613730ac643dcd2e94",
+  "cases": {
+    "first": {
+      "exit": 1,
+      "output": "PENDING PREDICATE \u2014 SR1: source.js was already dirty before this claim; union membership is not evidence \u2014 supply current literal/hash proof with --predicates\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+      "receiptExists": true,
+      "receipt": {
+        "schema": "edit-landing-v2",
+        "session": "",
+        "log": ".zensu/logs/test.log",
+        "claims": 1,
+        "landed": 0,
+        "notLanded": 0,
+        "unverified": 0,
+        "pending": 1,
+        "exemptIgnored": 0,
+        "exemptVerified": 0,
+        "clean": false,
+        "auditScope": {
+          "schema": "edit-landing-scope-v1",
+          "root": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/git-fault",
+          "log": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/git-fault/.zensu/logs/test.log",
+          "sessionKey": null,
+          "generation": null,
+          "baseline": "7065c139f017d184a1a5d1b1d3d68a0b667e9102",
+          "epoch": "",
+          "dirty": [
+            "source.js"
+          ],
+          "logPrefix": {
+            "bytes": 40,
+            "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+          },
+          "claims": [
+            {
+              "step": "SR1",
+              "raw": " source.js",
+              "path": "source.js",
+              "certified": false
+            }
+          ],
+          "snapshots": {
+            "source.js": {
+              "path": "source.js",
+              "exists": true,
+              "bytes": 4,
+              "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+            }
+          },
+          "tree": {
+            "kind": "git",
+            "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+          }
+        }
+      }
+    },
+    "fault": {
+      "exit": 2,
+      "output": "RECEIPT REFUSED \u2014 this audit failed; its nonclean receipt preserves the earlier audit scope for recovery\nEDIT LANDING AUDIT FAULT \u2014 git rev-parse --is-inside-work-tree exited 128 on the audited root /private/tmp/zensu-audit-scope-recheck-jNDH4U/git-fault: synthetic git failure. This is a git fault, not a verdict about any claim: no claim was graded and no receipt was written. Resolve the git error, then re-run the audit.",
+      "receiptExists": true,
+      "receipt": {
+        "schema": "edit-landing-v2",
+        "session": "",
+        "log": ".zensu/logs/test.log",
+        "claims": 1,
+        "landed": 0,
+        "notLanded": 0,
+        "unverified": 1,
+        "pending": 0,
+        "exemptIgnored": 0,
+        "exemptVerified": 0,
+        "clean": false,
+        "auditFailure": "The latest audit did not complete because Git failed. Rerun the audit after resolving that failure.",
+        "auditScope": {
+          "schema": "edit-landing-scope-v1",
+          "root": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/git-fault",
+          "log": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/git-fault/.zensu/logs/test.log",
+          "sessionKey": null,
+          "generation": null,
+          "baseline": "7065c139f017d184a1a5d1b1d3d68a0b667e9102",
+          "epoch": "",
+          "dirty": [
+            "source.js"
+          ],
+          "logPrefix": {
+            "bytes": 40,
+            "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+          },
+          "legacyUnresolved": false,
+          "claims": [
+            {
+              "step": "SR1",
+              "raw": " source.js",
+              "path": "source.js",
+              "certified": false
+            }
+          ],
+          "snapshots": {
+            "source.js": {
+              "path": "source.js",
+              "exists": true,
+              "bytes": 4,
+              "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+            }
+          },
+          "tree": {
+            "kind": "git",
+            "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+          }
+        }
+      }
+    },
+    "retry": {
+      "exit": 1,
+      "output": "PENDING PREDICATE \u2014 SR1: source.js was already dirty before this claim; union membership is not evidence \u2014 supply current literal/hash proof with --predicates\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+      "receiptExists": true,
+      "receipt": {
+        "schema": "edit-landing-v2",
+        "session": "",
+        "log": ".zensu/logs/test.log",
+        "claims": 1,
+        "landed": 0,
+        "notLanded": 0,
+        "unverified": 0,
+        "pending": 1,
+        "exemptIgnored": 0,
+        "exemptVerified": 0,
+        "clean": false,
+        "auditScope": {
+          "schema": "edit-landing-scope-v1",
+          "root": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/git-fault",
+          "log": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/git-fault/.zensu/logs/test.log",
+          "sessionKey": null,
+          "generation": null,
+          "baseline": "7065c139f017d184a1a5d1b1d3d68a0b667e9102",
+          "epoch": "",
+          "dirty": [
+            "source.js"
+          ],
+          "logPrefix": {
+            "bytes": 40,
+            "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+          },
+          "claims": [
+            {
+              "step": "SR1",
+              "raw": " source.js",
+              "path": "source.js",
+              "certified": false
+            }
+          ],
+          "snapshots": {
+            "source.js": {
+              "path": "source.js",
+              "exists": true,
+              "bytes": 4,
+              "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+            }
+          },
+          "tree": {
+            "kind": "git",
+            "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+          }
+        }
+      }
+    },
+    "invalid": {
+      "exit": 2,
+      "output": "edit-landing audit: predicate proof hash is stale or invalid\nzensu-edit-landing.sh: audit claims or predicate proof could not be verified",
+      "receiptExists": true,
+      "receipt": {
+        "schema": "edit-landing-v2",
+        "session": "",
+        "log": ".zensu/logs/test.log",
+        "claims": 0,
+        "landed": 0,
+        "notLanded": 0,
+        "unverified": 0,
+        "pending": 0,
+        "exemptIgnored": 0,
+        "exemptVerified": 0,
+        "clean": false,
+        "auditFailure": "The current audit has not completed. Rerun it; its cumulative context is preserved.",
+        "auditScope": {
+          "schema": "edit-landing-scope-v1",
+          "root": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/invalid-proof",
+          "log": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/invalid-proof/.zensu/logs/test.log",
+          "sessionKey": null,
+          "generation": null,
+          "baseline": "3e48137bb3ae977a484265251c38101d4e82c85f",
+          "epoch": "",
+          "dirty": [
+            "source.js"
+          ],
+          "logPrefix": {
+            "bytes": 40,
+            "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+          },
+          "legacyUnresolved": false,
+          "claims": [],
+          "snapshots": {},
+          "tree": null
+        }
+      }
+    },
+    "proofRetry": {
+      "exit": 1,
+      "output": "PENDING PREDICATE \u2014 SR1: source.js was already dirty before this claim; union membership is not evidence \u2014 supply current literal/hash proof with --predicates\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+      "receiptExists": true,
+      "receipt": {
+        "schema": "edit-landing-v2",
+        "session": "",
+        "log": ".zensu/logs/test.log",
+        "claims": 1,
+        "landed": 0,
+        "notLanded": 0,
+        "unverified": 0,
+        "pending": 1,
+        "exemptIgnored": 0,
+        "exemptVerified": 0,
+        "clean": false,
+        "auditScope": {
+          "schema": "edit-landing-scope-v1",
+          "root": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/invalid-proof",
+          "log": "/private/tmp/zensu-audit-scope-recheck-jNDH4U/invalid-proof/.zensu/logs/test.log",
+          "sessionKey": null,
+          "generation": null,
+          "baseline": "3e48137bb3ae977a484265251c38101d4e82c85f",
+          "epoch": "",
+          "dirty": [
+            "source.js"
+          ],
+          "logPrefix": {
+            "bytes": 40,
+            "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+          },
+          "claims": [
+            {
+              "step": "SR1",
+              "raw": " source.js",
+              "path": "source.js",
+              "certified": false
+            }
+          ],
+          "snapshots": {
+            "source.js": {
+              "path": "source.js",
+              "exists": true,
+              "bytes": 4,
+              "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+            }
+          },
+          "tree": {
+            "kind": "git",
+            "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+          }
+        }
+      }
+    }
+  },
+  "claim": "Independent temporary-fixture recheck: Git faults and invalid first predicate proof preserve nonclean cumulative dirty scope; omitted-context retries remain pending. No native model run is represented by this report."
+}

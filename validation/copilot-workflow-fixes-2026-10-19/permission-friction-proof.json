@@ -1,0 +1,748 @@
+{
+  "schema": "zensu.native-permission-friction-proof.v1",
+  "sessionId": "0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1",
+  "eventSource": "output.jsonl",
+  "decisionEvidence": "Native tool.execution_start/complete events and raw preToolUse captures; final hook responses were not captured.",
+  "observedDenied": 19,
+  "successfulControlTurns": [
+    "103",
+    "104",
+    "105"
+  ],
+  "inferences": [
+    {
+      "kind": "outside-trusted-project",
+      "turns": [
+        "64",
+        "65",
+        "66",
+        "67",
+        "68",
+        "69",
+        "70",
+        "71",
+        "72",
+        "73",
+        "74",
+        "75",
+        "77",
+        "78"
+      ],
+      "basis": "Requested consumer paths are outside the project and plugin roots named by launch flags."
+    },
+    {
+      "kind": "stale-launch-PWD-path-preflight",
+      "turns": [
+        "101",
+        "102"
+      ],
+      "basis": "Native possiblePaths contains the parent checkout although captured cwd and explicit cd target name the disposable project. Equivalent absolute in-project mkdir and symlink-check commands succeed in turns103-105."
+    },
+    {
+      "kind": "unresolved-link-policy",
+      "turns": [
+        "81"
+      ],
+      "basis": "Native denial covers ln -s with a relative link target; exact policy decision not captured."
+    }
+  ],
+  "sourceInspection": "The native registry applicable bash hooks have no matching ask policy for these commands: browser-consent asks require playwright-cli navigation. Startup-only host debug log has no decision trace. No helper was replayed against the live session.",
+  "futureHarnessRemedy": "Start a future process with cwd and PWD equal to its disposable project as well as -C; keep the package consumer within explicitly trusted own-run scope. Do not modify the active process permissions.",
+  "rows": [
+    {
+      "callId": "call_WyrLgB8DFILF1HnOpYyhiYGX",
+      "turnId": "64",
+      "completedAt": "2026-10-19T20:10:42.500Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "set -eu\ntmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\"\ncd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\"\nnpm pack --offline --pack-destination \"$tmpdir\"\nnpm install --offline --ignore-scripts --no-audit --no-fund --package-lock=false --prefix \"$tmpdir/consumer\" \"$tmpdir/zensu-live-invoice-1.0.0.tgz\"\ncli=\"$tmpdir/consumer/node_modules/.bin/invoice-quote\"\nexpected='{\"subtotalCents\":4499,\"discountCents\":562,\"totalCents\":3937}'\nactual=\"$(printf '%s\\n' '{\"items\":[{\"unitPriceCents\":1999,\"quantity\":2},{\"unitPriceCents\":501,\"quantity\":1}],\"discountBps\":1250}' | \"$cli\")\"\n[ \"$actual\" = \"$expected\" ]\napi=\"$(cd \"$tmpdir/consumer\" && node --input-type=module -e \"import { quoteInvoice } from 'zensu-live-invoice'; console.log(JSON.stringify(quoteInvoice([{unitPriceCents:1999,quantity:2},{unitPriceCents:501,quantity:1}],1250)))\")\"\n[ \"$api\" = \"$expected\" ]\nstatus=0\nprintf '{' | \"$cli\" > \"$tmpdir/stdout\" 2> \"$tmpdir/stderr\" || status=$?\n[ \"$status\" -eq 2 ]\n[ ! -s \"$tmpdir/stdout\" ]\ngrep -Fx 'Invalid JSON input' \"$tmpdir/stderr\" >/dev/null\n! grep -E 'at .*:[0-9]+:[0-9]+' \"$tmpdir/stderr\" >/dev/null\nprintf 'Package consumer CLI PASS: %s\\nPackage consumer API PASS: %s\\nInvalid JSON contract PASS: exit %s, empty stdout, concise stderr\\nTEMP=%s\\n' \"$actual\" \"$api\" \"$status\" \"$tmpdir\"",
+      "commandSha256": "bef1e072137dbe85d768021cdb3cc5979b8ce516b157dc6aff52b91ca58eab74",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "cli=$tmpdir/consumer/node_modules/.bin/invoice-quote",
+        "actual=$(printf '%s\\n' '{items:[{unitPriceCents:1999,quantity:2},{unitPriceCents:501,quantity:1}],discountBps:1250}' | $cli)",
+        "$actual",
+        "$expected",
+        "api=$(cd $tmpdir/consumer && node --input-type=module -e import",
+        "$api",
+        "$tmpdir/stdout",
+        "$tmpdir/stderr",
+        "$status",
+        "/dev/null",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir",
+        "install",
+        "$tmpdir/consumer",
+        "$tmpdir/zensu-live-invoice-1.0.0.tgz",
+        "$cli"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440641742-37186-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_dXHayhPEp1JL3DXh0tzZsxsu",
+      "turnId": "65",
+      "completedAt": "2026-10-19T20:10:58.982Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "possiblePaths": [
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440658297-38635-preToolUse.json",
+        "hooks/1792440665604-40026-preToolUse.json",
+        "hooks/1792440670820-41174-preToolUse.json",
+        "hooks/1792440677103-42319-preToolUse.json",
+        "hooks/1792440681329-43371-preToolUse.json",
+        "hooks/1792440685268-44562-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_M5tFpBRc8hqDvRnYOFYbYLth",
+      "turnId": "66",
+      "completedAt": "2026-10-19T20:11:06.308Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "possiblePaths": [
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440658297-38635-preToolUse.json",
+        "hooks/1792440665604-40026-preToolUse.json",
+        "hooks/1792440670820-41174-preToolUse.json",
+        "hooks/1792440677103-42319-preToolUse.json",
+        "hooks/1792440681329-43371-preToolUse.json",
+        "hooks/1792440685268-44562-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_Zeweh6C7KjGieAPrGLVIrWOk",
+      "turnId": "67",
+      "completedAt": "2026-10-19T20:11:11.478Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "possiblePaths": [
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440658297-38635-preToolUse.json",
+        "hooks/1792440665604-40026-preToolUse.json",
+        "hooks/1792440670820-41174-preToolUse.json",
+        "hooks/1792440677103-42319-preToolUse.json",
+        "hooks/1792440681329-43371-preToolUse.json",
+        "hooks/1792440685268-44562-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_UkmZxpeKtF52EgGW2Vg0tQbl",
+      "turnId": "68",
+      "completedAt": "2026-10-19T20:11:17.738Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "possiblePaths": [
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440658297-38635-preToolUse.json",
+        "hooks/1792440665604-40026-preToolUse.json",
+        "hooks/1792440670820-41174-preToolUse.json",
+        "hooks/1792440677103-42319-preToolUse.json",
+        "hooks/1792440681329-43371-preToolUse.json",
+        "hooks/1792440685268-44562-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_aqIKfShhSBnyuIg1AJO3TwVs",
+      "turnId": "69",
+      "completedAt": "2026-10-19T20:11:21.959Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "possiblePaths": [
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440658297-38635-preToolUse.json",
+        "hooks/1792440665604-40026-preToolUse.json",
+        "hooks/1792440670820-41174-preToolUse.json",
+        "hooks/1792440677103-42319-preToolUse.json",
+        "hooks/1792440681329-43371-preToolUse.json",
+        "hooks/1792440685268-44562-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_C2fE5PFkr906q8FbAkHfn3em",
+      "turnId": "70",
+      "completedAt": "2026-10-19T20:11:25.972Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "efc7524b599e6ad0e4e059b663f87dfadef55a2320ec49a79a4ddbee610365bc",
+      "possiblePaths": [
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440658297-38635-preToolUse.json",
+        "hooks/1792440665604-40026-preToolUse.json",
+        "hooks/1792440670820-41174-preToolUse.json",
+        "hooks/1792440677103-42319-preToolUse.json",
+        "hooks/1792440681329-43371-preToolUse.json",
+        "hooks/1792440685268-44562-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_vv1f6OdzW1uKt1JRLmgVBv04",
+      "turnId": "71",
+      "completedAt": "2026-10-19T20:11:31.807Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440691101-45836-preToolUse.json",
+        "hooks/1792440696805-46964-preToolUse.json",
+        "hooks/1792440701825-48090-preToolUse.json",
+        "hooks/1792440707521-49219-preToolUse.json",
+        "hooks/1792440712778-50332-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_lz1rYLtsOf2BTVjEqEpOZfqD",
+      "turnId": "72",
+      "completedAt": "2026-10-19T20:11:37.434Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440691101-45836-preToolUse.json",
+        "hooks/1792440696805-46964-preToolUse.json",
+        "hooks/1792440701825-48090-preToolUse.json",
+        "hooks/1792440707521-49219-preToolUse.json",
+        "hooks/1792440712778-50332-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_JM84Xb8Y3lKYdFdDvYn5aOm5",
+      "turnId": "73",
+      "completedAt": "2026-10-19T20:11:42.496Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440691101-45836-preToolUse.json",
+        "hooks/1792440696805-46964-preToolUse.json",
+        "hooks/1792440701825-48090-preToolUse.json",
+        "hooks/1792440707521-49219-preToolUse.json",
+        "hooks/1792440712778-50332-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_UKUoJzgiRRbVv5PeCdYIh7TH",
+      "turnId": "74",
+      "completedAt": "2026-10-19T20:11:48.180Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440691101-45836-preToolUse.json",
+        "hooks/1792440696805-46964-preToolUse.json",
+        "hooks/1792440701825-48090-preToolUse.json",
+        "hooks/1792440707521-49219-preToolUse.json",
+        "hooks/1792440712778-50332-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_sqenuIP9Bji7MM1hCda40oto",
+      "turnId": "75",
+      "completedAt": "2026-10-19T20:11:53.456Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)\" && cd \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project\" && npm pack --offline --pack-destination \"$tmpdir\" && printf 'PACKAGE_DIR=%s\\n' \"$tmpdir\"",
+      "commandSha256": "0750aba89ffbba28be1d93b6d9bbf9d6428b727cc668f99890a9b1f4f76c218b",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "tmpdir=$(mktemp -d /tmp/invoice-quote-consumer.XXXXXX)",
+        "/tmp/invoice-quote-consumer.XXXXXX",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "$tmpdir"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440691101-45836-preToolUse.json",
+        "hooks/1792440696805-46964-preToolUse.json",
+        "hooks/1792440701825-48090-preToolUse.json",
+        "hooks/1792440707521-49219-preToolUse.json",
+        "hooks/1792440712778-50332-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_cvq7oQMjpjM2KiChH7DY6Npb",
+      "turnId": "77",
+      "completedAt": "2026-10-19T20:12:18.088Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "tmpdir=\"$(mktemp -d /private/tmp/invoice-quote-consumer.XXXXXX)\" && mkdir -p \"$tmpdir/node_modules/zensu-live-invoice\" \"$tmpdir/node_modules/.bin\" && tar -xzf \"/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/zensu-live-invoice-1.0.0.tgz\" -C \"$tmpdir/node_modules/zensu-live-invoice\" --strip-components=1 && chmod +x \"$tmpdir/node_modules/zensu-live-invoice/dist/cli.js\" && ln -s ../zensu-live-invoice/dist/cli.js \"$tmpdir/node_modules/.bin/invoice-quote\" && expected='{\"subtotalCents\":4499,\"discountCents\":562,\"totalCents\":3937}' && actual=\"$(printf '%s\\n' '{\"items\":[{\"unitPriceCents\":1999,\"quantity\":2},{\"unitPriceCents\":501,\"quantity\":1}],\"discountBps\":1250}' | \"$tmpdir/node_modules/.bin/invoice-quote\")\" && test \"$actual\" = \"$expected\" && api=\"$(cd \"$tmpdir\" && node --input-type=module -e \"import { quoteInvoice } from 'zensu-live-invoice'; console.log(JSON.stringify(quoteInvoice([{unitPriceCents:1999,quantity:2},{unitPriceCents:501,quantity:1}],1250)))\")\" && test \"$api\" = \"$expected\" && status=0 && printf '{' | \"$tmpdir/node_modules/.bin/invoice-quote\" > \"$tmpdir/stdout\" 2> \"$tmpdir/stderr\" || status=$?; test \"$status\" -eq 2 && test ! -s \"$tmpdir/stdout\" && grep -Fx 'Invalid JSON input' \"$tmpdir/stderr\" >/dev/null && ! grep -E 'at .*:[0-9]+:[0-9]+' \"$tmpdir/stderr\" >/dev/null && printf 'Package consumer CLI PASS: %s\\nPackage consumer API PASS: %s\\nInvalid JSON contract PASS: exit %s, empty stdout, concise stderr\\nCONSUMER=%s\\n' \"$actual\" \"$api\" \"$status\" \"$tmpdir\"",
+      "commandSha256": "c16a5ce259f510dc3822283c43c050dda19830e1724af8a3074df9e0c37056ea",
+      "possiblePaths": [
+        "tmpdir=$(mktemp -d /private/tmp/invoice-quote-consumer.XXXXXX)",
+        "actual=$(printf '%s\\n' '{items:[{unitPriceCents:1999,quantity:2},{unitPriceCents:501,quantity:1}],discountBps:1250}' | $tmpdir/node_modules/.bin/invoice-quote)",
+        "api=$(cd $tmpdir && node --input-type=module -e import",
+        "$tmpdir/stdout",
+        "$tmpdir/stderr",
+        "/dev/null",
+        "/private/tmp/invoice-quote-consumer.XXXXXX",
+        "$tmpdir/node_modules/zensu-live-invoice",
+        "$tmpdir/node_modules/.bin",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/zensu-live-invoice-1.0.0.tgz",
+        "$tmpdir/node_modules/zensu-live-invoice/dist/cli.js",
+        "../zensu-live-invoice/dist/cli.js",
+        "$tmpdir/node_modules/.bin/invoice-quote",
+        "$actual",
+        "$expected",
+        "$tmpdir",
+        "$api",
+        "$status"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440737412-52873-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_9bw5B5LzVPKTqA9HjWlhnfyk",
+      "turnId": "78",
+      "completedAt": "2026-10-19T20:12:26.647Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "mkdir -p /private/tmp/invoice-quote-package-consumer/node_modules/zensu-live-invoice && tar -xzf /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/zensu-live-invoice-1.0.0.tgz -C /private/tmp/invoice-quote-package-consumer/node_modules/zensu-live-invoice --strip-components=1",
+      "commandSha256": "a2060c047f897a535b071cdfd7dd80cc6d84e49fbba9e883c8fead42e026b228",
+      "possiblePaths": [
+        "/private/tmp/invoice-quote-package-consumer/node_modules/zensu-live-invoice",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/zensu-live-invoice-1.0.0.tgz"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440746021-54009-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_RfUQEnt7d5KZoNTMwwWBgflo",
+      "turnId": "81",
+      "completedAt": "2026-10-19T20:12:44.240Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "mkdir -p /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.tmp-invoice-quote-consumer/node_modules/.bin && chmod +x /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.tmp-invoice-quote-consumer/node_modules/zensu-live-invoice/dist/cli.js && ln -s ../zensu-live-invoice/dist/cli.js /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.tmp-invoice-quote-consumer/node_modules/.bin/invoice-quote",
+      "commandSha256": "a903b0f4003d708ab55e70701e1ee918631e1edd07313bc4a6e1d7fb11ff5915",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.tmp-invoice-quote-consumer/node_modules/.bin",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.tmp-invoice-quote-consumer/node_modules/zensu-live-invoice/dist/cli.js",
+        "../zensu-live-invoice/dist/cli.js",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.tmp-invoice-quote-consumer/node_modules/.bin/invoice-quote"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440763610-58487-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_qJL51QAHpthK0LDUBSIKYd6H",
+      "turnId": "101",
+      "completedAt": "2026-10-19T20:15:32.530Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "cd /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project && test ! -L .zensu && test ! -L .zensu/verify-feature-runs && mkdir -p .zensu/verify-feature-runs && run_dir=\"$(mktemp -d .zensu/verify-feature-runs/invoice-quote-XXXXXX)\" && printf 'RUN_DIR=%s\\n' \"$PWD/$run_dir\" && node \"${COPILOT_PLUGIN_ROOT}/skills/zensu-verify-feature/scripts/verify-run-resources.js\" list --run-dir \"$PWD/$run_dir\"",
+      "commandSha256": "ee9e2095972717030308980c26c120a0e3deba9148d6c14b27c2cef01534859e",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "run_dir=$(mktemp -d .zensu/verify-feature-runs/invoice-quote-XXXXXX)",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        ".zensu",
+        ".zensu/verify-feature-runs",
+        ".zensu/verify-feature-runs/invoice-quote-XXXXXX",
+        "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-copilot/$run_dir",
+        "$PWD/$run_dir",
+        "${COPILOT_PLUGIN_ROOT}/skills/zensu-verify-feature/scripts/verify-run-resources.js",
+        "list"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440931936-86296-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_lHAfnqTQc8vJO2351Pir0XWP",
+      "turnId": "102",
+      "completedAt": "2026-10-19T20:15:43.292Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "cd /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project && test ! -L .zensu && test ! -L .zensu/verify-feature-runs && mkdir -p .zensu/verify-feature-runs && test ! -e .zensu/verify-feature-runs/invoice-quote-20261019-2202 && mkdir .zensu/verify-feature-runs/invoice-quote-20261019-2202 && printf 'RUN_DIR=%s\\n' \"$PWD/.zensu/verify-feature-runs/invoice-quote-20261019-2202\"",
+      "commandSha256": "ec6f8d1b03cf6439df9d0051a67fda3969ec9d6094a6a1c34529f6299c19d00d",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        ".zensu",
+        ".zensu/verify-feature-runs",
+        ".zensu/verify-feature-runs/invoice-quote-20261019-2202",
+        "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-copilot/.zensu/verify-feature-runs/invoice-quote-20261019-2202",
+        "$PWD/.zensu/verify-feature-runs/invoice-quote-20261019-2202"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440942659-87882-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_wQs5BRZzd8zEHWpMzevZ3uPz",
+      "turnId": "212",
+      "completedAt": "2026-10-19T20:37:58.610Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "cd '/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project' && npm pack --offline --pack-destination node_modules/.invoice-quote-consumer --json && npm install --offline --ignore-scripts --no-audit --no-fund --prefix node_modules/.invoice-quote-consumer \"$PWD/node_modules/.invoice-quote-consumer/zensu-live-invoice-1.0.0.tgz\" && node -e \"require('node:fs').unlinkSync('node_modules/.invoice-quote-consumer/zensu-live-invoice-1.0.0.tgz')\"",
+      "commandSha256": "053bd1e43cc8ab2bc0d8355fddcb4ce2760e4f099eaca75954a7abb807aee517",
+      "possiblePaths": [
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "pack",
+        "node_modules/.invoice-quote-consumer",
+        "install",
+        "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-copilot/node_modules/.invoice-quote-consumer/zensu-live-invoice-1.0.0.tgz",
+        "$PWD/node_modules/.invoice-quote-consumer/zensu-live-invoice-1.0.0.tgz",
+        "require('node:fs').unlinkSync('node_modules/.invoice-quote-consumer/zensu-live-invoice-1.0.0.tgz')"
+      ],
+      "preToolCaptures": [
+        "hooks/1792442278030-72993-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_Yv9SKOspDXI84saWJETlK5LX",
+      "turnId": "214",
+      "completedAt": "2026-10-19T20:38:58.299Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Permission denied because no interactive user response was available. Retry in an interactive session so the user can approve it, or try an alternative that does not require this permission.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "cd '/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project' && npm install --offline --ignore-scripts --no-audit --no-fund --prefix node_modules/.invoice-quote-consumer \"$PWD/node_modules/.invoice-quote-consumer/zensu-live-invoice-1.0.0.tgz\"",
+      "commandSha256": "6adcbac619edc876965f187753723a6e535288c4db4bc30e3a427e698d72da9c",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "install",
+        "node_modules/.invoice-quote-consumer",
+        "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-copilot/node_modules/.invoice-quote-consumer/zensu-live-invoice-1.0.0.tgz",
+        "$PWD/node_modules/.invoice-quote-consumer/zensu-live-invoice-1.0.0.tgz"
+      ],
+      "preToolCaptures": [
+        "hooks/1792442337723-75998-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_fsK75yuzB5g1vMpoWu3TVf9j",
+      "turnId": "103",
+      "completedAt": "2026-10-19T20:15:59.478Z",
+      "nativeSuccess": true,
+      "nativeError": null,
+      "shellExitCode": 0,
+      "commandBody": "mkdir -p /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu/verify-feature-runs",
+      "commandSha256": "499cb258d5fc9da23cb6c03174d8f66cacd57425821fea7190d7a10f5191959a",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu/verify-feature-runs"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440958441-89973-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_Xyb5qwnfxy20dJD5naG3SVsA",
+      "turnId": "104",
+      "completedAt": "2026-10-19T20:16:05.230Z",
+      "nativeSuccess": true,
+      "nativeError": null,
+      "shellExitCode": 0,
+      "commandBody": "mkdir /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu/verify-feature-runs/invoice-quote-20261019-2202",
+      "commandSha256": "7a7cc5f324e551ffbe0d992a4a884d45ad49a085e38f720c9ed247ec3d48d48f",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu/verify-feature-runs/invoice-quote-20261019-2202"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440964185-91333-preToolUse.json"
+      ]
+    },
+    {
+      "callId": "call_PmFEomGJnk57seVxDaSsphnX",
+      "turnId": "105",
+      "completedAt": "2026-10-19T20:16:11.274Z",
+      "nativeSuccess": true,
+      "nativeError": null,
+      "shellExitCode": 0,
+      "commandBody": "test ! -L /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu && test ! -L /private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu/verify-feature-runs && printf '%s\\n' 'Verifier path boundaries are not symlinks'",
+      "commandSha256": "4f3e872ca89275d1034f4a26da7ad100912141dd0bf163486cd6f57fcd717acf",
+      "possiblePaths": [
+        "zensu-copilot-context-v1",
+        "export",
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu",
+        "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project/.zensu/verify-feature-runs",
+        "Verifier path boundaries are not symlinks"
+      ],
+      "preToolCaptures": [
+        "hooks/1792440970241-92682-preToolUse.json"
+      ]
+    }
+  ],
+  "observedAt": "2026-10-19T20:47:12.301158+00:00",
+  "processExit": {
+    "exitCode": 0,
+    "interruptedBySignal": null,
+    "elapsedSeconds": 2637.31,
+    "finishedAt": "2026-10-19T20:46:06.534460+00:00"
+  },
+  "protectedContextRebindRejections": [
+    {
+      "callId": "call_ctbkDMZUabndWk4lcXtMlTqR",
+      "turnId": "180",
+      "completedAt": "2026-10-19T20:29:15.776Z",
+      "nativeSuccess": false,
+      "nativeError": {
+        "message": "Denied by preToolUse hook: Blocked a bash rebind of protected Session Control input COPILOT_SESSION_ID. Start a fresh Copilot CLI session instead.",
+        "code": "denied"
+      },
+      "shellExitCode": null,
+      "commandBody": "export COPILOT_PLUGIN_ROOT='/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu' COPILOT_PLUGIN_DATA='/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb' COPILOT_SESSION_ID='0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1' COPILOT_PROJECT_DIR='/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project' COPILOT_HOME='/Users/marcelkarras/.copilot' ZENSU_BOUND_SESSION_ID='0d27dc52-0d1a-4e86-8fb7-c40dd02b69d1' ZENSU_RUNTIME_HOST='copilot' PLUGIN_ROOT='/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu'; COPILOT_PLUGIN_DATA=\"$COPILOT_PLUGIN_DATA\" bash \"$COPILOT_PLUGIN_ROOT/hooks/lib/zensu-log.sh\" --mode && git status --short",
+      "commandSha256": "a89f66681e51b70ef93a951e92929112c491d42edff0911d8fab5190cfad72b8",
+      "possiblePaths": [
+        "COPILOT_PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/_direct/504840e687674ab277deba6426bf84fd5963721db83c13777654890193d986fb",
+        "COPILOT_PROJECT_DIR=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/project",
+        "COPILOT_HOME=/Users/marcelkarras/.copilot",
+        "PLUGIN_ROOT=/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu",
+        "COPILOT_PLUGIN_DATA=$COPILOT_PLUGIN_DATA",
+        "bash",
+        "$COPILOT_PLUGIN_ROOT/hooks/lib/zensu-log.sh",
+        "status"
+      ],
+      "preToolCaptures": [
+        "hooks/1792441755194-19512-preToolUse.json"
+      ]
+    }
+  ],
+  "protectedContextRebindNote": "Separate correct Zensu protected native identity rejection; not counted as native host path-permission friction."
+}

@@ -1030,6 +1030,8 @@ _tdd_write_clear_critical() {
       delete s.autopilotRunId; delete s.autopilotAttempt;
       delete s.autopilotReturnStage; delete s.chainId; delete s.chainOutcome;
       s.phase = "UNINITIALIZED"; s.step_id = ""; s.history = [];
+      delete s.workflowArtifacts; delete s.reviewPacketGate;
+      s.reviewGeneration = require("node:crypto").randomUUID();
       return s;
     });
   ' 2>/dev/null
@@ -1065,6 +1067,8 @@ _tdd_clear_standalone_session_critical() {
       s.bypasses=[];s.reviewTicket="";s.reviewTicketConsumed=true;s.reviewRound=0;
       s.deferredReviewClaim="";s.stopBlockCount=0;delete s.implStopCount;delete s.reviewRearm;
       s.phase="UNINITIALIZED";s.step_id="";s.history=[];
+      delete s.workflowArtifacts; delete s.reviewPacketGate;
+      s.reviewGeneration = require("node:crypto").randomUUID();
       return s;
     });
   ' 2>/dev/null
@@ -1105,6 +1109,8 @@ _tdd_clear_autopilot_session_critical() {
       s.deferredReviewClaim="";s.stopBlockCount=0;delete s.implStopCount;delete s.reviewRearm;
       delete s.autopilotRunId;delete s.autopilotAttempt;delete s.autopilotReturnStage;
       delete s.chainId;delete s.chainOutcome;s.phase="UNINITIALIZED";s.step_id="";s.history=[];
+      delete s.workflowArtifacts; delete s.reviewPacketGate;
+      s.reviewGeneration = require("node:crypto").randomUUID();
       return s;
     });
   ' 2>/dev/null
@@ -1139,6 +1145,8 @@ _tdd_write_chain_reset_critical() {
       s.deferredReviewClaim = ""; s.stopBlockCount = 0;
       delete s.implStopCount;
       delete s.reviewRearm;
+      delete s.workflowArtifacts; delete s.reviewPacketGate;
+      s.reviewGeneration = require("node:crypto").randomUUID();
       return s;
     });
   ' 2>/dev/null
@@ -1221,6 +1229,8 @@ _tdd_begin_session_critical() {
         delete s.chainId;
         delete s.chainOutcome;
       }
+      delete s.workflowArtifacts; delete s.reviewPacketGate;
+      s.reviewGeneration = require("node:crypto").randomUUID();
       return s;
     });
   ' 2>/dev/null

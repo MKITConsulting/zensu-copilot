@@ -1,0 +1,114 @@
+{
+  "schema": "zensu.sibling-source-postcheck.v1",
+  "checkedAt": "2026-10-19T20:50:11.434345+00:00",
+  "scope": "Read-only source Git HEAD and porcelain status; no sibling edits, model sessions, Claude runtime/configuration/session/credential access. Status paths describe existing dirt only; their contents were not opened by this postcheck.",
+  "commands": [
+    "git --no-optional-locks -c core.fsmonitor=false -c core.untrackedCache=false rev-parse HEAD",
+    "git --no-optional-locks -c core.fsmonitor=false -c core.untrackedCache=false status --porcelain=v1 --untracked-files=normal"
+  ],
+  "repositories": {
+    "zensu-codex": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-codex",
+      "before": {
+        "head": "50ae69219925f0a55d31686c7a50e57963b2a4e1",
+        "status": []
+      },
+      "after": {
+        "head": "50ae69219925f0a55d31686c7a50e57963b2a4e1",
+        "status": []
+      },
+      "headUnchanged": true,
+      "statusUnchanged": true,
+      "preexistingChanges": []
+    },
+    "zensu-antigravity": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity",
+      "before": {
+        "head": "842c29b34e46e9301c7f1879cb7be5644baa1011",
+        "status": []
+      },
+      "after": {
+        "head": "842c29b34e46e9301c7f1879cb7be5644baa1011",
+        "status": []
+      },
+      "headUnchanged": true,
+      "statusUnchanged": true,
+      "preexistingChanges": []
+    },
+    "zensu-kiro": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-kiro",
+      "before": {
+        "head": "0ba84569ff8bb2dae897df67044effc1ddda94fd",
+        "status": []
+      },
+      "after": {
+        "head": "0ba84569ff8bb2dae897df67044effc1ddda94fd",
+        "status": []
+      },
+      "headUnchanged": true,
+      "statusUnchanged": true,
+      "preexistingChanges": []
+    },
+    "zensu-cli": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-cli",
+      "before": {
+        "head": "894d7c84653c9f4c2bbf25904ebe2506d3224dc4",
+        "status": [
+          " M .gitignore",
+          "?? .git-worktrees/"
+        ]
+      },
+      "after": {
+        "head": "894d7c84653c9f4c2bbf25904ebe2506d3224dc4",
+        "status": [
+          " M .gitignore",
+          "?? .git-worktrees/"
+        ]
+      },
+      "headUnchanged": true,
+      "statusUnchanged": true,
+      "preexistingChanges": [
+        " M .gitignore",
+        "?? .git-worktrees/"
+      ]
+    },
+    "zensu-claude-code": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code",
+      "before": {
+        "head": "fcc3ee58c2e9c5c44fa3129cffafdc5a39f834c4",
+        "status": [
+          "?? AGENTS.md",
+          "?? evals/reset-review-limit/.zensu/",
+          "?? evals/tdd-manager-pretool/package-lock.json",
+          "?? evals/tdd-manager-pretool/package.json",
+          "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/server",
+          "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/package-lock.json"
+        ]
+      },
+      "after": {
+        "head": "fcc3ee58c2e9c5c44fa3129cffafdc5a39f834c4",
+        "status": [
+          "?? AGENTS.md",
+          "?? evals/reset-review-limit/.zensu/",
+          "?? evals/tdd-manager-pretool/package-lock.json",
+          "?? evals/tdd-manager-pretool/package.json",
+          "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/server",
+          "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/package-lock.json"
+        ]
+      },
+      "headUnchanged": true,
+      "statusUnchanged": true,
+      "preexistingChanges": [
+        "?? AGENTS.md",
+        "?? evals/reset-review-limit/.zensu/",
+        "?? evals/tdd-manager-pretool/package-lock.json",
+        "?? evals/tdd-manager-pretool/package.json",
+        "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/server",
+        "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/package-lock.json"
+      ]
+    }
+  },
+  "allHeadsUnchanged": true,
+  "allStatusesUnchanged": true,
+  "afterIsolatedSourceCopyFixtures": true
+}

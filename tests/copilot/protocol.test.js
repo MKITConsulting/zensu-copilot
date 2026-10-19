@@ -34,8 +34,25 @@ test('native search arrays expose every root separately without splitting litera
   }
 });
 
+test('captured native rg arguments retain their bytes while all policy calls use the grep alias', () => {
+  const args = { paths: ['/project/tests'], pattern: 'cliPath|spawnSync|invoice-quote|npm pack|dist/cli', output_mode: 'content', '-n': true };
+  const raw = call('rg', args); const before = JSON.stringify(raw);
+  const normalized = normalizeEvent('preToolUse', raw);
+  assert.equal(raw.toolName, 'rg');
+  assert.equal(JSON.stringify(raw), before);
+  assert.deepEqual(normalized.normalizationErrors, []);
+  assert.equal(normalized.toolName, 'grep');
+  assert.deepEqual(normalized.toolArgs, args);
+  assert.deepEqual(normalized.toolCalls, [{ toolName: 'grep', toolArgs: args }]);
+  for (const extra of [{ command: 'rm -rf target' }, { replace: 'changed' }, { output_file: '/private/state' },
+    { follow: true }, { options: { paths: ['/private/state'] } }, { '-n': 'true' }, { '-A': -1 },
+    { glob: {} }, { include: [] }, { exclude: ['*.js', null] }, { output_mode: 'write' }]) {
+    assert.ok(normalizeTool('rg', { ...args, ...extra }).normalizationErrors.length, JSON.stringify(extra));
+  }
+});
+
 test('only omitted native search roots use the documented cwd default', () => {
-  for (const name of ['glob', 'grep']) {
+  for (const name of ['glob', 'grep', 'rg']) {
     assert.deepEqual(normalizeTool(name, { pattern: 'x' }).toolCalls[0].toolArgs, { pattern: 'x', paths: ['.'] });
     assert.deepEqual(normalizeTool(name, { pattern: 'x', paths: '.' }).normalizationErrors, []);
     for (const paths of [null, undefined, '', [], [''], ['src', null], {}, ['/project\nother'], Array(1001).fill('src')]) {
@@ -77,7 +94,8 @@ test('dispatcher gates every native search root and raw patch file and retains a
     `*** Update File: ${patchPaths[1]}`, `*** Move to: ${patchPaths[2]}`, '-old', '+new',
     `*** Delete File: ${patchPaths[3]}`, '*** End Patch'].join('\n');
   for (const [toolName, toolArgs, expected] of [
-    ['glob', { pattern: 'value', paths }, paths], ['grep', { pattern: 'value', paths }, paths], ['apply_patch', patch, patchPaths],
+    ['glob', { pattern: 'value', paths }, paths], ['grep', { pattern: 'value', paths }, paths],
+    ['rg', { pattern: 'value', paths }, paths], ['apply_patch', patch, patchPaths],
   ]) {
     const checked = [];
     const output = dispatch('preToolUse', { sessionId: 'search-fixture', cwd: base, toolName,

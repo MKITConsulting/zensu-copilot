@@ -1,0 +1,1090 @@
+{
+  "schema": "zensu.copilot-workflow-live-audit.v1",
+  "generatedAt": "2026-10-19T18:40:44.154922+00:00",
+  "status": "complete-with-assisted-recovery",
+  "session": {
+    "id": "f4a76077-8dab-4df8-9256-3b43c5e3ced5",
+    "project": "/private/tmp/zensu-workflow-live-z3lbjucv/project",
+    "baseline": "1f1d96a026b1f63f716518f185e4cb2119c94c10"
+  },
+  "host": {
+    "cli": "Copilot CLI1.0.98",
+    "pluginVersion": "0.2.0",
+    "pluginRoot": "/Users/marcelkarras/.copilot/installed-plugins/zensu/zensu",
+    "pluginReceiptSha256": "34c272470d037cd3f3f9bb5d4800662eb86e6eb588f266e3c2510bcc33d0e4d5",
+    "receiptUnchanged": true
+  },
+  "state": {
+    "active": true,
+    "vanilla": true,
+    "implComplete": true,
+    "chainDone": true,
+    "codeReviewDone": true,
+    "selfReviewFixed": true,
+    "workflowActive": false,
+    "workflowTools": [],
+    "bypasses": [],
+    "reviewTicket": "rt_8fc08b3266c5f808208d23eededaf7d7",
+    "reviewTicketConsumed": true,
+    "reviewRound": 1,
+    "stopBlockCount": 0,
+    "deferredReviewClaim": "",
+    "phase": "UNINITIALIZED",
+    "step_id": "",
+    "history": [],
+    "schema": "zensu.workflow-state",
+    "schema_version": 1,
+    "session_id_hash": "sha256:06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44",
+    "workflow_state": "implementation_complete",
+    "revision": 8,
+    "last_event": "state-update",
+    "updated_at": "2026-10-19T18:36:33.858Z",
+    "actor": "main-v1"
+  },
+  "globalConfigurationUnchanged": true,
+  "globalConfigurationHashComparison": {
+    "/Users/marcelkarras/.zensu/config.json": true,
+    "/Users/marcelkarras/.copilot/settings.json": true,
+    "/Users/marcelkarras/.copilot/permissions-config.json": true,
+    "/Users/marcelkarras/.copilot/mcp-config.json": true
+  },
+  "interventions": [
+    {
+      "time": "2026-10-19T18:24:24.860819+00:00",
+      "kind": "controlled-interrupt-and-same-session-resume",
+      "session": "f4a76077-8dab-4df8-9256-3b43c5e3ced5",
+      "reason": "Primary judge refused valid edit-landing summary; deterministic finding verifier failed due to a heredoc marker collision; full workflow requires substantive primary review and recovered verification.",
+      "stateSha256": "a3a5f7a2e52bae06807ec84e3a790789447bc5b0e2434a5a34c68419d9b50189",
+      "stateRevision": 5,
+      "prompt": "prompt-recovery.txt",
+      "automaticRunPreserved": "output.jsonl",
+      "launcherCorrection": "Removed new-session-only --name when resuming existing session; initial launch rejected before model execution, state unchanged."
+    }
+  ],
+  "nativeTasks": [
+    {
+      "callId": "call_dnyGmTmHn8C81xJAmlY6B0L8",
+      "name": "zensu-review-conventions",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "started": "2026-10-19T18:16:01.491Z",
+      "promptSha256": "7d248bbf865cceb6998971dae49368dd62c232fa14e9af21d5f6148b8f41daf8",
+      "workerCompleted": "2026-10-19T18:16:35.757Z",
+      "workerToolCalls": 7,
+      "durationMs": 31468,
+      "model": "gpt-6-luna",
+      "reportedTokens": 16898,
+      "completed": "2026-10-19T18:16:36.324Z",
+      "transportSuccess": true,
+      "substantiveResult": true,
+      "result": "## Aspect: conventions\nSUGGESTION | package.json:4 | confidence 9/10 | Evidence: README.md states “Node.js >=22,” but package.json has no `engines` field. | Impact: Package consumers are not given that runtime constraint through package metadata. | Fix: Add an `engines.node` field matching the documented minimum."
+    },
+    {
+      "callId": "call_JA5k19vDizNqRv692ugxxX6v",
+      "name": "zensu-review-bugs",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "started": "2026-10-19T18:16:01.492Z",
+      "promptSha256": "4a3f69a1461fb1d0c515b535d6789918e5cf1c2e63c5eaf7da4018a4aa110028",
+      "workerCompleted": "2026-10-19T18:16:26.800Z",
+      "workerToolCalls": 7,
+      "durationMs": 22510,
+      "model": "gpt-6-luna",
+      "reportedTokens": 16413,
+      "completed": "2026-10-19T18:16:27.374Z",
+      "transportSuccess": true,
+      "substantiveResult": true,
+      "result": "## Aspect: bugs\n- (no findings)"
+    },
+    {
+      "callId": "call_0ZOR4vNDVAIWQWraSvoo0JJV",
+      "name": "zensu-review-architecture",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "started": "2026-10-19T18:16:01.492Z",
+      "promptSha256": "ae9682f3d9efe00c5c5518300ffd9f590e602cf3cceb77953dcd4fe8c69f58f3",
+      "workerCompleted": "2026-10-19T18:16:33.093Z",
+      "workerToolCalls": 7,
+      "durationMs": 28803,
+      "model": "gpt-6-luna",
+      "reportedTokens": 16758,
+      "completed": "2026-10-19T18:16:33.671Z",
+      "transportSuccess": true,
+      "substantiveResult": true,
+      "result": "## Aspect: architecture\n- (no findings)"
+    },
+    {
+      "callId": "call_3lqtSEPoxlbPtXiA7UPeoqRF",
+      "name": "zensu-review-tests",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "started": "2026-10-19T18:16:01.493Z",
+      "promptSha256": "b355bf3959a389e7da86e5af9f8391b968492e610ad74a67c4ba89328f669b91",
+      "workerCompleted": "2026-10-19T18:16:46.072Z",
+      "workerToolCalls": 7,
+      "durationMs": 41779,
+      "model": "gpt-6-luna",
+      "reportedTokens": 17219,
+      "completed": "2026-10-19T18:16:46.642Z",
+      "transportSuccess": true,
+      "substantiveResult": true,
+      "result": "## Aspect: tests\nIMPORTANT | package.json:8 | confidence 9/10 | Evidence: The package exposes `dist/cli.js` as its `invoice-quote` bin, and the README describes using the built and installed package. In `tests/cli.test.js`, the process helper instead launches `src/cli.js`, so the tests do not exercise the packaged bin. | Impact: A broken or misconfigured packaged CLI could pass the current process tests. | Fix: Add an acceptance test that builds and invokes the package’s exposed bin, including success and invalid-input behavior."
+    },
+    {
+      "callId": "call_3W9VoNx3iI8HpMZtCgpdvHdq",
+      "name": "zensu-review-security",
+      "agent": "zensu:review-aspect",
+      "mode": "sync",
+      "started": "2026-10-19T18:16:01.493Z",
+      "promptSha256": "a5c31680ddeb54a69bf231a42a66379e03b304748a7ac6243a57ed5d5443c002",
+      "workerCompleted": "2026-10-19T18:18:41.385Z",
+      "workerToolCalls": 6,
+      "durationMs": 157091,
+      "model": "gpt-6-luna",
+      "reportedTokens": 16512,
+      "completed": "2026-10-19T18:18:41.996Z",
+      "transportSuccess": true,
+      "substantiveResult": true,
+      "result": "## Aspect: security\nIMPORTANT | src/cli.js:20 | confidence 8/10 | Evidence: `runCli` appends every stdin chunk to `chunks`, then concatenates and parses the entire input at lines 20–22, with no size limit. | Impact: An oversized input can consume unbounded memory and cause the CLI process to run out of memory. | Fix: Enforce a maximum input size while reading; reject oversized input with the documented error behavior."
+    },
+    {
+      "callId": "call_q2JCilMZlZt3pdBc23uswzt3",
+      "name": "zensu-review-judge-first",
+      "agent": "zensu:review-judge",
+      "mode": "sync",
+      "started": "2026-10-19T18:19:42.020Z",
+      "promptSha256": "d5db57b827f08069e5bb8f3b54d853b8d1429197507c34fa21dd0ba97046493f",
+      "workerCompleted": "2026-10-19T18:19:52.796Z",
+      "workerToolCalls": 0,
+      "durationMs": 9588,
+      "model": "gpt-6-luna",
+      "reportedTokens": 6247,
+      "completed": "2026-10-19T18:19:53.337Z",
+      "transportSuccess": true,
+      "substantiveResult": false,
+      "result": "REVIEW PACKET INVALID: edit_landing_evidence (missing Phase 6 step 5b close marker)"
+    },
+    {
+      "callId": "call_cEuv0byFxSRHynh1IbsqPVEk",
+      "name": "zensu-review-judge-second",
+      "agent": "zensu:review-judge",
+      "mode": "sync",
+      "started": "2026-10-19T18:19:42.021Z",
+      "promptSha256": "cde8c2a46a753754f445e3e0dfc70b48c72656e1ffa0504d779ddc498646009f",
+      "workerCompleted": "2026-10-19T18:20:14.905Z",
+      "workerToolCalls": 7,
+      "durationMs": 31697,
+      "model": "gpt-6-luna",
+      "reportedTokens": 25837,
+      "completed": "2026-10-19T18:20:15.450Z",
+      "transportSuccess": true,
+      "substantiveResult": true,
+      "result": "## Aspect: judge (second run)\n- (no findings)"
+    },
+    {
+      "callId": "call_9HkOuyMwcp8uccASIbHfNIkv",
+      "name": "zensu-code-reviewer-round-one",
+      "agent": "zensu:code-reviewer",
+      "mode": "sync",
+      "started": "2026-10-19T18:22:34.231Z",
+      "promptSha256": "9690c3280334ea56875ad4048f811a5ee7c38ac76f9a15b147dac804ae9c5e0f",
+      "workerCompleted": "2026-10-19T18:22:45.640Z",
+      "workerToolCalls": 0,
+      "durationMs": 10886,
+      "model": "gpt-6-luna",
+      "reportedTokens": 6074,
+      "completed": "2026-10-19T18:22:53.393Z",
+      "transportSuccess": true,
+      "substantiveResult": true,
+      "result": "# Code Review Report\n\n## Summary\n- Policy: reviewer-readonly-v1\n- Perspectives: conventions, bugs, architecture, tests, security\n- Files reviewed: 0 (consume mode; findings supplied in the review packet)\n- Findings: 3 (0 critical, 2 important, 1 suggestion)\n- Verdict: PASS WITH SUGGESTIONS\n- Directive: **Fix round required** for the two IMPORTANT findings before merge. No mutations performed.\n\n## Main-Thread Evidence\n- Tests: Packet reports full `npm test` and lint runs exited 0; scoped docs-and-checks checkpoint passed; acceptance status was 4/4 active criteria pass.\n- Build: Packet reports `npm run build` exited 0 and printed `Build passed: src copied into dist`.\n- Coverage: Packet reports `npm run coverage` passed; `src/cli.js` and `src/index.js` each have 100.00% lines, branches, and functions.\n\n## Critical Issues\nNone.\n\n## Important Issues\n\n### R1-F2 — `src/cli.js:18`\n**Evidence:** `runCli` collects all stdin chunks and concatenates the entire document before parsing without a size bound. Impact: an oversized input can exhaust process memory.  \n**Fix:** Impose and document a reasonable byte limit and return the required concise invalid-input error and exit 2.\n\n### R1-F1 — `tests/cli.test.js:25`\n**Evidence:** `runProcess` starts `src/cli.js` directly, while `package.json` exposes `dist/cli.js` through the `invoice-quote` bin; the durable suite has no test that builds, packs, installs, and runs that package bin. Impact: a packaging/bin regression could escape the test suite even though this exact built package passed the current live acceptance run.  \n**Fix:** Add a disposable offline package-consumer test covering successful output and invalid-input exit behavior.\n\n## Suggestions\n\n### R1-F3 — `package.json:4`\n**Evidence:** README documents Node.js >=22, while `package.json` contains no `engines.node` field. Impact: package managers cannot warn consumers below the supported runtime.  \n**Fix:** Add `engines.node >=22`.\n\nTool \"task\" succeeded. Additional guidance from postToolUse hooks:\nSTOP. The zensu:code-reviewer subagent above just finished. Classify its findings by severity, then act. hooks.autoFixSeverity is critical: this loop fixes only Critical findings, and /zensu-self-review fixes every Important finding once at the end of the chain, so park each Important finding instead of fixing it. The one exception is a review you logged 'CONVERGENCE UNAVAILABLE' for: no ledger carries its findings to /zensu-self-review, so treat its Important findings like Critical ones.\\n\\n(A) Verdict PASS / zero findings — reply 'No fixes needed: review passed', then FIRST, run the FULL test suite through the evidence runner, skipping it only when the newest full-suite record is already green on the current tree: COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/zensu/zensu bash /Users/marcelkarras/.copilot/installed-plugins/zensu/zensu/hooks/lib/zensu-log.sh --evidence-run --scope full --if-stale --cmd '<full test command>' --log <run log> (drop --cmd when evidence.fullSuiteCommand is configured). Phase 5 checkpoints are SCOPED, so this convergence branch is where the verdict for the tree that ships is measured, and a verdict taken before the fix rounds describes a tree that no longer exists. THEN run this ticket-bound command: COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/zensu/zensu bash /Users/marcelkarras/.copilot/installed-plugins/zensu/zensu/hooks/lib/zensu-log.sh --code-review-done --claimed-review-ticket rt_8fc08b3266c5f808208d23eededaf7d7. Only if it exits 0, your VERY NEXT action must be the skill tool with skill='zensu-self-review'. Carry this exact generation line into that skill: 'SELF-REVIEW-TICKET: rt_8fc08b3266c5f808208d23eededaf7d7'. The terminal self-review owns the chain terminus and renders the final CHAIN-END SUMMARY. If the command fails, this completion is stale: do NOT invoke self-review, do NOT mutate chain state, and resume the current chain instead. Do NOT close the chain yourself, do NOT render the summary here, and do NOT end your turn — self-review finalizes the matching generation.\\n\\n(B) No Critical findings (only Important findings, Suggestions, Minor or Nits) — do NOT fix. Park every IMPORTANT finding of this review that has no ledger line yet: append one run-log line for it, in merged order, exactly in the form 'FINDING LEDGER — R1-F<n> parked IMPORTANT <path>:<line> | <paraphrase>'. Append every FINDING LEDGER line of this chain, whatever its state, only through bash /Users/marcelkarras/.copilot/installed-plugins/zensu/zensu/hooks/lib/zensu-log.sh append --log {log_file} --message-stdin fed by a heredoc whose delimiter is quoted, so no finding text is ever shell-expanded, and never through --message. Reuse the R1-F<n> id the merge assigned, write a line range as its first line and a finding without an anchor as '-', and keep the paraphrase to at most 100 characters that never quote code, secrets or values and, for a security finding, name only the class of weakness, never how to exploit it; a 'neutralized' line's paraphrase states the Panel-FP reason. The log's secret scan is a backstop, not a guarantee: when it refuses a ledger line, rewrite the paraphrase without the value and never resend the line with the zensu-secret-allow marker or ZENSU_SECRET_SCAN=off. Reply with the status line 'No critical findings — important findings parked for /zensu-self-review' when you parked any, otherwise 'No critical/important findings — suggestions only', followed by the parked Important findings under the heading '### Important (parked for /zensu-self-review)' and the bullet list of Suggestions verbatim under the heading '### Suggestions (not auto-fixed)' so they land in the final report, then FIRST, run the FULL test suite through the evidence runner, skipping it only when the newest full-suite record is already green on the current tree: COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/zensu/zensu bash /Users/marcelkarras/.copilot/installed-plugins/zensu/zensu/hooks/lib/zensu-log.sh --evidence-run --scope full --if-stale --cmd '<full test command>' --log <run log> (drop --cmd when evidence.fullSuiteCommand is configured). Phase 5 checkpoints are SCOPED, so this convergence branch is where the verdict for the tree that ships is measured, and a verdict taken before the fix rounds describes a tree that no longer exists. THEN run this ticket-bound command: COPILOT_PLUGIN_DATA=/Users/marcelkarras/.copilot/plugin-data/zensu/zensu bash /Users/marcelkarras/.copilot/installed-plugins/zensu/zensu/hooks/lib/zensu-log.sh --code-review-done --claimed-review-ticket rt_8fc08b3266c5f808208d23eededaf7d7. Only if it exits 0, your VERY NEXT action must be the skill tool with skill='zensu-self-review'. Carry this exact generation line into that skill: 'SELF-REVIEW-TICKET: rt_8fc08b3266c5f808208d23eededaf7d7'. The terminal self-review owns the chain terminus and renders the final CHAIN-END SUMMARY. If the command fails, this completion is stale: do NOT invoke self-review, do NOT mutate chain state, and resume the current chain instead. Do NOT close the chain yourself, do NOT render the summary here, and do NOT end your turn — self-review finalizes the matching generation.\\n\\n(C) ANY Critical findings present — fix them YOURSELF IN THIS MAIN THREAD in vanilla mode by re-entering the /zensu-tdd workflow's vanilla implementation loop (fix each finding directly — no RED→GREEN cycle required, tests at your discretion; keep logging CHECKPOINT lines and re-run this round's OWN scoped suites — the full suite returns only when the review loop closes; the phase-gate passes through in this session). Treat the findings as a feature spec shaped exactly like:\\n\\nFix the following findings from code review:\\n1. <file:line> — <issue description>\\n   Fix: <reviewer's fix suggestion>\\n2. <file:line> — ...\\n   Fix: ...\\n\\nList ONLY Critical findings. EXCLUDE all Important findings, which you park through the ledger below, and EXCLUDE all Suggestions / Minor / Nits — those are NOT auto-fixed; buffer them in your response under '### Suggestions (deferred, not auto-fixed)' below the status line so the user sees them at the end of the chain. Review convergence (hooks.reviewConvergence is on). Ledger: BEFORE fixing, append one run-log line per merged finding of this review that has no ledger line yet, in merged order, exactly in the form 'FINDING LEDGER — R1-F<n> <routed|deferred|neutralized|parked> <CRITICAL|IMPORTANT|SUGGESTION> <path>:<line> | <paraphrase>'. Append every FINDING LEDGER line of this chain, whatever its state, only through bash /Users/marcelkarras/.copilot/installed-plugins/zensu/zensu/hooks/lib/zensu-log.sh append --log {log_file} --message-stdin fed by a heredoc whose delimiter is quoted, so no finding text is ever shell-expanded, and never through --message. Reuse the R1-F<n> id the merge assigned, write a line range as its first line and a finding without an anchor as '-', and keep the paraphrase to at most 100 characters that never quote code, secrets or values and, for a security finding, name only the class of weakness, never how to exploit it; a 'neutralized' line's paraphrase states the Panel-FP reason. The log's secret scan is a backstop, not a guarantee: when it refuses a ledger line, rewrite the paraphrase without the value and never resend the line with the zensu-secret-allow marker or ZENSU_SECRET_SCAN=off. create 'routed' for every finding you fix now, 'neutralized' for every Panel-FP-neutralized one, 'parked' for every IMPORTANT finding you leave unfixed, 'deferred' for every other finding you leave unfixed, and no line for an item annotated '[Unverified — do not fix]'; the severity field always carries the finding's original severity, before any annotation lowered it. A finding a '[STILL OPEN] <ledger-id> covers <panel-id>' line names, and that line itself, get no new line and no new id: the defect stays under the earlier id, its fix appends 'fixed' for that id, and deferring it as IMPORTANT appends 'parked' for that id. Name each fix step after its finding id, and once a fix lands append the same ledger line with 'fixed'. Number the next review's merged findings R2-F1, R2-F2, … in merged order, judge findings after the panel findings, and keep each id in its finding text; a finding that quotes an earlier ledger id still gets its own new id. That next review converges: before its judge pass, or before classifying when no judge runs, run the round-scope helper with --round 1 and node /Users/marcelkarras/.copilot/installed-plugins/zensu/zensu/hooks/lib/review-ledger-v1.js --log {log_file} --root \"$TOP\"; ONLY when both answer status=ok, give the judge, when one runs, the ledger entries as findings_ledger and, after the verification gate, classify the merged list before the consume reviewer. A CRITICAL finding stays routable. An IMPORTANT finding never stays routable, because hooks.autoFixSeverity is critical and /zensu-self-review fixes it once at the end of the chain. A CRITICAL finding of that re-review routes only after /zensu-tdd step 4c stage 3 reproduced it with a failing test run through the evidence runner with --scope scoped and logged 'FINDING REPRODUCTION — <ledger-id> REPRODUCED <record>'; a NOT-REPRODUCED or NOT-TESTABLE one is retitled '[Deferred — do not fix]', keeps CRITICAL in its text and in its deferred ledger line, and is listed under ## Open for a human instead of being fixed. Every other finding is retitled '[Deferred — do not fix]', keeps its original severity in its text, is set to SUGGESTION and is exempt from fix routing in every severity mode, including autoFixIncludeSuggestions; Panel-FP and Unverified annotations take precedence. Right after classifying, and before you issue the review ticket, append for every finding you retitled a ledger line with its R2-F<n> id and original severity — 'parked' for an IMPORTANT finding, 'deferred' for every other — so a review that closes the loop still ledgers what it deferred. With any other answer from either helper, route that review as before, fixing its IMPORTANT findings with its CRITICAL ones because no ledger carries a parked finding to /zensu-self-review, and log 'CONVERGENCE UNAVAILABLE — <reason>'. After the fixes a"
+    },
+    {
+      "callId": "call_SHLMEjP7zoHy328jCJpgXYju",
+      "name": "zensu-review-judge-primary-retry",
+      "agent": "zensu:review-judge",
+      "mode": "sync",
+      "started": "2026-10-19T18:26:56.687Z",
+      "promptSha256": "98794700e14e8f70e43f6a2b47f2624bf04c18a49d76aa46874b6f85cd0b6173",
+      "workerCompleted": "2026-10-19T18:27:42.529Z",
+      "workerToolCalls": 8,
+      "durationMs": 45315,
+      "model": "gpt-6-luna",
+      "reportedTokens": 30977,
+      "completed": "2026-10-19T18:27:43.069Z",
+      "transportSuccess": true,
+      "substantiveResult": true,
+      "result": "## Aspect: judge\n- (no findings)"
+    }
+  ],
+  "nativeTaskCounts": {
+    "zensu:review-aspect": 5,
+    "zensu:review-judge": 3,
+    "zensu:code-reviewer": 1
+  },
+  "hookEventCounts": {
+    "preToolUse": 263,
+    "subagentStart": 9,
+    "postToolUse": 257,
+    "userPromptSubmitted": 11,
+    "userPromptTransformed": 11,
+    "preCompact": 1,
+    "agentStop": 10,
+    "subagentStop": 9,
+    "sessionEnd": 2,
+    "postToolUseFailure": 2,
+    "sessionStart": 2
+  },
+  "observedPluginRoots": [
+    "/Users/marcelkarras/.copilot/installed-plugins/zensu/zensu"
+  ],
+  "observedSessionIds": [
+    "11e2b086-5f69-4be0-a0fd-bf72f4ace2d6",
+    "12089e46-2eae-4950-8fd2-0c309831c537",
+    "194d1d40-81de-46f8-adad-2dbf1a93af14",
+    "20396102-6c9b-4968-bdb7-0d43071e631e",
+    "253588a2-291b-4e9d-a44a-3dcb9735f7bf",
+    "34700c78-323b-433d-9768-6b1feeb0819b",
+    "62c83f73-e673-4fa1-8004-989d43f8df5b",
+    "c6279b8a-6c7d-45eb-aea2-30f810086237",
+    "eb534e12-9559-4d5d-9f94-85533c0e0725",
+    "f4a76077-8dab-4df8-9256-3b43c5e3ced5"
+  ],
+  "terminalCommands": [
+    {
+      "callId": "call_xOfRK4RVfqRDN9IrBp4iJrr8",
+      "timestamp": "2026-10-19T18:36:35.012Z",
+      "exit": 0,
+      "success": true,
+      "output": "FULL SUITE — pass | exit 0 on the current tree c6af75c8900f (record er1_1792434942209_2b92009d79fa, 1.4s) | cmd: npm test | gate: required\nACCEPTANCE — pass | 4/4 acceptance criteria pass on the current tree c6af75c8900f (observed 4, attested 0) | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | gate: required\n<shellId: 46 completed with exit code 0>"
+    }
+  ],
+  "evidenceSummaries": [
+    {
+      "callId": "call_e0D8SBpZRif2nf9HzRhWldHW",
+      "timestamp": "2026-10-19T18:09:44.889Z",
+      "exit": 0,
+      "lines": [
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "zensu evidence-run: scope=full exit=0 duration=0.7s tree=29fc33e5dab0 record=er1_1792433383414_3842fcff6c88 cmd=npm test"
+      ]
+    },
+    {
+      "callId": "call_pZhHUgMPvDpwTEji1J3vdMji",
+      "timestamp": "2026-10-19T18:09:50.369Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=lint exit=0 duration=0.3s tree=n/a record=er1_1792433389380_a82352246905 cmd=npm run lint"
+      ]
+    },
+    {
+      "callId": "call_ZSEkez515Uzx6e0PSiAyEeCe",
+      "timestamp": "2026-10-19T18:11:53.159Z",
+      "exit": 0,
+      "lines": [
+        "EDIT LANDING AUDIT — claims=8 landed=8 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=1"
+      ]
+    },
+    {
+      "callId": "call_cqFQ85KmxvtM0Mc3JDnKlROx",
+      "timestamp": "2026-10-19T18:11:59.281Z",
+      "exit": 1,
+      "lines": [
+        "ACCEPTANCE STATUS — plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | tree: 29fc33e5dab0 | 0/4 active criteria pass | run: /zensu-verify-feature --chain --log .zensu/logs/2026-10-19-2001_tdd-invoice-quote.log"
+      ]
+    },
+    {
+      "callId": "call_kUifV8UKB2mehqom8CccnqaI",
+      "timestamp": "2026-10-19T18:12:15.312Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=acceptance exit=0 duration=0.1s tree=29fc33e5dab0 record=er1_1792433534432_149037deb923 cmd=node --input-type=module -e 'import assert from \"node:assert/strict\"; import { quoteInvoice } from \"./node_modules/.invoice-quote-consumer/node_modules/zensu-live-invoice/dist/index.js\"; const items=…"
+      ]
+    },
+    {
+      "callId": "call_a0L4shjYXMOHaFFsBvj2kG4F",
+      "timestamp": "2026-10-19T18:12:31.503Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=acceptance exit=0 duration=0.1s tree=29fc33e5dab0 record=er1_1792433550634_107955af1716 cmd=node --input-type=module -e 'import assert from \"node:assert/strict\"; import { formatCents, quoteInvoice } from \"./node_modules/.invoice-quote-consumer/node_modules/zensu-live-invoice/dist/index.js\";…"
+      ]
+    },
+    {
+      "callId": "call_KatjLNqmWdg8sso5bqPkhcKX",
+      "timestamp": "2026-10-19T18:12:45.403Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=acceptance exit=0 duration=0.3s tree=29fc33e5dab0 record=er1_1792433564356_ba46f3a7e8d2 cmd=node --input-type=module -e 'import assert from \"node:assert/strict\"; import { spawnSync } from \"node:child_process\"; const bin=\"./node_modules/.invoice-quote-consumer/node_modules/.bin/invoice-quote…"
+      ]
+    },
+    {
+      "callId": "call_NIGHxpe5E7DiPebow9orbdWO",
+      "timestamp": "2026-10-19T18:13:01.877Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=acceptance exit=0 duration=1.9s tree=29fc33e5dab0 record=er1_1792433579252_d09d9dad1b90 cmd=(npm test >/dev/null 2>&1 && npm run lint >/dev/null 2>&1 && npm run build >/dev/null 2>&1 && npm run coverage >/dev/null 2>&1 && node --input-type=module -e 'import assert from \"node:assert/strict\";…"
+      ]
+    },
+    {
+      "callId": "call_OqF4CdGfvSR4p1Gv2XCz8h5K",
+      "timestamp": "2026-10-19T18:13:13.634Z",
+      "exit": 0,
+      "lines": [
+        "ACCEPTANCE STATUS — plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | tree: 29fc33e5dab0 | 4/4 active criteria pass"
+      ]
+    },
+    {
+      "callId": "call_XBeVPSZwuSbK5dJsJahXX1p1",
+      "timestamp": "2026-10-19T18:26:16.945Z",
+      "exit": 1,
+      "lines": [
+        "ACCEPTANCE STATUS — plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | tree: 2f51a67a64ef | 0/4 active criteria pass | run: /zensu-verify-feature --chain --log .zensu/logs/2026-10-19-2001_tdd-invoice-quote.log"
+      ]
+    },
+    {
+      "callId": "call_K0X8j1ZiVDut80ej7U2m0nAR",
+      "timestamp": "2026-10-19T18:29:57.979Z",
+      "exit": 0,
+      "lines": [
+        "ACCEPTANCE STATUS — plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | tree: 29fc33e5dab0 | 4/4 active criteria pass"
+      ]
+    },
+    {
+      "callId": "call_a5d7jDEOWGD6FBbYWbe6LRUM",
+      "timestamp": "2026-10-19T18:32:47.731Z",
+      "exit": 0,
+      "lines": [
+        "EDIT LANDING AUDIT — claims=12 landed=12 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=1"
+      ]
+    },
+    {
+      "callId": "call_ELslBffO4BCUUVjoJ8I2qaMW",
+      "timestamp": "2026-10-19T18:33:09.519Z",
+      "exit": 0,
+      "lines": [
+        "ℹ tests 19",
+        "ℹ pass 19",
+        "ℹ fail 0",
+        "zensu evidence-run: scope=full exit=0 duration=1.5s tree=46ea5d622632 record=er1_1792434787276_26197ea005a7 cmd=npm test"
+      ]
+    },
+    {
+      "callId": "call_s7ID6eNnAHnMN25jfIXNnX12",
+      "timestamp": "2026-10-19T18:33:15.442Z",
+      "exit": 1,
+      "lines": [
+        "ACCEPTANCE STATUS — plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | tree: 46ea5d622632 | 0/4 active criteria pass | run: /zensu-verify-feature --chain --log .zensu/logs/2026-10-19-2001_tdd-invoice-quote.log"
+      ]
+    },
+    {
+      "callId": "call_Ze84E1O62ffw7BYWgv9UPfdK",
+      "timestamp": "2026-10-19T18:33:52.243Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=acceptance exit=0 duration=1.3s tree=c6af75c8900f record=er1_1792434830245_8a80ad18077a cmd=node --test tests/package.test.js >/dev/null 2>&1"
+      ]
+    },
+    {
+      "callId": "call_nkix5Pf7oFelKAy8CBDTmwsG",
+      "timestamp": "2026-10-19T18:34:05.930Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=acceptance exit=0 duration=1.3s tree=c6af75c8900f record=er1_1792434843967_bf0ff77a41a6 cmd=node --test tests/package.test.js >/dev/null 2>&1"
+      ]
+    },
+    {
+      "callId": "call_ZHbwO77vuHkMw0eajVnayeSm",
+      "timestamp": "2026-10-19T18:34:19.356Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=acceptance exit=0 duration=1.2s tree=c6af75c8900f record=er1_1792434857401_4e114f3463f7 cmd=node --test tests/package.test.js >/dev/null 2>&1"
+      ]
+    },
+    {
+      "callId": "call_jCa9ABCIN4mFyDz9hw7DnSBX",
+      "timestamp": "2026-10-19T18:34:36.904Z",
+      "exit": 0,
+      "lines": [
+        "zensu evidence-run: scope=acceptance exit=0 duration=3.3s tree=c6af75c8900f record=er1_1792434872933_39292d9b5f32 cmd=(npm test >/dev/null 2>&1 && npm run lint >/dev/null 2>&1 && npm run build >/dev/null 2>&1 && npm run coverage >/dev/null 2>&1 && grep -Fq quoteInvoice README.md && grep -Fq invoice-quote README.md &…"
+      ]
+    },
+    {
+      "callId": "call_IeToXTO086fbwA7STBLZgva6",
+      "timestamp": "2026-10-19T18:35:18.845Z",
+      "exit": 0,
+      "lines": [
+        "EDIT LANDING AUDIT — claims=12 landed=12 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=1"
+      ]
+    },
+    {
+      "callId": "call_bqqG62ASwFvRAWObLU5dxUrU",
+      "timestamp": "2026-10-19T18:35:37.405Z",
+      "exit": 0,
+      "lines": [
+        "ACCEPTANCE STATUS — plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | tree: c6af75c8900f | 4/4 active criteria pass"
+      ]
+    },
+    {
+      "callId": "call_f4W23ZW6DgoyFTVzNdPJffjd",
+      "timestamp": "2026-10-19T18:35:44.298Z",
+      "exit": 0,
+      "lines": [
+        "ℹ tests 19",
+        "ℹ pass 19",
+        "ℹ fail 0",
+        "zensu evidence-run: scope=full exit=0 duration=1.4s tree=c6af75c8900f record=er1_1792434942209_2b92009d79fa cmd=npm test"
+      ]
+    },
+    {
+      "callId": "call_SWvt0zcaCv2OtCmqqZMxnWAq",
+      "timestamp": "2026-10-19T18:37:59.981Z",
+      "exit": 0,
+      "lines": [
+        "ACCEPTANCE — AC-001 pass | driver=library observed er1_1792433534432_149037deb923 | tree=29fc33e5dab0 | record=av1_1792433541856_6208daa7a84c | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: Imported quoteInvoice from the offline-installed package tarball and asserted the specified quote object, empty-invoice result, exact output keys, and unchanged frozen items.",
+        "ACCEPTANCE — AC-002 pass | driver=library observed er1_1792433550634_107955af1716 | tree=29fc33e5dab0 | record=av1_1792433556742_948461b4b661 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The built consumer rejected invalid list, item, field, discount, and subtotal inputs; proved half-up cent rounding and the exact safe-integer boundary; and preserved formatCents output.",
+        "ACCEPTANCE — AC-003 pass | driver=cli observed er1_1792433564356_ba46f3a7e8d2 | tree=29fc33e5dab0 | record=av1_1792433571139_57fa7bb11e1f | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: Ran the installed invoice-quote bin from the offline-packed consumer: the specified input produced the exact JSON line with exit 0, omitted discount defaulted to zero, and malformed JSON returned exi…",
+        "ACCEPTANCE — AC-004 pass | driver=cli observed er1_1792433579252_d09d9dad1b90 | tree=29fc33e5dab0 | record=av1_1792433587574_f33f779e53e1 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The canonical test, lint, build, and coverage commands all exited successfully, and README assertions found the API and CLI examples; the full suite preserved the existing formatter tests.",
+        "EDIT LANDING AUDIT — clean: all 8 claimed edits landed; one verified-no-change integration claim exempt",
+        "EDIT LANDING AUDIT STARTED — round self-review",
+        "EDIT LANDING AUDIT — claims=12 landed=12 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=1",
+        "ACCEPTANCE — AC-001 pass | driver=library observed er1_1792434830245_8a80ad18077a | tree=c6af75c8900f | record=av1_1792434838077_afe0a391f9ff | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: Built, packed, and installed the final package offline in a temporary consumer; its exported quoteInvoice returned the specified object, empty quote, exact keys, and preserved frozen items.",
+        "ACCEPTANCE — AC-002 pass | driver=library observed er1_1792434843967_bf0ff77a41a6 | tree=c6af75c8900f | record=av1_1792434851428_36788d0f2f98 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The final packed consumer rejected invalid values and over-limit subtotals, verified half-up rounding and the exact safe boundary, and preserved formatCents output.",
+        "ACCEPTANCE — AC-003 pass | driver=cli observed er1_1792434857401_4e114f3463f7 | tree=c6af75c8900f | record=av1_1792434864796_3f16a8baa020 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The final offline-installed package bin produced the exact quote and exit 0, defaulted an omitted discount, and returned exit 2 with empty stdout and concise stderr for invalid JSON.",
+        "ACCEPTANCE — AC-004 pass | driver=cli observed er1_1792434872933_39292d9b5f32 | tree=c6af75c8900f | record=av1_1792434882492_8bc4c75f6290 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The final-tree canonical test suite, lint, build, and coverage commands passed; README assertions confirmed the API, CLI, and specified example are documented.",
+        "EDIT LANDING AUDIT STARTED — round self-review",
+        "EDIT LANDING AUDIT — claims=12 landed=12 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=1",
+        "COVERAGE — src/cli.js 100.00% lines, 100.00% branches, 100.00% functions; src/index.js 100.00% lines, 100.00% branches, 100.00% functions"
+      ]
+    },
+    {
+      "callId": "call_vlTU8yOL3vEWZIVIXHb5Ceai",
+      "timestamp": "2026-10-19T18:38:03.010Z",
+      "exit": 0,
+      "lines": [
+        "ACCEPTANCE STATUS — plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | tree: c6af75c8900f | 4/4 active criteria pass"
+      ]
+    },
+    {
+      "callId": "call_czCtsLASrZ16r6FZ3ksApbcB",
+      "timestamp": "2026-10-19T18:38:55.008Z",
+      "exit": 0,
+      "lines": [
+        "19:ACCEPTANCE — AC-002 pass | driver=library observed er1_1792433550634_107955af1716 | tree=29fc33e5dab0 | record=av1_1792433556742_948461b4b661 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The built consumer rejected invalid list, item, field, discount, and subtotal inputs; proved half-up cent rounding and the exact safe-integer boundary; and preserved formatCents output.",
+        "21:ACCEPTANCE — AC-003 pass | driver=cli observed er1_1792433564356_ba46f3a7e8d2 | tree=29fc33e5dab0 | record=av1_1792433571139_57fa7bb11e1f | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: Ran the installed invoice-quote bin from the offline-packed consumer: the specified input produced the exact JSON line with exit 0, omitted discount defaulted to zero, and malformed JSON returned exi…",
+        "23:ACCEPTANCE — AC-004 pass | driver=cli observed er1_1792433579252_d09d9dad1b90 | tree=29fc33e5dab0 | record=av1_1792433587574_f33f779e53e1 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The canonical test, lint, build, and coverage commands all exited successfully, and README assertions found the API and CLI examples; the full suite preserved the existing formatter tests.",
+        "24:EDIT LANDING AUDIT — clean: all 8 claimed edits landed; one verified-no-change integration claim exempt",
+        "40:EDIT LANDING AUDIT STARTED — round self-review",
+        "41:EDIT LANDING AUDIT — claims=12 landed=12 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=1",
+        "46:ACCEPTANCE — AC-001 pass | driver=library observed er1_1792434830245_8a80ad18077a | tree=c6af75c8900f | record=av1_1792434838077_afe0a391f9ff | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: Built, packed, and installed the final package offline in a temporary consumer; its exported quoteInvoice returned the specified object, empty quote, exact keys, and preserved frozen items.",
+        "48:ACCEPTANCE — AC-002 pass | driver=library observed er1_1792434843967_bf0ff77a41a6 | tree=c6af75c8900f | record=av1_1792434851428_36788d0f2f98 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The final packed consumer rejected invalid values and over-limit subtotals, verified half-up rounding and the exact safe boundary, and preserved formatCents output.",
+        "52:ACCEPTANCE — AC-004 pass | driver=cli observed er1_1792434872933_39292d9b5f32 | tree=c6af75c8900f | record=av1_1792434882492_8bc4c75f6290 | plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md | evidence: The final-tree canonical test suite, lint, build, and coverage commands passed; README assertions confirmed the API, CLI, and specified example are documented.",
+        "54:EDIT LANDING AUDIT STARTED — round self-review",
+        "55:EDIT LANDING AUDIT — claims=12 landed=12 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=1",
+        "56:COVERAGE — src/cli.js 100.00% lines, 100.00% branches, 100.00% functions; src/index.js 100.00% lines, 100.00% branches, 100.00% functions"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "WF-001",
+      "severity": "medium",
+      "status": "open",
+      "kind": "observed-live",
+      "scope": "Copilot native integration",
+      "title": "Hook-injected shell bindings are mistaken for forbidden model-authored overrides",
+      "observation": "Seven successful native context/policy probes preceded tdd-begin. Copilot repeatedly described the automatically added selector export prefix as its own mistake. The run recovered without intervention. After closure a command carrying the context marker without bound exports was refused as Malformed session binding; the model retried with the valid bound command and recovered.",
+      "recommendation": "Document the exact hook-generated prefix and its provenance in model-visible instructions; instruct the model to submit only the original command and accept successful results without replaying or removing the hook prefix.",
+      "sources": [
+        "src/context.js:87",
+        "src/dispatcher.js:128",
+        "src/plugin/skills/zensu-tdd/SKILL.md:21"
+      ],
+      "crossPluginEvidence": "None; this wrapper is Copilot-specific."
+    },
+    {
+      "id": "WF-002",
+      "severity": "medium",
+      "status": "open",
+      "kind": "source-confirmed",
+      "scope": "Shared workflow documentation",
+      "title": "Review file enumeration refers to a removed procedure",
+      "observation": "Review-chain and self-review instructions require the Phase6 step5b(b) enumeration unchanged, while current audit5b(b) contains verdict handling after enumeration moved into a helper.",
+      "recommendation": "Provide one canonical change-set helper/output contract and reference it directly from review and self-review, including untracked and mid-run-committed files.",
+      "sources": [
+        "src/plugin/skills/zensu-tdd/references/review-chain.md:7",
+        "src/plugin/skills/zensu-tdd/references/audit.md:52",
+        "src/plugin/skills/zensu-self-review/SKILL.md:62",
+        "src/plugin/skills/zensu-self-review/SKILL.md:125"
+      ],
+      "crossPluginEvidence": "Exact stale reference also exists in tracked upstream/zensu-claude-code/skills/tdd/references/review-chain.md:7 and skills/self-review/SKILL.md:44,107. Other installed plugins were not inspected."
+    },
+    {
+      "id": "WF-003",
+      "severity": "medium",
+      "status": "open",
+      "kind": "source-confirmed",
+      "scope": "Shared workflow documentation",
+      "title": "Unlanded-edit recovery instructions contradict the evidence helper",
+      "observation": "Review-chain says to land the edit or withdraw the claim and rerun. Audit instructions and helper say a withdrawn claim cannot clear the failed receipt.",
+      "recommendation": "Align recovery instructions with the actual grader: land and re-audit, or explicitly preserve failure and start a properly authorized fresh generation when the claim cannot be satisfied.",
+      "sources": [
+        "src/plugin/skills/zensu-tdd/references/review-chain.md:6",
+        "src/plugin/skills/zensu-tdd/references/audit.md:53",
+        "src/plugin/hooks/lib/zensu-log.sh:1865"
+      ],
+      "crossPluginEvidence": "Same contradictory text exists in the tracked upstream workflow references. This branch was not exercised in this live test."
+    },
+    {
+      "id": "WF-004",
+      "severity": "low",
+      "status": "open",
+      "kind": "source-confirmed",
+      "scope": "Copilot documentation",
+      "title": "Documentation advertises external review imports not shipped by the native port",
+      "observation": "modes.md mentions external-review imports and configuration.md documents the external-review helper, while native review-chain docs say the helper/templates do not ship.",
+      "recommendation": "Remove unsupported import instructions or clearly mark them as unavailable; keep native agent review as the single supported execution path.",
+      "sources": [
+        "src/plugin/skills/zensu-tdd/references/modes.md:9",
+        "src/plugin/docs/configuration.md:70",
+        "src/plugin/docs/review-chain.md:83"
+      ],
+      "crossPluginEvidence": "Port-specific stale documentation inherited from an upstream feature; no runtime compatibility layer observed."
+    },
+    {
+      "id": "WF-005",
+      "severity": "medium",
+      "status": "open",
+      "kind": "observed-live-and-source-confirmed",
+      "scope": "Shared skill structure; Copilot read limit observed",
+      "title": "Oversized verification skill cannot be read in one native view call",
+      "observation": "Native view call_mKS5YwujO4FKSYDfM6aMaaic at 2026-10-19T18:10:52.908Z returned success=true but no content: File too large to read at once (44.1 KB). Copilot recovered with view_range. Native entrypoint is45120bytes/585lines; tracked upstream counterpart40221bytes/568lines.",
+      "recommendation": "Split verification into a compact safety/driver-selection entrypoint and bounded references per driver, lifecycle and chain recording. Explicitly handle content-limit responses even when the transport reports success.",
+      "sources": [
+        "src/plugin/skills/zensu-tdd/references/audit.md:70",
+        "src/plugin/skills/zensu-verify-feature/SKILL.md",
+        "upstream/zensu-claude-code/skills/verify-feature/SKILL.md"
+      ],
+      "crossPluginEvidence": "Large monolithic skill is also present upstream; only Copilot read-limit behavior and recovery were live-tested."
+    },
+    {
+      "id": "WF-006",
+      "severity": "low",
+      "status": "open",
+      "kind": "observed-live-and-source-confirmed",
+      "scope": "Shared acceptance verification instructions",
+      "title": "Synthetic local acceptance runs suppress all assertion diagnostics",
+      "observation": "All four exit-code acceptance commands redirected stdout and stderr to /dev/null. AC004 combined tests, lint, build, coverage and a documentation check without retaining which assertion would fail. The commands passed; a failing diagnostic-loss case was not exercised.",
+      "recommendation": "Retain credential-blind handling for raw application/network output while allowing bounded synthetic diagnostics such as criterion ID, check name, exit code and sanitized assertion category. Do not remove suppression globally.",
+      "sources": [
+        "src/plugin/skills/zensu-verify-feature/SKILL.md:119",
+        "src/plugin/hooks/lib/evidence-run-v1.js:1229",
+        "upstream/zensu-claude-code/skills/verify-feature/SKILL.md:101"
+      ],
+      "crossPluginEvidence": "Same blanket output-suppression rule exists in the tracked upstream snapshot. Other installed plugins and standalone Zensu CLI were not tested."
+    },
+    {
+      "id": "WF-007",
+      "severity": "low",
+      "status": "open",
+      "kind": "observed-live",
+      "scope": "Workflow logging ergonomics",
+      "title": "Required execution and progress markers are not maintained reliably",
+      "observation": "Copilot armed the native vanilla chain before edits but omitted the separate EXECUTION STARTED log marker. It explicitly disclosed the omission in the review packet rather than backdating it. Real tests, CHECKPOINT and audit evidence are present. At the end, the separate progress checklist still marked Phase 6 audit and Review chain unchecked/in progress, despite successful terminal state and final report.",
+      "recommendation": "Have a structured implementation-start helper emit the required marker and relevant metadata automatically instead of relying on a separate model-authored ceremonial log line. Reconcile the final progress checklist from completed native stage evidence at chain close, so it cannot contradict the final report.",
+      "sources": [
+        "src/plugin/skills/zensu-tdd/references/execution.md:24",
+        "src/plugin/skills/zensu-self-review/SKILL.md:15"
+      ],
+      "crossPluginEvidence": "Native contract and this live run only; no claim of missing tests or skipped hard gates."
+    },
+    {
+      "id": "WF-008",
+      "severity": "low",
+      "status": "open",
+      "kind": "observed-live",
+      "scope": "Review packet reliability",
+      "title": "Manually duplicated review packets drifted despite an identical-bytes contract",
+      "observation": "The conventions reviewer packet has one extra leading space before diff_summary; the other four do not. The evidence was semantically equal, but not byte-for-byte identical as required.",
+      "recommendation": "Generate a canonical immutable evidence packet with a content hash/reference, validate each dispatch against it, and keep reviewer-specific perspective outside that packet.",
+      "sources": [
+        "src/plugin/skills/zensu-tdd/references/review-chain.md:9"
+      ],
+      "crossPluginEvidence": "Observed in Copilot; shared manual-packet design may benefit from the same helper, but other hosts were not tested."
+    },
+    {
+      "id": "WF-009",
+      "severity": "high",
+      "status": "open",
+      "kind": "observed-live-and-source-confirmed",
+      "scope": "Shared review contract and completion reliability",
+      "title": "Primary judge rejected valid evidence and the workflow continued without substantive primary review",
+      "observation": "Primary judge call_q2JCilMZlZt3pdBc23uswzt3 rejected the actual EDIT LANDING AUDIT terminal summary as a missing close marker. The independent second judge accepted identical evidence. Main logged the primary as unavailable and advanced to consume review; completing the requested whole chain required an explicit same-session recovery intervention.",
+      "recommendation": "Define and validate the edit-landing receipt/summary schema deterministically before dispatch. Make primary-judge completion an explicit required stage or return a clearly partial result; an additive second judge must not silently substitute for it. Provide bounded retry with preserved original evidence.",
+      "sources": [
+        "src/plugin/com.github.copilot/agents/review-judge.agent.md:42",
+        "src/plugin/hooks/lib/zensu-edit-landing.sh:891",
+        "src/plugin/skills/zensu-tdd/references/audit.md:50",
+        "upstream/zensu-claude-code/agents/review-judge.md:38"
+      ],
+      "crossPluginEvidence": "Ambiguous close-marker wording also exists in the tracked upstream agent. Failure/recovery behavior was tested only in Copilot."
+    },
+    {
+      "id": "WF-010",
+      "severity": "medium",
+      "status": "open",
+      "kind": "observed-live-and-source-confirmed",
+      "scope": "Shared finding-verification shell input protocol",
+      "title": "Quoted heredoc delimiter collided with the required FINDINGS payload marker",
+      "observation": "The first finding verifier command used FINDINGS as both shell heredoc delimiter and payload section marker. The heredoc ended early; remaining finding lines were attempted as shell commands. Exit127 and total0 instead of3 were correctly recorded as DEGRADED, followed by manual source verification. No harmful command ran.",
+      "recommendation": "Accept a structured packet file/JSON input through a canonical helper. If heredocs remain, require a generated delimiter absent from the complete payload and validate the summary count before accepting the run. A quoted delimiter alone does not prevent delimiter collisions.",
+      "sources": [
+        "src/plugin/skills/zensu-tdd/references/review-chain.md:13",
+        "upstream/zensu-claude-code/skills/tdd/references/review-chain.md:13"
+      ],
+      "crossPluginEvidence": "Same quoted-heredoc/marker-form instructions exist in the tracked upstream reference. The actual model-generated collision was observed in Copilot only."
+    },
+    {
+      "id": "WF-011",
+      "severity": "medium",
+      "status": "open",
+      "kind": "observed-live-and-source-confirmed",
+      "scope": "Shared review verdict semantics",
+      "title": "Reviewer fix directive contradicts effective critical-only convergence policy",
+      "observation": "The consume reviewer reported 2 IMPORTANT and 1 SUGGESTION, labeled PASS WITH SUGGESTIONS, and added Fix round required. The authoritative appended hook guidance correctly resolved hooks.autoFixSeverity=critical and instructed parking IMPORTANT findings before terminal self-review. Self-review then fixed the two IMPORTANT findings in its permitted single round, without another reviewer, as its contract explicitly requires. The model-authored directive and effective routing were inconsistent. The main-agent consume prompt explicitly requested a PASS/fix-round directive but omitted the effective severity policy; the extra Directive section is not prescribed by the reviewer output template.",
+      "recommendation": "Give the consume reviewer the effective severity/convergence decision and derive its verdict and next-action text from that same decision. Keep any required terminal self-review correction distinct from a routed panel re-review.",
+      "sources": [
+        "src/plugin/com.github.copilot/agents/code-reviewer.agent.md:88",
+        "upstream/zensu-claude-code/agents/code-reviewer.md:84",
+        "src/plugin/hooks/lib/zensu-config.sh:491",
+        "src/plugin/skills/zensu-self-review/SKILL.md:203",
+        "src/plugin/skills/zensu-self-review/SKILL.md:302"
+      ],
+      "crossPluginEvidence": "The verdict rubric is shared with the tracked upstream agent; the conflicting extra directive was model-authored in this Copilot run. No missing second panel is alleged for this configured branch."
+    },
+    {
+      "id": "WF-012",
+      "severity": "low",
+      "status": "open",
+      "kind": "observed-live-and-source-confirmed",
+      "scope": "Acceptance execution efficiency",
+      "title": "Identical package acceptance suite reruns once per criterion despite reusable evidence",
+      "observation": "Final AC-001, AC-002 and AC-003 each reran the same package consumer suite on tree c6af75c8900f, rebuilding, packing and installing the unchanged package three times. Each run was valid. The recorder permits one current acceptance-scope record to support multiple AC verdicts, with criterion-specific observations.",
+      "recommendation": "Document a shared-run pattern: run the suite once, then immediately record each explicitly covered AC separately with the same evidence-run reference. Preserve exact assertion-to-criterion mapping and freshness checks.",
+      "sources": [
+        "src/plugin/hooks/lib/acceptance-verify-v1.js:397",
+        "src/plugin/hooks/lib/acceptance-verify-v1.js:481",
+        "src/plugin/hooks/lib/acceptance-verify-v1.js:502",
+        "src/plugin/skills/zensu-verify-feature/SKILL.md:125"
+      ],
+      "crossPluginEvidence": "Observed in Copilot and grounded in its recorder contract. A reusable pattern may help other plugins or CLI workflows; those executions were not tested."
+    },
+    {
+      "id": "WF-013",
+      "severity": "low",
+      "status": "open",
+      "kind": "observed-live",
+      "scope": "Terminal workflow and report ergonomics",
+      "title": "Self-review skill is reinvoked after successful chain closure",
+      "observation": "The native self-review skill loaded at 18:29:07Z, again before close at 18:35:53Z, and after successful chain-done at 18:36:49Z. No intervening user message or stop directive requested the post-close invocation. The model then repeated helper/status discovery, including one malformed-binding refusal and oversized search output. The protected chain stayed closed and no additional source edit occurred. Final summary eventually arrived at 18:39:52Z, about 3m17s after successful close.",
+      "recommendation": "Add an explicit completed-generation fast path: verify the bound closed chain once, render the existing final evidence and remaining findings, and do not restart review discovery or mutation. Return a clear terminal/report-only result from chain-done.",
+      "sources": [
+        "src/plugin/skills/zensu-self-review/SKILL.md:48",
+        "src/plugin/skills/zensu-self-review/SKILL.md:307"
+      ],
+      "crossPluginEvidence": "Model-generated native reinvocation observed only in Copilot. A completed-generation guard is a candidate shared-workflow improvement; no equivalent live failure is asserted for other hosts."
+    }
+  ],
+  "independentValidation": {
+    "status": "pass",
+    "entry": "/private/tmp/zensu-workflow-live-z3lbjucv/independent-consumer/consumer/node_modules/zensu-live-invoice/dist/index.js",
+    "cli": "/private/tmp/zensu-workflow-live-z3lbjucv/independent-consumer/consumer/node_modules/.bin/invoice-quote",
+    "checks": [
+      {
+        "name": "specified invoice",
+        "status": "pass"
+      },
+      {
+        "name": "half-up rounding",
+        "status": "pass"
+      },
+      {
+        "name": "empty items and zero discount default",
+        "status": "pass"
+      },
+      {
+        "name": "frozen inputs unchanged",
+        "status": "pass"
+      },
+      {
+        "name": "exact maximum safe subtotal",
+        "status": "pass"
+      },
+      {
+        "name": "subtotal overflow rejected",
+        "status": "pass"
+      },
+      {
+        "name": "sum overflow rejected",
+        "status": "pass"
+      },
+      {
+        "name": "invalid items rejected",
+        "status": "pass"
+      },
+      {
+        "name": "invalid discounts rejected",
+        "status": "pass"
+      },
+      {
+        "name": "200 seeded exact arithmetic samples",
+        "status": "pass"
+      },
+      {
+        "name": "existing formatter preserved",
+        "status": "pass"
+      },
+      {
+        "name": "CLI exact output",
+        "status": "pass"
+      },
+      {
+        "name": "CLI default discount",
+        "status": "pass"
+      },
+      {
+        "name": "CLI error contract",
+        "status": "pass"
+      },
+      {
+        "name": "CLI accepts exactly one MiB",
+        "status": "pass"
+      },
+      {
+        "name": "CLI rejects one byte over one MiB",
+        "status": "pass"
+      }
+    ],
+    "packagedInstallCommands": [
+      {
+        "args": [
+          "npm",
+          "pack",
+          "--ignore-scripts",
+          "--json",
+          "--pack-destination",
+          "/private/tmp/zensu-workflow-live-z3lbjucv/independent-consumer/packages"
+        ],
+        "exitCode": 0,
+        "stdout": "[\n  {\n    \"id\": \"zensu-live-invoice@1.0.0\",\n    \"name\": \"zensu-live-invoice\",\n    \"version\": \"1.0.0\",\n    \"size\": 2486,\n    \"unpackedSize\": 5938,\n    \"shasum\": \"c4853bea6288d3f739eceb891de4a4e654bc1585\",\n    \"integrity\": \"sha512-LB17HYpuYW1GzjdUrG3irxtRUgfSIOkN/84ptaF4GnnNZdC6WYkcSzVhk5KIzZi3cl8OaUNC6eAYPJkERDF3gw==\",\n    \"filename\": \"zensu-live-invoice-1.0.0.tgz\",\n    \"files\": [\n      {\n        \"path\": \"README.md\",\n        \"size\": 1771,\n        \"mode\": 420\n      },\n      {\n        \"path\": \"dist/cli.js\",\n        \"size\": 1938,\n        \"mode\": 420\n      },\n      {\n        \"path\": \"dist/index.js\",\n        \"size\": 1627,\n        \"mode\": 420\n      },\n      {\n        \"path\": \"package.json\",\n        \"size\": 602,\n        \"mode\": 420\n      }\n    ],\n    \"entryCount\": 4,\n    \"bundled\": []\n  }\n]\n",
+        "stderr": ""
+      },
+      {
+        "args": [
+          "npm",
+          "install",
+          "--offline",
+          "--ignore-scripts",
+          "--no-audit",
+          "--no-fund",
+          "--prefix",
+          "/private/tmp/zensu-workflow-live-z3lbjucv/independent-consumer/consumer",
+          "/private/tmp/zensu-workflow-live-z3lbjucv/independent-consumer/packages/zensu-live-invoice-1.0.0.tgz"
+        ],
+        "exitCode": 0,
+        "stdout": "\nadded 1 package in 134ms\n",
+        "stderr": ""
+      }
+    ],
+    "testedHashes": {
+      "index.js": {
+        "source": "72737dc43470f2728f7300e39720ce90bf6a961b150bfea1ee8ee658621fc1dc",
+        "installed": "72737dc43470f2728f7300e39720ce90bf6a961b150bfea1ee8ee658621fc1dc",
+        "equal": true
+      },
+      "cli.js": {
+        "source": "4f12b1a9bcfccb613446db3cb885c3f827674c43e46f0844056fd8d3e807b7f3",
+        "installed": "4f12b1a9bcfccb613446db3cb885c3f827674c43e46f0844056fd8d3e807b7f3",
+        "equal": true
+      }
+    },
+    "packageTarballSha256": "59f10ed14d3b080157b61468872ae03b5b232e56b8e660f9cb615b37fadf8ab7"
+  },
+  "rawEvidenceRoot": "/private/tmp/zensu-workflow-live-z3lbjucv",
+  "nativeFinalSummary": "# CHAIN-END SUMMARY\n\n## Problem\nThis workflow implemented and verified an invoice quote library and stdin CLI against AC-001–AC-004.\n\n## What I built\n\n| # | Deliverable | Status | Link |\n|---|---|---|---|\n| 1 | Exact invoice quote API with validation and half-up discounts | 🟢 built-tested | — |\n| 2 | Bounded JSON stdin CLI with concise error handling | 🟢 built-tested | — |\n| 3 | Offline packed-package consumer and CLI regression tests | 🟢 built-tested | — |\n| 4 | API/CLI documentation and Zensu workflow evidence | 🟢 done | — |\n\n| Check | Verdict |\n|---|---|\n| Feature | Invoice quote library and CLI |\n| Files modified | 8 |\n| Tests created | 🟢 3 test files |\n| Full suite | 🟢 FULL SUITE — pass \\| exit 0 on the current tree c6af75c8900f (record er1_1792434942209_2b92009d79fa, 1.4s) \\| cmd: npm test \\| gate: required |\n| Acceptance | 🟢 ACCEPTANCE — pass \\| 4/4 acceptance criteria pass on the current tree c6af75c8900f (observed 4, attested 0) \\| plan: .zensu/plans/2026-10-19-2001_tdd-invoice-quote.md \\| gate: required |\n| Build | 🟢 passed |\n| Coverage | 🟢 2/2 source files >= 90%; both 100% lines, branches, and functions |\n| native file editing landing | 🟢 EDIT LANDING AUDIT — claims=12 landed=12 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=1 |\n| Finding verification | 🔴 FINDING VERIFICATION DEGRADED — Stage 1 marker heredoc terminated early; summary total=0, expected 3; proceeding with mandatory Stage 2 manual reads; FINDING VERIFICATION — 3 verified, 0 unsupported, 0 phantom, 0 off-changeset (Stage 1 degraded; Stage 2 code regions manually read) |\n| Gates bypassed | 🟢 none |\n| Plan | `.zensu/plans/2026-10-19-2001_tdd-invoice-quote.md` |\n| Log | `.zensu/logs/2026-10-19-2001_tdd-invoice-quote.log` |\n\n| ID | Status |\n|---|---|\n| AC-001 | 🟢 met |\n| AC-002 | 🟢 met |\n| AC-003 | 🟢 met |\n| AC-004 | 🟢 met |\n\n## How I built it\nVanilla implementation; round-one review outcome was suggestions-only, with 2 IMPORTANT findings and 1 SUGGESTION across 8 changed files; assisted recovery retained the initial invalid primary-judge attempt and total=0 verifier failure, then recorded a substantive judge retry and successful 3-finding verification.\n\n| Round | Findings | Fixed | Result |\n|---|---|---|---|\n| 1 | 2 IMPORTANT; 1 SUGGESTION | R1-F1, R1-F2 | 🟢 Both IMPORTANT findings fixed and verified; R1-F3 deferred |\n| Final verification | No self-review must-fix | — | 🟡 Tests, acceptance, and terminal self-review passed; no post-fix consume-review round is evidenced |\n\n## Self-Review Summary\n\n| Dimension | Verdict | Note |\n|---|---|---|\n| Architecture | 🟢 clean | BigInt arithmetic preserves exact subtotal calculations. |\n| Consistency | 🟢 clean | Existing formatter behavior and package conventions retained. |\n| Edge-cases | 🟢 clean | Validation, rounding, overflow, and input bounds covered. |\n| Test coverage | 🟢 clean | Full suite passed; source coverage is 100%. |\n| Security | 🟢 clean | CLI input is capped; errors omit stack traces. |\n| Simplification | 🟢 clean | Exact arithmetic is appropriate for the requirements. |\n| Conventions | 🟡 advisory | Package metadata still omits its documented Node.js minimum. |\n\nOne self-review fix round addressed R1-F1 and R1-F2; both ledger candidates were fixed without a reviewer rerun.\n\n## Open\n\n| Item | Type | Next step |\n|---|---|---|\n| R1-F3 — `package.json:4` omits `engines.node` | Deferred suggestion | Declare the documented Node.js minimum in a future change. |\n| Post-fix consume review | Process gap | No post-fix reviewer round appears in the evidence; the native chain is closed, so this run cannot claim that requested re-review. |\n\nGates bypassed during this session: none\n\nOptional next step: /zensu-converge — flow-back audit of the code against the plan's Requirements table.\n\n## TL;DR\nThe invoice quote library and CLI passed all four acceptance criteria and the final suite; the ticket-bound chain is closed, with one deferred suggestion and the requested post-fix consume-review round unverified.\n",
+  "executionExit": {
+    "exitCode": 0,
+    "elapsedSeconds": 836.93
+  },
+  "installedPackageVerification": {
+    "version": "0.2.0",
+    "verifiedFiles": 252,
+    "hashMismatches": [],
+    "missingFiles": [],
+    "extraFiles": [],
+    "receiptSha256": "34c272470d037cd3f3f9bb5d4800662eb86e6eb588f266e3c2510bcc33d0e4d5"
+  },
+  "nativeRecordsSnapshot": [
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433383414_3842fcff6c88.json",
+      "sha256": "5a7555d143f9a7212d0ab5bc9d011489ab40a16ba527103237c8a04279091aa6"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433389380_a82352246905.json",
+      "sha256": "ba81d846ade69a9ea11bf971e221f64ce889f75bd91f021b22a471494e9ef7f9"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433534432_149037deb923.json",
+      "sha256": "19aadf853a05b8b14365201da3c0eee3bc40774f03331d60f19d671673cf6d34"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433550634_107955af1716.json",
+      "sha256": "816c82770d6f713efaff7a4961db6b653a661e8198f6bf52bca4268add114e62"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433564356_ba46f3a7e8d2.json",
+      "sha256": "d603ce7c4185f7c98036ecddce216f03a209552d8e3b6f81aefa01fee4580941"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433579252_d09d9dad1b90.json",
+      "sha256": "110d4ebf68c64ab6f5f6a510e3068159456eb3dfc78a960badebabeffd8b5fb1"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434787276_26197ea005a7.json",
+      "sha256": "097301f03786aea5d6fa06cab2fd477a690a887640064d025eee2f8bb6ba764b"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434830245_8a80ad18077a.json",
+      "sha256": "7d6466f32440840e3a52f40c0b034b9516ebb5ad9d6674e8fce121ff215fb765"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434843967_bf0ff77a41a6.json",
+      "sha256": "ab762b3e65ebecc16d9544ca548d5f434569c18d0fee8edb9ab0d89cc78e64bf"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434857401_4e114f3463f7.json",
+      "sha256": "76b055414d51c6bd2ce46abbc5c23959b5136d507b6359ceb3a2b77e059a3064"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434872933_39292d9b5f32.json",
+      "sha256": "8b0e2c106803a889cbe6f48350efad66377102fb1e4b5793c53b30182c770e6d"
+    },
+    {
+      "path": "native-records/evidence-run/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434942209_2b92009d79fa.json",
+      "sha256": "79261b02b62e74abfd78bb3a66c4ce408bd3bc79e9799fc2a5159cb16c48151f"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433383414_3842fcff6c88.log",
+      "sha256": "d4081fc9514bbc87906c3378d9f117ecc6122d1e4b71b6ec3ef289199c8a86e5"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433389380_a82352246905.log",
+      "sha256": "fa44f3b67099ca8463062184e006ac15a8e221c41ea9e1e6b742d1db27c995ff"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433534432_149037deb923.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433550634_107955af1716.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433564356_ba46f3a7e8d2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792433579252_d09d9dad1b90.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434787276_26197ea005a7.log",
+      "sha256": "692925e361456d5eb0ca6e4144e6028e5127a90e3a01e65da30df12f8d1e90f7"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434830245_8a80ad18077a.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434843967_bf0ff77a41a6.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434857401_4e114f3463f7.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434872933_39292d9b5f32.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native-records/evidence-run/v1/logs/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/er1_1792434942209_2b92009d79fa.log",
+      "sha256": "75cb865015e8f60c7b28a972813a61e6694dfee33829c5120d12f80d2fc0043b"
+    },
+    {
+      "path": "native-records/acceptance-verify/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/av1_1792433541856_6208daa7a84c.json",
+      "sha256": "76da1e7d1abd9390b3b44115fac073f618a74f51abd392e9378dadaa2b29a1f4"
+    },
+    {
+      "path": "native-records/acceptance-verify/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/av1_1792433556742_948461b4b661.json",
+      "sha256": "5f6013648ed0d86982f5329ee6048665a6bd3ae785b5c4d16068d6950e592d4d"
+    },
+    {
+      "path": "native-records/acceptance-verify/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/av1_1792433571139_57fa7bb11e1f.json",
+      "sha256": "0e41ebf0262108159e9404c6b23be14be4411c7b8841a960be3dd1795d6a234c"
+    },
+    {
+      "path": "native-records/acceptance-verify/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/av1_1792433587574_f33f779e53e1.json",
+      "sha256": "6658437f88688efc1aa055d247737bd5396916ca63d4bc8f858364286dccb882"
+    },
+    {
+      "path": "native-records/acceptance-verify/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/av1_1792434838077_afe0a391f9ff.json",
+      "sha256": "33e2ca30c863fd64484b2e0cca8b5f6dc0a5b56e4ee1370015d6360a0f5f54a3"
+    },
+    {
+      "path": "native-records/acceptance-verify/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/av1_1792434851428_36788d0f2f98.json",
+      "sha256": "8c8269db0ce3176b4d6823ec7d410bf21ef87106dcf2b56cde1114622fa56491"
+    },
+    {
+      "path": "native-records/acceptance-verify/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/av1_1792434864796_3f16a8baa020.json",
+      "sha256": "da08493b4f9f9654eef72787221e490b2d6d4732fc59482f14a18ec3c39e3282"
+    },
+    {
+      "path": "native-records/acceptance-verify/v1/records/scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44/av1_1792434882492_8bc4c75f6290.json",
+      "sha256": "2b03642216dadc471a48143403f50957bf852047bc2fbc55da1084798a4a1bb1"
+    }
+  ],
+  "finalNativeEvidence": {
+    "fullSuite": {
+      "schema": "evidence-run-v1",
+      "id": "er1_1792434942209_2b92009d79fa",
+      "session_key": "scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44",
+      "project_root": "/private/tmp/zensu-workflow-live-z3lbjucv/project",
+      "scope": "full",
+      "command": "npm test",
+      "cwd": "/private/tmp/zensu-workflow-live-z3lbjucv/project",
+      "state": "completed",
+      "pid": 14102,
+      "started_at": "2026-10-19T18:35:42.209Z",
+      "finished_at": "2026-10-19T18:35:43.614Z",
+      "duration_ms": 1405,
+      "exit_code": 0,
+      "signal": null,
+      "tree_start": "c6af75c8900fee88c7a59df1b5216218473160b0",
+      "tree_start_reason": null,
+      "tree_end": "c6af75c8900fee88c7a59df1b5216218473160b0",
+      "tree_end_reason": null,
+      "plugin_version": "0.2.0",
+      "log_bytes": 1497,
+      "log_truncated": false
+    },
+    "acceptance": {
+      "AC-002": {
+        "schema": "acceptance-verify-v1",
+        "id": "av1_1792434851428_36788d0f2f98",
+        "session_key": "scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44",
+        "project_root": "/private/tmp/zensu-workflow-live-z3lbjucv/project",
+        "plan": ".zensu/plans/2026-10-19-2001_tdd-invoice-quote.md",
+        "stem": "2026-10-19-2001_tdd-invoice-quote",
+        "ac": "AC-002",
+        "criterion": "Validate the input domain, apply half-up basis-point discounts, reject inexact unsafe subtotals, preserve formatCents.",
+        "criterion_digest": "7e5bb8d6a5176a6a24d316d9a333597c5baf0220117ed26608665194c9e007bf",
+        "verdict": "pass",
+        "driver": "library",
+        "evidence": "The final packed consumer rejected invalid values and over-limit subtotals, verified half-up rounding and the exact safe boundary, and preserved formatCents output.",
+        "evidence_run": "er1_1792434843967_bf0ff77a41a6",
+        "tree": "c6af75c8900fee88c7a59df1b5216218473160b0",
+        "tree_reason": null,
+        "recorded_at": "2026-10-19T18:34:11.429Z",
+        "plugin_version": "0.2.0"
+      },
+      "AC-003": {
+        "schema": "acceptance-verify-v1",
+        "id": "av1_1792434864796_3f16a8baa020",
+        "session_key": "scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44",
+        "project_root": "/private/tmp/zensu-workflow-live-z3lbjucv/project",
+        "plan": ".zensu/plans/2026-10-19-2001_tdd-invoice-quote.md",
+        "stem": "2026-10-19-2001_tdd-invoice-quote",
+        "ac": "AC-003",
+        "criterion": "Provide the JSON stdin CLI with clean status/output behavior and a working `invoice-quote` executable from a built package in a separate consumer.",
+        "criterion_digest": "e011ef9cdb024ce3be49f5c87d78293f06361af74703da39e9378164e66979d3",
+        "verdict": "pass",
+        "driver": "cli",
+        "evidence": "The final offline-installed package bin produced the exact quote and exit 0, defaulted an omitted discount, and returned exit 2 with empty stdout and concise stderr for invalid JSON.",
+        "evidence_run": "er1_1792434857401_4e114f3463f7",
+        "tree": "c6af75c8900fee88c7a59df1b5216218473160b0",
+        "tree_reason": null,
+        "recorded_at": "2026-10-19T18:34:24.797Z",
+        "plugin_version": "0.2.0"
+      },
+      "AC-001": {
+        "schema": "acceptance-verify-v1",
+        "id": "av1_1792434838077_afe0a391f9ff",
+        "session_key": "scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44",
+        "project_root": "/private/tmp/zensu-workflow-live-z3lbjucv/project",
+        "plan": ".zensu/plans/2026-10-19-2001_tdd-invoice-quote.md",
+        "stem": "2026-10-19-2001_tdd-invoice-quote",
+        "ac": "AC-001",
+        "criterion": "Export quoteInvoice with exact result shape and example arithmetic; handle empty items and do not mutate even frozen inputs.",
+        "criterion_digest": "d29b1c1c4bc88b23fcbad14831d09855fcac2efc5518bb83b70c74ad7e8fb2e4",
+        "verdict": "pass",
+        "driver": "library",
+        "evidence": "Built, packed, and installed the final package offline in a temporary consumer; its exported quoteInvoice returned the specified object, empty quote, exact keys, and preserved frozen items.",
+        "evidence_run": "er1_1792434830245_8a80ad18077a",
+        "tree": "c6af75c8900fee88c7a59df1b5216218473160b0",
+        "tree_reason": null,
+        "recorded_at": "2026-10-19T18:33:58.077Z",
+        "plugin_version": "0.2.0"
+      },
+      "AC-004": {
+        "schema": "acceptance-verify-v1",
+        "id": "av1_1792434882492_8bc4c75f6290",
+        "session_key": "scv1_06f304c1207908a8c1b18c2154c2c15988899ff444069e57aedc13474dd6ff44",
+        "project_root": "/private/tmp/zensu-workflow-live-z3lbjucv/project",
+        "plan": ".zensu/plans/2026-10-19-2001_tdd-invoice-quote.md",
+        "stem": "2026-10-19-2001_tdd-invoice-quote",
+        "ac": "AC-004",
+        "criterion": "Add meaningful unit and process tests, preserve baseline tests, pass canonical checks and at least 90% source coverage, and document API/CLI examples.",
+        "criterion_digest": "525d76aa67482510a7d936c60a7eddc2a82bc7f5840095f43009e866d5835038",
+        "verdict": "pass",
+        "driver": "cli",
+        "evidence": "The final-tree canonical test suite, lint, build, and coverage commands passed; README assertions confirmed the API, CLI, and specified example are documented.",
+        "evidence_run": "er1_1792434872933_39292d9b5f32",
+        "tree": "c6af75c8900fee88c7a59df1b5216218473160b0",
+        "tree_reason": null,
+        "recorded_at": "2026-10-19T18:34:42.493Z",
+        "plugin_version": "0.2.0"
+      }
+    }
+  },
+  "scope": {
+    "type": "live-native-Copilot-workflow",
+    "workflowMode": "vanilla",
+    "reviewPanel": "full",
+    "effectiveAutoFixSeverity": "critical",
+    "reviewRounds": 1,
+    "terminalSelfReviewFixRounds": 1,
+    "liveAssertions": "Invoice library and packaged CLI in a disposable local project",
+    "notTested": [
+      "Zensu SaaS product mutation",
+      "external MCP services",
+      "standalone Zensu CLI backend workflows",
+      "other installed host plugins",
+      "strict RED-GREEN implementation mode"
+    ],
+    "interpretation": "Full configured chain completed with assisted same-session recovery; this is not an uninterrupted unattended pass. Terminal self-review fixes intentionally do not respawn reviewers under this policy."
+  },
+  "harnessNotes": [
+    "The recovery prompt initially requested a second panel. Source inspection established that critical-only routing instead requires a single terminal self-review fix without another reviewer; the actual path conforms to that contract.",
+    "The final Copilot summary labels the requested post-fix consume review a process gap. That refers to the overconstrained recovery prompt, not to a missing required native stage; the configured self-review contract explicitly forbids that rerun.",
+    "An attempted resume used the new-session-only --name flag and was rejected before model execution; the launcher was corrected. This is a harness error, not a plugin finding.",
+    "Parent-directory instruction reads outside the allowed path were denied. The run continued inside its disposable project.",
+    "The original interrupted CLI process returned exit 0 with an unfinished chain. Completion was assessed from native stages, current-tree evidence and terminal state, not exit code alone."
+  ],
+  "completedReviewStages": {
+    "aspects": 5,
+    "substantiveJudges": 2,
+    "rejectedJudgeAttempts": 1,
+    "consumeReviewers": 1
+  }
+}

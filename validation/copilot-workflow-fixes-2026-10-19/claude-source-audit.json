@@ -1,0 +1,423 @@
+{
+  "schema": "zensu.claude-source-shared-cause-audit.v1",
+  "observedAt": "2026-10-19T19:32:24.813776+00:00",
+  "authorization": "Read-only other source repositories; no edits. No Claude configuration, sessions, installed plugins, credentials or live launch.",
+  "repository": {
+    "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code",
+    "head": "fcc3ee58c2e9c5c44fa3129cffafdc5a39f834c4",
+    "status": [
+      "?? AGENTS.md",
+      "?? evals/reset-review-limit/.zensu/",
+      "?? evals/tdd-manager-pretool/package-lock.json",
+      "?? evals/tdd-manager-pretool/package.json",
+      "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/backend/server",
+      "?? evals/tdd-manager-pretool/test-projects/react-go-fullstack/package-lock.json"
+    ]
+  },
+  "ownership": "Owned skills, agents, hooks and templates in this source checkout. Copilot upstream snapshot is separately immutable and is not this checkout. No source generation or host conversion was run.",
+  "findings": [
+    {
+      "finding": "WF-001",
+      "status": "not-applicable",
+      "observation": "Claude does not use the Copilot native bash context wrapper. Its source uses native Claude session identity.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/SKILL.md",
+          "line": 92,
+          "sourceSha256": "e67537c66b45d18a4a518c5070cc82fef498a7b1fa1c76ea149f3a008e1e85cd"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-002",
+      "status": "source-confirmed",
+      "observation": "The chain and self-review still reference step 5b b) as an enumeration; that section is now verdict handling. Self-review contains an inline fallback but the referenced shared recipe is stale.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 7,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 44,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 107,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/audit.md",
+          "line": 51,
+          "sourceSha256": "d4edf48c663cfa0d92a8c5ccb094633aa02993bf96085accf9e9fe6497374346"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/audit.md",
+          "line": 52,
+          "sourceSha256": "d4edf48c663cfa0d92a8c5ccb094633aa02993bf96085accf9e9fe6497374346"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-003",
+      "status": "source-confirmed-partial",
+      "observation": "The audit correctly says withdrawal never clears the receipt, but review-chain step 1 still instructs land or withdraw and rerun. The internal contract remains contradictory.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/audit.md",
+          "line": 53,
+          "sourceSha256": "d4edf48c663cfa0d92a8c5ccb094633aa02993bf96085accf9e9fe6497374346"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 6,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-004",
+      "status": "different-supported-surface",
+      "observation": "Claude intentionally ships an external review template and importer. This is supported source functionality rather than Copilot-only obsolete advertising; no removal was proposed or performed.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/SKILL.md",
+          "line": 92,
+          "sourceSha256": "e67537c66b45d18a4a518c5070cc82fef498a7b1fa1c76ea149f3a008e1e85cd"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/templates/workflows/zensu-review-v1.js",
+          "line": 1,
+          "sourceSha256": "88b996bc3a8fa5ab09feeb8f9967294cb6d435e672dc37bce5e81c1b301282b2"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/external-review-v1.js",
+          "line": 1,
+          "sourceSha256": "4ccbdcd84856880cbc173295bf930370a17a8bdedd4101d5c7c017b354470ab8"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-005",
+      "status": "related-source-risk-host-unverified",
+      "observation": "The verification skill is 40221 bytes and 568 lines; review-chain reference is 33629 bytes in 16 long lines. No live Claude read-limit failure is asserted; host-specific limits remain untested.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 1,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 1,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-006",
+      "status": "source-confirmed",
+      "observation": "Chain exit checks instruct discarding stdout and stderr even for synthetic library/CLI assertions, removing diagnostics. Credential privacy remains valid but does not require discarding synthetic assertion failures.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 103,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 104,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 105,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-007",
+      "status": "related-manual-contract",
+      "observation": "Execution-start marker is a manual instruction. Claude uses native TaskUpdate for the progress dashboard, so Copilot GFM reconciliation is not the same surface. No marker omission is claimed live.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/execution.md",
+          "line": 22,
+          "sourceSha256": "708c78cd7acf5c69ae95d7eea93af2a39d82f3131e3f6397d30f52a0b149c63c"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/SKILL.md",
+          "line": 114,
+          "sourceSha256": "e67537c66b45d18a4a518c5070cc82fef498a7b1fa1c76ea149f3a008e1e85cd"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-008",
+      "status": "source-confirmed-prose-only",
+      "observation": "The chain requests an immutable prompt block and repeated same packet. No review-packet-v1 helper exists in this checkout; byte identity is a prompt contract rather than canonical packet hash injection.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 9,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 10,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-009",
+      "status": "related-primary-completion-gap",
+      "observation": "Second judge unavailable behavior is explicit, but the native-panel primary path lacks an equivalent mandatory substantive primary completion receipt before consume. The import path falls back to the panel for a failed/no-gap primary. This is a source gap, not a live failure.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 12,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 14,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-010",
+      "status": "source-confirmed",
+      "observation": "Finding verification still requires CHANGED-FILES/FINDINGS marker-form heredoc input. The parser recognizes delimiter lines and lacks a structured --input JSON interface; total= checking only mitigates some malformed inputs.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+          "line": 13,
+          "sourceSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/finding-verify-v1.js",
+          "line": 64,
+          "sourceSha256": "cff81cd48b3f363cd39860bcc5afb46cac8257efd633ef98a3f9e0ccc451c311"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/finding-verify-v1.js",
+          "line": 72,
+          "sourceSha256": "cff81cd48b3f363cd39860bcc5afb46cac8257efd633ef98a3f9e0ccc451c311"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-011",
+      "status": "related-separate-contracts",
+      "observation": "Reviewer quality verdict maps any CRITICAL to NEEDS CHANGES and remaining findings to PASS WITH SUGGESTIONS while post-hook routes by configured severity. The reviewer contract does not explicitly explain the quality-versus-route distinction; no contradictory actual Claude output is claimed.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/agents/code-reviewer.md",
+          "line": 84,
+          "sourceSha256": "ecd2d476cffc2fffae0dec07ea7609ca53be6fa3e18f33ccdccaec4d42622db5"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/agents/code-reviewer.md",
+          "line": 94,
+          "sourceSha256": "ecd2d476cffc2fffae0dec07ea7609ca53be6fa3e18f33ccdccaec4d42622db5"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/post-review-tdd-delegate.sh",
+          "line": 368,
+          "sourceSha256": "7b9bc7d62de8865962a1007fe7eecab283d4d58efb6fadd55b6de2e3b0d70760"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/post-review-tdd-delegate.sh",
+          "line": 549,
+          "sourceSha256": "7b9bc7d62de8865962a1007fe7eecab283d4d58efb6fadd55b6de2e3b0d70760"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-012",
+      "status": "source-confirmed-guidance-gap",
+      "observation": "Per-criterion driver and immediate-record instructions omit sharing a single observed aggregate check across matching criteria. The recorder accepts a supplied evidence run per criterion and does not consume it, so guidance can improve without changing the typed CLI backend.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 96,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 108,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+          "line": 113,
+          "sourceSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/acceptance-verify-v1.js",
+          "line": 494,
+          "sourceSha256": "17ce7ce9abd8d8ee23d725449399851e9f46d6da2356a6859b10b5835f4fc871"
+        }
+      ],
+      "liveStatus": "not-run"
+    },
+    {
+      "finding": "WF-013",
+      "status": "source-confirmed-missing-guard",
+      "observation": "Self-review guards generation and delegated ownership, but has no standalone closed-generation report-only fast path before rereading work. No live Claude rerun is asserted.",
+      "evidence": [
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 57,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 77,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        },
+        {
+          "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+          "line": 98,
+          "sourceSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474"
+        }
+      ],
+      "liveStatus": "not-run"
+    }
+  ],
+  "files": {
+    "skills/tdd/SKILL.md": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/SKILL.md",
+      "sha256": "e67537c66b45d18a4a518c5070cc82fef498a7b1fa1c76ea149f3a008e1e85cd",
+      "bytes": 24027,
+      "lines": 136,
+      "immutableSnapshotSha256": "e67537c66b45d18a4a518c5070cc82fef498a7b1fa1c76ea149f3a008e1e85cd",
+      "sameAsImmutableSnapshot": true
+    },
+    "skills/tdd/references/review-chain.md": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/review-chain.md",
+      "sha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d",
+      "bytes": 33629,
+      "lines": 16,
+      "immutableSnapshotSha256": "25a68a44aaeafcd9421b4359fb0b55bd784edd4a68c3f14e5a5a54924cc4978d",
+      "sameAsImmutableSnapshot": true
+    },
+    "skills/self-review/SKILL.md": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/self-review/SKILL.md",
+      "sha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474",
+      "bytes": 33570,
+      "lines": 457,
+      "immutableSnapshotSha256": "37d9546aecab051847f90fa24310394761a139ef1e7551bee2fb744be2645474",
+      "sameAsImmutableSnapshot": true
+    },
+    "skills/tdd/references/audit.md": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/audit.md",
+      "sha256": "d4edf48c663cfa0d92a8c5ccb094633aa02993bf96085accf9e9fe6497374346",
+      "bytes": 20031,
+      "lines": 73,
+      "immutableSnapshotSha256": "d4edf48c663cfa0d92a8c5ccb094633aa02993bf96085accf9e9fe6497374346",
+      "sameAsImmutableSnapshot": true
+    },
+    "templates/workflows/zensu-review-v1.js": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/templates/workflows/zensu-review-v1.js",
+      "sha256": "88b996bc3a8fa5ab09feeb8f9967294cb6d435e672dc37bce5e81c1b301282b2",
+      "bytes": 15448,
+      "lines": 411,
+      "immutableSnapshotSha256": "88b996bc3a8fa5ab09feeb8f9967294cb6d435e672dc37bce5e81c1b301282b2",
+      "sameAsImmutableSnapshot": true
+    },
+    "hooks/lib/external-review-v1.js": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/external-review-v1.js",
+      "sha256": "4ccbdcd84856880cbc173295bf930370a17a8bdedd4101d5c7c017b354470ab8",
+      "bytes": 54581,
+      "lines": 1345,
+      "immutableSnapshotSha256": "4ccbdcd84856880cbc173295bf930370a17a8bdedd4101d5c7c017b354470ab8",
+      "sameAsImmutableSnapshot": true
+    },
+    "skills/verify-feature/SKILL.md": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/verify-feature/SKILL.md",
+      "sha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093",
+      "bytes": 40221,
+      "lines": 568,
+      "immutableSnapshotSha256": "1b1dd410feac895fe983f6ed45773a9adf5ec9f846e565e0ad6f7ac22404a093",
+      "sameAsImmutableSnapshot": true
+    },
+    "skills/tdd/references/execution.md": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/skills/tdd/references/execution.md",
+      "sha256": "708c78cd7acf5c69ae95d7eea93af2a39d82f3131e3f6397d30f52a0b149c63c",
+      "bytes": 9841,
+      "lines": 73,
+      "immutableSnapshotSha256": "708c78cd7acf5c69ae95d7eea93af2a39d82f3131e3f6397d30f52a0b149c63c",
+      "sameAsImmutableSnapshot": true
+    },
+    "hooks/lib/finding-verify-v1.js": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/finding-verify-v1.js",
+      "sha256": "cff81cd48b3f363cd39860bcc5afb46cac8257efd633ef98a3f9e0ccc451c311",
+      "bytes": 10420,
+      "lines": 323,
+      "immutableSnapshotSha256": "cff81cd48b3f363cd39860bcc5afb46cac8257efd633ef98a3f9e0ccc451c311",
+      "sameAsImmutableSnapshot": true
+    },
+    "agents/code-reviewer.md": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/agents/code-reviewer.md",
+      "sha256": "ecd2d476cffc2fffae0dec07ea7609ca53be6fa3e18f33ccdccaec4d42622db5",
+      "bytes": 7945,
+      "lines": 109,
+      "immutableSnapshotSha256": "ecd2d476cffc2fffae0dec07ea7609ca53be6fa3e18f33ccdccaec4d42622db5",
+      "sameAsImmutableSnapshot": true
+    },
+    "hooks/post-review-tdd-delegate.sh": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/post-review-tdd-delegate.sh",
+      "sha256": "7b9bc7d62de8865962a1007fe7eecab283d4d58efb6fadd55b6de2e3b0d70760",
+      "bytes": 55912,
+      "lines": 556,
+      "immutableSnapshotSha256": "7b9bc7d62de8865962a1007fe7eecab283d4d58efb6fadd55b6de2e3b0d70760",
+      "sameAsImmutableSnapshot": true
+    },
+    "hooks/lib/acceptance-verify-v1.js": {
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/acceptance-verify-v1.js",
+      "sha256": "17ce7ce9abd8d8ee23d725449399851e9f46d6da2356a6859b10b5835f4fc871",
+      "bytes": 42555,
+      "lines": 949,
+      "immutableSnapshotSha256": "17ce7ce9abd8d8ee23d725449399851e9f46d6da2356a6859b10b5835f4fc871",
+      "sameAsImmutableSnapshot": true
+    }
+  },
+  "limits": [
+    "Source inspection only; no fixture suite, Claude process or model session was launched.",
+    "Existing untracked AGENTS/eval artifacts were preserved; runtime eval artifacts were not opened.",
+    "Source-level risks do not establish a reproduced host failure."
+  ],
+  "additionalSharedCauseFollowup": {
+    "reference": "cross-host-matrix.json#FOLLOWUP-AUDIT-CONTEXT-DOWNGRADE",
+    "source": {
+      "repo": "zensu-claude-code",
+      "path": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/zensu-edit-landing.sh",
+      "sha256": "eafac2adf975b9c71a0341bdd92d1d014c1937eeec541883d62251c8435aaf84",
+      "lines": [
+        94,
+        288,
+        648,
+        1071
+      ],
+      "observedBehavior": "Optional dirty-before input returns false when omitted; dirty paths are pending only when input is present; each run rewrites the receipt. No durable downgrade guard is present in this inspected helper."
+    },
+    "liveStatus": "not-run"
+  }
+}

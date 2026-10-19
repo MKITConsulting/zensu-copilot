@@ -12,6 +12,7 @@ const principal = require(path.join(lib, 'copilot-principal-v1'));
 const shell = require(path.join(lib, 'bash-source-write-parse'));
 const grants = require(path.join(lib, 'reviewer-spawn-allow-v1'));
 const reanchor = require(path.join(lib, 'session-reanchor-v1'));
+const { normalizeTool } = require('../../src/protocol');
 function fixture(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zensu-native-policy-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -67,6 +68,41 @@ test('reviewer grant inspects actual native agent frontmatter and task agent_typ
   assert.equal(grants.CONFINED_REVIEWER_AGENTS.length, 5);
   assert.equal(JSON.parse(grants.decide(JSON.stringify({ toolName: 'task', toolArgs: { agent_type: 'zensu:code-reviewer' } }))).permissionDecision, 'allow');
   assert.equal(grants.decide(JSON.stringify({ toolName: 'task', toolArgs: { agent_type: 'general-purpose' } })), '');
+});
+
+test('native rg alias retains grep protected traversal, content regex and neutral-child boundaries', t => {
+  const f = fixture(t);
+  const start = f.run('copilot-session-control-v1.js', { eventName: 'sessionStart', sessionId: f.id, cwd: f.project, source: 'new' });
+  assert.equal(start.status, 0, start.stderr);
+  const source = path.join(f.project, 'src'); fs.mkdirSync(source);
+  fs.writeFileSync(path.join(source, 'index.js'), 'const marker = "../.zensu/state";\n');
+  const alias = path.join(f.project, 'state-alias'); fs.symlinkSync(path.join(f.project, '.zensu'), alias);
+  const check = (agentType, args) => {
+    const normalized = normalizeTool('rg', args);
+    assert.deepEqual(normalized.normalizationErrors, []);
+    // Evidence leases and every other policy receive the exact same native call.
+    assert.deepEqual(normalized.toolCalls, normalizeTool('grep', args).toolCalls);
+    return normalized.toolCalls.map(call => {
+      const result = f.run('reviewer-capability-v1.js', { eventName: 'preToolUse', sessionId: f.id,
+        cwd: f.project, agentId: 'read-child', isChild: true, agentType, ...call });
+      assert.equal(result.status, 0, result.stderr);
+      return JSON.parse(result.stdout || '{}');
+    });
+  };
+  for (const agent of ['zensu:review-aspect', 'zensu-review-domain']) {
+    const safe = check(agent, { paths: [source], pattern: '../.zensu/state|spawnSync', output_mode: 'content', '-n': true, glob: '*.js' });
+    assert.ok(safe.every(result => result.permissionDecision !== 'deny'), JSON.stringify(safe));
+    for (const args of [
+      { pattern: 'value' }, { paths: f.project, pattern: 'value' },
+      { paths: [source, path.join(f.project, '.zensu')], pattern: 'value' },
+      { paths: alias, pattern: 'value' }, { paths: f.dir, pattern: 'value' },
+      ...['glob', 'include', 'exclude'].flatMap(field => ['../.zensu/**', '.zensu/**', path.join(f.project, '.zensu', '*')]
+        .map(filter => ({ paths: source, pattern: 'value', [field]: filter }))),
+    ]) {
+      const decisions = check(agent, args);
+      assert.ok(decisions.some(result => result.permissionDecision === 'deny'), agent + ': ' + JSON.stringify(args));
+    }
+  }
 });
 
 test('reanchor conservatively preserves unclosed native workspace ownership', t => {

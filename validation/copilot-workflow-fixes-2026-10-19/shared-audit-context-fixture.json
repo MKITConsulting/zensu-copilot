@@ -1,0 +1,1166 @@
+{
+  "schema": "zensu.shared-audit-context-fixture.v1",
+  "recordedAt": "2026-10-19T20:29:53.571426+00:00",
+  "kind": "deterministic-copied-helper-fixture-not-native-workflow",
+  "finding": "FOLLOWUP-AUDIT-CONTEXT-DOWNGRADE",
+  "controller": {
+    "source": "/private/tmp/zensu-audit-scope-recheck-controller.js",
+    "sha256": "b36d20ac49fcb89ce5acc5f73619ecde1d6c80a61c6daf7e01e2eca89d5b3025",
+    "durableCopy": "shared-audit-context-controller.js"
+  },
+  "sourceCopies": {
+    "schema": "zensu.shared-audit-fixture-source-copy.v1",
+    "copiedAt": "2026-10-19T20:28:40.727376+00:00",
+    "root": "/private/tmp/zensu-shared-audit-fixture-qx5dl92_",
+    "sources": {
+      "zensu-claude-code": {
+        "source": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-claude-code/hooks/lib/zensu-edit-landing.sh",
+        "copy": "/private/tmp/zensu-shared-audit-fixture-qx5dl92_/zensu-claude-code/plugin/hooks/lib/zensu-edit-landing.sh",
+        "sha256": "eafac2adf975b9c71a0341bdd92d1d014c1937eeec541883d62251c8435aaf84",
+        "bytes": 57507
+      },
+      "zensu-antigravity": {
+        "source": "/Users/marcelkarras/IdeaProjects/dev.zensu/zensu-antigravity/hooks/lib/zensu-edit-landing.sh",
+        "copy": "/private/tmp/zensu-shared-audit-fixture-qx5dl92_/zensu-antigravity/plugin/hooks/lib/zensu-edit-landing.sh",
+        "sha256": "364c32c15bea8c93b897521f76736cfcb62cfb438bdf6bfa0c041bceb77d1dea",
+        "bytes": 57501
+      },
+      "zensu-copilot": {
+        "source": "/private/tmp/zensu-copilot-workflow-retest-3yzjfc7w/plugin/zensu/hooks/lib/zensu-edit-landing.sh",
+        "copy": "/private/tmp/zensu-shared-audit-fixture-qx5dl92_/zensu-copilot/plugin/hooks/lib/zensu-edit-landing.sh",
+        "sha256": "09e449ad599ce4b8d6c983811127cc3697a768dc4b5b582e49955fb9ace136dd",
+        "frozenBuildSha256": "b546f71883e6d0683bc036a4d4c9f1d5408938637d09ae9638add995acedd076",
+        "dependencies": [
+          {
+            "path": "acceptance-verify-v1.js",
+            "bytes": 42537,
+            "sha256": "611460d44a7342e8c8b12e72192159b3cadac292cb6c6041d2835449db28c798"
+          },
+          {
+            "path": "aspect-activation-v1.js",
+            "bytes": 7957,
+            "sha256": "9f287bbdc2b0b85350cf296896f00181ea677bb54cdf55a6abc65864938983bd"
+          },
+          {
+            "path": "bash-source-write-parse.js",
+            "bytes": 60019,
+            "sha256": "b7ed1b564bf1376b778287bbede4295834c6f0dd17907e593f7cd40c5f4e4038"
+          },
+          {
+            "path": "chain-recovery-v1.js",
+            "bytes": 14636,
+            "sha256": "25a72c8157822528aa9e81ec7c36423a4579ed5885102387553369dd453c9abe"
+          },
+          {
+            "path": "ci-contract-v1.js",
+            "bytes": 29541,
+            "sha256": "ee8583dbb1e686373ac9d4c67c2cb45f15e755dcb615441ae18d89f6efe9b5a9"
+          },
+          {
+            "path": "copilot-hook-session-v1.js",
+            "bytes": 48004,
+            "sha256": "e904d98fa42c2dd44e3f6775a3206e4b8b0bae497cc4b615a17a1cf07396629e"
+          },
+          {
+            "path": "copilot-path-v1.js",
+            "bytes": 3153,
+            "sha256": "31e22963311b67e19cdef929496101bb1e252961308e272147efbca7186acc24"
+          },
+          {
+            "path": "copilot-principal-v1.js",
+            "bytes": 2583,
+            "sha256": "bc97bbd21e5e18f7f19bf62ae15f57b1255c8b8d61b6e32c60e4728d59fd3daf"
+          },
+          {
+            "path": "copilot-session-control-v1.js",
+            "bytes": 25212,
+            "sha256": "19637b9a18903c2f4950723ec145b3ed8af59f3e5cb9622dea765bd56f12c5fb"
+          },
+          {
+            "path": "copilot-session-inventory-v1.js",
+            "bytes": 9273,
+            "sha256": "a33b599ddab9a80cf282303ed54f2c6e7f3f8f45c1d5ddff851c1a417debff3a"
+          },
+          {
+            "path": "edit-landing-receipt-v1.js",
+            "bytes": 24234,
+            "sha256": "421beb7eeb4d92cbd12a99c03976e2153c09899c97a9a91d378acacb2fa946d3"
+          },
+          {
+            "path": "evidence-run-v1.js",
+            "bytes": 61325,
+            "sha256": "f2d2d52036975027a299003a3a98b6895b83a592d6e2f2a3fd53d8cc0b06d334"
+          },
+          {
+            "path": "finding-verify-v1.js",
+            "bytes": 11967,
+            "sha256": "bc2c6fc162cc88f18fc0b4067dcbd15b875c066255e729e0c16d33f99497d5e1"
+          },
+          {
+            "path": "full-suite-policy-v1.js",
+            "bytes": 18562,
+            "sha256": "6b29829b9384fed8d821ce352a6e784e0c76279e3a78180235db05d7bb2bd655"
+          },
+          {
+            "path": "hook-registration-v1.js",
+            "bytes": 1174,
+            "sha256": "20447109dff211c6b74173cc19e3df87a6cadd0dab089d9ee2571a29a549dc3c"
+          },
+          {
+            "path": "persona-activation.js",
+            "bytes": 6683,
+            "sha256": "e8f3b2fc274a6f9a263e4b8fe3b437d215f8adc3c13c9b6edc6712fa99bc8ee4"
+          },
+          {
+            "path": "plan-payload-v1.js",
+            "bytes": 1337,
+            "sha256": "17653d7bc027b17ddceff6a3b6f0436b7416277aba6c851e064ec5db7f0585d1"
+          },
+          {
+            "path": "playwright-cli-version-v1.js",
+            "bytes": 7466,
+            "sha256": "3c3707eb2d31f9d88d59813d8de1448169b64aeb35884d18c8d260de59cdd545"
+          },
+          {
+            "path": "plugin-data-guard-v1.js",
+            "bytes": 41835,
+            "sha256": "9f3b12808d09a7b7543b23882a7d7329945c77672fcae238596f9d13b01ded6d"
+          },
+          {
+            "path": "review-evidence-hook-v1.js",
+            "bytes": 3698,
+            "sha256": "f777ab48acff27a5d9051ae9cb4b25a7b17afcc078f1de99f7dbd45f299d734c"
+          },
+          {
+            "path": "review-evidence-lease-v1.js",
+            "bytes": 80418,
+            "sha256": "131faa22cc8bf1e82dfa817121c9f84b9f668a70bb4e365e1839ddae466f3fd5"
+          },
+          {
+            "path": "review-evidence-sweep-v1.js",
+            "bytes": 29549,
+            "sha256": "ff89b027268140a672e963c8bdb1391799d055ad7392975b9d6df079d6306c50"
+          },
+          {
+            "path": "review-ledger-v1.js",
+            "bytes": 7395,
+            "sha256": "7225ce553ac5a607a9ac184eb52b539c47551b72cc73c2b63f525bb33acf7d9f"
+          },
+          {
+            "path": "review-packet-v1.js",
+            "bytes": 11754,
+            "sha256": "12c30c5ccb5a31973643f5016358e81525ffa1ed5202bf2822a56ef0bd673220"
+          },
+          {
+            "path": "review-round-scope-v1.js",
+            "bytes": 8510,
+            "sha256": "85450863b570b6d6a26cce09fb10e6056c8f2de76b18ee78941758b4ed008f97"
+          },
+          {
+            "path": "reviewer-capability-v1.js",
+            "bytes": 62350,
+            "sha256": "1c1ec9f9079a0405cd28832bc1171a87821b43b2ae2d6a20e946d6c90b5b7761"
+          },
+          {
+            "path": "reviewer-spawn-allow-v1.js",
+            "bytes": 5049,
+            "sha256": "8132c03119d2626e3a46aea39bd95e670bca5ada9e4f024a7b39c3aad5b51e81"
+          },
+          {
+            "path": "reviewer-spawn-denial-v1.js",
+            "bytes": 8726,
+            "sha256": "2c3a7452a694dcefe65b887452bae34be9d76b8d412302229bd0d6331028b365"
+          },
+          {
+            "path": "rule-block-v1.js",
+            "bytes": 7579,
+            "sha256": "f90d8a5394554b6d24d3822d53b7d3307c3a887fe128a25b3602f4fcc2d74464"
+          },
+          {
+            "path": "secret-patterns.js",
+            "bytes": 4016,
+            "sha256": "f4bf1f455bce0e7107bd963ad0ac5953d47c8a86bf33769a47b43539d8d589cc"
+          },
+          {
+            "path": "secret-scan-decide.js",
+            "bytes": 3807,
+            "sha256": "d2392eb04db2a6a15144c8f3381123f68b8acdc5d473fc2b93b3c59a87851f4f"
+          },
+          {
+            "path": "session-adopt-report-v1.js",
+            "bytes": 116989,
+            "sha256": "f726f9fcb0e9b1bd591415bc258d2172d05eff03a1d9f0e2962927901cd30c18"
+          },
+          {
+            "path": "session-auto-adopt-v1.js",
+            "bytes": 35757,
+            "sha256": "60a92bac05cd8c1475c2338934afdc6ba9c5ba1bc4d13a21c63d7cd098f46593"
+          },
+          {
+            "path": "session-control-core-v1.js",
+            "bytes": 277591,
+            "sha256": "4d47abbaf1e2050a58076e7efcc31f85056b18724f956ee138e287ec996af0fc"
+          },
+          {
+            "path": "session-files-v1.js",
+            "bytes": 1448,
+            "sha256": "bfd84e8c8888dabfc6483d3a6573f028f9cf788f0fde203c52843b61a2b99400"
+          },
+          {
+            "path": "session-reanchor-v1.js",
+            "bytes": 39442,
+            "sha256": "2fb302f57e57a63aa7faec5ff110c19b0554ee9b8c51e3955445e10d6273106a"
+          },
+          {
+            "path": "stop-idle-probe-v1.js",
+            "bytes": 2614,
+            "sha256": "7bfe6f96ba7fefa9fa6efbc297fbe7d93eb0d77fb5b8ba4bf2eaeb1e4aaf96f3"
+          },
+          {
+            "path": "subagent-shell-guard-v1.js",
+            "bytes": 68972,
+            "sha256": "e3da5debf5de575a15b3a6becc8e535156b5f04cb19e580922c7604525236e64"
+          },
+          {
+            "path": "valid-diff-lines.js",
+            "bytes": 7890,
+            "sha256": "4d1cb707e1275e145406446604bec5f77dffd585831b2fabf63475696a523428"
+          },
+          {
+            "path": "verify-consent-v1.js",
+            "bytes": 68224,
+            "sha256": "a0f7288f9ed926960298fe58383ae001b6940657d8aa09b0282f2bdd35e4730b"
+          },
+          {
+            "path": "verify-navigation-floor-v1.js",
+            "bytes": 13642,
+            "sha256": "ff3aa7c0d15d752a22de5189ef127de34d8acdaf1bc2823816e40ddbe4f2fcad"
+          },
+          {
+            "path": "work-order-v1.js",
+            "bytes": 106775,
+            "sha256": "2ef405e2301718ca1714ade5f895474728d083e0c79bef35a64e9808a42b809e"
+          },
+          {
+            "path": "workflow-artifacts-v1.js",
+            "bytes": 9761,
+            "sha256": "a3533c79616107cdf5c91da756d494e06e02aeb8a22049163452a55120da5557"
+          },
+          {
+            "path": "zen-anchor-v1.js",
+            "bytes": 23316,
+            "sha256": "81bc6df1263b79a8ebda730fd2bf9a1e847be3ad3cace3d88799b5ebb61a0cd5"
+          },
+          {
+            "path": "zensu-agent-context.sh",
+            "bytes": 1430,
+            "sha256": "6ec3a3ebc3e9c5937b17b4ed54d516d9ad5de6fd381f50296958874b4fe117c1"
+          },
+          {
+            "path": "zensu-artifact-redact-v1.js",
+            "bytes": 57196,
+            "sha256": "eb50698a29307bac4d852b5c0adf895e57cff80f7e6440fd775687bdacd33200"
+          },
+          {
+            "path": "zensu-autopilot-state.sh",
+            "bytes": 271385,
+            "sha256": "8a0ab4b2900baffc8c4a32d1c80a1454c0dd1eb82069946a52e27b3f3530161c"
+          },
+          {
+            "path": "zensu-bounded-run.sh",
+            "bytes": 6386,
+            "sha256": "115dc35521aa971de52068a4f5141a2782f67ccbe090681160580306117ad088"
+          },
+          {
+            "path": "zensu-browser-consent-prefilter.sh",
+            "bytes": 798,
+            "sha256": "ea7c271f52a336251bc0df3f7319f1dda39465c3008f4da16b057d8ae51ac941"
+          },
+          {
+            "path": "zensu-cli-map.sh",
+            "bytes": 5856,
+            "sha256": "89dbc1051a015320c98ec13061fd252e7164b7d3cb95d49c942f7c969de1915f"
+          },
+          {
+            "path": "zensu-config.sh",
+            "bytes": 35907,
+            "sha256": "aaa071b1779f1b54a207297ea7b266443fcbb3c0f49a8d16edfe13faeccece7c"
+          },
+          {
+            "path": "zensu-delivery-route.sh",
+            "bytes": 6616,
+            "sha256": "43ad7bc0f4933a58c21ccbf83fd5958cc4c4f9f53dcc52efb2c1c09be2963293"
+          },
+          {
+            "path": "zensu-directive.sh",
+            "bytes": 7196,
+            "sha256": "1d63cc29d33ff0449a73d0cb6133863dc4f44cd708af4388c665248e44448887"
+          },
+          {
+            "path": "zensu-doctor-invocation.js",
+            "bytes": 21147,
+            "sha256": "70bb0b1b6f92478de4e76179baf6aed47a7e7efbc6882775350c3151ff14e4d9"
+          },
+          {
+            "path": "zensu-doctor-report.js",
+            "bytes": 299506,
+            "sha256": "7e15f7b6a43cc1236c35cc47d2aee262ca3c3873fa9a0be18c9349a782a0b889"
+          },
+          {
+            "path": "zensu-doctor.sh",
+            "bytes": 37422,
+            "sha256": "a0bde78c409cb85017d026e9bc2a63f9a854fbd3982e5dfbd0b7a98c2b32d03e"
+          },
+          {
+            "path": "zensu-edit-landing.sh",
+            "bytes": 61526,
+            "sha256": "09e449ad599ce4b8d6c983811127cc3697a768dc4b5b582e49955fb9ace136dd"
+          },
+          {
+            "path": "zensu-full-suite-transport.sh",
+            "bytes": 2266,
+            "sha256": "fea8d9ac2ad52b2e234300508bb435d938b082bd5edee9ca39e1d14d9ed3ab42"
+          },
+          {
+            "path": "zensu-full-suite.sh",
+            "bytes": 4625,
+            "sha256": "0e1bdc0c8c4ac288db06e361d392160b88904a9f09e131ada4706deba3643aeb"
+          },
+          {
+            "path": "zensu-host-path.sh",
+            "bytes": 1249,
+            "sha256": "4eafd3d2da1d8133dc516cb92bd53ba0de4aac887fa44f60ed8c34b598a9a4fb"
+          },
+          {
+            "path": "zensu-log.sh",
+            "bytes": 168819,
+            "sha256": "731ec06f763d2ba03704be8c6f953c0098bd7590be8e2e159757dff477549686"
+          },
+          {
+            "path": "zensu-marker-write.sh",
+            "bytes": 4553,
+            "sha256": "1ab98a8286b36a124c56395bbff3fd840da2234957856b00e82f5875916e939c"
+          },
+          {
+            "path": "zensu-mcp-tools.sh",
+            "bytes": 1684,
+            "sha256": "b222f5e29adf2a18f9c1db529020f94bf0cbe24b0213dd83f7fe44a1439da84d"
+          },
+          {
+            "path": "zensu-msys-env.sh",
+            "bytes": 1255,
+            "sha256": "646c8f58ceccc5f79e1e8627319844fc7c2e613f40b0dfa38c84c7598914345d"
+          },
+          {
+            "path": "zensu-plan-requirements.sh",
+            "bytes": 13345,
+            "sha256": "e5e0700e0c8fe02a4430984c63288d859e4716c37072b50665c9553fc279c1f6"
+          },
+          {
+            "path": "zensu-prompt-ledger.sh",
+            "bytes": 3314,
+            "sha256": "1fce13546277f4719a0bc61bf8388e9a6cfb7aab8d15270a6d535c52a67d63de"
+          },
+          {
+            "path": "zensu-prompt-origin.sh",
+            "bytes": 2679,
+            "sha256": "e64a26acf1db7334a6c9fefbb15ec9a6bf8504d81839a92ebbb060c80cd80f5f"
+          },
+          {
+            "path": "zensu-review-evidence.sh",
+            "bytes": 1470,
+            "sha256": "d1d0e822dfcf7d567eb6b040a64c1d7331c36fe015f40ad2fba4d19237a7b900"
+          },
+          {
+            "path": "zensu-safe-display-v1.js",
+            "bytes": 16643,
+            "sha256": "d014a8c1cf2c24bd46140e6a305e24853550f05d5a18a3577ae376d06884d398"
+          },
+          {
+            "path": "zensu-safe-render.sh",
+            "bytes": 4085,
+            "sha256": "b238e9b061d9cae3b3e6cc1953b55998912f321eb05034f628cb2eaeaba9565f"
+          },
+          {
+            "path": "zensu-session-adopt.sh",
+            "bytes": 23207,
+            "sha256": "ceb7187a9dba2105ef44a0ff04551dd563246be6bbceef2a54eae4c3fe792373"
+          },
+          {
+            "path": "zensu-session-reanchor.sh",
+            "bytes": 4374,
+            "sha256": "04725737ced716511c5c75a145cef06144793c4764ee1664a10716d5dc463441"
+          },
+          {
+            "path": "zensu-session.sh",
+            "bytes": 76897,
+            "sha256": "b580c7ab25bd41e39339e02d889be239af70adb4b832bb2544904339587d0c8d"
+          },
+          {
+            "path": "zensu-stop-deadline.sh",
+            "bytes": 4323,
+            "sha256": "51b429034087e2c609cee870865a5bb8c6f0d9bbbe0cefecbc266a9e600af307"
+          },
+          {
+            "path": "zensu-tdd-mode.sh",
+            "bytes": 10540,
+            "sha256": "abce0b9d834179b5edfc6f6478cce304512ac2bee3ea2ddb4c42c1e46fd7adaa"
+          },
+          {
+            "path": "zensu-tdd-phase.sh",
+            "bytes": 179593,
+            "sha256": "bf0c186e4254ab87eba10e26c9ffbaa9d1494d6e06b3edc7cef828e8d7be60bc"
+          },
+          {
+            "path": "zensu-vcs.sh",
+            "bytes": 105515,
+            "sha256": "36aeea3cee81aa48266976e6cd0fb3fd8ee3082da313a2235ab93208cab2327e"
+          },
+          {
+            "path": "zensu-work-order-hook.sh",
+            "bytes": 1824,
+            "sha256": "54c5c5f11c2cf26311dcd387102c68cab4205bf1833af3d19e878c1806e24a43"
+          },
+          {
+            "path": "zensu-work-order.sh",
+            "bytes": 7900,
+            "sha256": "dc22dce426cb6f26486be88c0b8ea671df68321d5a3eeb80d29974c7855c32c9"
+          },
+          {
+            "path": "zensu-zen-mode.sh",
+            "bytes": 14048,
+            "sha256": "e0d4b50a6a2cbd5f623b78104a8631023046a3500c2339d8c93fd1d570bb762c"
+          },
+          {
+            "path": "zensu-zen-shared.sh",
+            "bytes": 4403,
+            "sha256": "0e43254c03852960932f000a959461a978c380a9fbe58eec5e8c85a3bf463396"
+          }
+        ],
+        "mode": "Explicit receipt without session operand, identical to sibling fixtures; sessionKey/generation remain null. Separate native and 19 bound-scope fixture tests validate active binding."
+      }
+    },
+    "scope": "Single helper copies only; explicit --receipt with no --session avoids optional session helper loading. No host/model process or existing user configuration/session/credential access."
+  },
+  "scope": "Same dirty-before omission and synthetic Git-fault scenarios as the Copilot regression, in separate fresh Git projects. Only the single permitted sibling source helper is copied for Claude/Antigravity; the fixed Copilot control copies all 81 frozen hook-library dependency files with a hash inventory. No Claude/Antigravity host or model is launched, and no user configuration, session, credential or installed-plugin file is consulted. Child process environments are explicit allowlists with fresh HOME, XDG_CONFIG_HOME and TMPDIR. Existing source repositories remain read-only.",
+  "results": {
+    "zensu-claude-code": {
+      "status": "shared-defect-reproduced",
+      "directOmissionReproduced": true,
+      "faultThenOmissionReproduced": true,
+      "predicateSupport": "not-supported-by-this-helper",
+      "sourceUnchangedAfterFixture": true,
+      "rawProof": {
+        "path": "/private/tmp/zensu-audit-scope-recheck-vWJDVb/proof.json",
+        "sha256": "0f0c2a141adfc209a735e29578e8425f848b6c15e83c5bca8e0995c74ec3880d"
+      },
+      "proof": {
+        "helper": "/private/tmp/zensu-shared-audit-fixture-qx5dl92_/zensu-claude-code/plugin/hooks/lib/zensu-edit-landing.sh",
+        "containment": {
+          "environment": {
+            "PATH": "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "HOME": "/private/tmp/zensu-audit-scope-recheck-vWJDVb/home",
+            "XDG_CONFIG_HOME": "/private/tmp/zensu-audit-scope-recheck-vWJDVb/config",
+            "TMPDIR": "/private/tmp/zensu-audit-scope-recheck-vWJDVb/tmp",
+            "LC_ALL": "C",
+            "LANG": "C",
+            "TZ": "UTC",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "Fixture",
+            "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+            "GIT_COMMITTER_NAME": "Fixture",
+            "GIT_COMMITTER_EMAIL": "fixture@example.invalid"
+          },
+          "explicitReceipt": true,
+          "sessionOperand": false,
+          "hostOrModelLaunched": false
+        },
+        "fixtureProjects": [
+          "/private/tmp/zensu-audit-scope-recheck-vWJDVb/omission",
+          "/private/tmp/zensu-audit-scope-recheck-vWJDVb/git-fault",
+          "/private/tmp/zensu-audit-scope-recheck-vWJDVb/invalid-proof"
+        ],
+        "first": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded) was already dirty before this round; union membership is not evidence \u2014 re-read the target predicate\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false
+          }
+        },
+        "omittedRetry": {
+          "exit": 0,
+          "output": "EDIT LANDED \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded)\nEDIT LANDING AUDIT \u2014 claims=1 landed=1 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 1,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 0,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": true
+          }
+        },
+        "faultFirst": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded) was already dirty before this round; union membership is not evidence \u2014 re-read the target predicate\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false
+          }
+        },
+        "fault": {
+          "exit": 2,
+          "output": "EDIT LANDING AUDIT FAULT \u2014 (withheld \u2014 the render screen could not be loaded) exited 128 on the audited root (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded). This is a git fault, not a verdict about any claim: no claim was graded and no receipt was written; the earlier receipt at (withheld \u2014 the render screen could not be loaded) was removed. Resolve the git error, then re-run the audit.",
+          "receiptExists": false,
+          "receipt": null
+        },
+        "retry": {
+          "exit": 0,
+          "output": "EDIT LANDED \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded)\nEDIT LANDING AUDIT \u2014 claims=1 landed=1 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 1,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 0,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": true
+          }
+        },
+        "invalid": {
+          "exit": 2,
+          "output": "zensu-edit-landing.sh: unknown argument '--predicates'",
+          "receiptExists": false,
+          "receipt": null
+        },
+        "proofRetry": {
+          "exit": 0,
+          "output": "EDIT LANDED \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded)\nEDIT LANDING AUDIT \u2014 claims=1 landed=1 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 1,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 0,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": true
+          }
+        }
+      }
+    },
+    "zensu-antigravity": {
+      "status": "shared-defect-reproduced",
+      "directOmissionReproduced": true,
+      "faultThenOmissionReproduced": true,
+      "predicateSupport": "not-supported-by-this-helper",
+      "sourceUnchangedAfterFixture": true,
+      "rawProof": {
+        "path": "/private/tmp/zensu-audit-scope-recheck-K3TB7I/proof.json",
+        "sha256": "88a217e98583fc7ca50f9724d4ccf83df98281144eb8a7078d6aa87bb6cdae9a"
+      },
+      "proof": {
+        "helper": "/private/tmp/zensu-shared-audit-fixture-qx5dl92_/zensu-antigravity/plugin/hooks/lib/zensu-edit-landing.sh",
+        "containment": {
+          "environment": {
+            "PATH": "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "HOME": "/private/tmp/zensu-audit-scope-recheck-K3TB7I/home",
+            "XDG_CONFIG_HOME": "/private/tmp/zensu-audit-scope-recheck-K3TB7I/config",
+            "TMPDIR": "/private/tmp/zensu-audit-scope-recheck-K3TB7I/tmp",
+            "LC_ALL": "C",
+            "LANG": "C",
+            "TZ": "UTC",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "Fixture",
+            "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+            "GIT_COMMITTER_NAME": "Fixture",
+            "GIT_COMMITTER_EMAIL": "fixture@example.invalid"
+          },
+          "explicitReceipt": true,
+          "sessionOperand": false,
+          "hostOrModelLaunched": false
+        },
+        "fixtureProjects": [
+          "/private/tmp/zensu-audit-scope-recheck-K3TB7I/omission",
+          "/private/tmp/zensu-audit-scope-recheck-K3TB7I/git-fault",
+          "/private/tmp/zensu-audit-scope-recheck-K3TB7I/invalid-proof"
+        ],
+        "first": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded) was already dirty before this round; union membership is not evidence \u2014 re-read the target predicate\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false
+          }
+        },
+        "omittedRetry": {
+          "exit": 0,
+          "output": "EDIT LANDED \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded)\nEDIT LANDING AUDIT \u2014 claims=1 landed=1 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 1,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 0,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": true
+          }
+        },
+        "faultFirst": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded) was already dirty before this round; union membership is not evidence \u2014 re-read the target predicate\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false
+          }
+        },
+        "fault": {
+          "exit": 2,
+          "output": "EDIT LANDING AUDIT FAULT \u2014 (withheld \u2014 the render screen could not be loaded) exited 128 on the audited root (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded). This is a git fault, not a verdict about any claim: no claim was graded and no receipt was written; the earlier receipt at (withheld \u2014 the render screen could not be loaded) was removed. Resolve the git error, then re-run the audit.",
+          "receiptExists": false,
+          "receipt": null
+        },
+        "retry": {
+          "exit": 0,
+          "output": "EDIT LANDED \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded)\nEDIT LANDING AUDIT \u2014 claims=1 landed=1 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 1,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 0,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": true
+          }
+        },
+        "invalid": {
+          "exit": 2,
+          "output": "zensu-edit-landing.sh: unknown argument '--predicates'",
+          "receiptExists": false,
+          "receipt": null
+        },
+        "proofRetry": {
+          "exit": 0,
+          "output": "EDIT LANDED \u2014 (withheld \u2014 the render screen could not be loaded): (withheld \u2014 the render screen could not be loaded)\nEDIT LANDING AUDIT \u2014 claims=1 landed=1 not_landed=0 unverified=0 pending=0 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 1,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 0,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": true
+          }
+        }
+      }
+    },
+    "zensu-copilot": {
+      "status": "fixed-control-passed",
+      "directOmissionPreservesPending": true,
+      "faultThenOmissionPreservesPending": true,
+      "invalidPredicateThenOmissionPreservesPending": true,
+      "predicateSupport": "supported-and-fail-closed",
+      "mode": "Identical explicit receipt helper fixture without --session; receipt auditScope sessionKey and generation are null. Active native binding is separately covered by 19 deterministic scope tests and the final live session.",
+      "rawProof": {
+        "path": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/proof.json",
+        "sha256": "383cd0623b905f1af0cfb7d9a438c47671ad36f32267c85a3cce6f262b229887"
+      },
+      "proof": {
+        "helper": "/private/tmp/zensu-shared-audit-fixture-qx5dl92_/zensu-copilot/plugin/hooks/lib/zensu-edit-landing.sh",
+        "containment": {
+          "environment": {
+            "PATH": "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "HOME": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/home",
+            "XDG_CONFIG_HOME": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/config",
+            "TMPDIR": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/tmp",
+            "LC_ALL": "C",
+            "LANG": "C",
+            "TZ": "UTC",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "Fixture",
+            "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+            "GIT_COMMITTER_NAME": "Fixture",
+            "GIT_COMMITTER_EMAIL": "fixture@example.invalid"
+          },
+          "explicitReceipt": true,
+          "sessionOperand": false,
+          "hostOrModelLaunched": false
+        },
+        "fixtureProjects": [
+          "/private/tmp/zensu-audit-scope-recheck-RNa5qg/omission",
+          "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault",
+          "/private/tmp/zensu-audit-scope-recheck-RNa5qg/invalid-proof"
+        ],
+        "first": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 SR1: source.js was already dirty before this claim; union membership is not evidence \u2014 supply current literal/hash proof with --predicates\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false,
+            "auditScope": {
+              "schema": "edit-landing-scope-v1",
+              "root": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/omission",
+              "claimRoot": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/omission",
+              "log": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/omission/.zensu/logs/test.log",
+              "sessionKey": null,
+              "generation": null,
+              "baseline": "232216bdfa38f5253aefca07d645fd76d0735dd3",
+              "epoch": "",
+              "dirty": [
+                "source.js"
+              ],
+              "logPrefix": {
+                "bytes": 40,
+                "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+              },
+              "claims": [
+                {
+                  "step": "SR1",
+                  "raw": " source.js",
+                  "path": "source.js",
+                  "certified": false
+                }
+              ],
+              "snapshots": {
+                "source.js": {
+                  "path": "source.js",
+                  "exists": true,
+                  "bytes": 4,
+                  "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+                }
+              },
+              "observedFiles": [
+                "source.js"
+              ],
+              "tree": {
+                "kind": "git",
+                "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+              }
+            }
+          }
+        },
+        "omittedRetry": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 SR1: source.js was already dirty before this claim; union membership is not evidence \u2014 supply current literal/hash proof with --predicates\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false,
+            "auditScope": {
+              "schema": "edit-landing-scope-v1",
+              "root": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/omission",
+              "claimRoot": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/omission",
+              "log": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/omission/.zensu/logs/test.log",
+              "sessionKey": null,
+              "generation": null,
+              "baseline": "232216bdfa38f5253aefca07d645fd76d0735dd3",
+              "epoch": "",
+              "dirty": [
+                "source.js"
+              ],
+              "logPrefix": {
+                "bytes": 40,
+                "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+              },
+              "claims": [
+                {
+                  "step": "SR1",
+                  "raw": " source.js",
+                  "path": "source.js",
+                  "certified": false
+                }
+              ],
+              "snapshots": {
+                "source.js": {
+                  "path": "source.js",
+                  "exists": true,
+                  "bytes": 4,
+                  "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+                }
+              },
+              "observedFiles": [
+                "source.js"
+              ],
+              "tree": {
+                "kind": "git",
+                "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+              }
+            }
+          }
+        },
+        "faultFirst": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 SR1: source.js was already dirty before this claim; union membership is not evidence \u2014 supply current literal/hash proof with --predicates\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false,
+            "auditScope": {
+              "schema": "edit-landing-scope-v1",
+              "root": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault",
+              "claimRoot": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault",
+              "log": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault/.zensu/logs/test.log",
+              "sessionKey": null,
+              "generation": null,
+              "baseline": "be09a65c01d88bac52583e42711a28177550ab03",
+              "epoch": "",
+              "dirty": [
+                "source.js"
+              ],
+              "logPrefix": {
+                "bytes": 40,
+                "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+              },
+              "claims": [
+                {
+                  "step": "SR1",
+                  "raw": " source.js",
+                  "path": "source.js",
+                  "certified": false
+                }
+              ],
+              "snapshots": {
+                "source.js": {
+                  "path": "source.js",
+                  "exists": true,
+                  "bytes": 4,
+                  "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+                }
+              },
+              "observedFiles": [
+                "source.js"
+              ],
+              "tree": {
+                "kind": "git",
+                "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+              }
+            }
+          }
+        },
+        "fault": {
+          "exit": 2,
+          "output": "RECEIPT REFUSED \u2014 this audit failed; its nonclean receipt preserves the earlier audit scope for recovery\nEDIT LANDING AUDIT FAULT \u2014 git rev-parse --is-inside-work-tree exited 128 on the audited root /private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault: synthetic git failure. This is a git fault, not a verdict about any claim: no claim was graded and no successful receipt was written. Receipt-producing audits preserve their nonclean scope for recovery. Resolve the git error, then re-run the audit.",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 1,
+            "pending": 0,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false,
+            "auditFailure": "The latest audit did not complete because Git failed. Rerun the audit after resolving that failure.",
+            "auditScope": {
+              "schema": "edit-landing-scope-v1",
+              "root": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault",
+              "claimRoot": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault",
+              "log": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault/.zensu/logs/test.log",
+              "sessionKey": null,
+              "generation": null,
+              "baseline": "be09a65c01d88bac52583e42711a28177550ab03",
+              "epoch": "",
+              "dirty": [
+                "source.js"
+              ],
+              "logPrefix": {
+                "bytes": 40,
+                "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+              },
+              "legacyUnresolved": false,
+              "claims": [
+                {
+                  "step": "SR1",
+                  "raw": " source.js",
+                  "path": "source.js",
+                  "certified": false
+                }
+              ],
+              "snapshots": {
+                "source.js": {
+                  "path": "source.js",
+                  "exists": true,
+                  "bytes": 4,
+                  "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+                }
+              },
+              "observedFiles": [
+                "source.js"
+              ],
+              "tree": {
+                "kind": "git",
+                "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+              }
+            }
+          }
+        },
+        "retry": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 SR1: source.js was already dirty before this claim; union membership is not evidence \u2014 supply current literal/hash proof with --predicates\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false,
+            "auditScope": {
+              "schema": "edit-landing-scope-v1",
+              "root": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault",
+              "claimRoot": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault",
+              "log": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/git-fault/.zensu/logs/test.log",
+              "sessionKey": null,
+              "generation": null,
+              "baseline": "be09a65c01d88bac52583e42711a28177550ab03",
+              "epoch": "",
+              "dirty": [
+                "source.js"
+              ],
+              "logPrefix": {
+                "bytes": 40,
+                "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+              },
+              "claims": [
+                {
+                  "step": "SR1",
+                  "raw": " source.js",
+                  "path": "source.js",
+                  "certified": false
+                }
+              ],
+              "snapshots": {
+                "source.js": {
+                  "path": "source.js",
+                  "exists": true,
+                  "bytes": 4,
+                  "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+                }
+              },
+              "observedFiles": [
+                "source.js"
+              ],
+              "tree": {
+                "kind": "git",
+                "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+              }
+            }
+          }
+        },
+        "invalid": {
+          "exit": 2,
+          "output": "edit-landing audit: predicate proof hash is stale or invalid\nzensu-edit-landing.sh: audit claims or predicate proof could not be verified",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 0,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 0,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false,
+            "auditFailure": "The current audit has not completed. Rerun it; its cumulative context is preserved.",
+            "auditScope": {
+              "schema": "edit-landing-scope-v1",
+              "root": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/invalid-proof",
+              "claimRoot": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/invalid-proof",
+              "log": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/invalid-proof/.zensu/logs/test.log",
+              "sessionKey": null,
+              "generation": null,
+              "baseline": "08c2c307966fe0bad1fb4f709476008df6018e56",
+              "epoch": "",
+              "dirty": [
+                "source.js"
+              ],
+              "logPrefix": {
+                "bytes": 40,
+                "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+              },
+              "legacyUnresolved": false,
+              "claims": [],
+              "snapshots": {},
+              "observedFiles": [],
+              "tree": null
+            }
+          }
+        },
+        "proofRetry": {
+          "exit": 1,
+          "output": "PENDING PREDICATE \u2014 SR1: source.js was already dirty before this claim; union membership is not evidence \u2014 supply current literal/hash proof with --predicates\nEDIT LANDING AUDIT \u2014 claims=1 landed=0 not_landed=0 unverified=0 pending=1 exempt_ignored=0 exempt_verified=0",
+          "receiptExists": true,
+          "receipt": {
+            "schema": "edit-landing-v2",
+            "session": "",
+            "log": ".zensu/logs/test.log",
+            "claims": 1,
+            "landed": 0,
+            "notLanded": 0,
+            "unverified": 0,
+            "pending": 1,
+            "exemptIgnored": 0,
+            "exemptVerified": 0,
+            "clean": false,
+            "auditScope": {
+              "schema": "edit-landing-scope-v1",
+              "root": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/invalid-proof",
+              "claimRoot": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/invalid-proof",
+              "log": "/private/tmp/zensu-audit-scope-recheck-RNa5qg/invalid-proof/.zensu/logs/test.log",
+              "sessionKey": null,
+              "generation": null,
+              "baseline": "08c2c307966fe0bad1fb4f709476008df6018e56",
+              "epoch": "",
+              "dirty": [
+                "source.js"
+              ],
+              "logPrefix": {
+                "bytes": 40,
+                "sha256": "052d50493056157cc5b9299025ad6e6315a2ec0cd06ba618ecb17605e2595db9"
+              },
+              "claims": [
+                {
+                  "step": "SR1",
+                  "raw": " source.js",
+                  "path": "source.js",
+                  "certified": false
+                }
+              ],
+              "snapshots": {
+                "source.js": {
+                  "path": "source.js",
+                  "exists": true,
+                  "bytes": 4,
+                  "sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+                }
+              },
+              "observedFiles": [
+                "source.js"
+              ],
+              "tree": {
+                "kind": "git",
+                "tree": "11522254b78dd61eccedc24de933b8de1ba58ef9"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "This is deterministic helper execution, not the identical invoice application or a live native host workflow.",
+    "The older sibling helpers do not support --predicates; their unknown-option result is recorded but does not establish behavior of the newer predicate-validation feature.",
+    "The controller uses system Git/Bash/Node executables and synthetic Git identity, with global Git configuration disabled and HOME isolated."
+  ]
+}
