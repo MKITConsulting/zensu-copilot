@@ -153,3 +153,15 @@ event contract, state locations, work-order launcher and acceptance procedure.
 [FSL-1.1-Apache-2.0](LICENSE), inherited from the pinned Zensu source. Upstream
 provenance is recorded in [upstream.json](https://github.com/MKITConsulting/zensu-copilot/blob/main/upstream.json).
 The generated `build.json` records the owned files and hashes included in the package.
+
+## Feature context retrieval
+
+Tracked implementation loads the linked context package through
+`zensu knowledge context-pack <feature-ref> --json`, then hydrates relevant items
+with `zensu knowledge get <item-id> --json` and reads referenced files from the
+authorized checkout. Supplementary search uses `--json` so passages are retained.
+The CLI must expose `knowledge context-pack --help`; older installations report
+the missing capability instead of silently falling back. See the
+[context procedure](src/plugin/skills/zensu-implement/references/knowledge-context.md)
+for truncation, access failures and evidence handoff. These reads supplement feature,
+security and design context. They do not record agent usage.
