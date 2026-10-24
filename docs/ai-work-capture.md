@@ -39,8 +39,10 @@ claimed by this CLI plugin.
 
 ## Validation boundary
 
-The packaged dispatcher and helper tests cover native main-session selection,
-child refusal, protected shell binding, direct-mode reporting and bounded Stop
-retries. These are deterministic integration checks, not a live Copilot session
-acceptance result. No installed plugin or existing conversation is changed by
-the fixtures.
+Linux and macOS CI validate the complete packaged integration suite. An isolated
+native session on 2026-10-24 loaded only the frozen current plugin and delivered
+sessionStart and prompt events with the same native session ID and workspace.
+The provider returned quota_exceeded (402) before any model result or agentStop,
+so full native capture acceptance remains unverified. The test used Copilot's
+own existing login; no GitHub token was read or transferred. Global settings
+were verified unchanged, and no work goal or submission was created.
