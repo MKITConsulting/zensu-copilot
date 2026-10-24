@@ -111,7 +111,7 @@ test('native shell lifecycle wires markers, progress closure and generation rese
   const f = fixture(t), plugin = path.join(f.dir, 'plugin'), data = path.join(f.dir, 'data');
   fs.cpSync(path.join(repo, 'src/plugin'), plugin, { recursive: true });
   fs.mkdirSync(path.join(plugin, 'hooks/native'), { recursive: true });
-  for (const name of ['dispatcher', 'protocol', 'context', 'approval', 'helper', 'transcript', 'review-gate']) fs.copyFileSync(path.join(repo, `src/${name}.js`), path.join(plugin, `hooks/native/${name}.js`));
+  for (const name of ['dispatcher', 'protocol', 'context', 'approval', 'helper', 'transcript', 'review-gate', 'ai-work']) fs.copyFileSync(path.join(repo, `src/${name}.js`), path.join(plugin, `hooks/native/${name}.js`));
   const inventory = [];
   const walk = directory => fs.readdirSync(directory, { withFileTypes: true }).forEach(entry => {
     const file = path.join(directory, entry.name);

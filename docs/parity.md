@@ -237,3 +237,12 @@ hosts or change their installations.
 The existing Zensu service's `doc claude-md[-context]` and `generate_claude_md`
 operation names are retained service API contracts. They do not load, execute or
 proxy another coding host. Product instructions are authored as native `AGENTS.md`.
+
+## AI work capture
+
+The native main-session helper records explicit goals and clean commit results
+through personal CLI OAuth. Native Bash binding carries the capture principal;
+partial/unknown child identity cannot borrow it. agentStop retries within the
+remaining dispatcher budget. The pre-handoff checkpoint returns the exact review
+link; acceptance and revocation stay in the authenticated web UI. No IDE coverage
+is implied. See [the capture contract](ai-work-capture.md).

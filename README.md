@@ -153,3 +153,9 @@ event contract, state locations, work-order launcher and acceptance procedure.
 [FSL-1.1-Apache-2.0](LICENSE), inherited from the pinned Zensu source. Upstream
 provenance is recorded in [upstream.json](https://github.com/MKITConsulting/zensu-copilot/blob/main/upstream.json).
 The generated `build.json` records the owned files and hashes included in the package.
+
+## Automatic work capture
+
+Agreed implementation goals and new clean commits can be reported through personal
+CLI OAuth in direct or workflow mode. Acceptance and revocation remain human web
+decisions. See [capture behavior and host limits](docs/ai-work-capture.md).

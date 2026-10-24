@@ -24,12 +24,12 @@ function copy(from, relative) {
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 copy(path.join(root, 'src/plugin'), '');
-for (const name of ['protocol.js', 'transcript.js', 'dispatcher.js', 'context.js', 'helper.js', 'approval.js', 'review-gate.js']) {
+for (const name of ['protocol.js', 'transcript.js', 'dispatcher.js', 'context.js', 'helper.js', 'approval.js', 'review-gate.js', 'ai-work.js']) {
   copy(path.join(root, 'src', name), `hooks/native/${name}`);
 }
 copy(path.join(root, 'src/session-trail'), 'skills/zensu-session-trail/scripts');
 copy(path.join(root, 'src/harness'), 'harness');
-for (const name of ['README.md', 'docs/parity.md', 'docs/copilot-runtime.md']) copy(path.join(root, name), name);
+for (const name of ['README.md', 'docs/parity.md', 'docs/copilot-runtime.md', 'docs/ai-work-capture.md']) copy(path.join(root, name), name);
 const manifest = JSON.parse(fs.readFileSync(path.join(output, 'plugin.json')));
 if (manifest.version !== require('../package.json').version) throw new Error('Package/manifest version mismatch');
 const skills = fs.readdirSync(path.join(output, 'skills')).sort();
