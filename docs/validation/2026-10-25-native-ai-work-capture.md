@@ -14,7 +14,7 @@ The actual installed CLI loaded only a frozen, separately staged candidate in a
 disposable Git project. All 277 staged files retained their original hashes.
 The 241 runtime files under `hooks/`, `skills/`, `com.github.copilot/` and
 `harness/` matched the 0.3.0 release preparation byte-for-byte; subsequent changes
-are version metadata, README and validation documentation.
+are version metadata and documentation, including the intervening 0.2.2 release.
 
 The official local-provider configuration selected the model for this process
 only. No Copilot credentials were transferred to another service, and no other
