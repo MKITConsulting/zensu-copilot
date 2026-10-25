@@ -46,3 +46,12 @@ The provider returned quota_exceeded (402) before any model result or agentStop,
 so full native capture acceptance remains unverified. The test used Copilot's
 own existing login; no GitHub token was read or transferred. Global settings
 were verified unchanged, and no work goal or submission was created.
+
+A fresh isolated Copilot CLI 1.0.100 probe on 2026-10-25 at 14:35 UTC
+again returned quota_exceeded (402), explicitly reporting an exhausted monthly
+quota. The probe used the existing native login and observed startup, prompt and
+session-end events without a model result or agentStop submission. The tested
+runtime was `db11ef2809315e0365bbc2b8ffd65f5b28c8cea1`, before synchronizing the
+subsequent feature-context documentation/read mapping from main. Global settings
+and monitored marketplace hashes remained unchanged. Full native capture
+acceptance is still unverified, and no work goal or result was created.
