@@ -39,11 +39,23 @@ claimed by this CLI plugin.
 
 ## Validation boundary
 
+Native capture passed in an isolated, guided Copilot CLI 1.0.100 session using
+a local Ollama model and Zensu CLI 0.11.0 on 2026-10-25. The real host declared a
+goal, edited and committed the fixture, submitted the result and repeated the
+checkpoint without a duplicate. A second clean commit was submitted exclusively
+by the native `agentStop` hook, with no model-issued checkpoint. Independent
+live read-back verified authenticated attribution and no human decision.
+See the [native validation report](https://github.com/MKITConsulting/zensu-copilot/blob/main/docs/validation/2026-10-25-native-ai-work-capture.md)
+for source binding, model limitations and excluded failed probes.
+
+Earlier quota-blocked probes below remain historical evidence, not successful
+native validation.
+
 Linux and macOS CI validate the complete packaged integration suite. An isolated
 native session on 2026-10-24 loaded only the frozen current plugin and delivered
 sessionStart and prompt events with the same native session ID and workspace.
 The provider returned quota_exceeded (402) before any model result or agentStop,
-so full native capture acceptance remains unverified. The test used Copilot's
+so that probe did not verify full native capture. The test used Copilot's
 own existing login; no GitHub token was read or transferred. Global settings
 were verified unchanged, and no work goal or submission was created.
 
@@ -53,5 +65,5 @@ quota. The probe used the existing native login and observed startup, prompt and
 session-end events without a model result or agentStop submission. The tested
 runtime was `db11ef2809315e0365bbc2b8ffd65f5b28c8cea1`, before synchronizing the
 subsequent feature-context documentation/read mapping from main. Global settings
-and monitored marketplace hashes remained unchanged. Full native capture
-acceptance is still unverified, and no work goal or result was created.
+and monitored marketplace hashes remained unchanged. Full native
+capture remained unverified by that probe, and no work goal or result was created.
