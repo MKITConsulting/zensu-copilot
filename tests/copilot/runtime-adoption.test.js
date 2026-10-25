@@ -27,11 +27,15 @@ function seal(root) {
     version:JSON.parse(fs.readFileSync(path.join(root, 'plugin.json'))).version, files}));
 }
 
-function fixture(t) {
+function fixture(t, { version } = {}) {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'zensu-runtime-adoption-')));
   t.after(() => fs.rmSync(dir, {recursive:true, force:true}));
   const root = path.join(dir, 'installed-plugins/_direct/zensu');
   fs.cpSync(path.join(repo, 'src/plugin'), root, {recursive:true});
+  if (version) {
+    const manifest = path.join(root, 'plugin.json');
+    fs.writeFileSync(manifest, JSON.stringify({...JSON.parse(fs.readFileSync(manifest)), version}));
+  }
   fs.mkdirSync(path.join(root, 'hooks/native'), {recursive:true});
   for (const name of ['dispatcher', 'protocol', 'context', 'approval', 'helper', 'transcript', 'review-gate', 'ai-work']) fs.copyFileSync(path.join(repo, `src/${name}.js`), path.join(root, `hooks/native/${name}.js`));
   seal(root);
@@ -212,7 +216,9 @@ test('unknown, malformed, tampered and aliased private bindings remain refused',
 
 test('new runtime must be a complete native build at the same root and compatible version', t => {
   for(const changed of ['tamper','extra','missing','symlink','downgrade','breaking','foreign-root','foreign-data','derived-id']) {
-    const f=fixture(t); f.upgrade();const options={...f.options};
+    // Keep the 0.1.9 downgrade and 0.3.0 lineage break relative to a fixed
+    // starting version, independently of the plugin version being released.
+    const f=fixture(t, {version:'0.2.0'}); f.upgrade();const options={...f.options};
     if(changed==='tamper')fs.appendFileSync(path.join(f.root,'hooks/native/protocol.js'),'tamper');
     if(changed==='extra')fs.writeFileSync(path.join(f.root,'undeclared.js'),'tamper');
     if(changed==='missing')fs.unlinkSync(path.join(f.root,'hooks/native/dispatcher.js'));
