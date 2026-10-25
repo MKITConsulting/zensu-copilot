@@ -1,6 +1,6 @@
 # Zensu Copilot marketplace
 
-Generated from release `v0.2.2`. Do not edit this branch.
+Generated from release `v0.3.0`. Do not edit this branch.
 
 ```bash
 copilot plugin marketplace add MKITConsulting/zensu-copilot#marketplace
