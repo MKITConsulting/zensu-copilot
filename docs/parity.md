@@ -2,7 +2,7 @@
 
 The baseline is Zensu Claude Code **0.27.0**, commit
 `65d6aba7e3f6c0d98af2a02c9b4854c1f0c78980`. The build retains all 32 skill
-entry points and six specialist agents. Version 0.2.2 owns and directly implements the workflow engine against native
+entry points and six specialist agents. Version 0.3.0 owns and directly implements the workflow engine against native
 Copilot contracts; no source-host adapter is built or loaded. Retained workflow instructions are not evidence that a
 live Copilot run has satisfied every acceptance criterion.
 
@@ -237,3 +237,12 @@ hosts or change their installations.
 The existing Zensu service's `doc claude-md[-context]` and `generate_claude_md`
 operation names are retained service API contracts. They do not load, execute or
 proxy another coding host. Product instructions are authored as native `AGENTS.md`.
+
+## AI work capture
+
+The native main-session helper records explicit goals and clean commit results
+through personal CLI OAuth. Native Bash binding carries the capture principal;
+partial/unknown child identity cannot borrow it. agentStop retries within the
+remaining dispatcher budget. The pre-handoff checkpoint returns the exact review
+link; acceptance and revocation stay in the authenticated web UI. No IDE coverage
+is implied. See [the capture contract](ai-work-capture.md).

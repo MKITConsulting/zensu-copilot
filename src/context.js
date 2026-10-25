@@ -76,13 +76,15 @@ function nativeEnv(context, base = process.env) {
   for (const name of Object.keys(env)) {
     // Never inherit another session's private authority or a foreign host's
     // identity. All host values below come from this native hook invocation.
-    if (name.startsWith('CLAUDE_') || /^ZENSU_(CONTEXT|SESSION_KEY|RUNTIME_DIGEST|SOURCE_REVISION|PRINCIPAL|PROJECT_ROOT|CONTROL_RECORD|BOUND_SESSION_ID)/.test(name)) delete env[name];
+    if (name.startsWith('CLAUDE_') || /^ZENSU_(CONTEXT|SESSION_KEY|RUNTIME_DIGEST|SOURCE_REVISION|PRINCIPAL|PROJECT_ROOT|CONTROL_RECORD|BOUND_SESSION_ID|CAPTURE_)/.test(name)) delete env[name];
   }
   Object.assign(env, {
     COPILOT_PLUGIN_ROOT: context.pluginRoot, COPILOT_PLUGIN_DATA: context.pluginData,
     COPILOT_SESSION_ID: context.sessionId, COPILOT_PROJECT_DIR: context.cwd,
     COPILOT_HOME: context.copilotHome, ZENSU_BOUND_SESSION_ID: context.sessionId,
     ZENSU_RUNTIME_HOST: 'copilot', PLUGIN_ROOT: context.pluginRoot,
+    ZENSU_CAPTURE_NATIVE_SESSION_ID: context.nativeSessionId || context.sessionId,
+    ZENSU_CAPTURE_MAIN: context.captureMain === true ? '1' : '0',
   });
   return env;
 }

@@ -12,6 +12,14 @@ function main(args, env = process.env) {
     throw new Error('Copilot session binding mismatch; run this helper through the bound native bash tool without overriding session selectors');
   }
   const bound = context.resolveContext({ sessionId: env.COPILOT_SESSION_ID, cwd: env.COPILOT_PROJECT_DIR || process.cwd() }, env, root);
+  if (operation === 'ai-work') {
+    const capture = require('./ai-work');
+    if (env.ZENSU_CAPTURE_MAIN !== '1' || env.ZENSU_CAPTURE_NATIVE_SESSION_ID !== bound.sessionId) throw new Error('AI work capture requires the native main session');
+    bound.captureMain = true;
+    try { process.stdout.write(JSON.stringify(capture.run(bound, rest[0], rest.slice(1))) + '\n'); }
+    catch { throw new Error(capture.INCOMPLETE); }
+    return 0;
+  }
   const childEnv = context.nativeEnv(bound, env);
   if (operation !== 'runtime' || !rest[0] || !/^[a-z0-9-]+\.sh$/.test(rest[0])) throw new Error('Usage: helper.js runtime <helper.sh> [args]. Plan approval is handled only by the native human-response hook.');
   const script = path.join(root, 'hooks/lib', rest.shift());

@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.2.2
+the complete workflow, evidence, acceptance and recovery engine. Version 0.3.0
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -16,8 +16,8 @@ for provenance and parity checks; it is not needed to build or run the package.
 
 - Node.js 22 or newer, Bash and Git on `PATH`.
 - GitHub Copilot CLI, authenticated with access to the chosen model. Native
-  integration has been probed with CLI **1.0.98**; this is the tested version,
-  not a claimed compatibility range. This package targets the CLI, not the IDE
+  workflow integration was probed with CLI **1.0.98**, and AI-work capture with
+  CLI **1.0.100**. These are tested versions, not a compatibility range. This package targets the CLI, not the IDE
   extension or GitHub's hosted coding agent.
 - The `zensu` CLI and its login for tracked features, Pulse and work orders.
   Local implementation/review and configuration can work without a Zensu account.
@@ -60,12 +60,12 @@ This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.2.2
-cd zensu-copilot-0.2.2
-gh release download v0.2.2 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.2.2.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.3.0
+cd zensu-copilot-0.3.0
+gh release download v0.3.0 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.3.0.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.2.2.tar.gz
+tar -xzf zensu-copilot-0.3.0.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
@@ -153,6 +153,12 @@ event contract, state locations, work-order launcher and acceptance procedure.
 [FSL-1.1-Apache-2.0](LICENSE), inherited from the pinned Zensu source. Upstream
 provenance is recorded in [upstream.json](https://github.com/MKITConsulting/zensu-copilot/blob/main/upstream.json).
 The generated `build.json` records the owned files and hashes included in the package.
+
+## Automatic work capture
+
+Agreed implementation goals and new clean commits can be reported through personal
+CLI OAuth in direct or workflow mode. Acceptance and revocation remain human web
+decisions. See [capture behavior and host limits](docs/ai-work-capture.md).
 
 ## Feature context retrieval
 
