@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -71,7 +71,7 @@
     {
       "source": "src/plugin/com.github.copilot/agents/zensu-plm.agent.md",
       "target": "com.github.copilot/agents/zensu-plm.agent.md",
-      "sha256": "ccb123c45b3dbf89065d02cb4891372c0b8b0a48aebc80ae0923fe6449767e17"
+      "sha256": "b5f8e2cdb323c13d14a3c3b0a97cfad212798f95a82109781545021f298a6879"
     },
     {
       "source": "src/plugin/com.github.copilot/hooks/hooks.json",
@@ -126,7 +126,7 @@
     {
       "source": "docs/parity.md",
       "target": "docs/parity.md",
-      "sha256": "a86e6ccdf70478ef6c56a581083d0e469c2c02e5b4ced7376aa4c3f0239d4d2a"
+      "sha256": "71039a185cb354227972401874adb8f83db7ec719aeda6296610c58b3e69d998"
     },
     {
       "source": "src/plugin/docs/review-chain.md",
@@ -436,7 +436,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-cli-map.sh",
       "target": "hooks/lib/zensu-cli-map.sh",
-      "sha256": "89dbc1051a015320c98ec13061fd252e7164b7d3cb95d49c942f7c969de1915f"
+      "sha256": "e874021e31d469165013b00decdb174d0268106dcd95906457fa02f66a04d2c2"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-config.sh",
@@ -501,7 +501,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-mcp-tools.sh",
       "target": "hooks/lib/zensu-mcp-tools.sh",
-      "sha256": "b222f5e29adf2a18f9c1db529020f94bf0cbe24b0213dd83f7fe44a1439da84d"
+      "sha256": "c19849a97b84356979b5ba72f9866a542e995d30def98c20f786fe65412329d4"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-msys-env.sh",
@@ -786,12 +786,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "628714ad04c78311595585e82f877cb7bdfe155717422bfd877df6c8bb59def0"
+      "sha256": "63d9105fecd048ac44877193998c87720b5bb51b75db288802220d0843c960b6"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "c3799285defcd753aadf0056400bc15dcbf722349d91cd9a00cfc44fa20b44a4"
+      "sha256": "8bfc4d1842789b055ed497459c2d6135af38cf55c91006fbaa3b131363ab46ee"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
@@ -954,9 +954,14 @@
       "sha256": "d0820e6211941a1efdd3b25880347fa7ce75093623acb778258afc3cc13c96f9"
     },
     {
+      "source": "src/plugin/skills/zensu-implement/references/knowledge-context.md",
+      "target": "skills/zensu-implement/references/knowledge-context.md",
+      "sha256": "b86156f763cbd9485aaa7a6c5751b9f383630ef2e699bb04b1d2370afa1c2500"
+    },
+    {
       "source": "src/plugin/skills/zensu-implement/SKILL.md",
       "target": "skills/zensu-implement/SKILL.md",
-      "sha256": "fad2c736acbdb11008e101ce44a82afb09063617425237e8182db77db340487f"
+      "sha256": "67c40d1dfb9cbbafdd98c5f6e0d52da0657a79b1eb62a79f4b5c68ea59310960"
     },
     {
       "source": "src/plugin/skills/zensu-pilot/SKILL.md",

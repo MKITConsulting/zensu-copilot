@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.2.1
+the complete workflow, evidence, acceptance and recovery engine. Version 0.2.2
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -60,12 +60,12 @@ This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.2.1
-cd zensu-copilot-0.2.1
-gh release download v0.2.1 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.2.1.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.2.2
+cd zensu-copilot-0.2.2
+gh release download v0.2.2 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.2.2.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.2.1.tar.gz
+tar -xzf zensu-copilot-0.2.2.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
@@ -153,3 +153,15 @@ event contract, state locations, work-order launcher and acceptance procedure.
 [FSL-1.1-Apache-2.0](LICENSE), inherited from the pinned Zensu source. Upstream
 provenance is recorded in [upstream.json](https://github.com/MKITConsulting/zensu-copilot/blob/main/upstream.json).
 The generated `build.json` records the owned files and hashes included in the package.
+
+## Feature context retrieval
+
+Tracked implementation loads the linked context package through
+`zensu knowledge context-pack <feature-ref> --json`, then hydrates relevant items
+with `zensu knowledge get <item-id> --json` and reads referenced files from the
+authorized checkout. Supplementary search uses `--json` so passages are retained.
+The CLI must expose `knowledge context-pack --help`; older installations report
+the missing capability instead of silently falling back. See the
+[context procedure](src/plugin/skills/zensu-implement/references/knowledge-context.md)
+for truncation, access failures and evidence handoff. These reads supplement feature,
+security and design context. They do not record agent usage.

@@ -2,7 +2,7 @@
 
 The baseline is Zensu Claude Code **0.27.0**, commit
 `65d6aba7e3f6c0d98af2a02c9b4854c1f0c78980`. The build retains all 32 skill
-entry points and six specialist agents. Version 0.2.1 owns and directly implements the workflow engine against native
+entry points and six specialist agents. Version 0.2.2 owns and directly implements the workflow engine against native
 Copilot contracts; no source-host adapter is built or loaded. Retained workflow instructions are not evidence that a
 live Copilot run has satisfied every acceptance criterion.
 
