@@ -5,6 +5,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const protocol = require('./protocol');
 const nativeContext = require('./context');
+const aiWork = require('./ai-work');
 const reviewGate = require('./review-gate');
 const { readPlanApproval, readNavigationApproval } = require('./approval');
 
@@ -68,6 +69,8 @@ function dispatch(event, raw, options = {}) {
     if (['agentStop', 'subagentStop'].includes(event)) return { decision: 'block', reason };
     return { additionalContext: reason };
   }
+  context.captureMain = !payload.isChild && aiWork.mainPrincipal(raw, root)
+    && context.nativeSessionId === context.sessionId;
   nativeContext.observe(context, event, { agentId: payload.agentId, agentType: payload.agentType, isChild: payload.isChild });
   // Copilot emits prompt/stop events inside custom agents as well. They are not
   // new human instructions or completion of the main workflow.
@@ -153,7 +156,15 @@ function dispatch(event, raw, options = {}) {
   if (event === 'postToolUse' && payload.toolName === 'exit_plan_mode' && !payload.planApproved) {
     additional(output, 'Zensu: no human implementation approval was recorded for this plan. Rejection, exit-only and automated responses do not approve a durable run. Keep its planning gate pending; use the native plan approval interaction and select an implementation action when the user is ready.');
   }
+  if (event === 'agentStop' && context.captureMain) {
+    try {
+      const result = aiWork.run(context, 'checkpoint', [], Math.max(1, Math.min(20000, budget - (Date.now() - start))));
+      if (result.status !== 'not_started') process.stderr.write(`Zensu AI work capture: ${JSON.stringify(result)}. Submission is not acceptance.\n`);
+    }
+    catch { process.stderr.write(aiWork.INCOMPLETE + '\n'); }
+  }
   if (event === 'sessionStart') {
+    additional(output, aiWork.primer(context));
     additional(output, `Zensu Copilot CLI plugin is active. Session: ${context.sessionId}. Use /zensu-help, /zensu-setup, /zensu-doctor. Shell helpers are bound to this session by the native tool hook. Context occupancy is only reported when the host supplies measured utilization; no occupancy is inferred from transcript length.`);
     additional(output, nativeContext.SHELL_BINDING_NOTICE);
     additional(output, nativeContext.NATIVE_READ_NOTICE);

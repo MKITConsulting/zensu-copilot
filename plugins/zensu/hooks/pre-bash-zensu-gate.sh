@@ -57,7 +57,7 @@ INVOCATIONS="$(printf '%s' "$INPUT" | ZAPI="${ZENSU_API_URL:-}" ZGUARD="${COPILO
   } catch (_) { process.exit(0); }
   if (!cmd || !/(?:^|[^A-Za-z0-9_.-])zensu(?![A-Za-z0-9_-])/.test(cmd)) process.exit(0);
   const ALIAS = {product:"products",feature:"features",subfeature:"subfeatures",roadmaps:"roadmap",tier:"tiers",sec:"security",journey:"journeys",docs:"doc",kb:"knowledge","wiki-pages":"wiki"};
-  const NOUNS = new Set("products features subfeatures roadmap tiers security journeys link ghost wiki doc knowledge pulse meta org auth product feature subfeature roadmaps tier sec journey docs kb wiki-pages".split(" "));
+  const NOUNS = new Set("products ai-work features subfeatures roadmap tiers security journeys link ghost wiki doc knowledge pulse meta org auth product feature subfeature roadmaps tier sec journey docs kb wiki-pages".split(" "));
   const WRAP = new Set(["command","builtin","exec","env","sudo","nohup","nice","time"]);
   const out = [];
   function isLocalUrl(u) {
@@ -233,6 +233,7 @@ while IFS="$(printf '\t')" read -r noun verb; do
     DENY_TOOL="$TOOL"
     break                                               # a child never borrows main's workflow window
   fi
+  zensu_is_ai_work_capture_tool "$TOOL" && continue
   tool_allowed_by_workflow "$TOOL" && continue        # workflow-driven → allow
   DENY_TOOL="$TOOL"; break                            # freelance mutation → deny
 done <<EOF

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -84,6 +84,11 @@
       "sha256": "bdb79f2d8b0a5242612aecc955e6ac7500f43b435995d81511a6339d86070bc9"
     },
     {
+      "source": "docs/ai-work-capture.md",
+      "target": "docs/ai-work-capture.md",
+      "sha256": "f30390cf3861d3e68fc91442b5abaa89268adb97c77ae0e555f2c0c425afdb2b"
+    },
+    {
       "source": "src/plugin/docs/architecture.md",
       "target": "docs/architecture.md",
       "sha256": "2b411029dac1e510d84f346f152dd7e0de9134ad04b087a0deaa2c2820310679"
@@ -126,7 +131,7 @@
     {
       "source": "docs/parity.md",
       "target": "docs/parity.md",
-      "sha256": "71039a185cb354227972401874adb8f83db7ec719aeda6296610c58b3e69d998"
+      "sha256": "cfc961fbf2b537e27abb2fb3943ff40abdebc33e6aef91bd9398c2ed09d497dc"
     },
     {
       "source": "src/plugin/docs/review-chain.md",
@@ -194,6 +199,11 @@
       "sha256": "611460d44a7342e8c8b12e72192159b3cadac292cb6c6041d2835449db28c798"
     },
     {
+      "source": "src/plugin/hooks/lib/ai-work-capture-v1.js",
+      "target": "hooks/lib/ai-work-capture-v1.js",
+      "sha256": "91913c00958947b59d8c1a3a35641a452aa472650b50dbf1fe64bd2499cd6445"
+    },
+    {
       "source": "src/plugin/hooks/lib/aspect-activation-v1.js",
       "target": "hooks/lib/aspect-activation-v1.js",
       "sha256": "9f287bbdc2b0b85350cf296896f00181ea677bb54cdf55a6abc65864938983bd"
@@ -201,7 +211,7 @@
     {
       "source": "src/plugin/hooks/lib/bash-source-write-parse.js",
       "target": "hooks/lib/bash-source-write-parse.js",
-      "sha256": "b7ed1b564bf1376b778287bbede4295834c6f0dd17907e593f7cd40c5f4e4038"
+      "sha256": "262a778b08706e652387d7c2cd1c1e9d9cafe208e78da5a009de4af03125e4d8"
     },
     {
       "source": "src/plugin/hooks/lib/chain-recovery-v1.js",
@@ -436,7 +446,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-cli-map.sh",
       "target": "hooks/lib/zensu-cli-map.sh",
-      "sha256": "e874021e31d469165013b00decdb174d0268106dcd95906457fa02f66a04d2c2"
+      "sha256": "98d7c368db4b27772e0e5769bb75cba4a7aa0d4aa85d5eafe4ea59843a295fb1"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-config.sh",
@@ -501,7 +511,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-mcp-tools.sh",
       "target": "hooks/lib/zensu-mcp-tools.sh",
-      "sha256": "c19849a97b84356979b5ba72f9866a542e995d30def98c20f786fe65412329d4"
+      "sha256": "ea26c25c6a3f6c29d310202cfb00ba4740a05306dcae493285fe1f092d0c45a1"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-msys-env.sh",
@@ -594,6 +604,11 @@
       "sha256": "0e43254c03852960932f000a959461a978c380a9fbe58eec5e8c85a3bf463396"
     },
     {
+      "source": "src/ai-work.js",
+      "target": "hooks/native/ai-work.js",
+      "sha256": "6f962d412f4302788c1f5102aac83ee3bf25750b48b679d96497f4a884f65b12"
+    },
+    {
       "source": "src/approval.js",
       "target": "hooks/native/approval.js",
       "sha256": "1aa8395512152d17ca455bc6b9f2c439c292d30d197712a4880c8729cf5acb40"
@@ -601,17 +616,17 @@
     {
       "source": "src/context.js",
       "target": "hooks/native/context.js",
-      "sha256": "f6466dda18e4a2e07913fbe6d65bfffebeb887deb75fb165541114dc4de61655"
+      "sha256": "91ea9c1af3199991721cdc4044d319ddbe4d807c2cd5ea766ec74ef7695b364a"
     },
     {
       "source": "src/dispatcher.js",
       "target": "hooks/native/dispatcher.js",
-      "sha256": "74aff1eb0d388a46211ac46cb9b3ddb290cac8ef1963662d195b3729e6cb8114"
+      "sha256": "b619449f7c850d4a359387ffa11d1bd2014af9e543aa3cd765f8a2d64ad028a2"
     },
     {
       "source": "src/helper.js",
       "target": "hooks/native/helper.js",
-      "sha256": "950d964548d58de6cbb6326d6778dbb421d2d7585e3a77d6592f523faf068601"
+      "sha256": "6421fe08a00c0dbde5acd19a94a3d22489c55075b9c285aee60e1f5ef5a012f1"
     },
     {
       "source": "src/protocol.js",
@@ -666,7 +681,7 @@
     {
       "source": "src/plugin/hooks/pre-bash-zensu-gate.sh",
       "target": "hooks/pre-bash-zensu-gate.sh",
-      "sha256": "f46fb14d384318c67e26a1538c95f4cde48949f449a25ab269218a51e08b8b2b"
+      "sha256": "4c06d53c18fca1e32d138d5a802675ebcdbcd20ffc6593cac2f940f0a9088aec"
     },
     {
       "source": "src/plugin/hooks/pre-browser-navigation-consent.sh",
@@ -786,12 +801,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "63d9105fecd048ac44877193998c87720b5bb51b75db288802220d0843c960b6"
+      "sha256": "063262846047b7a745f411589061c7fd84f2659d776cd724b581b90a4854cae4"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "8bfc4d1842789b055ed497459c2d6135af38cf55c91006fbaa3b131363ab46ee"
+      "sha256": "bfdf9e036807876e98c784e65f8610ca1e930e723c61ca5c2c4fdaccdaeeb22f"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
