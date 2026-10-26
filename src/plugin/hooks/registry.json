@@ -146,6 +146,10 @@
   "postToolUseFailure": [],
   "userPromptTransformed": [
     {
+      "script": "hooks/user-prompt-context-auto-load.sh",
+      "timeout": 12
+    },
+    {
       "script": "hooks/user-prompt-intent-router.sh"
     },
     {

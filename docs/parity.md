@@ -246,3 +246,7 @@ partial/unknown child identity cannot borrow it. agentStop retries within the
 remaining dispatcher budget. The pre-handoff checkpoint returns the exact review
 link; acceptance and revocation stay in the authenticated web UI. No IDE coverage
 is implied. See [the capture contract](ai-work-capture.md).
+
+## Automatic context retrieval
+
+The owned `user-prompt-context-auto-load.sh` handler runs on `userPromptTransformed`. It returns native `additionalContext`; the dispatcher appends it to the host's `modifiedTransformedPrompt`. `userPromptSubmitted` cannot inject model context. Only an explicit, unambiguous main-user KEY-N reference triggers the tracked CLI read. Source hydration retains the returned `load_id`; no workflow is started. See [the retrieval contract](../src/plugin/docs/automatic-context.md).
