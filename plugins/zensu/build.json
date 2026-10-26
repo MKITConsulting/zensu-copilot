@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -41,7 +41,7 @@
     {
       "source": "src/plugin/assets/zensu-logo.svg",
       "target": "assets/zensu-logo.svg",
-      "sha256": "34ed1aa17ed95131cbce876cc53b0dfac237243e7b10857ff713ea762d109b19"
+      "sha256": "5226a274408e285fbb1d84eae65e49c7470b5e7347674856dfddc3f6e69bbdbe"
     },
     {
       "source": "src/plugin/com.github.copilot/agents/code-reviewer.agent.md",
@@ -801,12 +801,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "70752b262404462e63147b1d60a10dd1bf95b2a24eadb3a2aff8723e08ee1f25"
+      "sha256": "e09fa6867088883f21ece9e52bf15c720ec6a17a1370096d9f37847d42e88008"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "ead15985fc7e7240284c98e887ef0a0061405ed663c3ae44737e9a7e9dba2bfa"
+      "sha256": "9c236d74389f257bd965220d567c7d16cc37568ea0cecbf80256a324256d272b"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
