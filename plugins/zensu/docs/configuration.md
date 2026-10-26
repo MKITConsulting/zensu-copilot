@@ -285,3 +285,7 @@ The `COPILOT_*` helper values above are supplied by the native hook on allowed `
 | --- | --- | --- |
 | `COPILOT_HOME` | `~/.copilot` | Native session-state root used by session trail and the fallback plugin-data path. |
 | `PLUGIN_DATA` | Host-provided when available | Native host plugin-data root accepted by the native hook when `COPILOT_PLUGIN_DATA` is not already bound. |
+
+## Automatic feature context
+
+`hooks.contextAutoLoad` defaults to `true`. An unambiguous main-user KEY-N reference triggers a bounded, tracked context read without starting a workflow. Set it to `false` to disable. See [automatic context](automatic-context.md) for receipts, source hydration and host limits.
