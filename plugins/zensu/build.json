@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -801,12 +801,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "063262846047b7a745f411589061c7fd84f2659d776cd724b581b90a4854cae4"
+      "sha256": "70752b262404462e63147b1d60a10dd1bf95b2a24eadb3a2aff8723e08ee1f25"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "bfdf9e036807876e98c784e65f8610ca1e930e723c61ca5c2c4fdaccdaeeb22f"
+      "sha256": "ead15985fc7e7240284c98e887ef0a0061405ed663c3ae44737e9a7e9dba2bfa"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
@@ -971,12 +971,12 @@
     {
       "source": "src/plugin/skills/zensu-implement/references/knowledge-context.md",
       "target": "skills/zensu-implement/references/knowledge-context.md",
-      "sha256": "b86156f763cbd9485aaa7a6c5751b9f383630ef2e699bb04b1d2370afa1c2500"
+      "sha256": "134eecbb82e27befe7db5b75aff8946cac30ff72ee724e8ea68635106930e408"
     },
     {
       "source": "src/plugin/skills/zensu-implement/SKILL.md",
       "target": "skills/zensu-implement/SKILL.md",
-      "sha256": "67c40d1dfb9cbbafdd98c5f6e0d52da0657a79b1eb62a79f4b5c68ea59310960"
+      "sha256": "99d1d4a430cc9ab8a7384d2be97bf51a5efe9488eb536705829796b06f4fdd16"
     },
     {
       "source": "src/plugin/skills/zensu-pilot/SKILL.md",
