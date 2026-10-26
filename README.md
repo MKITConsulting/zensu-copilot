@@ -163,11 +163,11 @@ decisions. See [capture behavior and host limits](docs/ai-work-capture.md).
 ## Feature context retrieval
 
 Tracked implementation loads the linked context package through
-`zensu knowledge context-pack <feature-ref> --json`, then hydrates relevant items
-with `zensu knowledge get <item-id> --json` and reads referenced files from the
+`zensu knowledge context-pack <feature-ref> --json --agent copilot`, then hydrates relevant items
+with `zensu knowledge get <item-id> --json --context-load <load-id>` and reads referenced files from the
 authorized checkout. Supplementary search uses `--json` so passages are retained.
 The CLI must expose `knowledge context-pack --help`; older installations report
 the missing capability instead of silently falling back. See the
 [context procedure](src/plugin/skills/zensu-implement/references/knowledge-context.md)
 for truncation, access failures and evidence handoff. These reads supplement feature,
-security and design context. They do not record agent usage.
+security and design context. The context board records these API retrievals by package `load_id`, declared agent and server time. Local file reads and model comprehension are not recorded.
