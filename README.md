@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.4.1
+the complete workflow, evidence, acceptance and recovery engine. Version 0.4.2
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -60,12 +60,12 @@ This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.4.1
-cd zensu-copilot-0.4.1
-gh release download v0.4.1 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.4.1.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.4.2
+cd zensu-copilot-0.4.2
+gh release download v0.4.2 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.4.2.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.4.1.tar.gz
+tar -xzf zensu-copilot-0.4.2.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
@@ -171,3 +171,7 @@ the missing capability instead of silently falling back. See the
 [context procedure](src/plugin/skills/zensu-implement/references/knowledge-context.md)
 for truncation, access failures and evidence handoff. These reads supplement feature,
 security and design context. The context board records these API retrievals by package `load_id`, declared agent and server time. Local file reads and model comprehension are not recorded.
+
+## Automatic feature context
+
+An explicit, unambiguous feature key in a main user prompt automatically loads its tracked context package, including outside the Implement skill and in direct mode. Relevant source reads retain the returned `load_id`. Disable with `hooks.contextAutoLoad: false`. See [automatic context](https://github.com/MKITConsulting/zensu-copilot/blob/main/src/plugin/docs/automatic-context.md) for host support, bounded reads, failure behavior and evidence limits.
