@@ -67,3 +67,26 @@ runtime was `db11ef2809315e0365bbc2b8ffd65f5b28c8cea1`, before synchronizing the
 subsequent feature-context documentation/read mapping from main. Global settings
 and monitored marketplace hashes remained unchanged. Full native
 capture remained unverified by that probe, and no work goal or result was created.
+
+
+## Declared source and run purpose
+
+The reporter supplies its plugin name and packaged version automatically. These
+are client declarations; personal OAuth authenticates the reporting account,
+not the host or authorship. Use `--run-kind work` (the default) for normal product
+implementation, including writing/running tests. Use `--run-kind test` explicitly
+when the goal itself is a validation, demo or capture probe. Never guess from the
+title, test commands or a green suite. Preserve the agreed purpose on retries.
+
+New receipts freeze source, version and initial purpose before the first request.
+An upgrade preserves existing receipt metadata. Historical receipts keep missing
+metadata unknown; do not rewrite or delete them to force attribution. Purpose
+corrections belong to the current owner/admin in the web UI, with a reason; the
+reporter cannot classify, accept or revoke. Both dashboard scopes exclude declared
+tests by default but offer an include-tests switch. Unknown records remain visible.
+Billing credits stay separately unfiltered because they are not linked to runs.
+
+Requires a CLI supporting the `ai-work start --source --source-version --run-kind`
+flags and a backend supporting run metadata. Upgrade backend and CLI before the
+plugin. Missing support is an incomplete capture, never a silent fallback. The
+internal `--legacy-metadata` flag only replays pre-metadata receipts unchanged.

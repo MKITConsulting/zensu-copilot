@@ -24,19 +24,19 @@ function options(context, args = []) {
   const values = { workspace, session: key(context.sessionId) };
   for (let i = 0; i < args.length; i += 2) {
     const name = args[i];
-    if (!['--task', '--title', '--criteria'].includes(name) || typeof args[i + 1] !== 'string' || Object.hasOwn(values, name.slice(2))) throw new Error('Invalid capture arguments');
+    if (!['--task', '--title', '--criteria', '--run-kind'].includes(name) || typeof args[i + 1] !== 'string' || Object.hasOwn(values, name.slice(2))) throw new Error('Invalid capture arguments');
     values[name.slice(2)] = args[i + 1];
   }
   return values;
 }
 function run(context, action, args = [], budgetMs = 20000) {
   if (action === 'checkpoint' && args.length) throw new Error('Checkpoint takes no selectors');
-  const bound = options(context, args);
+  const bound = { ...options(context, args), source: 'copilot', sourceVersion: JSON.parse(fs.readFileSync(path.join(context.pluginRoot, 'plugin.json'), 'utf8')).version };
   return require(path.join(context.pluginRoot, 'hooks/lib/ai-work-capture-v1.js')).run(action, bound, budgetMs);
 }
 function primer(context) {
   if (context.captureMain !== true) return '';
   const helper = JSON.stringify(path.join(context.pluginRoot, 'hooks/native/helper.js'));
-  return `Zensu AI work capture: for an authorized implementation, automatically record its agreed goal once using node ${helper} ai-work begin --task <stable-goal-key> --title <agreed-objective> --criteria <criteria-version-or-digest>. Quote each value. Reuse the same values on retries; use a new key for a changed goal. This applies in direct mode too. Do not begin for startup, greetings or read-only questions. Run node ${helper} ai-work checkpoint after the final clean commit and include its exact reviewUrl. Personal CLI OAuth is required; capture failures remain visible and do not block coding. Stop retries only already declared goals. A report, commit, merge or green test never accepts a result; human acceptance and revocation remain web-only. No transcripts, code, diffs or token usage are captured. See ${path.join(context.pluginRoot, 'docs/ai-work-capture.md')}.`;
+  return `Zensu AI work capture: for an authorized implementation, automatically record its agreed goal once using node ${helper} ai-work begin --task <stable-goal-key> --title <agreed-objective> --criteria <criteria-version-or-digest>. Quote each value. Explicit validation/demo/probe tasks must use --run-kind test; normal product work including tests uses --run-kind work. Reuse the same values on retries; use a new key for a changed goal. This applies in direct mode too. Do not begin for startup, greetings or read-only questions. Run node ${helper} ai-work checkpoint after the final clean commit and include its exact reviewUrl. Personal CLI OAuth is required; capture failures remain visible and do not block coding. Stop retries only already declared goals. A report, commit, merge or green test never accepts a result; human acceptance and revocation remain web-only. No transcripts, code, diffs or token usage are captured. See ${path.join(context.pluginRoot, 'docs/ai-work-capture.md')}.`;
 }
 module.exports = { mainPrincipal, key, options, run, primer, INCOMPLETE };

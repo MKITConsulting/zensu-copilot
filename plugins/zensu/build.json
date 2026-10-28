@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -86,7 +86,7 @@
     {
       "source": "docs/ai-work-capture.md",
       "target": "docs/ai-work-capture.md",
-      "sha256": "f30390cf3861d3e68fc91442b5abaa89268adb97c77ae0e555f2c0c425afdb2b"
+      "sha256": "efdc90926b4c9299f38bb77783f16c8f30641bdaf31c7ce1283a2e66b920bc03"
     },
     {
       "source": "src/plugin/docs/architecture.md",
@@ -96,7 +96,7 @@
     {
       "source": "src/plugin/docs/automatic-context.md",
       "target": "docs/automatic-context.md",
-      "sha256": "dcf1d355e2d2b3769209af951f49393f12fbdf81f2fd1ea666ef617bc04f8657"
+      "sha256": "27763c1589800617d1b911cb497bad414b4f2b100445e58a87d6d6ff5f0e6e29"
     },
     {
       "source": "src/plugin/docs/best-solution-first.md",
@@ -206,7 +206,7 @@
     {
       "source": "src/plugin/hooks/lib/ai-work-capture-v1.js",
       "target": "hooks/lib/ai-work-capture-v1.js",
-      "sha256": "91913c00958947b59d8c1a3a35641a452aa472650b50dbf1fe64bd2499cd6445"
+      "sha256": "a31bc96c12d9bcf6d882398deb11363447ba65f1366d66abfe8807466199410b"
     },
     {
       "source": "src/plugin/hooks/lib/aspect-activation-v1.js",
@@ -231,7 +231,7 @@
     {
       "source": "src/plugin/hooks/lib/context-auto-load-v1.js",
       "target": "hooks/lib/context-auto-load-v1.js",
-      "sha256": "e1beabaecfb49435e0e1bcff88ad39b1d09e5d7cd1d9675ac2bc8b7d8118b06a"
+      "sha256": "3207d64f5e657c6e60a6eb31e913ef6eb14d640fcbd5eda2188251ad4cc02e60"
     },
     {
       "source": "src/plugin/hooks/lib/copilot-hook-session-v1.js",
@@ -456,7 +456,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-cli-map.sh",
       "target": "hooks/lib/zensu-cli-map.sh",
-      "sha256": "98d7c368db4b27772e0e5769bb75cba4a7aa0d4aa85d5eafe4ea59843a295fb1"
+      "sha256": "ba8587deffbf8a3d5a85e4c528df44be702cf866fec35eafe17616b00485c7cb"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-config.sh",
@@ -616,7 +616,7 @@
     {
       "source": "src/ai-work.js",
       "target": "hooks/native/ai-work.js",
-      "sha256": "6f962d412f4302788c1f5102aac83ee3bf25750b48b679d96497f4a884f65b12"
+      "sha256": "bb118bed6dbb3e99fa4ff54d739659f1f4d1e16ff385830bc6725860fe3f8291"
     },
     {
       "source": "src/approval.js",
@@ -816,12 +816,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "4c7165bcb480bcca79c93ff5ab4e0b814a892b21142cf99ce708bccc5084d2e4"
+      "sha256": "080cf72e7528358c186b973e761d0aa839fdcb1c0ee8d44e65b14416aa75ea8c"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "b80b8b361534d227c0fe8c1f83826858747cccbe0fe7a526faae4d4c2eae6589"
+      "sha256": "c3c7f42847dddb5325760a5c500dcebe677722a7da0a762ec8b8d616a56bcc66"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
