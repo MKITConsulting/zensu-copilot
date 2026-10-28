@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -71,7 +71,7 @@
     {
       "source": "src/plugin/com.github.copilot/agents/zensu-plm.agent.md",
       "target": "com.github.copilot/agents/zensu-plm.agent.md",
-      "sha256": "4df639810f3641bac6b4e2097ede6e910602f92638ae0ccec494316089a63037"
+      "sha256": "4a38759f066df43af423a4ec75069809e9645dce24d31095baea611bf67c2a54"
     },
     {
       "source": "src/plugin/com.github.copilot/hooks/hooks.json",
@@ -96,7 +96,7 @@
     {
       "source": "src/plugin/docs/automatic-context.md",
       "target": "docs/automatic-context.md",
-      "sha256": "b2e7a03c62b68bf15c2111bd81983e0aced0db0f9405816ac5a4f89feab202a5"
+      "sha256": "dcf1d355e2d2b3769209af951f49393f12fbdf81f2fd1ea666ef617bc04f8657"
     },
     {
       "source": "src/plugin/docs/best-solution-first.md",
@@ -231,7 +231,7 @@
     {
       "source": "src/plugin/hooks/lib/context-auto-load-v1.js",
       "target": "hooks/lib/context-auto-load-v1.js",
-      "sha256": "5cf5f9d118a7f4e838a29578e03fb451ea5f4939767dc39990e2e20576400376"
+      "sha256": "e1beabaecfb49435e0e1bcff88ad39b1d09e5d7cd1d9675ac2bc8b7d8118b06a"
     },
     {
       "source": "src/plugin/hooks/lib/copilot-hook-session-v1.js",
@@ -816,12 +816,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "e6f20f20620169796f14499da93a48d2e4c31cfaaafaa3eb4ec22a77987d8ca6"
+      "sha256": "4c7165bcb480bcca79c93ff5ab4e0b814a892b21142cf99ce708bccc5084d2e4"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "38ca7859dcf4dd7dfd07cd347a6d7c8dd67af78e752dfe3167293b4346473f40"
+      "sha256": "b80b8b361534d227c0fe8c1f83826858747cccbe0fe7a526faae4d4c2eae6589"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
@@ -986,7 +986,7 @@
     {
       "source": "src/plugin/skills/zensu-implement/references/knowledge-context.md",
       "target": "skills/zensu-implement/references/knowledge-context.md",
-      "sha256": "19e1b1dcf6fc160768f0346ea0082f9d6508bc29b20a311ae62af3f13103324e"
+      "sha256": "ea5c88f02355750c679803e2f28257485986827c65ca363f81a1a17a00e3d8eb"
     },
     {
       "source": "src/plugin/skills/zensu-implement/SKILL.md",

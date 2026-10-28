@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.4.2
+the complete workflow, evidence, acceptance and recovery engine. Version 0.4.3
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -60,12 +60,12 @@ This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.4.2
-cd zensu-copilot-0.4.2
-gh release download v0.4.2 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.4.2.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.4.3
+cd zensu-copilot-0.4.3
+gh release download v0.4.3 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.4.3.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.4.2.tar.gz
+tar -xzf zensu-copilot-0.4.3.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
@@ -174,4 +174,4 @@ security and design context. The context board records these API retrievals by p
 
 ## Automatic feature context
 
-An explicit, unambiguous feature key in a main user prompt automatically loads its tracked context package, including outside the Implement skill and in direct mode. Relevant source reads retain the returned `load_id`. Disable with `hooks.contextAutoLoad: false`. See [automatic context](https://github.com/MKITConsulting/zensu-copilot/blob/main/src/plugin/docs/automatic-context.md) for host support, bounded reads, failure behavior and evidence limits.
+An explicit, unambiguous feature key in a main user prompt automatically loads its tracked context package, including outside the Implement skill and in direct mode. Relevant source reads retain the returned `load_id`. The automatic package presents `layers` first and keeps `related_layers` as a separate bounded metadata index with reasons and directed paths. Choose additional sources for a specific task question; never bulk-fetch either group. Disable with `hooks.contextAutoLoad: false`. See [automatic context](https://github.com/MKITConsulting/zensu-copilot/blob/main/src/plugin/docs/automatic-context.md) for host support, bounded reads, failure behavior and evidence limits.
