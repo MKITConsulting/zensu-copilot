@@ -5,18 +5,18 @@
   },
   "metadata": {
     "description": "Native Zensu workflows for GitHub Copilot CLI",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
   "plugins": [
     {
       "name": "zensu",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "description": "Zensu product lifecycle, implementation, evidence, review and session workflows for Copilot CLI",
       "license": "FSL-1.1-Apache-2.0",
       "source": {
         "source": "github",
         "repo": "MKITConsulting/zensu-copilot",
-        "sha": "91ce5c369e9ccfbbd263255c783326b935040dfd",
+        "sha": "b8f5f488b78a8970232a778248255f5369fe5b57",
         "path": "plugins/zensu"
       }
     }
