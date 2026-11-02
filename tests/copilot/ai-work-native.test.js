@@ -22,6 +22,9 @@ test('capture selectors derive only from native main identity and bound workspac
   const value = capture.options(f.context, ['--task', 'goal', '--title', 'Agreed goal', '--criteria', 'v1']);
   assert.equal(value.workspace, fs.realpathSync(f.project));
   assert.equal(value['cross-product-reason'], undefined);
+  const goal = capture.options(f.context, ['--feature', 'feature', '--feature-revision', 'revision']);
+  assert.equal(goal.feature, 'feature'); assert.equal(goal['feature-revision'], 'revision');
+  assert.equal(capture.options(f.context, ['--maintenance-reason', 'Upgrade tooling'])['maintenance-reason'], 'Upgrade tooling');
   assert.equal(capture.options(f.context, ['--cross-product-reason', 'Explicit shared goal'])['cross-product-reason'], 'Explicit shared goal');
   assert.match(capture.primer(f.context), /explicit human confirmation/);
   assert.equal(value.session, capture.key('main-session'));
