@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -86,7 +86,7 @@
     {
       "source": "docs/ai-work-capture.md",
       "target": "docs/ai-work-capture.md",
-      "sha256": "efdc90926b4c9299f38bb77783f16c8f30641bdaf31c7ce1283a2e66b920bc03"
+      "sha256": "ce152deb787325fed2b733f35e4f623ce87194ee9e0455a86b52091a754038fb"
     },
     {
       "source": "src/plugin/docs/architecture.md",
@@ -206,7 +206,7 @@
     {
       "source": "src/plugin/hooks/lib/ai-work-capture-v1.js",
       "target": "hooks/lib/ai-work-capture-v1.js",
-      "sha256": "a31bc96c12d9bcf6d882398deb11363447ba65f1366d66abfe8807466199410b"
+      "sha256": "ec836eb9ff9a2233b152f5d87b86c943157fda951d1c326cdd12249363d78fdf"
     },
     {
       "source": "src/plugin/hooks/lib/aspect-activation-v1.js",
@@ -456,7 +456,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-cli-map.sh",
       "target": "hooks/lib/zensu-cli-map.sh",
-      "sha256": "ba8587deffbf8a3d5a85e4c528df44be702cf866fec35eafe17616b00485c7cb"
+      "sha256": "9fb6991b62a2e4c6a77c05a69f2080872d9698a4c6e4a0837d3de437be7b9d76"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-config.sh",
@@ -521,7 +521,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-mcp-tools.sh",
       "target": "hooks/lib/zensu-mcp-tools.sh",
-      "sha256": "ea26c25c6a3f6c29d310202cfb00ba4740a05306dcae493285fe1f092d0c45a1"
+      "sha256": "525b1a0d612c3dfd5005aa67a76ec357127f768b1bda6ad23e08d89a4856b2d8"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-msys-env.sh",
@@ -616,7 +616,7 @@
     {
       "source": "src/ai-work.js",
       "target": "hooks/native/ai-work.js",
-      "sha256": "bb118bed6dbb3e99fa4ff54d739659f1f4d1e16ff385830bc6725860fe3f8291"
+      "sha256": "a07272bfc25c70aa19ffac193e295eb41fb28a985f1953ab693b5615eb44c1e3"
     },
     {
       "source": "src/approval.js",
@@ -816,12 +816,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "080cf72e7528358c186b973e761d0aa839fdcb1c0ee8d44e65b14416aa75ea8c"
+      "sha256": "cefa1d2e5259abc5c35a3af7f128d53566076b606e31ff32c9d9d58f71ad65f9"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "c3c7f42847dddb5325760a5c500dcebe677722a7da0a762ec8b8d616a56bcc66"
+      "sha256": "fce68b8ab390a128cba4cc11f766dd8bf7b9d5799b0cbe3d312e7d864ab22a51"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
