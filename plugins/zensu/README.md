@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.6.0
+the complete workflow, evidence, acceptance and recovery engine. Version 0.7.0
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -60,12 +60,12 @@ This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.6.0
-cd zensu-copilot-0.6.0
-gh release download v0.6.0 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.6.0.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.7.0
+cd zensu-copilot-0.7.0
+gh release download v0.7.0 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.7.0.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.6.0.tar.gz
+tar -xzf zensu-copilot-0.7.0.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
@@ -187,6 +187,14 @@ See the shipped `docs/ai-work-capture.md` for retries and historical unknowns.
 Task-description context: prompts without a feature key now automatically retrieve bounded candidates through `zensu knowledge context-search --query <task> --json`. The main agent resolves task and product/repository scope, automatically loads the matching tracked package, and asks only when the feature remains ambiguous. Discovery is not a package receipt. See the automatic-context documentation for transmitted task text, limits and host support.
 
 ### Confirmed product scope for AI work
+
+Each captured objective also requires an explicitly selected `--feature <uuid>`.
+Optional `--feature-revision <uuid>` must belong to that feature. Product-wide
+maintenance uses an explicit `--maintenance-reason <reason>` instead. Missing or
+rejected goal scope pauses automatic capture, including the previous goal's Stop
+hook, while development continues. Resume with an explicit valid goal. Historical
+records keep their original attribution and decisions. See the capture protocol
+for the backend → CLI → plugin upgrade order and per-goal scope rules.
 
 Automatic AI-work capture now requires a product explicitly confirmed by the user
 via `zensu ai-work bind --product <uuid> --confirm`. Missing or changed bindings
