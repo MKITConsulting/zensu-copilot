@@ -21,6 +21,9 @@ test('capture selectors derive only from native main identity and bound workspac
   const f = fixture(t);
   const value = capture.options(f.context, ['--task', 'goal', '--title', 'Agreed goal', '--criteria', 'v1']);
   assert.equal(value.workspace, fs.realpathSync(f.project));
+  assert.equal(value['cross-product-reason'], undefined);
+  assert.equal(capture.options(f.context, ['--cross-product-reason', 'Explicit shared goal'])['cross-product-reason'], 'Explicit shared goal');
+  assert.match(capture.primer(f.context), /explicit human confirmation/);
   assert.equal(value.session, capture.key('main-session'));
   assert.notEqual(value.session, capture.key('other-session'));
   assert.throws(() => capture.options(f.context, ['--session', 'other']), /Invalid/);
@@ -80,6 +83,8 @@ test('packaged capture write gate permits only main reporting and preserves unre
   dispatch('sessionStart', { ...f.raw, source: 'startup' }, { root, env: f.env });
   for (const [command, actor, denied] of [
     ['zensu ai-work start --id goal --title agreed', {}, false],
+    ['zensu ai-work bind --product product --confirm', {}, false],
+    ['zensu ai-work bind --product product --confirm', { agentId: 'child', agentType: 'general-purpose' }, true],
     ['zensu ai-work submit goal --event-id event', {}, false],
     ['zensu ai-work context && zensu ai-work get goal', {}, false],
     ['zensu ai-work start --id goal && zensu security classify f1', {}, true],
