@@ -59,7 +59,7 @@ assert.equal(build.schemaVersion, 2);
 assert(!fs.existsSync(path.join(plugin, 'hooks/hooks.json')), 'Foreign hook registry leaked into native package');
 assert(fs.existsSync(path.join(plugin, 'hooks/registry.json')), 'Native policy registry missing');
 for (const file of build.files) {
-  assert(file.source.startsWith('src/') || ['README.md', 'docs/parity.md', 'docs/copilot-runtime.md', 'docs/ai-work-capture.md'].includes(file.source), `Non-owned build source: ${file.source}`);
+  assert(file.source.startsWith('src/') || ['README.md', 'docs/parity.md', 'docs/copilot-runtime.md', 'docs/ai-work-capture.md', 'docs/cli-install-update.md'].includes(file.source), `Non-owned build source: ${file.source}`);
   assert.equal(sha256(fs.readFileSync(path.join(root, file.source))), file.sha256, `Build transformed owned source: ${file.target}`);
   if (!/\.(?:js|mjs|sh)$/.test(file.target)) continue;
   const text = fs.readFileSync(path.join(plugin, file.target), 'utf8');
