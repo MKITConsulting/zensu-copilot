@@ -48,6 +48,68 @@ test('native session control binds helpers and rejects independently changed sel
   assert.notEqual(legacy.status, 0);
 });
 
+test('native workflow helpers and gates validate the project once per invocation and fail closed on a fresh read', t => {
+  const f = fixture(t);
+  assert.equal(spawnSync('git', ['init', '-q', f.project]).status, 0);
+  const start = f.run('copilot-session-control-v1.js', { eventName: 'sessionStart', sessionId: f.id, cwd: f.project, source: 'new' });
+  assert.equal(start.status, 0, start.stderr);
+  const counter = path.join(f.dir, 'project-reads');
+  const observer = path.join(f.dir, 'observe-project-read.cjs');
+  fs.writeFileSync(observer, `
+    if (process.env.PROJECT_CANDIDATE && process.env.CONTEXT_FILE) {
+      require('node:fs').appendFileSync(${JSON.stringify(counter)}, 'read\\n');
+      if (process.env.TEST_PROJECT_READ_FAILURE === '1') process.exit(1);
+    }
+  `);
+  const run = extra => spawnSync('bash', [path.join(lib, 'zensu-log.sh'), '--tdd-begin', '--tdd-mode', 'strict'], {
+    cwd: f.project, env: { ...f.env, NODE_OPTIONS: `--require ${JSON.stringify(observer)}`, ...extra },
+    encoding: 'utf8', timeout: 60000,
+  });
+  const first = run({});
+  assert.equal(first.status, 0, first.error?.message || first.stderr);
+  assert.equal(fs.readFileSync(counter, 'utf8'), 'read\n', 'nested workflow operations reuse the validated project');
+  const core = require(path.join(lib, 'session-control-core-v1'));
+  const state = () => core.readWorkflowState({ projectRoot: f.project, sessionId: f.id });
+  const before = state();
+  assert.equal(before.active, true);
+  assert.equal(before.vanilla, false);
+  const gate = extra => spawnSync('bash', [path.join(plugin, 'hooks/pre-edit-tdd-reminder.sh')], {
+    cwd: f.project, env: { ...f.env, NODE_OPTIONS: `--require ${JSON.stringify(observer)}`, ...extra },
+    input: JSON.stringify({ eventName: 'preToolUse', sessionId: f.id, cwd: f.project, toolName: 'edit',
+      toolArgs: { path: path.join(f.project, 'src/a.js'), old_str: 'old', new_str: 'new' } }),
+    encoding: 'utf8', timeout: 50000,
+  });
+  const guarded = gate({});
+  assert.equal(guarded.status, 0, guarded.error?.message || guarded.stderr);
+  assert.match(JSON.parse(guarded.stdout).permissionDecisionReason, /TDD-Phase-Gate: edit/);
+  assert.equal(fs.readFileSync(counter, 'utf8'), 'read\nread\n', 'the edit gate also validates only once');
+  const denied = gate({ TEST_PROJECT_READ_FAILURE: '1', _ZENSU_PROJECT_DIR_MEMO: f.project });
+  assert.equal(denied.status, 0, denied.error?.message || denied.stderr);
+  assert.equal(JSON.parse(denied.stdout).permissionDecision, 'deny');
+  assert.equal(fs.readFileSync(counter, 'utf8'), 'read\nread\nread\n', 'a new hook must validate again');
+  const refused = run({ TEST_PROJECT_READ_FAILURE: '1', _ZENSU_PROJECT_DIR_MEMO: f.project });
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /project context unavailable/);
+  assert.equal(fs.readFileSync(counter, 'utf8'), 'read\nread\nread\nread\n', 'a new helper must validate again');
+  fs.writeFileSync(counter, '');
+  const review = extra => spawnSync('bash', [path.join(plugin, 'hooks/post-review-tdd-delegate.sh')], {
+    cwd: f.project, env: { ...f.env, NODE_OPTIONS: `--require ${JSON.stringify(observer)}`, ...extra },
+    input: JSON.stringify({ eventName: 'postToolUse', sessionId: f.id, cwd: f.project,
+      toolName: 'task', toolOutcome: 'completed', toolArgs: { agent_type: 'zensu:code-reviewer',
+        prompt: 'PRE-MERGED FINDINGS (fan-out)\nREVIEW-TICKET: rt_fixture' } }),
+    encoding: 'utf8', timeout: 35000,
+  });
+  const premature = review({});
+  assert.equal(premature.status, 0, premature.error?.message || premature.stderr);
+  assert.equal(premature.stdout, '', 'incomplete implementation cannot consume a review');
+  assert.equal(fs.readFileSync(counter, 'utf8'), 'read\n', 'review preflight also validates only once');
+  const refusedReview = review({ TEST_PROJECT_READ_FAILURE: '1', _ZENSU_PROJECT_DIR_MEMO: f.project });
+  assert.equal(refusedReview.status, 0, refusedReview.error?.message || refusedReview.stderr);
+  assert.equal(refusedReview.stdout, '');
+  assert.equal(fs.readFileSync(counter, 'utf8'), 'read\nread\n', 'a new review hook must validate again');
+  assert.deepEqual(state(), before, 'failed fresh validation cannot start another workflow generation');
+});
+
 test('source-write parser guards both native identity selectors', () => {
   for (const name of ['COPILOT_SESSION_ID', 'ZENSU_BOUND_SESSION_ID']) {
     assert.match(shell.detectControlMutation(`${name}=other bash helper.sh`), /Blocked/);

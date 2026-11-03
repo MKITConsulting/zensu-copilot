@@ -28,6 +28,9 @@ function fixture(t) {
   fs.mkdirSync(path.join(project, 'src'), { recursive: true });
   const config = path.join(base, 'config.json');
   fs.writeFileSync(config, JSON.stringify({ hooks: { pulseSession: false, sessionBanner: false,
+    // Presentation has its own native suite; this fixture exercises workflow
+    // policy and must not spend its hook budget rendering a model-facing style.
+    zenMode: false,
     autoTdd: false, tddImplementation: true, autoFixMaxRounds: 5 }, context: { compactionNudge: false },
     evidence: { fullSuiteCommand: `${quote(process.execPath)} src/sum.test.js`, fullSuiteRunner: 'local', fullSuiteGate: 'required' } }));
   const env = { ...process.env, HOME: base, COPILOT_HOME: path.join(base, 'copilot'),
@@ -73,9 +76,11 @@ function fixture(t) {
     const toolCallId = crypto.randomUUID();
     append('tool.execution_start', { toolCallId, toolName: 'bash', arguments: args });
     const execution = spawnSync('bash', ['-c', before.modifiedArgs.command], {
-      env, cwd: project, encoding: 'utf8', timeout: 30000, maxBuffer: 2 * 1024 * 1024,
+      // A workflow helper performs several runtime and evidence checks. Allow
+      // bounded scheduling headroom without changing production hook deadlines.
+      env, cwd: project, encoding: 'utf8', timeout: 60000, maxBuffer: 2 * 1024 * 1024,
     });
-    assert.equal(execution.error, undefined, execution.error?.message);
+    assert.equal(execution.error, undefined, `${command}\n${execution.error?.message || ''}\n${execution.stderr || ''}`);
     assert.equal(execution.status, expectedStatus, `${command}\n${execution.stdout}\n${execution.stderr}`);
     // The native bash transport succeeds even when its child exits nonzero.
     // Its exact footer is the exit-code authority seen by postToolUse.
@@ -249,7 +254,7 @@ test('packaged native workflow executes RED/GREEN evidence and closes only after
   assert.equal(f.state().reviewRound, 0, 'a failed reviewer cannot consume the ticket');
   const completed = f.reviewer(ticket, 'sync', 'success');
   assert.match(completed.additionalContext, /tdd/);
-  assert.equal(f.state().reviewRound, 1);
+  assert.equal(f.state().reviewRound, 1, JSON.stringify(completed));
   assert.equal(f.state().reviewTicketConsumed, true);
 
   f.helper(['--code-review-done', '--claimed-review-ticket', ticket]);

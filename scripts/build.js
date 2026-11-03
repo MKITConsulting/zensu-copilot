@@ -24,7 +24,7 @@ function copy(from, relative) {
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 copy(path.join(root, 'src/plugin'), '');
-for (const name of ['protocol.js', 'transcript.js', 'dispatcher.js', 'context.js', 'helper.js', 'approval.js', 'review-gate.js', 'ai-work.js']) {
+for (const name of ['protocol.js', 'transcript.js', 'dispatcher.js', 'context.js', 'helper.js', 'approval.js', 'review-gate.js', 'ai-work.js', 'zen-progress.js']) {
   copy(path.join(root, 'src', name), `hooks/native/${name}`);
 }
 copy(path.join(root, 'src/session-trail'), 'skills/zensu-session-trail/scripts');

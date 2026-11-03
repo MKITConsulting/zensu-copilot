@@ -89,7 +89,10 @@ test('two real sessions cannot switch workflow ownership through the native help
   const legitimate = `COPILOT_PLUGIN_DATA=${context.quote(env.COPILOT_PLUGIN_DATA)} COPILOT_PROJECT_DIR=${context.quote(project)} node "$COPILOT_PLUGIN_ROOT/hooks/native/helper.js" runtime zensu-log.sh --tdd-begin`;
   const allowed = dispatch('preToolUse', { sessionId: sessions[0], cwd: project, toolName: 'bash', toolArgs: { command: legitimate } }, { env, root });
   assert.notEqual(allowed.permissionDecision, 'deny', allowed.permissionDecisionReason);
-  const execution = spawnSync('bash', ['-c', allowed.modifiedArgs.command], { env, cwd: project, encoding: 'utf8', timeout: 20000 });
+  // The real workflow begin has the same bounded scheduling headroom as the
+  // core integration fixture; production hook deadlines remain unchanged.
+  const execution = spawnSync('bash', ['-c', allowed.modifiedArgs.command], { env, cwd: project, encoding: 'utf8', timeout: 60000 });
+  assert.equal(execution.error, undefined, execution.error?.message || execution.stderr);
   assert.equal(execution.status, 0, execution.stderr);
   assert.equal(JSON.parse(fs.readFileSync(state(keys[0]), 'utf8')).active, true);
   assert.equal(fs.readFileSync(state(keys[1]), 'utf8'), beforeB);

@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.7.1
+the complete workflow, evidence, acceptance and recovery engine. Version 0.8.0
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -60,12 +60,12 @@ This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.7.1
-cd zensu-copilot-0.7.1
-gh release download v0.7.1 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.7.1.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.8.0
+cd zensu-copilot-0.8.0
+gh release download v0.8.0 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.8.0.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.7.1.tar.gz
+tar -xzf zensu-copilot-0.8.0.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
@@ -120,6 +120,44 @@ Workflows use the tools actually exposed in the session. Progress uses
 checklist. Edits use available `apply_patch` or native create/edit tools.
 Interactive conversation can carry required questions when `ask_user` is
 absent; missing decisions in headless runs stay pending.
+
+## Zen mode and workflow progress
+
+Zen mode is enabled by default. `/zensu-zen-mode` enables it for the current
+session; `zen off` or `normal mode` turns it off. The skill also exposes
+`--on`, `--off` and `--status` through its bound helper. Configure
+`hooks.zenModeDefault` for new sessions or `hooks.zenMode` to disable injection.
+
+During an active Zensu workflow, concise responses carry the current chain position:
+
+```text
+Zensu: ✓implement ▶review ·self-review
+```
+
+This applies to each user-facing intermediate message as well as the final
+answer. Brief updates between tool calls place the line after the message;
+they do not wait until the turn ends or add an unnecessary recap or next step.
+
+Copilot receives a fresh anchor after tool execution when the position changes,
+without waiting for another user message. This is a response line supplied through
+native hook context, not a persistent terminal status bar. It is separate from
+the detailed task checklist. Unchanged tool updates are suppressed; turning the
+mode off, closing the chain or losing readable state clears stale progress.
+Unknown outcomes never become checkmarks. A standalone chain currently has no
+verifiable self-review outcome field, so its anchor is omitted at that stage.
+
+The startup hook supplies the full Zen contract even when Copilot transforms the
+first prompt before initializing the session. At the end of a turn, the native
+stop hook checks the actual main-agent response against the current anchor. If
+the line is missing, it requests one presentation-only correction per user turn.
+It skips presentation when a workflow policy already blocks completion. A failed
+presentation check logs a diagnostic without changing the workflow decision.
+It never repeats implementation or review.
+This bounded correction still depends on Copilot honoring the continuation;
+hook delivery alone is not proof that the line was displayed.
+Intermediate messages have no equivalent stop-time correction; their rendering
+is explicitly instructed in the prompt contract and changed-anchor delivery,
+and is checked separately in native transcript captures.
 
 ## Validation
 
