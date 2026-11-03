@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -86,7 +86,7 @@
     {
       "source": "docs/ai-work-capture.md",
       "target": "docs/ai-work-capture.md",
-      "sha256": "127077e1eec76753888a07bfd9ce6fa75230e924351a3e265779396b68dfdd46"
+      "sha256": "b2553322f7006a0e848c3546ed042776c45c266e1447b905900cc9c57d347944"
     },
     {
       "source": "src/plugin/docs/architecture.md",
@@ -211,7 +211,7 @@
     {
       "source": "src/plugin/hooks/lib/ai-work-capture-v1.js",
       "target": "hooks/lib/ai-work-capture-v1.js",
-      "sha256": "b1671193055f170dc7ae235f1f2264ed825a8e162e82da0d8794fc1d96eff4d0"
+      "sha256": "5d660af8f938b270282a72db46d9728643b76c22b0c92a7466a5e35ff29a3440"
     },
     {
       "source": "src/plugin/hooks/lib/ai-work-goal-scope-v1.js",
@@ -636,7 +636,7 @@
     {
       "source": "src/ai-work.js",
       "target": "hooks/native/ai-work.js",
-      "sha256": "a823335683533b8847974510eb6ba0f532a53ae28de7d4a02274328d71f30eec"
+      "sha256": "ae8b1045f0292bec5d3597669fd1edbd7a800e762e0c53828bddde622cd66aea"
     },
     {
       "source": "src/approval.js",
@@ -841,12 +841,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "0caa88ffe043c5be1571a7ce3549424cdb7546dccb8c4d25c2e2c73c32dd7483"
+      "sha256": "bb70f3e153a4ba206a5bb1056b1dc19ed2a23727906ff2acc3d5237bc9d8ad16"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "98463a4403fd62abe9c22b9d8ccadfaf206ab3c8c7a41349b8ceb5eb0d31cd54"
+      "sha256": "83c3dd0d144ded6fafde3bda0e0da64fe1b2c2acff5d0baf46b9220495f364c7"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
