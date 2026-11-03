@@ -73,6 +73,13 @@ SESSION_ID="$(parse_field sessionId)"
 SESSION_ID="$(zensu_resolve_session_id "$SESSION_ID")" || exit 0
 FILE_PATH="$(parse_field toolArgs.path)"
 
+# State and path checks below share this invocation's immutable project binding.
+# A fresh hook still binds and validates before any cached path can be used.
+if ! zensu_memoize_project_dir; then
+  zensu_emit_hook_session_deny
+  exit 0
+fi
+
 source "$COPILOT_PLUGIN_ROOT/hooks/lib/zensu-tdd-phase.sh"
 
 STATE_FILE=$(tdd_state_file "$SESSION_ID")

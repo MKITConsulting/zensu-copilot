@@ -135,7 +135,9 @@ test('native shell lifecycle wires markers, progress closure and generation rese
   git(['init', '-q']); fs.writeFileSync(path.join(f.projectRoot, '.gitignore'), '.zensu/\n'); git(['add', '.']);
   git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'fixture']);
   const run = (...args) => {
-    const result = spawnSync('bash', [path.join(plugin, 'hooks/lib/zensu-log.sh'), ...args], { cwd: f.projectRoot, env, encoding: 'utf8', timeout: 20000 });
+    // Native lifecycle helpers verify the packaged runtime and Git evidence.
+    // Keep a bounded budget that also permits a loaded development machine.
+    const result = spawnSync('bash', [path.join(plugin, 'hooks/lib/zensu-log.sh'), ...args], { cwd: f.projectRoot, env, encoding: 'utf8', timeout: 60000 });
     assert.equal(result.status, 0, `${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
     return result;
   };

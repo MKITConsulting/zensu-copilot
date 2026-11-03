@@ -37,7 +37,7 @@ function fixture(t, { version } = {}) {
     fs.writeFileSync(manifest, JSON.stringify({...JSON.parse(fs.readFileSync(manifest)), version}));
   }
   fs.mkdirSync(path.join(root, 'hooks/native'), {recursive:true});
-  for (const name of ['dispatcher', 'protocol', 'context', 'approval', 'helper', 'transcript', 'review-gate', 'ai-work']) fs.copyFileSync(path.join(repo, `src/${name}.js`), path.join(root, `hooks/native/${name}.js`));
+  for (const name of ['dispatcher', 'protocol', 'context', 'approval', 'helper', 'transcript', 'review-gate', 'ai-work', 'zen-progress']) fs.copyFileSync(path.join(repo, `src/${name}.js`), path.join(root, `hooks/native/${name}.js`));
   seal(root);
   const project = path.join(dir, 'project'), data = path.join(dir, 'data');
   fs.mkdirSync(project, {mode:0o700});

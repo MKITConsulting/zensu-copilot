@@ -36,6 +36,9 @@ source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-agent-context.sh"
 zensu_hook_is_main_principal "$INPUT" postToolUse || exit 0
 source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
 zensu_bind_hook_session "$INPUT" || exit 0
+# Review preflight and ticket operations reuse this invocation's validated
+# project binding; the next hook invocation must bind and validate afresh.
+zensu_memoize_project_dir || exit 0
 PROJECT_ROOT="$(zensu_resolve_project_dir)" || exit 0
 export COPILOT_PROJECT_DIR="$PROJECT_ROOT"
 source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-config.sh"
