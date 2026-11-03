@@ -209,12 +209,12 @@ not a terminal status-line integration. The existing classifier remains the sole
 stage authority: unknown, closed and standalone self-review outcomes omit the
 anchor rather than claim success. Fixture tests execute native bindings, helpers
 and dispatcher events. Native rendering evidence is recorded separately in the
-[initial probe](../validation/copilot-zen-progress-2026-11-02/README.md) and
-[fix validation](../validation/copilot-zen-progress-2026-11-03/README.md), including
-failed attempts and exact frozen package identities. Those probes use real
+[0.8.0 validation report](../validation/copilot-zen-progress-0.8.0.md), with frozen
+package identities and the limits of earlier failed attempts. The probes use real
 Copilot responses with scripted disposable workflow states; they do not claim
-an actual implementation/review workflow. The immutable source snapshot and
-Claude installations are untouched.
+an actual implementation/review workflow. Raw local transcripts and protocol
+screenshots are retained locally rather than published. The immutable source
+snapshot and Claude installations are untouched.
 
 Native workflow reliability uses owned Copilot helpers:
 
