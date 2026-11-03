@@ -170,7 +170,9 @@ test('existing stop policy blocks survive an exhausted budget without invoking Z
 });
 
 test('presentation deadlines and malformed outputs cannot create workflow stop decisions', t => {
-  const f = fixture(t);
+  const f = fixture(t, { start: false });
+  // This injected hook/clock test does not exercise startup or AI-work capture.
+  t.mock.method(require('../../src/ai-work'), 'run', () => ({ status: 'not_started' }));
   let now = 0;
   t.mock.method(Date, 'now', () => now);
   const warnings = [];
