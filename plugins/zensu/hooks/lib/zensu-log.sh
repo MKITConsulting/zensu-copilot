@@ -43,7 +43,9 @@ case "${1:-}" in
       fi
       exit 2
     fi
-    if ! _zensu_pd="$(zensu_resolve_project_dir)" || [ -z "$_zensu_pd" ]; then
+    # Reuse this invocation's validated immutable project binding. Workflow
+    # helpers resolve it repeatedly; each new process still binds and validates.
+    if ! zensu_memoize_project_dir || ! _zensu_pd="$(zensu_resolve_project_dir)" || [ -z "$_zensu_pd" ]; then
       echo "zensu-log.sh: Session Control project context unavailable" >&2
       exit 2
     fi

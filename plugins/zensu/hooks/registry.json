@@ -77,6 +77,10 @@
       "script": "hooks/post-work-order.sh",
       "matcher": ".*",
       "timeout": 60
+    },
+    {
+      "script": "hooks/user-prompt-zen-mode.sh",
+      "timeout": 20
     }
   ],
   "sessionStart": [
@@ -90,6 +94,10 @@
     {
       "script": "hooks/session-start-prompt-ledger.sh",
       "timeout": 10
+    },
+    {
+      "script": "hooks/user-prompt-zen-mode.sh",
+      "timeout": 20
     },
     {
       "script": "hooks/user-prompt-best-solution-first.sh",
@@ -139,6 +147,10 @@
     {
       "script": "hooks/stop-work-order.sh",
       "timeout": 120
+    },
+    {
+      "script": "hooks/user-prompt-zen-mode.sh",
+      "timeout": 20
     }
   ],
   "userPromptSubmitted": [],

@@ -56,6 +56,13 @@ That writes a session-scoped marker under `.zensu/state/` holding
 `{"active":true}`. From the next prompt on, `hooks/user-prompt-zen-mode.sh`
 injects the contract below in full once per context generation and a short form of
 it on every later turn, so the style cannot quietly fade the way a one-time skill load does.
+Native post-tool hooks refresh the anchor when the workflow position changes
+within a turn. Use the latest hook-supplied anchor; it replaces the earlier one.
+Unchanged positions are suppressed. A `none` update clears the progress line.
+The startup hook also supplies the full contract before the first response.
+At the final-response boundary, a missing current line can trigger one bounded
+presentation correction. Reissue the answer with that line while preserving the
+result, failures and limitations; do not repeat tools or workflow work.
 
 Then confirm in one line, in the user's own language, and continue with whatever
 they were doing. Do not explain the mode at length — that would be the first
@@ -102,7 +109,7 @@ COPILOT_PLUGIN_DATA="${COPILOT_PLUGIN_DATA}" bash "${COPILOT_PLUGIN_ROOT}/hooks/
 
 ## The contract
 
-Apply all of these while the mode is active. native file creation in the user's own language —
+Apply all of these while the mode is active. Write in the user's own language —
 the rules are recorded in English, the answer follows the user.
 
 1. **Recap first.** Open with one short line covering what happened since the
@@ -127,6 +134,14 @@ the rules are recorded in English, the answer follows the user.
    order, same marks — directly above the closing next step, or above the final
    step list when the one-next-step rule is suspended.
 
+   Include the latest supplied line in **every user-facing intermediate message**
+   as well as the final answer. Render only the value starting with `Zensu:`,
+   never the `ZENSU CHAIN ANCHOR:` field label or the HTML markers.
+   In a brief progress message between tool calls,
+   put the line after the message; do not wait until the end of the turn. Keep
+   using it until another hook update replaces or clears it. Do not add an
+   unnecessary message, recap or next step just to display progress.
+
    ```
    Zensu: ✓implement ▶review ·self-review
    ```
@@ -138,7 +153,9 @@ the rules are recorded in English, the answer follows the user.
    armed, or its position is unknown — so render no chain-progress anchor at
    all: never invent steps, never copy a canonical
    pipeline out of another component, and never carry an anchor over from an
-   earlier turn. **This anchor only means anything inside a Zensu-driven
+   earlier turn. Post-tool progress updates supersede the prompt's anchor;
+   do not keep displaying a line after an update clears it. This is a response
+   line, not a persistent Copilot terminal status bar. **This anchor only means anything inside a Zensu-driven
    development process.** Outside one it was decoration that read like evidence —
    a session that merely answered a question about a running process still closed
    with a four-step progress line, which is the report this rule exists to

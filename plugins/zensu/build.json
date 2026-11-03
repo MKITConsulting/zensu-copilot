@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -141,7 +141,7 @@
     {
       "source": "docs/parity.md",
       "target": "docs/parity.md",
-      "sha256": "7517e56dedce43b337024d495475c6a85c9fb5f1209b18c499b5d98831cf3014"
+      "sha256": "f11b941fc2ce1d3971f6b9941a4e69937167e3c3e1d0787470f9f4b16fe658fd"
     },
     {
       "source": "src/plugin/docs/review-chain.md",
@@ -531,7 +531,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-log.sh",
       "target": "hooks/lib/zensu-log.sh",
-      "sha256": "10cf0e4042371852dd6f9170f4ab0bf84cf323962db4afce38152bf9a6d0ff64"
+      "sha256": "fa6a7212fe3c8ca6d2d410c2a98a77a64665e3e367aaffff9c69bf38dc572b03"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-marker-write.sh",
@@ -651,7 +651,7 @@
     {
       "source": "src/dispatcher.js",
       "target": "hooks/native/dispatcher.js",
-      "sha256": "b619449f7c850d4a359387ffa11d1bd2014af9e543aa3cd765f8a2d64ad028a2"
+      "sha256": "31894ec475b057153bd274a17055c8000a4e777382f5479ec4696806503e599b"
     },
     {
       "source": "src/helper.js",
@@ -674,6 +674,11 @@
       "sha256": "0bafde4e4ba1cb3964254347d507401933bae9e80fd618e2b4f44229ceb98767"
     },
     {
+      "source": "src/zen-progress.js",
+      "target": "hooks/native/zen-progress.js",
+      "sha256": "5c29e6e2b3c7c4fabfbf637c89b671501544a00e97e05dfc1322fbeda7ba4a8f"
+    },
+    {
       "source": "src/plugin/hooks/plan-approved-delegate.sh",
       "target": "hooks/plan-approved-delegate.sh",
       "sha256": "88794f8fb9096b81e421f86b627ea35690fad1671001ff89f7388bbdb33dabf4"
@@ -691,7 +696,7 @@
     {
       "source": "src/plugin/hooks/post-review-tdd-delegate.sh",
       "target": "hooks/post-review-tdd-delegate.sh",
-      "sha256": "3a5402814a0408400b3c094691ccf90ead5d2d44aea20a06d77683f874a12e29"
+      "sha256": "5f24943c775bfc6f8861873011fbf2c4901ca5e4c276f7189a5dda2d3099e2fa"
     },
     {
       "source": "src/plugin/hooks/post-work-order.sh",
@@ -721,7 +726,7 @@
     {
       "source": "src/plugin/hooks/pre-edit-tdd-reminder.sh",
       "target": "hooks/pre-edit-tdd-reminder.sh",
-      "sha256": "8cde50c831eeba89fc334c308f89113c186aef0f30507fba50d044aba68064d2"
+      "sha256": "3b37e9738c3e31a0ee68e9e7f2bc1b176bd16a898a205fc11404e45636edfcea"
     },
     {
       "source": "src/plugin/hooks/pre-reviewer-capability-gate.sh",
@@ -746,7 +751,7 @@
     {
       "source": "src/plugin/hooks/registry.json",
       "target": "hooks/registry.json",
-      "sha256": "121458283aa88a276436f57b4c4fe520d5c562d76d4dbc76fd3194e935702222"
+      "sha256": "81c9cc32ea31d88986b5ec4eced944289b9f7fc739020b7abd124c2a925c788b"
     },
     {
       "source": "src/plugin/hooks/review-evidence-subagent-start.sh",
@@ -826,7 +831,7 @@
     {
       "source": "src/plugin/hooks/user-prompt-zen-mode.sh",
       "target": "hooks/user-prompt-zen-mode.sh",
-      "sha256": "f7806f41c38b67d96ec4cd844effbed5b118ad472b6cd018a19d80c3e8c53018"
+      "sha256": "cd4e942861cf196dc36557b9c904fc3ce8f3c453b11d61b2210335f96a4e2c4f"
     },
     {
       "source": "src/plugin/LICENSE",
@@ -836,12 +841,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "672d4c8f47ea86d319cbb6acc35851b5a8edf5aeaf59cd13f709b68fa7fc1256"
+      "sha256": "0caa88ffe043c5be1571a7ce3549424cdb7546dccb8c4d25c2e2c73c32dd7483"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "761056e95c6080b6fe12deeccec10d946091c21b3e39331a411bf0742f52f43c"
+      "sha256": "98463a4403fd62abe9c22b9d8ccadfaf206ab3c8c7a41349b8ceb5eb0d31cd54"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
@@ -1431,7 +1436,7 @@
     {
       "source": "src/plugin/skills/zensu-zen-mode/SKILL.md",
       "target": "skills/zensu-zen-mode/SKILL.md",
-      "sha256": "cfb8f275059dda87e74ff51fcca82413615e9603a9daa73f2168a06e943ee044"
+      "sha256": "eaa1c4a3c7a16b7b9809777ed6abeda447bc06b9e83bf087616ee7be36502609"
     },
     {
       "source": "src/plugin/templates/autopilot-pr-body.md",

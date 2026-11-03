@@ -110,7 +110,7 @@ The package registers these **11** events in
 
 | Native event | Runtime responsibility |
 | --- | --- |
-| `sessionStart` | Bind native session/project/install; startup rules, session state, Pulse and journal |
+| `sessionStart` | Bind native session/project/install; startup rules, full Zen contract, session state, Pulse and journal |
 | `sessionEnd` | End observation and run supported lifecycle cleanup |
 | `userPromptSubmitted` | Record original prompt observation without double-routing the workflow |
 | `userPromptTransformed` | Route the transformed prompt into policy, intent and session-ledger hooks |
@@ -119,12 +119,21 @@ The package registers these **11** events in
 | `postToolUseFailure` | Preserve failure state; explicitly prohibit success/approval/review evidence from a failed call |
 | `subagentStart` | Correlate a native child identity and its read-only role |
 | `subagentStop` | Consume an actual child completion/result with its identity |
-| `agentStop` | Enforce pending implementation/review/Autopilot completion obligations |
+| `agentStop` | Enforce pending implementation/review/Autopilot completion obligations; request at most one missing-progress correction per real user turn |
 | `preCompact` | Reset the prompt-ledger segment for compaction without guessing context utilization |
 
 Shell/parser failures in a policy gate deny the operation. A failed stop gate
 keeps the workflow pending. An asynchronous task launch is never a completed
 review.
+
+Zen presentation is verified separately from context delivery. After existing
+stop policies permit completion, the native verifier reads the session's actual
+main-agent final response. It compares that response with a freshly resolved
+anchor and may request one correction; it never completes workflow state or
+overrides another stop block. Unreadable or foreign transcripts, children,
+non-final stops and disabled/unknown progress do not trigger a correction. The
+first-response contract also runs after native startup binding, covering CLI
+versions that transform the initial prompt before `sessionStart`.
 
 ## Session trail and headless work
 
@@ -177,6 +186,35 @@ direct native panels for review; upstream Claude E2E/Promptfoo runs do not
 validate this port.
 
 ## Evidence levels
+
+### Zen mode progress
+
+The native prompt hook retains the reference's default-on, per-session mode,
+explicit toggles, concise response contract and owner-derived chain anchor.
+Copilot also invokes that same reader on `postToolUse`, after workflow policy
+updates. Only a changed anchor is injected; the private native session registry
+stores the last delivered value solely for deduplication. Multi-file tool events
+refresh once; compaction resets the delivery cache. Tool arguments/results never enter the prompt toggle recognizer,
+and child agents cannot update the main session's presentation cache.
+
+The native contract explicitly includes every user-facing intermediate message,
+with a compact reminder when a post-tool anchor changes. An unchanged update
+remains suppressed; the previously supplied anchor applies until replaced or
+cleared. Copilot's `agentStop` correction covers final answers only. Intermediate
+rendering relies on model compliance and needs separate visible-message evidence,
+not just a successful hook delivery.
+
+The display is a model-rendered response line through native `additionalContext`,
+not a terminal status-line integration. The existing classifier remains the sole
+stage authority: unknown, closed and standalone self-review outcomes omit the
+anchor rather than claim success. Fixture tests execute native bindings, helpers
+and dispatcher events. Native rendering evidence is recorded separately in the
+[0.8.0 validation report](../validation/copilot-zen-progress-0.8.0.md), with frozen
+package identities and the limits of earlier failed attempts. The probes use real
+Copilot responses with scripted disposable workflow states; they do not claim
+an actual implementation/review workflow. Raw local transcripts and protocol
+screenshots are retained locally rather than published. The immutable source
+snapshot and Claude installations are untouched.
 
 Native workflow reliability uses owned Copilot helpers:
 

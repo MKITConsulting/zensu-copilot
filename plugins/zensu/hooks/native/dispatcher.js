@@ -7,6 +7,7 @@ const protocol = require('./protocol');
 const nativeContext = require('./context');
 const aiWork = require('./ai-work');
 const reviewGate = require('./review-gate');
+const { reconcileProgress, verifyProgressResponse } = require('./zen-progress');
 const { readPlanApproval, readNavigationApproval } = require('./approval');
 
 function matchingHooks(root, event, tool) {
@@ -74,7 +75,7 @@ function dispatch(event, raw, options = {}) {
   nativeContext.observe(context, event, { agentId: payload.agentId, agentType: payload.agentType, isChild: payload.isChild });
   // Copilot emits prompt/stop events inside custom agents as well. They are not
   // new human instructions or completion of the main workflow.
-  if (payload.isChild && ['userPromptSubmitted', 'userPromptTransformed', 'agentStop', 'sessionEnd'].includes(event)) return {};
+  if (payload.isChild && ['userPromptSubmitted', 'userPromptTransformed', 'agentStop', 'sessionEnd', 'preCompact'].includes(event)) return {};
   if (event === 'userPromptSubmitted') {
     const record = nativeContext.readPrivate(context.registryFile);
     nativeContext.writePrivate(context.registryFile, { ...record, lastUserPrompt: String(raw.prompt || '').slice(0, 64000) });
@@ -86,6 +87,9 @@ function dispatch(event, raw, options = {}) {
       env: nativeContext.nativeEnv(context, env), cwd: context.cwd, timeout: 10000, maxBuffer: 1024 * 1024,
     });
     if (result.error || result.status !== 0) throw new Error('Could not reset prompt ledger before compaction');
+    // The compacted context may no longer contain the last delivered anchor.
+    // Let the next tool event refresh it even if the workflow did not advance.
+    nativeContext.writePrivate(context.registryFile, { ...nativeContext.readPrivate(context.registryFile), zenProgressAnchor: 'none' });
     return {};
   }
   if (event === 'postToolUseFailure') {
@@ -125,14 +129,28 @@ function dispatch(event, raw, options = {}) {
   const start = Date.now();
   const budget = event === 'preToolUse' ? 50000 : 35000;
   const results = [];
+  const presentationUnavailable = () => process.stderr.write('Zensu Zen presentation unavailable at stop; workflow policy decisions are unchanged.\n');
+  let zenProgressHandled = false;
+  let zenProgressIndex = -1;
   let calls = [payload];
   if (payload.toolCalls?.length) calls = payload.toolCalls.map((call) => ({ ...payload, ...call }));
   for (const call of calls) {
     for (const hook of matchingHooks(root, event, call.toolName)) {
+      const zenStop = event === 'agentStop' && hook.name === 'user-prompt-zen-mode.sh';
+      // Presentation has no work to do after a policy block and must not spend
+      // the remaining stop budget or replace the existing workflow decision.
+      if (zenStop && protocol.normalizeOutput(event, results, raw).decision === 'block') continue;
+      // A patch can normalize to many file operations; progress belongs to the
+      // completed host event, not each affected file.
+      if (event === 'postToolUse' && hook.name === 'user-prompt-zen-mode.sh') {
+        if (zenProgressHandled) continue;
+        zenProgressHandled = true;
+      }
       if (hook.name === 'plan-approved-delegate.sh' && payload.planApproved !== true) continue;
       if (hook.name === 'post-review-tdd-delegate.sh' && payload.toolOutcome !== 'completed') continue;
       const remaining = budget - (Date.now() - start);
       if (remaining < 100) {
+        if (zenStop) { presentationUnavailable(); continue; }
         if (event === 'preToolUse') return { permissionDecision: 'deny', permissionDecisionReason: 'Zensu internal hook deadline exceeded; retry after resolving the slow hook.' };
         throw new Error('Internal hook deadline exceeded; workflow remains pending');
       }
@@ -141,10 +159,37 @@ function dispatch(event, raw, options = {}) {
         env: nativeContext.nativeEnv(context, env), cwd: context.cwd,
         timeout: Math.min(remaining, (hook.timeout || 20) * 1000), maxBuffer: 4 * 1024 * 1024,
       });
-      results.push(parseOutput(result, hook, event));
+      let parsed;
+      try { parsed = parseOutput(result, hook, event); }
+      catch (error) {
+        if (!zenStop) throw error;
+        presentationUnavailable();
+        continue;
+      }
+      if (zenStop) {
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || parsed.decision === 'block') {
+          presentationUnavailable();
+          continue;
+        }
+        // Only progress context belongs to presentation. It cannot issue
+        // policy decisions, including on a shell/parser failure.
+        parsed = typeof parsed.additionalContext === 'string' ? { additionalContext: parsed.additionalContext } : {};
+      }
+      if (hook.name === 'user-prompt-zen-mode.sh') zenProgressIndex = results.length;
+      results.push(parsed);
     }
   }
+  let progressDelivery;
+  if (zenProgressIndex >= 0 && (event === 'postToolUse' || event === 'sessionStart'
+    || (typeof raw.transformedPrompt === 'string' && raw.transformedPrompt))) {
+    progressDelivery = reconcileProgress(context, payload, results[zenProgressIndex]);
+    results[zenProgressIndex] = progressDelivery.output;
+  }
   let output = protocol.normalizeOutput(event, results, raw);
+  if (event === 'agentStop' && zenProgressIndex >= 0) {
+    try { output = verifyProgressResponse(context, payload, output, results[zenProgressIndex]); }
+    catch { presentationUnavailable(); }
+  }
   if (reviewDispatch?.modifiedArgs && output.permissionDecision !== 'deny') {
     try { reviewDispatch.admit(); }
     catch (error) {
@@ -173,6 +218,7 @@ function dispatch(event, raw, options = {}) {
     if (raw.toolName === 'powershell') return { permissionDecision: 'deny', permissionDecisionReason: 'Zensu shell policy requires Bash; use the bash tool (native PowerShell is not supported).' };
     output.modifiedArgs = { ...(typeof raw.toolArgs === 'string' ? JSON.parse(raw.toolArgs) : raw.toolArgs), command: nativeContext.shellBinding(context, payload.toolArgs.command) };
   }
+  progressDelivery?.commit();
   return output;
 }
 function main() {
