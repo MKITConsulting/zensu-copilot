@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.8.0
+the complete workflow, evidence, acceptance and recovery engine. Version 0.8.1
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -60,12 +60,12 @@ This repository is private. Authenticate `gh` with access to
 `MKITConsulting/zensu-copilot`, then download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.8.0
-cd zensu-copilot-0.8.0
-gh release download v0.8.0 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.8.0.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.8.1
+cd zensu-copilot-0.8.1
+gh release download v0.8.1 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.8.1.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.8.0.tar.gz
+tar -xzf zensu-copilot-0.8.1.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
@@ -249,3 +249,12 @@ Upgrade the product-scope backend and CLI before the plugin. See the shipped
 `docs/ai-work-capture.md` for identity checks and legacy receipt handling.
 
 CLI setup and troubleshooting: [Install or update the CLI, including `zensu update` and older-version recovery](docs/cli-install-update.md).
+
+### Review context and source-system links
+
+Before handoff, the native capture helper accepts `checkpoint --review-file` with
+an explicit summary, acceptance criteria, evidence, limitations and optional
+`artifactUrl` for the exact commit. The URL is supplied deliberately, never inferred
+from a Git remote. Pending reports retain their original content for retries; a
+changed report creates a new result version without inherited acceptance.
+See [result reporting and disclosure scope](docs/ai-work-capture.md#explain-the-result-before-human-acceptance).
