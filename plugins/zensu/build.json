@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -86,7 +86,7 @@
     {
       "source": "docs/ai-work-capture.md",
       "target": "docs/ai-work-capture.md",
-      "sha256": "3feb2c51c3333974e1d5d27447635091cb1d9beacbbed45d187e0820d23c7620"
+      "sha256": "127077e1eec76753888a07bfd9ce6fa75230e924351a3e265779396b68dfdd46"
     },
     {
       "source": "src/plugin/docs/architecture.md",
@@ -102,6 +102,11 @@
       "source": "src/plugin/docs/best-solution-first.md",
       "target": "docs/best-solution-first.md",
       "sha256": "fcc0c0fdb3664c251a738f430df7adc9dcde389289a1edf88b1f6accde730e74"
+    },
+    {
+      "source": "docs/cli-install-update.md",
+      "target": "docs/cli-install-update.md",
+      "sha256": "f64b86c67202b1d288471d9bf4684ac6d7eb4b5f09939c3502754b55b75b3db8"
     },
     {
       "source": "src/plugin/docs/configuration.md",
@@ -206,12 +211,22 @@
     {
       "source": "src/plugin/hooks/lib/ai-work-capture-v1.js",
       "target": "hooks/lib/ai-work-capture-v1.js",
-      "sha256": "344b2bb1656341d43151fde9d5382d6d3b45fec37601012edbe975dab4faa810"
+      "sha256": "b1671193055f170dc7ae235f1f2264ed825a8e162e82da0d8794fc1d96eff4d0"
     },
     {
       "source": "src/plugin/hooks/lib/ai-work-goal-scope-v1.js",
       "target": "hooks/lib/ai-work-goal-scope-v1.js",
       "sha256": "60e87c30b212a0e8e99d1ab671afd010c438788d63dba02c257514ac47322e46"
+    },
+    {
+      "source": "src/plugin/hooks/lib/ai-work-preflight-v1.js",
+      "target": "hooks/lib/ai-work-preflight-v1.js",
+      "sha256": "caebf4b400dd2b173e3961d4153bf369a69152c3634af20205750a8311619ac7"
+    },
+    {
+      "source": "src/plugin/hooks/lib/ai-work-recovery-v1.js",
+      "target": "hooks/lib/ai-work-recovery-v1.js",
+      "sha256": "d0d694aac402af2504b99051f55945313940cc53ea29211e216d00da09888ad5"
     },
     {
       "source": "src/plugin/hooks/lib/aspect-activation-v1.js",
@@ -621,7 +636,7 @@
     {
       "source": "src/ai-work.js",
       "target": "hooks/native/ai-work.js",
-      "sha256": "171a426db9872240a99289dccc6ec1f5774b6ac248296e01325d1b667c559a34"
+      "sha256": "a823335683533b8847974510eb6ba0f532a53ae28de7d4a02274328d71f30eec"
     },
     {
       "source": "src/approval.js",
@@ -821,12 +836,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "9f16b8ff14eb37a3bc0e25c6feffe003ca4dcbdfb9d929ccf504a5ca6ec3a3cf"
+      "sha256": "672d4c8f47ea86d319cbb6acc35851b5a8edf5aeaf59cd13f709b68fa7fc1256"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "b7d6c7c03018aee3aec46463d5a39ad3235aea0ec935fa1c40b777b74d018cf1"
+      "sha256": "761056e95c6080b6fe12deeccec10d946091c21b3e39331a411bf0742f52f43c"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
