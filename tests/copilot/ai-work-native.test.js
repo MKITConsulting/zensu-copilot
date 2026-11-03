@@ -27,6 +27,8 @@ test('capture selectors derive only from native main identity and bound workspac
   assert.equal(capture.options(f.context, ['--maintenance-reason', 'Upgrade tooling'])['maintenance-reason'], 'Upgrade tooling');
   assert.equal(capture.options(f.context, ['--cross-product-reason', 'Explicit shared goal'])['cross-product-reason'], 'Explicit shared goal');
   assert.match(capture.primer(f.context), /explicit human confirmation/);
+  assert.match(capture.primer(f.context), /preflight/);
+  assert.match(capture.primer(f.context), /use pause instead/);
   assert.equal(value.session, capture.key('main-session'));
   assert.notEqual(value.session, capture.key('other-session'));
   assert.throws(() => capture.options(f.context, ['--session', 'other']), /Invalid/);
@@ -61,6 +63,12 @@ test('agentStop reports only the main session and never converts delivery failur
   const settings = { root, env: f.env, spawnSync: () => ({ status: 0, stdout: '{}' }) };
   assert.notEqual(dispatch('agentStop', f.raw, settings).decision, 'block');
   assert.equal(calls.length, 1); assert.equal(calls[0].action, 'checkpoint');
+  for (const action of ['preflight', 'pause']) {
+    capture.run(f.context, action);
+    assert.equal(calls.at(-1).action, action);
+    assert.equal(calls.at(-1).options.session, capture.key(f.raw.sessionId));
+  }
+  calls.splice(1);
   assert.equal(calls[0].options.session, capture.key(f.raw.sessionId));
   assert(calls[0].budget > 0 && calls[0].budget <= 20000);
   dispatch('agentStop', { ...f.raw, agentId: 'child', agentType: 'custom-agent', isChild: true }, settings);

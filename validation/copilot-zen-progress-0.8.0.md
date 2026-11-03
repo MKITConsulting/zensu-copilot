@@ -3,8 +3,8 @@
 ## Evidence boundaries
 
 The Zen implementation and workflow timeout fixes were reviewed and tested before
-being ported to the 0.7.0 release line. Release integration preserves the newer
-AI-work capture and automatic-context modules. The pull request and tagged release
+being ported to the 0.7.1 release line. Release integration preserves the newer
+AI-work capture, prerequisite/recovery and automatic-context modules. The pull request and tagged release
 run `npm run verify` on their own source revisions; their results are separate
 from the earlier local evidence below.
 
