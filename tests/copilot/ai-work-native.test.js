@@ -17,6 +17,23 @@ function fixture(t) {
   context.captureMain = true;
   return { project, env, context, raw: { sessionId: 'main-session', cwd: project } };
 }
+test('native checkpoints forward review files without accepting other selectors', t => {
+  const f = fixture(t);
+  const engine = require(path.join(root, 'hooks/lib/ai-work-capture-v1.js'));
+  const calls = [];
+  t.mock.method(engine, 'run', (action, options, budget) => { calls.push({ action, options, budget }); return { status: 'submitted_for_review' }; });
+  const file = path.join(f.project, 'explicit review.json');
+  assert.equal(capture.run(f.context, 'checkpoint', ['--review-file', file]).status, 'submitted_for_review');
+  assert.equal(calls[0].options['review-file'], file);
+  assert.equal(calls[0].options.session, capture.key(f.raw.sessionId));
+  assert.equal(calls[0].options.source, 'copilot');
+  assert.equal(calls[0].budget, 20000);
+  for (const action of ['begin', 'preflight', 'pause']) assert.throws(() => capture.run(f.context, action, ['--review-file', file]), /belong to checkpoint/);
+  for (const args of [['--task', 'other'], ['--review-file'], ['--review-file', file, '--review-file', file]]) assert.throws(() => capture.run(f.context, 'checkpoint', args));
+  assert.throws(() => capture.run({ ...f.context, parentId: 'parent' }, 'checkpoint', ['--review-file', file]), /main session/);
+  assert.equal(calls.length, 1);
+  assert.match(capture.primer(f.context), /checkpoint --review-file/);
+});
 test('capture selectors derive only from native main identity and bound workspace', t => {
   const f = fixture(t);
   const value = capture.options(f.context, ['--task', 'goal', '--title', 'Agreed goal', '--criteria', 'v1']);
