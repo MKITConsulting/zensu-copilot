@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -841,12 +841,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "bb70f3e153a4ba206a5bb1056b1dc19ed2a23727906ff2acc3d5237bc9d8ad16"
+      "sha256": "a0028b47894ff3dd0a03dd773246893a9db89f4e2ecef61d8c4112bf9da6e031"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "83c3dd0d144ded6fafde3bda0e0da64fe1b2c2acff5d0baf46b9220495f364c7"
+      "sha256": "e513ae3ebfa78d05da1ffb2be154cd629ac79680a0c3d7f268a712ef00b15cb6"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
@@ -911,7 +911,7 @@
     {
       "source": "src/plugin/skills/zensu-autopilot/rules/probe.md",
       "target": "skills/zensu-autopilot/rules/probe.md",
-      "sha256": "d18ff967acecabbb38a6e5a8eacfb528988faa147e9d59998ee753f91d5b2283"
+      "sha256": "f1ddb9df7a95ffa833b91ee21b33ce5819873fdbb7df165c86573cfe5dbb7d67"
     },
     {
       "source": "src/plugin/skills/zensu-autopilot/rules/work-order.md",
@@ -1206,7 +1206,7 @@
     {
       "source": "src/plugin/skills/zensu-tdd/references/audit-evidence.md",
       "target": "skills/zensu-tdd/references/audit-evidence.md",
-      "sha256": "4886439536727fe98b8bba23d31b9ec8e1e54d0b8ce0ca0b97cf9bcb43a63074"
+      "sha256": "9bcd984cef34f5c66f5bcac98468f9096a62acb5026f4b7ff2b91ae5c605054a"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/audit-integrity.md",
@@ -1221,7 +1221,7 @@
     {
       "source": "src/plugin/skills/zensu-tdd/references/discipline.md",
       "target": "skills/zensu-tdd/references/discipline.md",
-      "sha256": "c479b0e8c0d2dc60cbcdb4122fff507298a0a58b572dc3d42cbeda978a6b2bee"
+      "sha256": "d8743cb9949551155b8e77522e1e0e52ec69e22d9f11de0e733c224e6be2258c"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/execution.md",
@@ -1236,7 +1236,7 @@
     {
       "source": "src/plugin/skills/zensu-tdd/references/planning.md",
       "target": "skills/zensu-tdd/references/planning.md",
-      "sha256": "bd50e27aad6939f2bf984998aad1e00363ccd8264511b84fa171cd4b65714e19"
+      "sha256": "b98edadddc89ebf678259ca7f1611d302949f96f4198c4e048607eb4b590a08a"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/review-chain.md",
@@ -1266,7 +1266,7 @@
     {
       "source": "src/plugin/skills/zensu-tdd/SKILL.md",
       "target": "skills/zensu-tdd/SKILL.md",
-      "sha256": "64f56f416cb6720cf30df096c623f4e9541dafcaf124df41865c2c1aeef4a3be"
+      "sha256": "bc109b28514cac23757d4e0b121f642251d59a0fd5eb94782fdb66fa4b8f4773"
     },
     {
       "source": "src/plugin/skills/zensu-verify-feature/references/browser-policy.md",
