@@ -37,6 +37,17 @@ accepted. A policy error or whole-event timeout denies the operation; a failed
 stop gate preserves pending state. Copilot's bounded continuation budget cannot
 turn incomplete work into a completed chain.
 
+The tool-event deadlines grow with the work: 50 s for `preToolUse` and 35 s for
+`postToolUse` per normalized operation (one patch file or search root), capped at
+250 s. Every other event keeps 35 s. A policy handler that outlives its own timeout
+is killed with SIGKILL, so a signal trap cannot stretch the deadline. GitHub's
+Copilot CLI hooks reference documents an expired hook `timeoutSec` as fail-open
+and states no maximum, so every registration leaves at least 10 s between the
+dispatcher's fail-closed deadline and its host timeout (260 s for both tool
+events). That host behavior is documented, not yet observed in a native capture.
+Every matching policy still runs once per normalized operation, so each gate sees
+every file.
+
 ## Identity and data
 
 Native child correlation preserves the root owner and child authority. An unknown

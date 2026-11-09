@@ -10,6 +10,20 @@ const reviewGate = require('./review-gate');
 const { reconcileProgress, verifyProgressResponse } = require('./zen-progress');
 const { readPlanApproval, readNavigationApproval } = require('./approval');
 
+const OPERATION_BUDGET_MS = new Map([['preToolUse', 50000], ['postToolUse', 35000]]);
+const TOOL_BUDGET_CAP_MS = 250000;
+const EVENT_BUDGET_MS = 35000;
+const DEADLINE_REASON = 'Zensu internal hook deadline exceeded; retry after resolving the slow hook.';
+
+function eventBudget(event, operations) {
+  const perOperation = OPERATION_BUDGET_MS.get(event);
+  if (!perOperation) return EVENT_BUDGET_MS;
+  return Math.min(perOperation * Math.max(1, operations), TOOL_BUDGET_CAP_MS);
+}
+function deadlineReason(operations) {
+  if (operations <= 1) return DEADLINE_REASON;
+  return `${DEADLINE_REASON} This call normalized to ${operations} file or search-root operations; a call with fewer operations needs less time.`;
+}
 function matchingHooks(root, event, tool) {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'hooks/registry.json'), 'utf8'));
   const entries = config[event] || [];
@@ -127,13 +141,13 @@ function dispatch(event, raw, options = {}) {
     catch (error) { return { additionalContext: `Zensu review remains pending: ${error.message}` }; }
   }
   const start = Date.now();
-  const budget = event === 'preToolUse' ? 50000 : 35000;
   const results = [];
   const presentationUnavailable = () => process.stderr.write('Zensu Zen presentation unavailable at stop; workflow policy decisions are unchanged.\n');
   let zenProgressHandled = false;
   let zenProgressIndex = -1;
   let calls = [payload];
   if (payload.toolCalls?.length) calls = payload.toolCalls.map((call) => ({ ...payload, ...call }));
+  const budget = eventBudget(event, calls.length);
   for (const call of calls) {
     for (const hook of matchingHooks(root, event, call.toolName)) {
       const zenStop = event === 'agentStop' && hook.name === 'user-prompt-zen-mode.sh';
@@ -151,13 +165,13 @@ function dispatch(event, raw, options = {}) {
       const remaining = budget - (Date.now() - start);
       if (remaining < 100) {
         if (zenStop) { presentationUnavailable(); continue; }
-        if (event === 'preToolUse') return { permissionDecision: 'deny', permissionDecisionReason: 'Zensu internal hook deadline exceeded; retry after resolving the slow hook.' };
+        if (event === 'preToolUse') return { permissionDecision: 'deny', permissionDecisionReason: deadlineReason(calls.length) };
         throw new Error('Internal hook deadline exceeded; workflow remains pending');
       }
       const result = (options.spawnSync || spawnSync)('bash', [hook.script], {
         input: JSON.stringify(call), encoding: 'utf8',
         env: nativeContext.nativeEnv(context, env), cwd: context.cwd,
-        timeout: Math.min(remaining, (hook.timeout || 20) * 1000), maxBuffer: 4 * 1024 * 1024,
+        timeout: Math.min(remaining, (hook.timeout || 20) * 1000), killSignal: 'SIGKILL', maxBuffer: 4 * 1024 * 1024,
       });
       let parsed;
       try { parsed = parseOutput(result, hook, event); }
@@ -239,4 +253,4 @@ if (require.main === module) {
     process.exitCode = event === 'preToolUse' ? 2 : 0;
   }
 }
-module.exports = { dispatch, matchingHooks, parseOutput };
+module.exports = { dispatch, matchingHooks, parseOutput, eventBudget };
