@@ -29,61 +29,31 @@ emit_corrupt_active_state() {
   printf '%s\n' '{"additionalContext":"ZENSU_AUTOPILOT_RESUME CORRUPT_ACTIVE_STATE. The project-local Autopilot pointer and run inventory did not validate as one unambiguous active state. Do not infer progress, resume effects, or create a replacement run. Inspect and repair or explicitly cancel the durable state first."}'
 }
 
-NODE_AVAILABLE=true
-command -v node >/dev/null 2>&1 || NODE_AVAILABLE=false
-AGENT_CONTEXT_LIB="${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-agent-context.sh"
-
-json_field() {
-  printf '%s' "$INPUT" | FIELD="$1" node -e '
-    try {
-      const value = JSON.parse(require("fs").readFileSync(0, "utf8") || "{}")[process.env.FIELD];
-      process.stdout.write(typeof value === "string" ? value : "");
-    } catch (_) { process.stdout.write(""); }
-  ' 2>/dev/null
-}
-
 # Only a trusted top-level sessionStart principal may inherit outer-run context.
-# Keep this no-op ahead of runtime enforcement so a missing Node binary cannot
-# deadlock a child.
-[ "$NODE_AVAILABLE" = "true" ] && [ -r "$AGENT_CONTEXT_LIB" ] || exit 0
-# shellcheck disable=SC1090
-source "$AGENT_CONTEXT_LIB"
-zensu_hook_is_main_principal "$INPUT" sessionStart || exit 0
-
-# Without Node this sibling cannot authenticate the lifecycle source or a
-# private session record. Stay silent before inspecting any project path.
-[ "$NODE_AVAILABLE" = "true" ] || exit 0
-
-# A malformed payload cannot prove that this is a top-level sessionStart event.
-if ! printf '%s' "$INPUT" | node -e '
-  try {
-    const value = JSON.parse(require("fs").readFileSync(0, "utf8") || "{}");
-    process.exit(value && typeof value === "object" && !Array.isArray(value)
-      && value.eventName === "sessionStart" ? 0 : 1);
-  } catch (_) { process.exit(1); }
-' 2>/dev/null; then
-  exit 0
-fi
-
-read_field() {
-  json_field "$1"
-}
-
-# sessionStart supplies one of five lifecycle sources. `fork` is deliberately
-# absent: autopilot state is project-scoped, not session-scoped, so resuming a
-# forked copy would let two live sessions drive the same run. Ambiguous or
-# future values stay silent for the same reason — until their security
-# semantics are explicit.
-SOURCE="$(read_field source)"
-case "$SOURCE" in
-  startup|resume|compact|clear) ;;
-  *) exit 0 ;;
-esac
-
-SESSION_ID="$(read_field sessionId)"
+# Parse and classify once instead of starting Node separately for each field.
+# Forks, unknown lifecycle sources and partial child identities remain inert.
+command -v node >/dev/null 2>&1 || exit 0
+PRINCIPAL_LIB="${COPILOT_PLUGIN_ROOT}/hooks/lib/copilot-principal-v1.js"
+[ -f "$PRINCIPAL_LIB" ] && [ ! -L "$PRINCIPAL_LIB" ] || exit 0
+START_META="$(
+  cd -P -- "${COPILOT_PLUGIN_ROOT}/hooks/lib" || exit 1
+  printf '%s' "$INPUT" | node -e '
+    try {
+      const p = JSON.parse(require("node:fs").readFileSync(0, "utf8") || "{}");
+      if (!p || typeof p !== "object" || Array.isArray(p) || p.eventName !== "sessionStart"
+          || require("./copilot-principal-v1.js").classifyPreToolPayload(p) !== "main-v1"
+          || !["startup", "resume", "compact", "clear"].includes(p.source)
+          || typeof p.sessionId !== "string" || !p.sessionId || /[\0\r\n]/.test(p.sessionId)) process.exit(1);
+      process.stdout.write(p.source + "\n" + p.sessionId);
+    } catch (_) { process.exit(1); }
+  ' 2>/dev/null
+)" || exit 0
+SOURCE="${START_META%%$'\n'*}"
+SESSION_ID="${START_META#*$'\n'}"
+unset START_META PRINCIPAL_LIB
 SESSION_LIB="${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-session.sh"
 AUTOPILOT_STATE_LIB="${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-autopilot-state.sh"
-[ -r "$AGENT_CONTEXT_LIB" ] && [ -r "$SESSION_LIB" ] || exit 0
+[ -r "$SESSION_LIB" ] || exit 0
 unset ZENSU_COPILOT_PLUGIN_ROOT ZENSU_SESSION_KEY ZENSU_SESSION_CONTEXT \
   ZENSU_RUNTIME_DIGEST ZENSU_PROJECT_ROOT ZENSU_SESSION_ADOPTED
 source "$SESSION_LIB"
@@ -152,6 +122,32 @@ for _zensu_autopilot_hint in "$PROJECT_ROOT/.zensu/state"/autopilot-run-*.json; 
   fi
 done
 unset _zensu_autopilot_hint
+
+# An authenticated project with no durable state needs no state-worker process
+# or lease. Do not mistake linked, unreadable or non-directory storage for an
+# empty inventory: those paths still go through the existing corruption guard.
+AUTOPILOT_STORAGE_SAFE=true
+# Bash metadata is sufficient for ordinary Unix directories. Windows junctions
+# and unrecognized hosts retain the native state worker's path validation.
+case "$(uname -s 2>/dev/null)" in
+  Darwin|Linux) ;;
+  *) AUTOPILOT_STORAGE_SAFE=false ;;
+esac
+for _zensu_storage in "$PROJECT_ROOT/.zensu/state"/autopilot*; do
+  if [ -e "$_zensu_storage" ] || [ -L "$_zensu_storage" ]; then
+    AUTOPILOT_STORAGE_SAFE=false
+  fi
+done
+for _zensu_storage in "$PROJECT_ROOT/.zensu" "$PROJECT_ROOT/.zensu/state"; do
+  if [ -L "$_zensu_storage" ] || { [ -e "$_zensu_storage" ] &&
+      { [ ! -d "$_zensu_storage" ] || [ ! -r "$_zensu_storage" ] || [ ! -x "$_zensu_storage" ]; }; }; then
+    AUTOPILOT_STORAGE_SAFE=false
+  fi
+done
+unset _zensu_storage
+if [ "$AUTOPILOT_STATE_HINT" = false ] && [ "$AUTOPILOT_STORAGE_SAFE" = true ]; then
+  exit 0
+fi
 
 if [ ! -r "$AUTOPILOT_STATE_LIB" ]; then
   [ "$AUTOPILOT_STATE_HINT" = "true" ] && emit_runtime_unavailable

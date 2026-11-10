@@ -73,6 +73,15 @@ use `ask_user` when available or real interactive conversation; an unanswered
 required decision in headless execution remains pending. These fallbacks do not
 waive file-mutation gates, test evidence or native human plan-approval receipts.
 
+Copilot runs the startup and prompt policy registries sequentially inside one
+native event. These two events therefore have a 90-second host allowance and an
+80-second dispatcher budget. Context discovery shares a bounded 20-second CLI
+budget inside its 30-second hook; Autopilot resume skips state-worker startup
+only after authenticating an empty, safe project inventory on macOS or Linux.
+Windows and unrecognized platforms retain native storage validation. Partial context is
+retained with an explicit diagnostic if the overall deadline is exhausted.
+Tool-admission and completion-policy deadlines and authority remain unchanged.
+
 Native interactive planning writes the complete specification, acceptance criteria
 and required run marker into the exact `plan.md` path Copilot supplies for the
 session before calling `exit_plan_mode`. Its `summary` is only a concise overview.
