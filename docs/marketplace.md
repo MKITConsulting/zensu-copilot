@@ -1,6 +1,6 @@
 # Native Copilot marketplace
 
-The private `MKITConsulting/zensu-copilot` repository publishes the `zensu`
+The public `MKITConsulting/zensu-copilot` repository publishes the `zensu`
 marketplace on its generated `marketplace` branch. It uses Copilot's native
 `.github/plugin/marketplace.json` and the existing Agent Plugins 1.0 package.
 There is no source-host adapter or runtime transformation.
@@ -13,7 +13,6 @@ copilot plugin marketplace browse zensu
 copilot plugin install zensu@zensu
 ```
 
-The GitHub account used by Copilot must have access to the private repository.
 If authentication fails, sign in with `/login` in Copilot and retry. The
 `#marketplace` suffix is required: `main` contains the source and publisher,
 while `marketplace` contains the installable catalog and package.
