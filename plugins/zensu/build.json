@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -76,7 +76,7 @@
     {
       "source": "src/plugin/com.github.copilot/hooks/hooks.json",
       "target": "com.github.copilot/hooks/hooks.json",
-      "sha256": "dfe904e6e0334d458de3a63e0f5d67c899e4764f1d4dc7c9885e1b47649e12ec"
+      "sha256": "c6f9c91dfc6cadf719fffb76e79732c5067dc0f11d4fd47ad313a0f2ff01df1a"
     },
     {
       "source": "src/plugin/config.example.json",
@@ -116,7 +116,7 @@
     {
       "source": "docs/copilot-runtime.md",
       "target": "docs/copilot-runtime.md",
-      "sha256": "c72225a143fb56bdb05e248372739998b58165c96ba8b617b174c8a2463d74b9"
+      "sha256": "ebcc3de6fc01fd34348baf04a7ac3b228a559347b71c4839d9dfcc9e3d65382f"
     },
     {
       "source": "src/plugin/docs/documentation-guide.md",
@@ -141,7 +141,7 @@
     {
       "source": "docs/parity.md",
       "target": "docs/parity.md",
-      "sha256": "f11b941fc2ce1d3971f6b9941a4e69937167e3c3e1d0787470f9f4b16fe658fd"
+      "sha256": "8f041aa4d418dd53f5f3e3b29ceab60f5004f5787052c119a8402f647b6702f4"
     },
     {
       "source": "src/plugin/docs/review-chain.md",
@@ -251,7 +251,7 @@
     {
       "source": "src/plugin/hooks/lib/context-auto-load-v1.js",
       "target": "hooks/lib/context-auto-load-v1.js",
-      "sha256": "3207d64f5e657c6e60a6eb31e913ef6eb14d640fcbd5eda2188251ad4cc02e60"
+      "sha256": "7c9fe7943dc47d2837604958c69d5c6e4e54b9c21e27e646da79377e959f4fa5"
     },
     {
       "source": "src/plugin/hooks/lib/copilot-hook-session-v1.js",
@@ -651,7 +651,7 @@
     {
       "source": "src/dispatcher.js",
       "target": "hooks/native/dispatcher.js",
-      "sha256": "31894ec475b057153bd274a17055c8000a4e777382f5479ec4696806503e599b"
+      "sha256": "62f46e1902293655c99b4cb91fdb084b2e827f646d62e3566310322170c3a1c3"
     },
     {
       "source": "src/helper.js",
@@ -751,7 +751,7 @@
     {
       "source": "src/plugin/hooks/registry.json",
       "target": "hooks/registry.json",
-      "sha256": "81c9cc32ea31d88986b5ec4eced944289b9f7fc739020b7abd124c2a925c788b"
+      "sha256": "d7ad8ce67d5a10f4d0ef74e6d8647132bb7a9c17328a08eee8d1ea6d3dcfe4e1"
     },
     {
       "source": "src/plugin/hooks/review-evidence-subagent-start.sh",
@@ -766,7 +766,7 @@
     {
       "source": "src/plugin/hooks/session-start-autopilot-resume.sh",
       "target": "hooks/session-start-autopilot-resume.sh",
-      "sha256": "a13e6b44adb33d7a9563efbb464e7156ec64424a71ce33ec69934941b3e7a2cd"
+      "sha256": "6466a43dc135790610a260a4dbd78d2c7ecd71d2635ed1147deec6abf54cd43c"
     },
     {
       "source": "src/plugin/hooks/session-start-banner.sh",
@@ -841,12 +841,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "a0028b47894ff3dd0a03dd773246893a9db89f4e2ecef61d8c4112bf9da6e031"
+      "sha256": "3ed71bf6eed16d74627170b13dc07d84f36ac1c0b3fdb1f5c0659aa80388b027"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "e513ae3ebfa78d05da1ffb2be154cd629ac79680a0c3d7f268a712ef00b15cb6"
+      "sha256": "3a614614a5cd8979f56c6a84ba592cba0e71ffdad0c801b45716f0a50d4b5562"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
