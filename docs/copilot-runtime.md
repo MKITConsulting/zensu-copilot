@@ -39,14 +39,33 @@ turn incomplete work into a completed chain.
 
 The tool-event deadlines grow with the work: 50 s for `preToolUse` and 35 s for
 `postToolUse` per normalized operation (one patch file or search root), capped at
-250 s. Every other event keeps 35 s. A policy handler that outlives its own timeout
-is killed with SIGKILL, so a signal trap cannot stretch the deadline. GitHub's
+250 s. `sessionStart` and `userPromptTransformed` keep the 80 s budget described
+below, and every other event keeps 35 s. A policy handler that outlives its own
+timeout is killed with SIGKILL, so a signal trap cannot stretch the deadline. GitHub's
 Copilot CLI hooks reference documents an expired hook `timeoutSec` as fail-open
 and states no maximum, so every registration leaves at least 10 s between the
 dispatcher's fail-closed deadline and its host timeout (260 s for both tool
 events). That host behavior is documented, not yet observed in a native capture.
 Every matching policy still runs once per normalized operation, so each gate sees
 every file.
+
+### Startup and context deadlines
+
+The native `sessionStart` and `userPromptTransformed` registrations allow 90
+seconds. Their sequential dispatchers use an 80-second budget, leaving time for
+final output. Context discovery has one 20-second total CLI budget inside its
+30-second shell-hook allowance; help probes and retrieval share that budget and
+are never retried automatically. Every other event keeps the budget described above.
+
+If a later context hook exhausts the event budget, already loaded session and
+Zen context is retained alongside an explicit unfinished-hook diagnostic. This
+does not authorize a tool, complete a workflow or count as a successful startup.
+Autopilot resume parses principal and lifecycle metadata once, authenticates the
+project, then avoids its state worker when the project has no durable Autopilot
+artifacts. Linked, unreadable, malformed and existing storage still follows the
+original validation path, including existing lease artifacts. On macOS and Linux,
+an empty-state resume needs at most three Node starts; other platforms retain
+the full native storage validator, including its Windows junction checks.
 
 ## Identity and data
 

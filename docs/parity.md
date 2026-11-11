@@ -73,6 +73,16 @@ use `ask_user` when available or real interactive conversation; an unanswered
 required decision in headless execution remains pending. These fallbacks do not
 waive file-mutation gates, test evidence or native human plan-approval receipts.
 
+Copilot runs the startup and prompt policy registries sequentially inside one
+native event. These two events therefore have a 90-second host allowance and an
+80-second dispatcher budget. Context discovery shares a bounded 20-second CLI
+budget inside its 30-second hook; Autopilot resume skips state-worker startup
+only after authenticating an empty, safe project inventory on macOS or Linux.
+Windows and unrecognized platforms retain native storage validation. Partial context is
+retained with an explicit diagnostic if the overall deadline is exhausted.
+Tool-event deadlines follow the per-operation rule under explicit host differences;
+completion-policy deadlines and all policy authority remain unchanged.
+
 Native interactive planning writes the complete specification, acceptance criteria
 and required run marker into the exact `plan.md` path Copilot supplies for the
 session before calling `exit_plan_mode`. Its `summary` is only a concise overview.
@@ -174,7 +184,7 @@ tested separately from launcher fixtures.
 | Remembering browser-origin approval | Requires the exact native Bash hook permission request and an approved human-response completion. Missing or automated receipts do not populate the cache. Explicit parent navigation policy remains supported. |
 | Unlimited continuation from stop hooks | Copilot can bound continuation. Pending state survives; resume explicitly instead of marking incomplete work done. |
 | Claude settings/auto-mode diagnostics | Native doctor checks package files and reports unknown effective Copilot permissions. It never reads Claude settings. |
-| Per-hook registrations with their own host timeouts | One native dispatcher runs the policy registry per normalized operation and kills a handler that outlives its timeout with SIGKILL. Its fail-closed `preToolUse` and `postToolUse` deadlines are 50 s and 35 s per operation, capped at 250 s, and expire before the 260 s `timeoutSec`. GitHub's hooks reference documents host timeouts as fail-open with no stated maximum; no native capture here has observed that yet. |
+| Per-hook registrations with their own host timeouts | One native dispatcher runs the policy registry per normalized operation and kills a handler that outlives its timeout with SIGKILL. Its fail-closed `preToolUse` and `postToolUse` deadlines are 50 s and 35 s per operation, capped at 250 s, and expire before the 260 s `timeoutSec`; the startup and prompt budgets (80 s within 90 s) keep the same 10 s margin. GitHub's hooks reference documents host timeouts as fail-open with no stated maximum; no native capture here has observed that yet. |
 | PowerShell policy parsing | Unsupported and denied; use Bash. |
 | LSP rename and unknown mutating LSP operations | Unsupported and denied. Recognized read-only definition/reference/hover/symbol/call queries remain available. |
 | Dynamic workflow execution/management tools | Denied because their nested operations cannot be accounted for by the native policy boundary. Use the direct custom-agent review panel. |

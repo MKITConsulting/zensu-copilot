@@ -12,10 +12,16 @@ const { readPlanApproval, readNavigationApproval } = require('./approval');
 
 const OPERATION_BUDGET_MS = new Map([['preToolUse', 50000], ['postToolUse', 35000]]);
 const TOOL_BUDGET_CAP_MS = 250000;
+const ENRICHMENT_EVENTS = new Set(['sessionStart', 'userPromptTransformed']);
+// Startup and prompt enrichment run several sequential hooks, including a
+// bounded network read. Keep ten seconds inside the native host deadline for
+// final output.
+const ENRICHMENT_BUDGET_MS = 80000;
 const EVENT_BUDGET_MS = 35000;
 const DEADLINE_REASON = 'Zensu internal hook deadline exceeded; retry after resolving the slow hook.';
 
 function eventBudget(event, operations) {
+  if (ENRICHMENT_EVENTS.has(event)) return ENRICHMENT_BUDGET_MS;
   const perOperation = OPERATION_BUDGET_MS.get(event);
   if (!perOperation) return EVENT_BUDGET_MS;
   return Math.min(perOperation * Math.max(1, operations), TOOL_BUDGET_CAP_MS);
@@ -141,6 +147,7 @@ function dispatch(event, raw, options = {}) {
     catch (error) { return { additionalContext: `Zensu review remains pending: ${error.message}` }; }
   }
   const start = Date.now();
+  const enrichment = ENRICHMENT_EVENTS.has(event);
   const results = [];
   const presentationUnavailable = () => process.stderr.write('Zensu Zen presentation unavailable at stop; workflow policy decisions are unchanged.\n');
   let zenProgressHandled = false;
@@ -148,7 +155,7 @@ function dispatch(event, raw, options = {}) {
   let calls = [payload];
   if (payload.toolCalls?.length) calls = payload.toolCalls.map((call) => ({ ...payload, ...call }));
   const budget = eventBudget(event, calls.length);
-  for (const call of calls) {
+  hooks: for (const call of calls) {
     for (const hook of matchingHooks(root, event, call.toolName)) {
       const zenStop = event === 'agentStop' && hook.name === 'user-prompt-zen-mode.sh';
       // Presentation has no work to do after a policy block and must not spend
@@ -166,6 +173,13 @@ function dispatch(event, raw, options = {}) {
       if (remaining < 100) {
         if (zenStop) { presentationUnavailable(); continue; }
         if (event === 'preToolUse') return { permissionDecision: 'deny', permissionDecisionReason: deadlineReason(calls.length) };
+        if (enrichment) {
+          // A late optional hook must not erase the session binding or Zen
+          // contract that earlier hooks already produced. Missing work stays
+          // explicit; this path never grants a tool permission or completes work.
+          results.push({ additionalContext: `Zensu internal hook deadline exceeded before ${hook.name}; remaining context hooks did not run. Previously loaded context is retained; workflow remains pending.` });
+          break hooks;
+        }
         throw new Error('Internal hook deadline exceeded; workflow remains pending');
       }
       const result = (options.spawnSync || spawnSync)('bash', [hook.script], {
