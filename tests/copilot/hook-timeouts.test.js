@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
-const { dispatch } = require('../../src/dispatcher');
+const { dispatch, eventBudget } = require('../../src/dispatcher');
 const contextLoad = require('../../src/plugin/hooks/lib/context-auto-load-v1');
 const plugin = path.resolve(__dirname, '../../src/plugin');
 
@@ -78,7 +78,7 @@ test('prompt discovery and sequential hooks fit inside their nested native deadl
   assert.doesNotMatch(output.modifiedTransformedPrompt || '', /deadline exceeded/);
   const host = JSON.parse(fs.readFileSync(path.join(plugin, 'com.github.copilot/hooks/hooks.json'))).hooks;
   for (const event of ['sessionStart', 'userPromptTransformed']) assert(host[event][0].timeoutSec >= 90);
-  assert.equal(host.preToolUse[0].timeoutSec, 60, 'tool policy deadlines are not enlarged');
+  for (const event of ['preToolUse', 'postToolUse']) assert.equal(host[event][0].timeoutSec * 1000, eventBudget(event, Number.MAX_SAFE_INTEGER) + 10000, 'tool policy deadlines are not enlarged beyond their fail-closed budget');
 });
 
 test('empty autopilot inventory avoids repeated Node startup and state-worker work', t => {
