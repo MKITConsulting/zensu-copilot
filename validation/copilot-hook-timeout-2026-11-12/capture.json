@@ -1,0 +1,412 @@
+{
+  "setupAttempts": [
+    {
+      "attempt": "attempt1-run-a-model-unavailable",
+      "copilotCliVersion": "1.0.107",
+      "stderr": "Error: Model \"claude-haiku-5.5\" from --model flag is not available.",
+      "hookInvocations": 0,
+      "sessionStateCreated": false
+    },
+    {
+      "attempt": "attempt2-run-a-model-unavailable",
+      "copilotCliVersion": "1.0.107",
+      "stderr": "Error: Model \"gpt-6-luna\" from --model flag is not available.",
+      "hookInvocations": 0,
+      "sessionStateCreated": false
+    }
+  ],
+  "runs": {
+    "a": {
+      "copilotCliVersion": "1.0.107",
+      "chosenModel": "mai-code-1.1-flash",
+      "hookConfig": {
+        "version": 1,
+        "hooks": {
+          "preToolUse": [
+            {
+              "type": "command",
+              "bash": "bash <probe>/run-a/repo/.github/hooks/probe-hook.sh a 250 <probe>/run-a/hooklog",
+              "timeoutSec": 260
+            }
+          ]
+        }
+      },
+      "markerFile": "absent",
+      "derived": {
+        "nativeHookStartToEndSeconds": 250.109,
+        "nativeToolStartToCompleteSeconds": 250.115,
+        "nativeHookEndToToolCompleteSeconds": 0.002,
+        "hookProcessStartedAt": "2026-11-12T11:14:26.460Z",
+        "hookProcessSleptAfterSeconds": 250.082,
+        "hookProcessDenyWrittenAfterSeconds": 250.09
+      },
+      "runner": [
+        {
+          "at": "2026-11-12T11:14:18.609Z",
+          "event": "copilot-start mode=isolated"
+        },
+        {
+          "at": "2026-11-12T11:18:38.969Z",
+          "event": "copilot-exit rc=0"
+        },
+        {
+          "at": "2026-11-12T11:18:38.976Z",
+          "event": "marker=absent"
+        },
+        {
+          "at": "2026-11-12T11:18:41.243Z",
+          "event": "settled"
+        },
+        {
+          "at": "2026-11-12T11:18:41.656Z",
+          "event": "global-state=unchanged"
+        }
+      ],
+      "hookProcess": [
+        {
+          "at": "2026-11-12T11:14:26.460Z",
+          "call": "1",
+          "event": "start",
+          "stdin_read_at": "2026-11-12T11:14:26.478Z"
+        },
+        {
+          "at": "2026-11-12T11:14:26.510Z",
+          "call": "1",
+          "event": "sleeping",
+          "seconds": "250"
+        },
+        {
+          "at": "2026-11-12T11:18:36.542Z",
+          "call": "1",
+          "event": "slept",
+          "seconds": "250"
+        },
+        {
+          "at": "2026-11-12T11:18:36.550Z",
+          "call": "1",
+          "event": "deny-written"
+        }
+      ],
+      "native": [
+        {
+          "at": "2026-11-12T11:14:19.887Z",
+          "type": "session.start",
+          "copilotVersion": "1.0.107",
+          "selectedModel": "auto"
+        },
+        {
+          "at": "2026-11-12T11:14:22.390Z",
+          "type": "session.auto_mode_resolved",
+          "chosenModel": "mai-code-1.1-flash",
+          "availableModels": [
+            "mai-code-1.1-flash"
+          ]
+        },
+        {
+          "at": "2026-11-12T11:14:22.467Z",
+          "type": "user.message",
+          "content": "Use the bash tool to run exactly this one command and nothing else: touch probe-a-ran.txt\nDo not use any other tool. If the command is denied or fails, do not retry and do not try anything else; reply with the single word DONE."
+        },
+        {
+          "at": "2026-11-12T11:14:22.530Z",
+          "type": "assistant.turn_start"
+        },
+        {
+          "at": "2026-11-12T11:14:26.431Z",
+          "type": "assistant.message",
+          "model": "mai-code-1.1-flash",
+          "content": "",
+          "toolRequests": [
+            {
+              "name": "bash",
+              "command": "touch probe-a-ran.txt"
+            }
+          ]
+        },
+        {
+          "at": "2026-11-12T11:14:26.439Z",
+          "type": "tool.execution_start",
+          "toolName": "bash",
+          "command": "touch probe-a-ran.txt"
+        },
+        {
+          "at": "2026-11-12T11:14:26.443Z",
+          "type": "hook.start",
+          "hookType": "preToolUse"
+        },
+        {
+          "at": "2026-11-12T11:18:36.552Z",
+          "type": "hook.end",
+          "hookType": "preToolUse",
+          "success": true,
+          "output": {
+            "<toolCallId>": "Denied by preToolUse hook: probe-a: deny after 250 s"
+          }
+        },
+        {
+          "at": "2026-11-12T11:18:36.554Z",
+          "type": "tool.execution_complete",
+          "success": false,
+          "error": {
+            "message": "Denied by preToolUse hook: probe-a: deny after 250 s",
+            "code": "denied"
+          }
+        },
+        {
+          "at": "2026-11-12T11:18:36.557Z",
+          "type": "assistant.turn_end"
+        },
+        {
+          "at": "2026-11-12T11:18:36.558Z",
+          "type": "assistant.turn_start"
+        },
+        {
+          "at": "2026-11-12T11:18:37.846Z",
+          "type": "assistant.message",
+          "model": "mai-code-1.1-flash",
+          "content": "DONE",
+          "toolRequests": []
+        },
+        {
+          "at": "2026-11-12T11:18:37.846Z",
+          "type": "assistant.turn_end"
+        },
+        {
+          "at": "2026-11-12T11:18:37.871Z",
+          "type": "session.shutdown",
+          "totalPremiumRequestCost": 1.0,
+          "modelRequests": {
+            "mai-code-1.1-flash": 2
+          }
+        }
+      ],
+      "hookProcessesLeftAfterCopilotExit": "none",
+      "globalCopilotState": {
+        "checked": [
+          "~/.copilot/config.json",
+          "~/.copilot/settings.json",
+          "~/.copilot/installed-plugins file hashes",
+          "~/.copilot/plugin-data file hashes",
+          "~/.copilot/session-state entry count"
+        ],
+        "unchanged": true
+      },
+      "rawEvidenceRetainedLocally": {
+        "stdout.jsonl": {
+          "sha256": "208ea390e4fcb2f5d3a9b88707a6c205c97a7bc4e1bb5330d030473bb9ae949d",
+          "bytes": 26831,
+          "tokenPatternFound": false
+        },
+        "hook-events.log": {
+          "sha256": "ff1005d3a517242c587bf83229ce4ff80f3ebe310984b82a97ed82f9bcc27264",
+          "bytes": 249,
+          "tokenPatternFound": false
+        },
+        "session-events.jsonl": {
+          "sha256": "e8bdae51f5e51b97a487f0193fd7b6fa0b1b7eb304970793f8c1fb08675899b9",
+          "bytes": 49166,
+          "tokenPatternFound": false
+        },
+        "cli-debug-0.log": {
+          "sha256": "5a050b1ca124e6eccc6aa1ceef6029b28de7dbb4ed2e6b34c19fb93aa4418178",
+          "bytes": 330908,
+          "tokenPatternFound": false
+        }
+      }
+    },
+    "b": {
+      "copilotCliVersion": "1.0.109",
+      "chosenModel": "mai-code-1.1-flash",
+      "hookConfig": {
+        "version": 1,
+        "hooks": {
+          "preToolUse": [
+            {
+              "type": "command",
+              "bash": "bash <probe>/run-b/repo/.github/hooks/probe-hook.sh b 60 <probe>/run-b/hooklog",
+              "timeoutSec": 5
+            }
+          ]
+        }
+      },
+      "markerFile": "present",
+      "derived": {
+        "nativeHookStartToEndSeconds": 7.005,
+        "nativeToolStartToCompleteSeconds": 8.759,
+        "nativeHookEndToToolCompleteSeconds": 1.753,
+        "hookProcessStartedAt": "2026-11-12T11:28:31.632Z",
+        "hookProcessSigtermAfterSeconds": 4.988
+      },
+      "runner": [
+        {
+          "at": "2026-11-12T11:28:24.252Z",
+          "event": "copilot-start mode=isolated"
+        },
+        {
+          "at": "2026-11-12T11:28:42.386Z",
+          "event": "copilot-exit rc=0"
+        },
+        {
+          "at": "2026-11-12T11:28:42.397Z",
+          "event": "marker=present"
+        },
+        {
+          "at": "2026-11-12T11:29:37.096Z",
+          "event": "settled"
+        },
+        {
+          "at": "2026-11-12T11:29:37.392Z",
+          "event": "global-state=unchanged"
+        }
+      ],
+      "hookProcess": [
+        {
+          "at": "2026-11-12T11:28:31.632Z",
+          "call": "1",
+          "event": "start",
+          "stdin_read_at": "2026-11-12T11:28:31.647Z"
+        },
+        {
+          "at": "2026-11-12T11:28:31.667Z",
+          "call": "1",
+          "event": "sleeping",
+          "seconds": "60"
+        },
+        {
+          "at": "2026-11-12T11:28:36.620Z",
+          "call": "1",
+          "event": "sigterm"
+        }
+      ],
+      "native": [
+        {
+          "at": "2026-11-12T11:28:26.791Z",
+          "type": "session.start",
+          "copilotVersion": "1.0.109",
+          "selectedModel": "auto"
+        },
+        {
+          "at": "2026-11-12T11:28:28.515Z",
+          "type": "session.auto_mode_resolved",
+          "chosenModel": "mai-code-1.1-flash",
+          "availableModels": [
+            "mai-code-1.1-flash"
+          ]
+        },
+        {
+          "at": "2026-11-12T11:28:28.529Z",
+          "type": "user.message",
+          "content": "Use the bash tool to run exactly this one command and nothing else: touch probe-b-ran.txt\nDo not use any other tool. If the command is denied or fails, do not retry and do not try anything else; reply with the single word DONE."
+        },
+        {
+          "at": "2026-11-12T11:28:28.539Z",
+          "type": "assistant.turn_start"
+        },
+        {
+          "at": "2026-11-12T11:28:31.607Z",
+          "type": "assistant.message",
+          "model": "mai-code-1.1-flash",
+          "content": "",
+          "toolRequests": [
+            {
+              "name": "bash",
+              "command": "touch probe-b-ran.txt"
+            }
+          ]
+        },
+        {
+          "at": "2026-11-12T11:28:31.609Z",
+          "type": "tool.execution_start",
+          "toolName": "bash",
+          "command": "touch probe-b-ran.txt"
+        },
+        {
+          "at": "2026-11-12T11:28:31.610Z",
+          "type": "hook.start",
+          "hookType": "preToolUse"
+        },
+        {
+          "at": "2026-11-12T11:28:38.615Z",
+          "type": "hook.end",
+          "hookType": "preToolUse",
+          "success": false,
+          "error": {
+            "message": "HookTimeoutError: Hook command timed out after 5 seconds: bash <probe-path>",
+            "source": ".github/hooks/probe.json"
+          }
+        },
+        {
+          "at": "2026-11-12T11:28:40.368Z",
+          "type": "tool.execution_complete",
+          "success": true,
+          "result": {
+            "content": "\n<shellId: 0 completed with exit code 0>",
+            "structuredContent": {
+              "shellId": "0"
+            }
+          }
+        },
+        {
+          "at": "2026-11-12T11:28:40.370Z",
+          "type": "assistant.turn_end"
+        },
+        {
+          "at": "2026-11-12T11:28:40.371Z",
+          "type": "assistant.turn_start"
+        },
+        {
+          "at": "2026-11-12T11:28:41.532Z",
+          "type": "assistant.message",
+          "model": "mai-code-1.1-flash",
+          "content": "DONE",
+          "toolRequests": []
+        },
+        {
+          "at": "2026-11-12T11:28:41.533Z",
+          "type": "assistant.turn_end"
+        },
+        {
+          "at": "2026-11-12T11:28:41.551Z",
+          "type": "session.shutdown",
+          "totalPremiumRequestCost": 1.0,
+          "modelRequests": {
+            "mai-code-1.1-flash": 2
+          }
+        }
+      ],
+      "hookProcessesLeftAfterCopilotExit": "none",
+      "globalCopilotState": {
+        "checked": [
+          "~/.copilot/config.json",
+          "~/.copilot/settings.json",
+          "~/.copilot/installed-plugins file hashes",
+          "~/.copilot/plugin-data file hashes",
+          "~/.copilot/session-state entry count"
+        ],
+        "unchanged": true
+      },
+      "rawEvidenceRetainedLocally": {
+        "stdout.jsonl": {
+          "sha256": "46cfca42af2bb98eaa0c21fdd1bcb578f7505b1e6234555e9420fcb0bafde590",
+          "bytes": 30677,
+          "tokenPatternFound": false
+        },
+        "hook-events.log": {
+          "sha256": "f4330364e9312dd9e52fca76483b84367c24428ac26c908102a33d004efa57e1",
+          "bytes": 197,
+          "tokenPatternFound": false
+        },
+        "session-events.jsonl": {
+          "sha256": "0f7a76d88f2fe4b70d480beb9669cef0aac09618a77b3652fce4e36d708abf91",
+          "bytes": 49810,
+          "tokenPatternFound": false
+        },
+        "cli-debug-0.log": {
+          "sha256": "86679a5e6e5cdd9d25245db7c77cfccd4f883dec1330266b39258654cc6bbf28",
+          "bytes": 349983,
+          "tokenPatternFound": false
+        }
+      }
+    }
+  }
+}
