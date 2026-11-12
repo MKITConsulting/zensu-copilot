@@ -438,14 +438,15 @@ zensu_emit_named_bind_deny() {
   # user to start a fresh session while its sibling says the session can be repaired in
   # place.
   #
-  # TWO of the four callers reach this arm, not four, and the two that do not are
+  # THREE of the five callers reach this arm, not five, and the two that do not are
   # not symmetrical — say what each actually does rather than one sentence for both.
   # pre-bash-source-write-gate.sh rules the orphan state out ABOVE the router so it
   # can reach its own write-specific denies, which name the repair themselves; do
   # not "fix" that by removing its guard, because that would cost it the specific
   # message. pre-write-secret-scan.sh rules the state out in order to ALLOW the
   # scan, and carries no bind-state remedy at all. The reachable callers are
-  # pre-edit-tdd-reminder.sh and pre-bash-zensu-gate.sh.
+  # pre-edit-tdd-reminder.sh, the shell implementation it hands decisions to
+  # (hooks/lib/zensu-tdd-edit-gate.sh) and pre-bash-zensu-gate.sh.
   local dead_root
   if dead_root="$(zensu_session_orphaned_project_root "$payload")" && [ -n "$dead_root" ]; then
     [ -n "$audience" ] || audience="$(_zensu_deny_audience "$payload")"
@@ -1137,21 +1138,11 @@ zensu_resolve_project_dir() {
     cd -P -- "$lib_dir" || exit 1
     MSYS2_ENV_CONV_EXCL="$msys_env_exclusions" \
       PROJECT_CANDIDATE="$candidate" CONTEXT_FILE="$context_file" SESSION_KEY="$session_key" node -e '
-    const fs = require("node:fs");
-    const path = require("node:path");
-    const core = require("./session-control-core-v1.js");
-    const key = core.sessionKey(process.env.SESSION_KEY);
-    if (key !== process.env.SESSION_KEY) process.exit(1);
-    const contextFile = path.resolve(process.env.CONTEXT_FILE);
-    if (path.basename(contextFile) !== `${key}.json`) process.exit(1);
-    const stat = fs.lstatSync(contextFile);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) process.exit(1);
-    if (fs.realpathSync.native(contextFile) !== contextFile) process.exit(1);
-    const recordsDir = path.dirname(contextFile);
-    const context = core.readContext({ recordsDir, sessionId: key });
-    const requested = path.resolve(process.env.PROJECT_CANDIDATE);
-    const canonical = fs.realpathSync.native(requested);
-    if (requested !== canonical || context.project_root !== canonical) process.exit(1);
+    require("./session-control-core-v1.js").validateBoundProject({
+      projectRoot: process.env.PROJECT_CANDIDATE,
+      contextFile: process.env.CONTEXT_FILE,
+      sessionKey: process.env.SESSION_KEY,
+    });
     ' 2>/dev/null
   ) || return 1
 
