@@ -45,7 +45,12 @@ timeout is killed with SIGKILL, so a signal trap cannot stretch the deadline. Gi
 Copilot CLI hooks reference documents an expired hook `timeoutSec` as fail-open
 and states no maximum, so every registration leaves at least 10 s between the
 dispatcher's fail-closed deadline and its host timeout (260 s for both tool
-events). That host behavior is documented, not yet observed in a native capture.
+events). A native capture in the checkout's
+`validation/copilot-hook-timeout-2026-11-12/` observed both sides with a
+repository `preToolUse` hook: Copilot CLI 1.0.107 waited 250 s and applied the
+hook's deny under `timeoutSec: 260`, and 1.0.109 sent SIGTERM to a hook that
+outlived `timeoutSec: 5`, then ran the pre-approved tool call. The plugin
+registration itself and a deny between 250 s and 260 s were not exercised.
 Every matching policy still runs once per normalized operation, so each gate sees
 every file.
 
