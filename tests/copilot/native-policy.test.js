@@ -60,6 +60,15 @@ test('native workflow helpers and gates validate the project once per invocation
       require('node:fs').appendFileSync(${JSON.stringify(counter)}, 'read\\n');
       if (process.env.TEST_PROJECT_READ_FAILURE === '1') process.exit(1);
     }
+    if (/tdd-edit-gate-v1\\.js$/.test(process.argv[1] || '')) {
+      const hookSession = require(${JSON.stringify(path.join(lib, 'copilot-hook-session-v1.js'))});
+      const validate = hookSession.validateBoundProject;
+      hookSession.validateBoundProject = (...args) => {
+        require('node:fs').appendFileSync(${JSON.stringify(counter)}, 'read\\n');
+        if (process.env.TEST_PROJECT_READ_FAILURE === '1') throw new Error('injected project read failure');
+        return validate(...args);
+      };
+    }
   `);
   const run = extra => spawnSync('bash', [path.join(lib, 'zensu-log.sh'), '--tdd-begin', '--tdd-mode', 'strict'], {
     cwd: f.project, env: { ...f.env, NODE_OPTIONS: `--require ${JSON.stringify(observer)}`, ...extra },

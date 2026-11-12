@@ -187,7 +187,7 @@ case "$TDD_MODE_VERB" in
     esac
     # The running chain's FROZEN flag is the only thing the preToolUse edit gate
     # reads, so it is the only honest answer to "am I in strict right now". view it
-    # from the same accessor pre-edit-tdd-reminder.sh uses; anything other than a
+    # from the same accessor hooks/lib/zensu-tdd-edit-gate.sh uses; anything other than a
     # clean true/false on an ACTIVE chain means there is nothing reliable to
     # disclose, and the line stays exactly what it was before this branch existed.
     source "${COPILOT_PLUGIN_ROOT}/hooks/lib/zensu-tdd-phase.sh"

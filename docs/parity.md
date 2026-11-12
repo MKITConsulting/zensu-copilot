@@ -135,6 +135,28 @@ Shell/parser failures in a policy gate deny the operation. A failed stop gate
 keeps the workflow pending. An asynchronous task launch is never a completed
 review.
 
+The `edit`/`create` TDD gate (`pre-edit-tdd-reminder.sh`) runs once per
+normalized file operation. On macOS and Linux it evaluates the principal check,
+session binding, project validation, one workflow-state snapshot, path class,
+test-path rules and the phase decision in one native Node process
+(`hooks/lib/tdd-edit-gate-v1.js`). Git Bash on Windows and unrecognized platforms
+run the shell implementation (`hooks/lib/zensu-tdd-edit-gate.sh`), and so does
+every call made with `ZENSU_TDD_GATE=off`, so one implementation writes the bypass
+ledger on every host. The parity suite pins both implementations to identical
+exit status, output, hook log and bypass ledger. The native process hands the
+decision to the shell implementation for inputs whose shell meaning depends on
+the locale or the installed tools: a leading dash or a backslash in the path, a
+character other than an ASCII letter before `:/`, a phase or step value that
+starts with a dash or contains a backslash, NUL bytes, invalid UTF-8 or possibly
+locale-defined whitespace in a scanned test-file header, and every test-path
+decision under a hook locale whose character type is not C, POSIX or UTF-8. Under
+such a locale the macOS `sed` refuses the shell implementation's byte-order-mark
+pattern, so that implementation scans no test-file header there. The native
+process also hands every decision to the shell implementation while
+`hooks/lib/zensu-host-path.sh` is missing or one of the tools that implementation
+runs (`uname`, `basename`, `tr`, `stat`, `head`, `sed`, `grep`) is not on `PATH`,
+because a missing script or tool changes that implementation's decision.
+
 Zen presentation is verified separately from context delivery. After existing
 stop policies permit completion, the native verifier reads the session's actual
 main-agent final response. It compares that response with a freshly resolved
