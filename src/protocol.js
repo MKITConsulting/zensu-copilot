@@ -2,6 +2,7 @@
 
 // Validate the Copilot hook contract without translating to another host.
 const MAX_INPUT_BYTES = 4 * 1024 * 1024;
+const MAX_POLICY_INPUT_BYTES = 1024 * 1024;
 const MAX_PATCH_FILES = 1000;
 const MAX_SEARCH_ROOTS = 1000;
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -73,6 +74,7 @@ function patchCalls(patch, errors) {
     return [];
   }
   const lines = patch.replace(/\r\n/g, '\n').split('\n');
+  if (lines.some(line => /[\r\p{Zl}\p{Zp}]/u.test(line))) errors.push('patch-ambiguous-line-break');
   while (lines[lines.length - 1] === '') lines.pop();
   if (lines[0] !== '*** Begin Patch' || lines[lines.length - 1] !== '*** End Patch') {
     errors.push('unsupported-patch-format');
@@ -88,9 +90,8 @@ function patchCalls(patch, errors) {
     if (current.path.trim() !== current.path) errors.push('patch-path-surrounding-whitespace');
     if (current.operation === 'update' && !current.hasChanges) errors.push('patch-update-content-missing');
     const added = current.added.join('\n');
-    const input = { path: current.path, new_str: added, old_str: current.removed.join('\n'),
-      patch, operation: current.operation };
-    if (current.operation === 'add') input.content = added;
+    const input = current.operation === 'add' ? { path: current.path, content: added, operation: current.operation }
+      : { path: current.path, new_str: added, old_str: current.removed.join('\n'), operation: current.operation };
     calls.push({ toolName: current.operation === 'add' ? 'create' : 'edit', toolArgs: input });
     if (current.destination !== undefined) {
       if (!safeIdentity(current.destination)) errors.push('patch-move-path-unsafe');
@@ -219,10 +220,7 @@ function normalizeTool(name, rawArgs) {
     errors.push('unsupported-mutating-tool');
   }
   if (!calls.length) calls.push({ toolName: name, toolArgs: input });
-  return { toolName: name, toolArgs: input, toolCalls: calls,
-    toolChanges: calls.filter(call => ['edit', 'create'].includes(call.toolName))
-      .map(call => ({ operation: call.toolArgs.operation || call.toolName, ...call.toolArgs })),
-    normalizationErrors: [...new Set(errors)] };
+  return { toolName: name, toolArgs: input, toolCalls: calls, normalizationErrors: [...new Set(errors)] };
 }
 
 function normalizeResult(toolName, input, supplied, failed = false) {
@@ -282,7 +280,7 @@ function normalizeEvent(eventName, raw) {
   if (child && !safeIdentity(payload.agentId)) errors.push('subagent-correlation-id-missing');
   if (['preToolUse', 'postToolUse', 'postToolUseFailure'].includes(eventName)) {
     const tool = normalizeTool(raw.toolName, raw.toolArgs);
-    for (const key of ['toolName', 'toolArgs', 'toolCalls', 'toolChanges']) payload[key] = tool[key];
+    for (const key of ['toolName', 'toolArgs', 'toolCalls']) payload[key] = tool[key];
     errors.push(...tool.normalizationErrors);
     if (eventName !== 'preToolUse') {
       payload.toolResult = normalizeResult(payload.toolName, payload.toolArgs, raw.toolResult, eventName === 'postToolUseFailure');
@@ -295,6 +293,12 @@ function normalizeEvent(eventName, raw) {
   }
   payload.normalizationErrors = [...new Set(errors)];
   return payload;
+}
+
+function operationInputs(payload) {
+  if (!payload.toolCalls?.length) return [payload];
+  const { toolCalls, ...shared } = payload;
+  return toolCalls.map(call => ({ ...shared, ...call }));
 }
 
 function normalizeOutput(eventName, results, raw = {}) {
@@ -359,4 +363,5 @@ function normalizeOutput(eventName, results, raw = {}) {
   return output;
 }
 
-module.exports = { normalizeEvent, normalizeTool, normalizeResult, normalizeOutput, canonicalAgent, EVENT_NAMES, MAX_INPUT_BYTES };
+module.exports = { normalizeEvent, normalizeTool, normalizeResult, normalizeOutput, operationInputs, canonicalAgent, EVENT_NAMES,
+  MAX_INPUT_BYTES, MAX_POLICY_INPUT_BYTES };

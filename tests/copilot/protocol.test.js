@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeEvent, normalizeTool, normalizeOutput } = require('../../src/protocol.js');
+const { normalizeEvent, normalizeTool, normalizeOutput, operationInputs } = require('../../src/protocol.js');
 const base = { sessionId: 'session-one', cwd: '/workspace/project', timestamp: 1234 };
 const call = (toolName, toolArgs) => ({ ...base, toolName, toolArgs });
 test('native glob capture preserves native arguments and exposes exact traversal roots', () => {
@@ -180,6 +180,34 @@ test('multi-file patches expose every add, edit, deletion and move destination t
   assert.equal(normalized.toolCalls[2].toolArgs.operation, 'move-destination');
   assert.equal(normalized.toolCalls[2].toolArgs.new_str, 'new');
   assert.equal(normalized.toolCalls[3].toolArgs.operation, 'delete');
+});
+
+test('each policy run receives the event fields with exactly one operation and no operation list', () => {
+  const patch = ['*** Begin Patch', '*** Add File: src/new.js', '+const value = 1;', '*** Update File: src/old.js',
+    '*** Move to: src/moved.js', '@@', '-old', '+new', '*** End Patch', ''].join('\n');
+  const event = normalizeEvent('preToolUse', call('apply_patch', patch));
+  assert.deepEqual(event.normalizationErrors, []);
+  assert.equal(Object.hasOwn(event, 'toolChanges'), false);
+  const inputs = operationInputs(event);
+  assert.deepEqual(inputs.map(input => [input.toolName, input.toolArgs]), [
+    ['create', { path: 'src/new.js', content: 'const value = 1;', operation: 'add' }],
+    ['edit', { path: 'src/old.js', new_str: 'new', old_str: 'old', operation: 'update' }],
+    ['edit', { path: 'src/moved.js', new_str: 'new', old_str: 'old', operation: 'move-destination', sourcePath: 'src/old.js' }]]);
+  for (const input of inputs) {
+    assert.deepEqual([input.eventName, input.sessionId, input.cwd, input.timestamp], ['preToolUse', base.sessionId, base.cwd, base.timestamp]);
+    assert.equal(Object.hasOwn(input, 'toolCalls'), false);
+  }
+  const start = normalizeEvent('sessionStart', { ...base, source: 'new' });
+  assert.deepEqual(operationInputs(start), [start]);
+});
+
+test('patch lines that still hold a lone CR or a Unicode line or paragraph separator are rejected', () => {
+  const body = separator => ['*** Begin Patch', '*** Update File: src/a.js', ` ctx${separator}*** Add File: src/hidden.js`,
+    '-old', '+new', '*** End Patch', ''].join('\n');
+  for (const code of [13, 0x2028, 0x2029]) {
+    assert.ok(normalizeTool('apply_patch', body(String.fromCharCode(code))).normalizationErrors.includes('patch-ambiguous-line-break'), code.toString(16));
+  }
+  assert.deepEqual(normalizeTool('apply_patch', body('').replace(/\n/g, '\r\n')).normalizationErrors, []);
 });
 
 test('native freeform and JSON patch transports expose the same file changes', () => {

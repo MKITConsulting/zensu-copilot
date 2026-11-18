@@ -152,10 +152,16 @@ function dispatch(event, raw, options = {}) {
   const presentationUnavailable = () => process.stderr.write('Zensu Zen presentation unavailable at stop; workflow policy decisions are unchanged.\n');
   let zenProgressHandled = false;
   let zenProgressIndex = -1;
-  let calls = [payload];
-  if (payload.toolCalls?.length) calls = payload.toolCalls.map((call) => ({ ...payload, ...call }));
+  const calls = protocol.operationInputs(payload).map(call => ({ call, input: JSON.stringify(call) }));
   const budget = eventBudget(event, calls.length);
-  hooks: for (const call of calls) {
+  const oversize = event === 'preToolUse'
+    && calls.find(({ input }) => Buffer.byteLength(input) > protocol.MAX_POLICY_INPUT_BYTES);
+  if (oversize) {
+    const { call, input } = oversize;
+    const target = typeof call.toolArgs?.path === 'string' ? ` on ${JSON.stringify(call.toolArgs.path)}` : '';
+    return { permissionDecision: 'deny', permissionDecisionReason: `Zensu cannot evaluate this ${call.toolName} operation${target}: its policy input is ${Buffer.byteLength(input)} bytes and Zensu policies accept at most ${protocol.MAX_POLICY_INPUT_BYTES}. Split the change into smaller edits.` };
+  }
+  hooks: for (const { call, input } of calls) {
     for (const hook of matchingHooks(root, event, call.toolName)) {
       const zenStop = event === 'agentStop' && hook.name === 'user-prompt-zen-mode.sh';
       // Presentation has no work to do after a policy block and must not spend
@@ -183,7 +189,7 @@ function dispatch(event, raw, options = {}) {
         throw new Error('Internal hook deadline exceeded; workflow remains pending');
       }
       const result = (options.spawnSync || spawnSync)('bash', [hook.script], {
-        input: JSON.stringify(call), encoding: 'utf8',
+        input, encoding: 'utf8',
         env: nativeContext.nativeEnv(context, env), cwd: context.cwd,
         timeout: Math.min(remaining, (hook.timeout || 20) * 1000), killSignal: 'SIGKILL', maxBuffer: 4 * 1024 * 1024,
       });
