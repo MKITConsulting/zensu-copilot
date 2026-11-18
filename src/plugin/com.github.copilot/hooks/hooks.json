@@ -5,7 +5,7 @@
       {
         "type": "command",
         "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" sessionStart",
-        "timeoutSec": 45
+        "timeoutSec": 90
       }
     ],
     "sessionEnd": [
@@ -26,7 +26,7 @@
       {
         "type": "command",
         "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" userPromptTransformed",
-        "timeoutSec": 45
+        "timeoutSec": 90
       }
     ],
     "preToolUse": [

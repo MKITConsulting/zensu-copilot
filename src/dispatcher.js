@@ -127,14 +127,18 @@ function dispatch(event, raw, options = {}) {
     catch (error) { return { additionalContext: `Zensu review remains pending: ${error.message}` }; }
   }
   const start = Date.now();
-  const budget = event === 'preToolUse' ? 50000 : 35000;
+  // Startup and prompt enrichment run several sequential hooks, including a
+  // bounded network read. Keep ten seconds inside the native host deadline for
+  // final output; tool policy gates retain their existing stricter budgets.
+  const enrichment = event === 'sessionStart' || event === 'userPromptTransformed';
+  const budget = enrichment ? 80000 : event === 'preToolUse' ? 50000 : 35000;
   const results = [];
   const presentationUnavailable = () => process.stderr.write('Zensu Zen presentation unavailable at stop; workflow policy decisions are unchanged.\n');
   let zenProgressHandled = false;
   let zenProgressIndex = -1;
   let calls = [payload];
   if (payload.toolCalls?.length) calls = payload.toolCalls.map((call) => ({ ...payload, ...call }));
-  for (const call of calls) {
+  hooks: for (const call of calls) {
     for (const hook of matchingHooks(root, event, call.toolName)) {
       const zenStop = event === 'agentStop' && hook.name === 'user-prompt-zen-mode.sh';
       // Presentation has no work to do after a policy block and must not spend
@@ -152,6 +156,13 @@ function dispatch(event, raw, options = {}) {
       if (remaining < 100) {
         if (zenStop) { presentationUnavailable(); continue; }
         if (event === 'preToolUse') return { permissionDecision: 'deny', permissionDecisionReason: 'Zensu internal hook deadline exceeded; retry after resolving the slow hook.' };
+        if (enrichment) {
+          // A late optional hook must not erase the session binding or Zen
+          // contract that earlier hooks already produced. Missing work stays
+          // explicit; this path never grants a tool permission or completes work.
+          results.push({ additionalContext: `Zensu internal hook deadline exceeded before ${hook.name}; remaining context hooks did not run. Previously loaded context is retained; workflow remains pending.` });
+          break hooks;
+        }
         throw new Error('Internal hook deadline exceeded; workflow remains pending');
       }
       const result = (options.spawnSync || spawnSync)('bash', [hook.script], {

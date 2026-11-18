@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const BUDGET_MS = 8000;
+const BUDGET_MS = 20000;
 const MAX_INPUT_BYTES = 65536;
 const MAX_RESPONSE_BYTES = 512 * 1024;
 const MAX_CONTEXT_BYTES = 24000;

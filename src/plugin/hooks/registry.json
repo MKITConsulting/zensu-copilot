@@ -113,7 +113,8 @@
       "script": "hooks/session-start-primer.sh"
     },
     {
-      "script": "hooks/session-start-autopilot-resume.sh"
+      "script": "hooks/session-start-autopilot-resume.sh",
+      "timeout": 30
     }
   ],
   "subagentStart": [
@@ -159,7 +160,7 @@
   "userPromptTransformed": [
     {
       "script": "hooks/user-prompt-context-auto-load.sh",
-      "timeout": 12
+      "timeout": 30
     },
     {
       "script": "hooks/user-prompt-intent-router.sh"

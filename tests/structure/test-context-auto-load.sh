@@ -54,10 +54,21 @@ try {
     assert.equal(calls[2].command,fs.realpathSync(binary));
     assert.equal(calls[2].opts.cwd,fs.realpathSync(cwd));
     assert.equal(calls[2].opts.env.ZENSU_NO_UPDATE_CHECK,'1');
-    for(const {opts} of calls) { assert(opts.timeout>0&&opts.timeout<=8000); assert.equal(opts.killSignal,'SIGKILL'); assert.equal(opts.shell,undefined); }
+    for(const {opts} of calls) { assert(opts.timeout>0&&opts.timeout<=core.BUDGET_MS); assert.equal(opts.killSignal,'SIGKILL'); assert.equal(opts.shell,undefined); }
     assert(context.includes('load_id='+item)); assert(context.includes('--context-load '+item));
     assert(context.includes('Useful evidence')); assert(context.includes('local file reads are not recorded'));
     assert(context.includes('untrusted source data')); assert(context.includes('starts no implementation/review workflow'));
+  });
+  check('a valid tracked retrieval may take longer than eight seconds within the total budget', () => {
+    let clock=0; const calls=[];
+    const r=invoke({now:()=>clock,execute:(_command,args,opts)=>{
+      calls.push(args);
+      if(opts.timeout<3000)return {status:null,error:new Error('deadline')};
+      clock+=3000;
+      return {status:0,stdout:args.includes('--help')?'--agent --context-load':JSON.stringify(pack)};
+    }});
+    assert.equal(clock,9000); assert.equal(calls.length,3);
+    assert(r.context.includes('load_id='+item));
   });
   check('task prose discovers candidates without guessing a feature or fabricating receipts', () => {
     const calls=[];
@@ -136,7 +147,7 @@ try {
   });
   check('one total deadline covers help and retrieval without retries', () => {
     let clock=0;let calls=0;
-    const r=invoke({now:()=>clock,execute:()=>{calls++;clock+=9000;return {status:0,stdout:'--agent'};}});
+    const r=invoke({now:()=>clock,execute:()=>{calls++;clock+=core.BUDGET_MS+1;return {status:0,stdout:'--agent'};}});
     assert.equal(calls,1);assert(r.context.includes('timed-out request'));
   });
   check('receipt validation requires identity, time, layers and depth', () => {

@@ -37,6 +37,24 @@ accepted. A policy error or whole-event timeout denies the operation; a failed
 stop gate preserves pending state. Copilot's bounded continuation budget cannot
 turn incomplete work into a completed chain.
 
+### Startup and context deadlines
+
+The native `sessionStart` and `userPromptTransformed` registrations allow 90
+seconds. Their sequential dispatchers use an 80-second budget, leaving time for
+final output. Context discovery has one 20-second total CLI budget inside its
+30-second shell-hook allowance; help probes and retrieval share that budget and
+are never retried automatically. The other event budgets are unchanged.
+
+If a later context hook exhausts the event budget, already loaded session and
+Zen context is retained alongside an explicit unfinished-hook diagnostic. This
+does not authorize a tool, complete a workflow or count as a successful startup.
+Autopilot resume parses principal and lifecycle metadata once, authenticates the
+project, then avoids its state worker when the project has no durable Autopilot
+artifacts. Linked, unreadable, malformed and existing storage still follows the
+original validation path, including existing lease artifacts. On macOS and Linux,
+an empty-state resume needs at most three Node starts; other platforms retain
+the full native storage validator, including its Windows junction checks.
+
 ## Identity and data
 
 Native child correlation preserves the root owner and child authority. An unknown
