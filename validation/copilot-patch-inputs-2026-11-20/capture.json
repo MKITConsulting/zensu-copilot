@@ -1,0 +1,548 @@
+{
+  "schema": "zensu.copilot-patch-inputs-capture.v1",
+  "copilotCliVersion": "1.0.109",
+  "builds": {
+    "pr30": {
+      "commit": "ade60a15e8ada1b541dbdd148004e216e4e2171b",
+      "mergedAs": "604e9aaa58430db80bf4050876fe51fc1f06337e"
+    },
+    "main": {
+      "commit": "b430f044b89be67b70fd34605968f08358ba5629"
+    }
+  },
+  "provider": {
+    "offline": true,
+    "type": "openai",
+    "wireApi": "completions",
+    "model": "gpt-5.4",
+    "applyPatchTool": "custom freeform tool with a Lark grammar whose lines end in LF"
+  },
+  "runs": {
+    "discovery-2": {
+      "plugin": "pr30-ade60a1",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 1,
+      "scriptedToolCalls": [],
+      "toolResults": [],
+      "projectFilesAfter": {},
+      "smallFileContents": {},
+      "hookEvents": [
+        "sessionStart",
+        "userPromptSubmitted",
+        "userPromptTransformed",
+        "agentStop",
+        "sessionEnd"
+      ],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "79bbaff2c39a9d7dc23df46e9eeda3f6ceb04ff9bbbd587580fc212c91376b2c",
+        "stderr.txt": "b621aba9e869047f6b931d7f40314db65e209d0a148560e999834a804ac39cf9",
+        "run.json": "76057bb9832cbee3ffa1434a757d460571b3722263341cb97f2d2f0a28dbaa2a"
+      }
+    },
+    "multi-main": {
+      "plugin": "main-b430f04",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 2,
+      "scriptedToolCalls": [
+        {
+          "name": "apply_patch",
+          "type": "custom",
+          "bytes": 95019,
+          "sha256": "1b5a44b2f5c1c2a14c454508e4ec82877832f61d07cda4558be33deedd04c3f6"
+        }
+      ],
+      "toolResults": [
+        {
+          "success": false,
+          "message": "Denied by preToolUse hook: reviewer-capability-v1 deny: trusted hook payload is empty or too large\n\nBlocked: the immutable Zensu session binding is unavailable or invalid, so every stateful Zensu tool fails closed. Run /zensu-doctor — it st"
+        }
+      ],
+      "projectFilesAfter": {
+        "src/deleted.js": "e33dbd20d732ad6d5c1f8228c36213c9385547f29b4746940bdaccfd52852a21",
+        "src/moved.js": "01d09d19c2139a46aebfb577780d123d7396e97201bc7ead210a2ebff8239dee",
+        "src/updated.js": "0d16ad9f88c762e80b51651f5c6cc31204dcaf1e64ccd71bc6d9b839a356786b"
+      },
+      "smallFileContents": {
+        "src/deleted.js": "\"delete me\\n\"",
+        "src/moved.js": "\"old\\n\""
+      },
+      "hookEvents": [
+        "sessionStart",
+        "userPromptSubmitted",
+        "userPromptTransformed",
+        "preToolUse",
+        "agentStop",
+        "sessionEnd"
+      ],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "ab16f3fc7f11ff82d93946d17314f45d05a7106b6efc3c68401c298985f2ec8b",
+        "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "run.json": "dd58f643176a8fe3891a3ddf9434a2f98af5e383cb31368bc371cfb7b777757b"
+      }
+    },
+    "multi-pr30": {
+      "plugin": "pr30-ade60a1",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 2,
+      "scriptedToolCalls": [
+        {
+          "name": "apply_patch",
+          "type": "custom",
+          "bytes": 95019,
+          "sha256": "1b5a44b2f5c1c2a14c454508e4ec82877832f61d07cda4558be33deedd04c3f6"
+        }
+      ],
+      "toolResults": [
+        {
+          "success": true,
+          "message": "Added 3 file(s): <project>/src/added.js, <project>/src/destination.js, <project>/src/second.js\nModified 1 file(s): <project>/src/updated.js\nDeleted 1 file(s): <project>/src/deleted.js"
+        }
+      ],
+      "projectFilesAfter": {
+        "src/added.js": "74a500beb288b19038eff48afafe26888e46daa58f330815e0c38f4969a76774",
+        "src/destination.js": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c",
+        "src/second.js": "3adcd0621cc632635a8d297fc40a11ac073517fc3168b09380d719c4607ad455",
+        "src/updated.js": "fc05f523e6058d0fa2f2fb22a1fdcb7926eed55c712497f8928dbe648c72ac63"
+      },
+      "smallFileContents": {
+        "src/destination.js": "\"new\\n\""
+      },
+      "hookEvents": [
+        "sessionStart",
+        "userPromptSubmitted",
+        "userPromptTransformed",
+        "preToolUse",
+        "postToolUse",
+        "agentStop",
+        "sessionEnd"
+      ],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "1daf335f39525a4ff91ec13f57e7a749edbaf300f73fda6d4f7f60d58dedb737",
+        "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "run.json": "7fd5e0f198b11416d6005465c0f29877d00659f4209f662b088dfae8de14c173"
+      }
+    },
+    "split-native-cr": {
+      "plugin": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 2,
+      "scriptedToolCalls": [
+        {
+          "name": "apply_patch",
+          "type": "custom",
+          "bytes": 101,
+          "sha256": "fd8bd0d7e1e3a08e699303b4ee5787c71b55ed8ae16d58e540b299a7d7bdb288"
+        }
+      ],
+      "toolResults": [
+        {
+          "success": true,
+          "message": "Added 2 file(s): <project>/visible.txt, <project>/hidden.txt"
+        }
+      ],
+      "projectFilesAfter": {
+        "hidden.txt": "6c49a5c084a239ab9911b14f378d793a8eb3942ee7582354f4ef4d527dc0d528",
+        "visible.txt": "31f21b1dae81d3f32f40e38134bc688e6f7df4f08dde1d7d2cda3c4b59104e1c"
+      },
+      "smallFileContents": {
+        "hidden.txt": "\"line two\\n\"",
+        "visible.txt": "\"line one\\n\""
+      },
+      "hookEvents": [],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "425bb8049019fc395835cda75164a563a30917ca4a89f38f678f75b46a2b2ef8",
+        "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "run.json": "31b9c7860759549005ca17cf11e507db24e84708a17c9141754cedfdf6606eca"
+      }
+    },
+    "split-native-ls": {
+      "plugin": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 2,
+      "scriptedToolCalls": [
+        {
+          "name": "apply_patch",
+          "type": "custom",
+          "bytes": 103,
+          "sha256": "216b83f9fa0c4fce8bead301c66d13c9dd89a49af0cae54d7ab78513ef170609"
+        }
+      ],
+      "toolResults": [
+        {
+          "success": true,
+          "message": "Added 1 file(s): <project>/visible.txt"
+        }
+      ],
+      "projectFilesAfter": {
+        "visible.txt": "942a557438e1dfb53149a064c6a2cdf1bb1527c31cd29cf85b43d5d7d3b895d8"
+      },
+      "smallFileContents": {
+        "visible.txt": "\"line one<U+2028>*** Add File: hidden.txt\\nline two\\n\""
+      },
+      "hookEvents": [],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "ac422be5c20106d999fba54feea7bcd81bb9079316d7c1e796b0b49ca399b959",
+        "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "run.json": "d2a1c2a8c5f49d3c9ad842883523564710a3cc01fbff292586f706350e98286c"
+      }
+    },
+    "split-native-ps": {
+      "plugin": "none",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 2,
+      "scriptedToolCalls": [
+        {
+          "name": "apply_patch",
+          "type": "custom",
+          "bytes": 103,
+          "sha256": "7a0ccbe2454d46c2c383347f5b0162f250159029691aaee619410de4164a0f59"
+        }
+      ],
+      "toolResults": [
+        {
+          "success": true,
+          "message": "Added 1 file(s): <project>/visible.txt"
+        }
+      ],
+      "projectFilesAfter": {
+        "visible.txt": "f7e9aaf4abda35718640ca0f44ad0b38f61cece61f339d748e908bf64185122d"
+      },
+      "smallFileContents": {
+        "visible.txt": "\"line one<U+2029>*** Add File: hidden.txt\\nline two\\n\""
+      },
+      "hookEvents": [],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "3d76e8f5df622cbaa9164494d18cbc88d1ca0c1eb9c1fd75c2e9fd49a0edc67c",
+        "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "run.json": "83d9c1c21b4ccb692e7a3d7f9e38031d7bafb9554e12320ba25509d0e08278bb"
+      }
+    },
+    "split-pr30-cr": {
+      "plugin": "pr30-ade60a1",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 2,
+      "scriptedToolCalls": [
+        {
+          "name": "apply_patch",
+          "type": "custom",
+          "bytes": 101,
+          "sha256": "fd8bd0d7e1e3a08e699303b4ee5787c71b55ed8ae16d58e540b299a7d7bdb288"
+        }
+      ],
+      "toolResults": [
+        {
+          "success": false,
+          "message": "Denied by preToolUse hook: Zensu could not safely interpret preToolUse: patch-ambiguous-line-break"
+        }
+      ],
+      "projectFilesAfter": {},
+      "smallFileContents": {},
+      "hookEvents": [
+        "sessionStart",
+        "userPromptSubmitted",
+        "userPromptTransformed",
+        "preToolUse",
+        "agentStop",
+        "sessionEnd"
+      ],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "70dcac52978ab2e0ca0174dff3cbd75a5c948fb3b4b953ad6c6892821b3599bb",
+        "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "run.json": "ae132c41ee57872a30954c90e71c554c14d2ec6527d9a9993247d80748fbe1d6"
+      }
+    },
+    "split-pr30-ls": {
+      "plugin": "pr30-ade60a1",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 2,
+      "scriptedToolCalls": [
+        {
+          "name": "apply_patch",
+          "type": "custom",
+          "bytes": 103,
+          "sha256": "216b83f9fa0c4fce8bead301c66d13c9dd89a49af0cae54d7ab78513ef170609"
+        }
+      ],
+      "toolResults": [
+        {
+          "success": false,
+          "message": "Denied by preToolUse hook: Zensu could not safely interpret preToolUse: patch-ambiguous-line-break"
+        }
+      ],
+      "projectFilesAfter": {},
+      "smallFileContents": {},
+      "hookEvents": [
+        "sessionStart",
+        "userPromptSubmitted",
+        "userPromptTransformed",
+        "preToolUse",
+        "agentStop",
+        "sessionEnd"
+      ],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "97f59581a00d096c8db734526badcb23cac7650172fc4a19c30fb144cbb5df9d",
+        "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "run.json": "d24bb20b615cd10066f7c8a824587250b474c561888efcbe5a7aab0400c543f2"
+      }
+    },
+    "split-pr30-ps": {
+      "plugin": "pr30-ade60a1",
+      "exitCode": 0,
+      "timedOut": false,
+      "premiumRequests": 0,
+      "providerRequests": 2,
+      "scriptedToolCalls": [
+        {
+          "name": "apply_patch",
+          "type": "custom",
+          "bytes": 103,
+          "sha256": "7a0ccbe2454d46c2c383347f5b0162f250159029691aaee619410de4164a0f59"
+        }
+      ],
+      "toolResults": [
+        {
+          "success": false,
+          "message": "Denied by preToolUse hook: Zensu could not safely interpret preToolUse: patch-ambiguous-line-break"
+        }
+      ],
+      "projectFilesAfter": {},
+      "smallFileContents": {},
+      "hookEvents": [
+        "sessionStart",
+        "userPromptSubmitted",
+        "userPromptTransformed",
+        "preToolUse",
+        "agentStop",
+        "sessionEnd"
+      ],
+      "globalStateUnchanged": true,
+      "rawDigests": {
+        "output.jsonl": "2195ce9261caa9bb9863abb7fe4c5cf323889f4d1433168e860e84be6461e4af",
+        "stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "run.json": "6e5af8f2a6292c6fa08448475de87ee7c29bce81d66d7779993302701d6049d4"
+      }
+    }
+  },
+  "replay": {
+    "lone-cr": {
+      "nativeToolName": "apply_patch",
+      "nativeToolArgsType": "string",
+      "nativeToolArgsBytes": 101,
+      "builds": {
+        "pr30": {
+          "decision": "deny",
+          "reason": "Zensu could not safely interpret preToolUse: patch-ambiguous-line-break",
+          "hookSpawns": 0,
+          "operationInputs": 0,
+          "maxInputBytes": 0,
+          "minInputBytes": 0,
+          "inputsOver1MiB": 0,
+          "embedsPatch": false,
+          "operations": []
+        },
+        "main": {
+          "decision": null,
+          "reason": null,
+          "hookSpawns": 5,
+          "operationInputs": 1,
+          "maxInputBytes": 1587,
+          "minInputBytes": 1587,
+          "inputsOver1MiB": 0,
+          "embedsPatch": true,
+          "operations": [
+            {
+              "tool": "create",
+              "path": "visible.txt",
+              "operation": "add"
+            }
+          ]
+        }
+      }
+    },
+    "lone-ls": {
+      "nativeToolName": "apply_patch",
+      "nativeToolArgsType": "string",
+      "nativeToolArgsBytes": 103,
+      "builds": {
+        "pr30": {
+          "decision": "deny",
+          "reason": "Zensu could not safely interpret preToolUse: patch-ambiguous-line-break",
+          "hookSpawns": 0,
+          "operationInputs": 0,
+          "maxInputBytes": 0,
+          "minInputBytes": 0,
+          "inputsOver1MiB": 0,
+          "embedsPatch": false,
+          "operations": []
+        },
+        "main": {
+          "decision": null,
+          "reason": null,
+          "hookSpawns": 5,
+          "operationInputs": 1,
+          "maxInputBytes": 1596,
+          "minInputBytes": 1596,
+          "inputsOver1MiB": 0,
+          "embedsPatch": true,
+          "operations": [
+            {
+              "tool": "create",
+              "path": "visible.txt",
+              "operation": "add"
+            }
+          ]
+        }
+      }
+    },
+    "lone-ps": {
+      "nativeToolName": "apply_patch",
+      "nativeToolArgsType": "string",
+      "nativeToolArgsBytes": 103,
+      "builds": {
+        "pr30": {
+          "decision": "deny",
+          "reason": "Zensu could not safely interpret preToolUse: patch-ambiguous-line-break",
+          "hookSpawns": 0,
+          "operationInputs": 0,
+          "maxInputBytes": 0,
+          "minInputBytes": 0,
+          "inputsOver1MiB": 0,
+          "embedsPatch": false,
+          "operations": []
+        },
+        "main": {
+          "decision": null,
+          "reason": null,
+          "hookSpawns": 5,
+          "operationInputs": 1,
+          "maxInputBytes": 1596,
+          "minInputBytes": 1596,
+          "inputsOver1MiB": 0,
+          "embedsPatch": true,
+          "operations": [
+            {
+              "tool": "create",
+              "path": "visible.txt",
+              "operation": "add"
+            }
+          ]
+        }
+      }
+    },
+    "multi-file": {
+      "nativeToolName": "apply_patch",
+      "nativeToolArgsType": "string",
+      "nativeToolArgsBytes": 95019,
+      "builds": {
+        "pr30": {
+          "decision": null,
+          "reason": null,
+          "hookSpawns": 30,
+          "operationInputs": 6,
+          "maxInputBytes": 32351,
+          "minInputBytes": 734,
+          "inputsOver1MiB": 0,
+          "embedsPatch": false,
+          "operations": [
+            {
+              "tool": "create",
+              "path": "src/added.js",
+              "operation": "add"
+            },
+            {
+              "tool": "edit",
+              "path": "src/updated.js",
+              "operation": "update"
+            },
+            {
+              "tool": "edit",
+              "path": "src/moved.js",
+              "operation": "update"
+            },
+            {
+              "tool": "edit",
+              "path": "src/destination.js",
+              "operation": "move-destination"
+            },
+            {
+              "tool": "edit",
+              "path": "src/deleted.js",
+              "operation": "delete"
+            },
+            {
+              "tool": "create",
+              "path": "src/second.js",
+              "operation": "add"
+            }
+          ]
+        },
+        "main": {
+          "decision": null,
+          "reason": null,
+          "hookSpawns": 30,
+          "operationInputs": 6,
+          "maxInputBytes": 1636853,
+          "minInputBytes": 1573578,
+          "inputsOver1MiB": 6,
+          "embedsPatch": true,
+          "operations": [
+            {
+              "tool": "create",
+              "path": "src/added.js",
+              "operation": "add"
+            },
+            {
+              "tool": "edit",
+              "path": "src/updated.js",
+              "operation": "update"
+            },
+            {
+              "tool": "edit",
+              "path": "src/moved.js",
+              "operation": "update"
+            },
+            {
+              "tool": "edit",
+              "path": "src/destination.js",
+              "operation": "move-destination"
+            },
+            {
+              "tool": "edit",
+              "path": "src/deleted.js",
+              "operation": "delete"
+            },
+            {
+              "tool": "create",
+              "path": "src/second.js",
+              "operation": "add"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

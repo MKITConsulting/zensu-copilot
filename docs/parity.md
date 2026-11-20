@@ -68,7 +68,10 @@ The native `skill` tool loads a named skill, for example
 an explicit fallback, not an invented tool.
 
 File creation/edits use exposed `apply_patch` or native create/edit tools. Missing
-`create` alone does not block a host that offers patch-based creation. Questions
+`create` alone does not block a host that offers patch-based creation. Copilot
+CLI's own `apply_patch` starts a new line at a lone CR, which Zensu's patch
+inspection does not, so Zensu denies a patch line that holds a lone CR, U+2028 or
+U+2029 before any policy runs (`validation/copilot-patch-inputs-2026-11-20/`). Questions
 use `ask_user` when available or real interactive conversation; an unanswered
 required decision in headless execution remains pending. These fallbacks do not
 waive file-mutation gates, test evidence or native human plan-approval receipts.
