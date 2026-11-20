@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "version": "0.8.3",
-  "releaseTag": "v0.8.3",
-  "sourceCommit": "c0272771c4306ae5421c40b1cc4518bd99f335da",
-  "packageCommit": "07dadddbd90cce61d885d8141fcdc3a67f27fae6",
+  "version": "0.8.4",
+  "releaseTag": "v0.8.4",
+  "sourceCommit": "e9a598b00fcd4cb8bc8f0ddc55d58288bd3710a1",
+  "packageCommit": "efd347a618f3568763b719d36d2ab8fcfb2dca1c",
   "checksums": {
-    "zensu-copilot-0.8.3.tar.gz": "4d8c6c585a6e7e4fee5d8c9d1538975ef34c6677eaf14aab512850fda703bca5",
-    "build.json": "06591ecad7d9633f8eda0c97d85179d246033a2b1f08257fce782a001118a96f"
+    "zensu-copilot-0.8.4.tar.gz": "d01dda4a0fa1bf7ca2d6da19e1613f0682d67ff0326ff542647c2ff1d611ee18",
+    "build.json": "be3c3527b40de0c7bf9d2cfcc3914a4673dfbaf87a8a82c3a9a117b91453b3b7"
   }
 }
