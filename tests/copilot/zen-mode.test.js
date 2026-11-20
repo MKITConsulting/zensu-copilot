@@ -161,7 +161,7 @@ test('existing stop policy blocks survive an exhausted budget without invoking Z
     root: plugin, env: f.env, spawnSync: (_exe, args) => {
       called.push(path.basename(args[0]));
       if (args[0].endsWith('stop-chain-enforcer.sh')) return { status: 0, stdout: JSON.stringify({ decision: 'block', reason: 'Review is pending.' }) };
-      now = 36000;
+      now = 81000;
       return { status: 0, stdout: '{}' };
     },
   });
@@ -184,7 +184,7 @@ test('presentation deadlines and malformed outputs cannot create workflow stop d
     const output = dispatch('agentStop', { sessionId: f.sessionId, cwd: f.project, stopReason: 'end_turn' }, {
       root: plugin, env: f.env, spawnSync: (_exe, args) => {
         if (args[0].endsWith('user-prompt-zen-mode.sh')) { zenCalls++; return failure; }
-        if (failure === null && args[0].endsWith('stop-work-order.sh')) now = 36000;
+        if (failure === null && args[0].endsWith('stop-work-order.sh')) now = 81000;
         return { status: 0, stdout: '{}' };
       },
     });

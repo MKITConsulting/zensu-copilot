@@ -50,13 +50,18 @@ footer. Tasks distinguish dispatched, failed and actually completed results.
 
 Policies return flat native decisions/context. No nested foreign hook output is
 accepted. A policy error or whole-event timeout denies the operation; a failed
-stop gate preserves pending state. Copilot's bounded continuation budget cannot
-turn incomplete work into a completed chain.
+stop gate preserves pending state. A stop check that runs out of time without a
+decision releases the stop with a stderr notice that no completion was proven,
+the rule of the shared stop checker, so a slow machine cannot hold a session in
+repeated stop continuations; a decision a check already reached stands. Copilot's
+bounded continuation budget cannot turn incomplete work into a completed chain.
 
 The tool-event deadlines grow with the work: 50 s for `preToolUse` and 35 s for
 `postToolUse` per normalized operation (one patch file or search root), capped at
 250 s. `sessionStart` and `userPromptTransformed` keep the 80 s budget described
-below, and every other event keeps 35 s. A policy handler that outlives its own
+below. `agentStop` also has 80 s within a 90 s registration, and the dispatcher
+passes the shared stop checker a `ZENSU_STOP_DEADLINE_SECONDS` value that ends at
+least 20 s before the dispatcher would stop that check. Every other event keeps 35 s. A policy handler that outlives its own
 timeout is killed with SIGKILL, so a signal trap cannot stretch the deadline. GitHub's
 Copilot CLI hooks reference documents an expired hook `timeoutSec` as fail-open
 and states no maximum, so every registration leaves at least 10 s between the

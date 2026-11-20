@@ -83,8 +83,17 @@ budget inside its 30-second hook; Autopilot resume skips state-worker startup
 only after authenticating an empty, safe project inventory on macOS or Linux.
 Windows and unrecognized platforms retain native storage validation. Partial context is
 retained with an explicit diagnostic if the overall deadline is exhausted.
-Tool-event deadlines follow the per-operation rule under explicit host differences;
-completion-policy deadlines and all policy authority remain unchanged.
+Tool-event deadlines follow the per-operation rule under explicit host differences.
+
+`agentStop` also has a 90-second host allowance and an 80-second dispatcher
+budget. The dispatcher hands the shared stop checker
+(`hooks/lib/zensu-stop-deadline.sh`) a `ZENSU_STOP_DEADLINE_SECONDS` value that
+ends at least 20 seconds before the dispatcher would stop that check, so the checker's rule applies
+first, as on the source host: a decision it already wrote stands, and without one
+the stop is released with a notice that no completion was proven. When the
+dispatcher budget runs out or kills a stop check at its timeout, the same rule
+applies, so a slow machine cannot hold a session in repeated stop continuations.
+All policy authority remains unchanged.
 
 Native interactive planning writes the complete specification, acceptance criteria
 and required run marker into the exact `plan.md` path Copilot supplies for the
@@ -136,8 +145,10 @@ The package registers these **11** events in
 | `preCompact` | Reset the prompt-ledger segment for compaction without guessing context utilization |
 
 Shell/parser failures in a policy gate deny the operation. A failed stop gate
-keeps the workflow pending. An asynchronous task launch is never a completed
-review.
+keeps the workflow pending. A stop check that runs out of time without a
+decision releases the stop instead and says that no completion was proven; the
+pending state survives and the next stop evaluates it again. An asynchronous
+task launch is never a completed review.
 
 The `edit`/`create` TDD gate (`pre-edit-tdd-reminder.sh`) runs once per
 normalized file operation. On macOS and Linux it evaluates the principal check,
@@ -209,7 +220,7 @@ tested separately from launcher fixtures.
 | Remembering browser-origin approval | Requires the exact native Bash hook permission request and an approved human-response completion. Missing or automated receipts do not populate the cache. Explicit parent navigation policy remains supported. |
 | Unlimited continuation from stop hooks | Copilot can bound continuation. Pending state survives; resume explicitly instead of marking incomplete work done. |
 | Claude settings/auto-mode diagnostics | Native doctor checks package files and reports unknown effective Copilot permissions. It never reads Claude settings. |
-| Per-hook registrations with their own host timeouts | One native dispatcher runs the policy registry per normalized operation and kills a handler that outlives its timeout with SIGKILL. Its fail-closed `preToolUse` and `postToolUse` deadlines are 50 s and 35 s per operation, capped at 250 s, and expire before the 260 s `timeoutSec`; the startup and prompt budgets (80 s within 90 s) keep the same 10 s margin. GitHub's hooks reference documents host timeouts as fail-open with no stated maximum. A native capture with a repository `preToolUse` hook observed both: Copilot CLI 1.0.107 applied a deny written after 250 s under `timeoutSec: 260`, and 1.0.109 sent SIGTERM to a hook past `timeoutSec: 5` and ran the pre-approved call (the checkout's `validation/copilot-hook-timeout-2026-11-12/`). The plugin registration itself was not exercised. |
+| Per-hook registrations with their own host timeouts | One native dispatcher runs the policy registry per normalized operation and kills a handler that outlives its timeout with SIGKILL. Its fail-closed `preToolUse` and `postToolUse` deadlines are 50 s and 35 s per operation, capped at 250 s, and expire before the 260 s `timeoutSec`; the startup, prompt and `agentStop` budgets (80 s within 90 s) keep the same 10 s margin. GitHub's hooks reference documents host timeouts as fail-open with no stated maximum. A native capture with a repository `preToolUse` hook observed both: Copilot CLI 1.0.107 applied a deny written after 250 s under `timeoutSec: 260`, and 1.0.109 sent SIGTERM to a hook past `timeoutSec: 5` and ran the pre-approved call (the checkout's `validation/copilot-hook-timeout-2026-11-12/`). The plugin registration itself was not exercised. |
 | PowerShell policy parsing | Unsupported and denied; use Bash. |
 | LSP rename and unknown mutating LSP operations | Unsupported and denied. Recognized read-only definition/reference/hover/symbol/call queries remain available. |
 | Dynamic workflow execution/management tools | Denied because their nested operations cannot be accounted for by the native policy boundary. Use the direct custom-agent review panel. |

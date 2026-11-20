@@ -42,9 +42,10 @@ test('tool event budgets grow with every normalized operation up to their cap', 
   assert.equal(eventBudget('postToolUse', 1), 35000);
   assert.equal(eventBudget('postToolUse', 5), 175000);
   assert.equal(eventBudget('postToolUse', 1000), 250000);
-  for (const event of ['postToolUseFailure', 'agentStop', 'subagentStop', 'sessionEnd', 'constructor']) {
+  for (const event of ['postToolUseFailure', 'subagentStop', 'sessionEnd', 'constructor']) {
     assert.equal(eventBudget(event, 5), 35000, event);
   }
+  assert.equal(eventBudget('agentStop', 5), 80000);
   for (const event of ['sessionStart', 'userPromptTransformed']) assert.equal(eventBudget(event, 5), 80000, event);
 });
 

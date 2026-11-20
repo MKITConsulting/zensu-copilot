@@ -17,11 +17,15 @@ const ENRICHMENT_EVENTS = new Set(['sessionStart', 'userPromptTransformed']);
 // bounded network read. Keep ten seconds inside the native host deadline for
 // final output.
 const ENRICHMENT_BUDGET_MS = 80000;
+const STOP_BUDGET_MS = 80000;
+const STOP_CHECKER_RESERVE_MS = 20000;
+const STOP_CHECKER_SECONDS = Object.freeze({ fallback: 45, min: 10, max: 75 });
 const EVENT_BUDGET_MS = 35000;
 const DEADLINE_REASON = 'Zensu internal hook deadline exceeded; retry after resolving the slow hook.';
 
 function eventBudget(event, operations) {
   if (ENRICHMENT_EVENTS.has(event)) return ENRICHMENT_BUDGET_MS;
+  if (event === 'agentStop') return STOP_BUDGET_MS;
   const perOperation = OPERATION_BUDGET_MS.get(event);
   if (!perOperation) return EVENT_BUDGET_MS;
   return Math.min(perOperation * Math.max(1, operations), TOOL_BUDGET_CAP_MS);
@@ -29,6 +33,22 @@ function eventBudget(event, operations) {
 function deadlineReason(operations) {
   if (operations <= 1) return DEADLINE_REASON;
   return `${DEADLINE_REASON} This call normalized to ${operations} file or search-root operations; a call with fewer operations needs less time.`;
+}
+function stopCheckerSeconds(requested, remaining) {
+  const raw = typeof requested === 'string' ? requested : '';
+  let seconds = STOP_CHECKER_SECONDS.fallback;
+  if (/^[0-9]+$/.test(raw)) {
+    const digits = raw.replace(/^0+/, '');
+    if (!digits) seconds = STOP_CHECKER_SECONDS.min;
+    else if (digits.length > 6 || Number(digits) > STOP_CHECKER_SECONDS.max) seconds = STOP_CHECKER_SECONDS.max;
+    else seconds = Math.max(STOP_CHECKER_SECONDS.min, Number(digits));
+  }
+  const available = Math.floor((remaining - STOP_CHECKER_RESERVE_MS) / 1000);
+  return String(Math.max(STOP_CHECKER_SECONDS.min, Math.min(seconds, available)));
+}
+function stopDeadlineNotice(where, decided) {
+  if (decided) return `Zensu native dispatcher: the stop checks did not finish in time (${where}). The decision already reached stands; nothing after it was evaluated.`;
+  return `Zensu native dispatcher: releasing agentStop — the stop checks did not finish in time (${where}) and no decision was reached, so this session is not held any longer. Checks from that point on were not evaluated to the end: no completion was proven, only the wait was bounded, and the next agentStop evaluates again.`;
 }
 function matchingHooks(root, event, tool) {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'hooks/registry.json'), 'utf8'));
@@ -150,6 +170,7 @@ function dispatch(event, raw, options = {}) {
   const enrichment = ENRICHMENT_EVENTS.has(event);
   const results = [];
   const presentationUnavailable = () => process.stderr.write('Zensu Zen presentation unavailable at stop; workflow policy decisions are unchanged.\n');
+  const stopExhausted = where => process.stderr.write(`${stopDeadlineNotice(where, protocol.normalizeOutput(event, results, raw).decision === 'block')}\n`);
   let zenProgressHandled = false;
   let zenProgressIndex = -1;
   const calls = protocol.operationInputs(payload).map(call => ({ call, input: JSON.stringify(call) }));
@@ -186,13 +207,28 @@ function dispatch(event, raw, options = {}) {
           results.push({ additionalContext: `Zensu internal hook deadline exceeded before ${hook.name}; remaining context hooks did not run. Previously loaded context is retained; workflow remains pending.` });
           break hooks;
         }
+        if (event === 'agentStop') {
+          stopExhausted(`the ${budget / 1000}s dispatcher deadline ran out before ${hook.name}`);
+          break hooks;
+        }
         throw new Error('Internal hook deadline exceeded; workflow remains pending');
       }
+      const timeout = Math.min(remaining, (hook.timeout || 20) * 1000);
+      const hookEnv = nativeContext.nativeEnv(context, env);
+      if (event === 'agentStop') hookEnv.ZENSU_STOP_DEADLINE_SECONDS = stopCheckerSeconds(env.ZENSU_STOP_DEADLINE_SECONDS, timeout);
       const result = (options.spawnSync || spawnSync)('bash', [hook.script], {
         input, encoding: 'utf8',
-        env: nativeContext.nativeEnv(context, env), cwd: context.cwd,
-        timeout: Math.min(remaining, (hook.timeout || 20) * 1000), killSignal: 'SIGKILL', maxBuffer: 4 * 1024 * 1024,
+        env: hookEnv, cwd: context.cwd,
+        timeout, killSignal: 'SIGKILL', maxBuffer: 4 * 1024 * 1024,
       });
+      if (event === 'agentStop' && !zenStop) {
+        if (result?.error?.code === 'ETIMEDOUT') {
+          stopExhausted(`${hook.name} was stopped at its ${Math.round(timeout / 1000)}s timeout`);
+          break hooks;
+        }
+        const notice = result?.status === 0 ? String(result.stderr || '').trim() : '';
+        if (notice) process.stderr.write(`${notice.slice(-4000)}\n`);
+      }
       let parsed;
       try { parsed = parseOutput(result, hook, event); }
       catch (error) {
@@ -273,4 +309,4 @@ if (require.main === module) {
     process.exitCode = event === 'preToolUse' ? 2 : 0;
   }
 }
-module.exports = { dispatch, matchingHooks, parseOutput, eventBudget };
+module.exports = { dispatch, matchingHooks, parseOutput, eventBudget, stopCheckerSeconds };
