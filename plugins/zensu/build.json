@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -76,7 +76,7 @@
     {
       "source": "src/plugin/com.github.copilot/hooks/hooks.json",
       "target": "com.github.copilot/hooks/hooks.json",
-      "sha256": "f13245ffbe82c4aaf27eabb2233cd10f260afbecd849c9c83478159b70cc103c"
+      "sha256": "7c21f30d2a8d8cbf4bbbce63b10a5895e308c69e59199cd4165706576dc061df"
     },
     {
       "source": "src/plugin/config.example.json",
@@ -111,17 +111,17 @@
     {
       "source": "src/plugin/docs/configuration.md",
       "target": "docs/configuration.md",
-      "sha256": "d48f6336102ce8ddbe269ce8ae7726ebf606daeca54e029e6a0f59776e2fd8cb"
+      "sha256": "f812e895ee8bb02d37a141a96dc6fbbad7dfba5c23834fe951ec34de40059104"
     },
     {
       "source": "docs/copilot-runtime.md",
       "target": "docs/copilot-runtime.md",
-      "sha256": "e994528421455885938641211c6160142b770fa955979306f1ea761a76099b03"
+      "sha256": "b57d87897dc97968d1cb06fd046db7712324f209cf262141325ac436b1784951"
     },
     {
       "source": "src/plugin/docs/documentation-guide.md",
       "target": "docs/documentation-guide.md",
-      "sha256": "2406973208fcad849e40dcf4dd977b3e4d027bc45ac7117ca057dd8989403bc2"
+      "sha256": "aa5e6cab3d7266ce9136481621d5b0c9c4ba73b12899f6ef8b48473277a5a7f1"
     },
     {
       "source": "src/plugin/docs/evidence-discipline.md",
@@ -141,7 +141,7 @@
     {
       "source": "docs/parity.md",
       "target": "docs/parity.md",
-      "sha256": "d6026a1afcda2e53136bfc679e2bdbf0580d91e9d1edae9cab9150cee0b7bb6a"
+      "sha256": "ffb6e5dd72d23fd18888ce1b234d7de22d8a5bde7de80bf438987b5227322905"
     },
     {
       "source": "src/plugin/docs/review-chain.md",
@@ -661,7 +661,7 @@
     {
       "source": "src/dispatcher.js",
       "target": "hooks/native/dispatcher.js",
-      "sha256": "e3ae207943032e5dd68025030ba8fa604796667d4a4e9d8dbee78094afed7136"
+      "sha256": "9884b13bb6a46b1548f7668dd4a439b119222e47157ace297134f52ac81357b8"
     },
     {
       "source": "src/helper.js",
@@ -851,12 +851,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "abcc5e3f909e59112a115ed3f20b45b3abd50dd68125c29da9fe9f0a3db6b06a"
+      "sha256": "63ea2c3913ce3043b02d3365e876c4c22b67243ceda1e9d11ba02f4a02f40691"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "fac2bd673a0bceebbc7958e07ccb7bc277937f2d2d90a34d52441db549398594"
+      "sha256": "6a0ac096804e8f75204e21b29ada8bc2d761d102f03373f2f342b7829ac42ae0"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
@@ -976,7 +976,7 @@
     {
       "source": "src/plugin/skills/zensu-docs/SKILL.md",
       "target": "skills/zensu-docs/SKILL.md",
-      "sha256": "9d60b375ae2ab0ec1f966391f8bae4143b89c995f65c1638d4451735a75fe345"
+      "sha256": "bff382b50d919bb0ba04053f16604e00a4e0d8a96dba7fbee353356657e1e69a"
     },
     {
       "source": "src/plugin/skills/zensu-doctor/references/autopilot-lease.md",
@@ -1026,7 +1026,7 @@
     {
       "source": "src/plugin/skills/zensu-implement/SKILL.md",
       "target": "skills/zensu-implement/SKILL.md",
-      "sha256": "19219b852f0982fc81a33676b6068a12262e50655618445e2f85c7a53c738445"
+      "sha256": "fa9167b4a87b6c273097572c6404b9719c3df37f894ffcf286d3eb29859ae731"
     },
     {
       "source": "src/plugin/skills/zensu-pilot/SKILL.md",
