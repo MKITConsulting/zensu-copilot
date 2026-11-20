@@ -1,7 +1,7 @@
 # Zensu for GitHub Copilot CLI
 
 A native Copilot CLI plugin with all 32 Zensu skills, six review/PLM agents and
-the complete workflow, evidence, acceptance and recovery engine. Version 0.8.4
+the complete workflow, evidence, acceptance and recovery engine. Version 0.8.5
 uses native Copilot events, tools, approvals and session history directly. There
 is no Claude compatibility layer, alias environment, transcript projection or
 runtime dependency on another coding host.
@@ -58,12 +58,12 @@ version pinning, authentication and validation boundaries.
 Download and verify the release:
 
 ```bash
-mkdir zensu-copilot-0.8.4
-cd zensu-copilot-0.8.4
-gh release download v0.8.4 --repo MKITConsulting/zensu-copilot \
-  --pattern zensu-copilot-0.8.4.tar.gz --pattern build.json --pattern SHA256SUMS
+mkdir zensu-copilot-0.8.5
+cd zensu-copilot-0.8.5
+gh release download v0.8.5 --repo MKITConsulting/zensu-copilot \
+  --pattern zensu-copilot-0.8.5.tar.gz --pattern build.json --pattern SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-tar -xzf zensu-copilot-0.8.4.tar.gz
+tar -xzf zensu-copilot-0.8.5.tar.gz
 copilot plugin install "$(pwd)/zensu"
 ```
 
