@@ -27,8 +27,24 @@ for `agentStop` and `subagentStop`; it does not bypass completion gates.
 
 Patch inspection produces native-shaped file operations solely to inspect every
 create/update/delete/move endpoint. Every native search root is inspected. This
-is bounded policy analysis, not another host's tool protocol. Actual original
-arguments are retained; unknown mutation schemas and ambiguous paths fail closed.
+is bounded policy analysis, not another host's tool protocol. The event retains
+the actual original arguments; unknown mutation schemas, ambiguous paths and
+patch lines that still hold a lone CR, U+2028 or U+2029 after CRLF
+normalization fail closed. Each policy run receives one operation: the event's
+fields with that operation's `toolName` and `toolArgs`, without the event-wide
+`toolCalls` list. An added file's `toolArgs` carry `path`, `content` and
+`operation`, like a native `create`; an updated, moved or deleted file's carry
+`path`, `operation`, `old_str` and `new_str`, plus `sourcePath` for a move
+destination. No operation repeats the whole patch, so a policy input grows with
+its own operation rather than with the patch. The dispatcher denies a
+`preToolUse` operation whose policy input exceeds 1 MiB before any policy runs,
+naming its path, its size and the limit; the capability gate and the session
+binder keep their own 1 MiB check. A native capture in the checkout's
+`validation/copilot-patch-inputs-2026-11-20/` observed both sides with Copilot
+CLI 1.0.109 and a scripted offline model: a 95,019-byte, six-operation patch that
+the previous shape denied passed every policy, and the host's own `apply_patch`
+started a new line at a lone CR, so a header hidden behind one created a second
+file, while U+2028 and U+2029 stayed inside the line.
 Native shell results distinguish transport success from the host's terminal exit
 footer. Tasks distinguish dispatched, failed and actually completed results.
 

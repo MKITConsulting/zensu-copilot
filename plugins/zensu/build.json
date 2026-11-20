@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -116,7 +116,7 @@
     {
       "source": "docs/copilot-runtime.md",
       "target": "docs/copilot-runtime.md",
-      "sha256": "edb83a683d549175422f3c884f84cc9e811ea97dd54d97a3bce40038a14ede61"
+      "sha256": "e994528421455885938641211c6160142b770fa955979306f1ea761a76099b03"
     },
     {
       "source": "src/plugin/docs/documentation-guide.md",
@@ -141,7 +141,7 @@
     {
       "source": "docs/parity.md",
       "target": "docs/parity.md",
-      "sha256": "b6dedeb42e3560a208c76c08f041e571370cabaaf49b331642d150260df21380"
+      "sha256": "d6026a1afcda2e53136bfc679e2bdbf0580d91e9d1edae9cab9150cee0b7bb6a"
     },
     {
       "source": "src/plugin/docs/review-chain.md",
@@ -661,7 +661,7 @@
     {
       "source": "src/dispatcher.js",
       "target": "hooks/native/dispatcher.js",
-      "sha256": "818870650e07873cb58a0060200773ae9b10c1c8d4114d75144ee0616d90f35a"
+      "sha256": "e3ae207943032e5dd68025030ba8fa604796667d4a4e9d8dbee78094afed7136"
     },
     {
       "source": "src/helper.js",
@@ -671,7 +671,7 @@
     {
       "source": "src/protocol.js",
       "target": "hooks/native/protocol.js",
-      "sha256": "e405534e3207a65c6d26821fe3fe71acc4a6e9eeca523ee998bcadae939f80df"
+      "sha256": "8c6a3db4dc99a17ed0d0399dbb0d3f33416429777e32fd254efbe0d506b40b19"
     },
     {
       "source": "src/review-gate.js",
@@ -851,12 +851,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "8a6be89d7f800deb1e9c6f6ef6af331d2a1545309d7b961c3d0a1fe8cfb48df7"
+      "sha256": "abcc5e3f909e59112a115ed3f20b45b3abd50dd68125c29da9fe9f0a3db6b06a"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "8d74820833fe2a0fe0d29e18c9cfc77832a612b5f6218ec7d3673ce05365d6c1"
+      "sha256": "fac2bd673a0bceebbc7958e07ccb7bc277937f2d2d90a34d52441db549398594"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
