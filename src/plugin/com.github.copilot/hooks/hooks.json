@@ -68,7 +68,7 @@
       {
         "type": "command",
         "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" agentStop",
-        "timeoutSec": 45
+        "timeoutSec": 90
       }
     ],
     "preCompact": [
