@@ -121,8 +121,9 @@ command -v node >/dev/null 2>&1 || {
 # tests/structure/test-msys-special-plugin-module-boundaries.sh declares
 # acceptable, and it is the one its `pre-write-secret-scan.sh` sibling uses on
 # these same two matchers (the third hook on the edit matcher,
-# `pre-edit-tdd-reminder.sh`, runs inline `node -e` programs and transports no
-# module at all): MSYS rewrites an
+# `pre-edit-tdd-reminder.sh`, passes its module as an argv token only on macOS and
+# Linux, and elsewhere runs the inline `node -e` programs of its shell
+# implementation): MSYS rewrites an
 # argv token on Windows, so an absolute path there can fail to resolve and this
 # gate would then silently not run — the one hook where "did not run" removes a
 # DENY rather than an advisory.
