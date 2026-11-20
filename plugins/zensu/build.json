@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "host": "copilot",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "skills": [
     "zensu-adopt-session",
     "zensu-autopilot",
@@ -76,7 +76,7 @@
     {
       "source": "src/plugin/com.github.copilot/hooks/hooks.json",
       "target": "com.github.copilot/hooks/hooks.json",
-      "sha256": "c6f9c91dfc6cadf719fffb76e79732c5067dc0f11d4fd47ad313a0f2ff01df1a"
+      "sha256": "f13245ffbe82c4aaf27eabb2233cd10f260afbecd849c9c83478159b70cc103c"
     },
     {
       "source": "src/plugin/config.example.json",
@@ -116,7 +116,7 @@
     {
       "source": "docs/copilot-runtime.md",
       "target": "docs/copilot-runtime.md",
-      "sha256": "ebcc3de6fc01fd34348baf04a7ac3b228a559347b71c4839d9dfcc9e3d65382f"
+      "sha256": "edb83a683d549175422f3c884f84cc9e811ea97dd54d97a3bce40038a14ede61"
     },
     {
       "source": "src/plugin/docs/documentation-guide.md",
@@ -141,7 +141,7 @@
     {
       "source": "docs/parity.md",
       "target": "docs/parity.md",
-      "sha256": "8f041aa4d418dd53f5f3e3b29ceab60f5004f5787052c119a8402f647b6702f4"
+      "sha256": "b6dedeb42e3560a208c76c08f041e571370cabaaf49b331642d150260df21380"
     },
     {
       "source": "src/plugin/docs/review-chain.md",
@@ -256,7 +256,7 @@
     {
       "source": "src/plugin/hooks/lib/copilot-hook-session-v1.js",
       "target": "hooks/lib/copilot-hook-session-v1.js",
-      "sha256": "e904d98fa42c2dd44e3f6775a3206e4b8b0bae497cc4b615a17a1cf07396629e"
+      "sha256": "96d21667192aa78f865163cc51859e077c101670c4b9591ef8e76be1f86120b4"
     },
     {
       "source": "src/plugin/hooks/lib/copilot-path-v1.js",
@@ -396,7 +396,7 @@
     {
       "source": "src/plugin/hooks/lib/session-control-core-v1.js",
       "target": "hooks/lib/session-control-core-v1.js",
-      "sha256": "4d47abbaf1e2050a58076e7efcc31f85056b18724f956ee138e287ec996af0fc"
+      "sha256": "18b820e2ae6596be6b75087f0a84cffd0ebcca1db29570ec5e64eb93c5b3a155"
     },
     {
       "source": "src/plugin/hooks/lib/session-files-v1.js",
@@ -417,6 +417,11 @@
       "source": "src/plugin/hooks/lib/subagent-shell-guard-v1.js",
       "target": "hooks/lib/subagent-shell-guard-v1.js",
       "sha256": "e3da5debf5de575a15b3a6becc8e535156b5f04cb19e580922c7604525236e64"
+    },
+    {
+      "source": "src/plugin/hooks/lib/tdd-edit-gate-v1.js",
+      "target": "hooks/lib/tdd-edit-gate-v1.js",
+      "sha256": "2282debf7e69e4ca8deb5ff8b504c90da155831057b63ce2f2896ea2dcd93507"
     },
     {
       "source": "src/plugin/hooks/lib/valid-diff-lines.js",
@@ -591,7 +596,7 @@
     {
       "source": "src/plugin/hooks/lib/zensu-session.sh",
       "target": "hooks/lib/zensu-session.sh",
-      "sha256": "b580c7ab25bd41e39339e02d889be239af70adb4b832bb2544904339587d0c8d"
+      "sha256": "0d556a7bac952df7d3c4cabdb14b558e34ac875e6d208ce7021a25cfa2692c86"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-stop-deadline.sh",
@@ -599,9 +604,14 @@
       "sha256": "51b429034087e2c609cee870865a5bb8c6f0d9bbbe0cefecbc266a9e600af307"
     },
     {
+      "source": "src/plugin/hooks/lib/zensu-tdd-edit-gate.sh",
+      "target": "hooks/lib/zensu-tdd-edit-gate.sh",
+      "sha256": "a605ea4bc662f87891767860b2589262539ea7bfed8a38d5305422c03dda933e"
+    },
+    {
       "source": "src/plugin/hooks/lib/zensu-tdd-mode.sh",
       "target": "hooks/lib/zensu-tdd-mode.sh",
-      "sha256": "abce0b9d834179b5edfc6f6478cce304512ac2bee3ea2ddb4c42c1e46fd7adaa"
+      "sha256": "178dbb9ebe0ef0b5a0a683194ff4b2348ee23e3891c3e205cee4b2e86d5d8135"
     },
     {
       "source": "src/plugin/hooks/lib/zensu-tdd-phase.sh",
@@ -651,7 +661,7 @@
     {
       "source": "src/dispatcher.js",
       "target": "hooks/native/dispatcher.js",
-      "sha256": "62f46e1902293655c99b4cb91fdb084b2e827f646d62e3566310322170c3a1c3"
+      "sha256": "818870650e07873cb58a0060200773ae9b10c1c8d4114d75144ee0616d90f35a"
     },
     {
       "source": "src/helper.js",
@@ -726,7 +736,7 @@
     {
       "source": "src/plugin/hooks/pre-edit-tdd-reminder.sh",
       "target": "hooks/pre-edit-tdd-reminder.sh",
-      "sha256": "3b37e9738c3e31a0ee68e9e7f2bc1b176bd16a898a205fc11404e45636edfcea"
+      "sha256": "f6465d2af18c1523764437e7aad2e422163d89a2aa052da2763874741170edb4"
     },
     {
       "source": "src/plugin/hooks/pre-reviewer-capability-gate.sh",
@@ -741,7 +751,7 @@
     {
       "source": "src/plugin/hooks/pre-write-plugin-data-guard.sh",
       "target": "hooks/pre-write-plugin-data-guard.sh",
-      "sha256": "e58faa152c91ce4ae7380f78b5d17557cf02694a21bbffc62a96fc14f8e836aa"
+      "sha256": "20f2edc341f0ebae58b03dfb52b7b4b11b94c97568fcd55b3b8ce2a8699bf1e5"
     },
     {
       "source": "src/plugin/hooks/pre-write-secret-scan.sh",
@@ -826,7 +836,7 @@
     {
       "source": "src/plugin/hooks/user-prompt-tdd-reminder.sh",
       "target": "hooks/user-prompt-tdd-reminder.sh",
-      "sha256": "9e201d7da965ebf54595ec7391913d057574a86f7165598fa52c90d740b91adf"
+      "sha256": "0ac124a01f8a67ed83386b6d71abe5456d8ecb7895264bd1b2b089e9dd668731"
     },
     {
       "source": "src/plugin/hooks/user-prompt-zen-mode.sh",
@@ -841,12 +851,12 @@
     {
       "source": "src/plugin/plugin.json",
       "target": "plugin.json",
-      "sha256": "3ed71bf6eed16d74627170b13dc07d84f36ac1c0b3fdb1f5c0659aa80388b027"
+      "sha256": "8a6be89d7f800deb1e9c6f6ef6af331d2a1545309d7b961c3d0a1fe8cfb48df7"
     },
     {
       "source": "README.md",
       "target": "README.md",
-      "sha256": "3a614614a5cd8979f56c6a84ba592cba0e71ffdad0c801b45716f0a50d4b5562"
+      "sha256": "8d74820833fe2a0fe0d29e18c9cfc77832a612b5f6218ec7d3673ce05365d6c1"
     },
     {
       "source": "src/plugin/scripts/fixture-manifest.js",
@@ -1221,7 +1231,7 @@
     {
       "source": "src/plugin/skills/zensu-tdd/references/discipline.md",
       "target": "skills/zensu-tdd/references/discipline.md",
-      "sha256": "d8743cb9949551155b8e77522e1e0e52ec69e22d9f11de0e733c224e6be2258c"
+      "sha256": "f9baa90c06716f25f27928456cd92df0a11d5a9858db6e45bf73755a131263ed"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/execution.md",
@@ -1236,7 +1246,7 @@
     {
       "source": "src/plugin/skills/zensu-tdd/references/planning.md",
       "target": "skills/zensu-tdd/references/planning.md",
-      "sha256": "b98edadddc89ebf678259ca7f1611d302949f96f4198c4e048607eb4b590a08a"
+      "sha256": "80768aad2593c7808feb91cb842b876add65c9bae3619de839a8960a110238be"
     },
     {
       "source": "src/plugin/skills/zensu-tdd/references/review-chain.md",

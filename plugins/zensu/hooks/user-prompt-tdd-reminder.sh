@@ -23,7 +23,7 @@
 # Silent when: the tddReminder flag is off, the payload has no prompt, or a TDD
 # session is already active for this session (the Plan-mode/TDD flows own the
 # reminder there). The active-session check reuses the exact session resolution
-# from pre-edit-tdd-reminder.sh; any failure falls through to firing (fail-open
+# from hooks/lib/zensu-tdd-edit-gate.sh; any failure falls through to firing (fail-open
 # toward the reminder). Advisory steering only — it never blocks an edit.
 set -u
 

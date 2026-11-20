@@ -375,7 +375,10 @@ function validateSessionId(sessionId) {
 }
 
 function readPayload() {
-  const raw = fs.readFileSync(0);
+  return parseHookPayload(fs.readFileSync(0));
+}
+
+function parseHookPayload(raw) {
   if (raw.length === 0 || raw.length > MAX_PAYLOAD_BYTES) fail('hook payload is empty or too large');
   let payload;
   try {
@@ -866,7 +869,10 @@ function main() {
   // consumes ZENSU_SESSION_ADOPTED. Every interpolated value goes through the same
   // screens the user-facing renderers apply.
   const binding = bindAndDisclose(payload, process.env, { autoAdopt: process.argv[2] !== 'model-bind' });
+  process.stdout.write(bindingExports(binding));
+}
 
+function bindingExports(binding) {
   const values = {
     ZENSU_COPILOT_PLUGIN_ROOT: binding.pluginRoot,
     ZENSU_SESSION_KEY: binding.sessionKey,
@@ -877,9 +883,12 @@ function main() {
     // this invocation adopted nothing, `recorded -> executing` when it did.
     ZENSU_SESSION_ADOPTED: binding.adoption ? core.formatAdoptionPair(binding.adoption.recorded, binding.adoption.executing) : '',
   };
-  for (const [name, value] of Object.entries(values)) {
-    process.stdout.write(`export ${name}=${shellQuote(value)}\n`);
-  }
+  return Object.entries(values).map(([name, value]) => `export ${name}=${shellQuote(value)}\n`).join('');
+}
+
+function assertExportableBinding(binding) {
+  bindingExports(binding);
+  return binding;
 }
 
 if (require.main === module) {
@@ -905,6 +914,9 @@ module.exports = {
   // operator line the CLI mode uses, so an adoption performed outside the CLI is not
   // silent. The capability gate binds through resolveHookSession instead, because
   bindAndDisclose,
+  assertExportableBinding,
+  parseHookPayload,
+  validateBoundProject: core.validateBoundProject,
   writeAdoptionOperatorLine,
   performedAdoption,
   orphanedProjectRootSession,

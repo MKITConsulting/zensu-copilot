@@ -33,14 +33,14 @@
       {
         "type": "command",
         "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" preToolUse",
-        "timeoutSec": 60
+        "timeoutSec": 260
       }
     ],
     "postToolUse": [
       {
         "type": "command",
         "bash": "node \"${PLUGIN_ROOT}/hooks/native/dispatcher.js\" postToolUse",
-        "timeoutSec": 45
+        "timeoutSec": 260
       }
     ],
     "postToolUseFailure": [

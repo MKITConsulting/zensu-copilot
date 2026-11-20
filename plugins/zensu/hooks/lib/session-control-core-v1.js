@@ -1860,6 +1860,21 @@ function readContext(options) {
   });
 }
 
+function validateBoundProject({ projectRoot, contextFile, sessionKey: boundKey }) {
+  const key = sessionKey(boundKey);
+  if (key !== boundKey) throw new Error('bound session key is not canonical');
+  const file = path.resolve(contextFile);
+  if (path.basename(file) !== `${key}.json`) throw new Error('bound context record does not name the session key');
+  const stat = fs.lstatSync(file);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('bound context record is unsafe');
+  if (fs.realpathSync.native(file) !== file) throw new Error('bound context record is aliased');
+  const context = readContext({ recordsDir: path.dirname(file), sessionId: key });
+  const requested = path.resolve(projectRoot);
+  const canonical = fs.realpathSync.native(requested);
+  if (requested !== canonical || context.project_root !== canonical) throw new Error('bound project root does not match its context record');
+  return canonical;
+}
+
 // One of the two bind failures a caller may treat as "nothing left to enforce"
 // (the other is a session with no record at all, which never reaches this
 // reader): every part of the record validates exactly as readContext demands,
@@ -6169,6 +6184,7 @@ module.exports = {
   buildContext,
   registerContext,
   readContext,
+  validateBoundProject,
   readOrphanedProjectRootContext,
   readPrunedPluginRootContext,
   // Exported for the unit layer alone — no production caller requires it; all
