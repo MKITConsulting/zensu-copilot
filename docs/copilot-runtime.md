@@ -53,7 +53,12 @@ accepted. A policy error or whole-event timeout denies the operation; a failed
 stop gate preserves pending state. A stop check that runs out of time without a
 decision releases the stop with a stderr notice that no completion was proven,
 the rule of the shared stop checker, so a slow machine cannot hold a session in
-repeated stop continuations; a decision a check already reached stands. Copilot's
+repeated stop continuations; a decision a check already reached stands. A native
+capture of the released bytes with a scripted model, in the checkout's
+`validation/copilot-stop-deadline-2026-11-21/`, observed this with stop checks
+slowed past 35 s: 0.8.6 released the stop with that notice and Copilot made no
+further model request, while 0.8.5 blocked the same stop and Copilot asked the
+model again after each block. Copilot's
 bounded continuation budget cannot turn incomplete work into a completed chain.
 
 The tool-event deadlines grow with the work: 50 s for `preToolUse` and 35 s for
